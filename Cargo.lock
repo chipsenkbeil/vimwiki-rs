@@ -268,6 +268,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "derive_more"
+version = "0.99.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "298998b1cf6b5b2c8a7b023dfd45821825ce3ba8a8af55c921a0e734e4653f76"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "digest"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2200,6 +2211,7 @@ name = "vimwikid"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "derive_more",
  "juniper",
  "juniper_warp",
  "nom",

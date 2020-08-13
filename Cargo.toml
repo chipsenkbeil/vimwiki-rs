@@ -6,6 +6,7 @@ edition = "2018"
 
 [dependencies]
 clap = "3.0.0-beta.1"
+derive_more = { version = "0.99.0", default-features = false, features = ["display", "error", "from"]}
 nom = "5.1.2"
 notify = "5.0.0-pre.3"
 juniper = "0.14.2"
