@@ -102,38 +102,44 @@ impl From<InlineComponent> for InlineComponentContainer {
     }
 }
 
+impl From<&str> for InlineComponentContainer {
+    fn from(component: &str) -> Self {
+        Self::from(InlineComponent::from(component.to_string()))
+    }
+}
+
 impl From<String> for InlineComponentContainer {
     fn from(component: String) -> Self {
-        Self::from(component)
+        Self::from(InlineComponent::from(component))
     }
 }
 
 impl From<DecoratedText> for InlineComponentContainer {
     fn from(component: DecoratedText) -> Self {
-        Self::from(component)
+        Self::from(InlineComponent::from(component))
     }
 }
 
 impl From<Keyword> for InlineComponentContainer {
     fn from(component: Keyword) -> Self {
-        Self::from(component)
+        Self::from(InlineComponent::from(component))
     }
 }
 
 impl From<Link> for InlineComponentContainer {
     fn from(component: Link) -> Self {
-        Self::from(component)
+        Self::from(InlineComponent::from(component))
     }
 }
 
 impl From<TagSequence> for InlineComponentContainer {
     fn from(component: TagSequence) -> Self {
-        Self::from(component)
+        Self::from(InlineComponent::from(component))
     }
 }
 
 impl From<MathInline> for InlineComponentContainer {
     fn from(component: MathInline) -> Self {
-        Self::from(component)
+        Self::from(InlineComponent::from(component))
     }
 }

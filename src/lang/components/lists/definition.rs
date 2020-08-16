@@ -2,7 +2,7 @@ use super::InlineComponentContainer;
 use derive_more::From;
 use petgraph::{
     graph::{Graph, NodeIndex},
-    Directed,
+    Undirected,
 };
 use serde::{Deserialize, Serialize};
 
@@ -23,7 +23,7 @@ enum TermOrDefinition {
 /// Represents a list of terms and definitions
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct DefinitionList {
-    graph: Graph<TermOrDefinition, (), Directed>,
+    graph: Graph<TermOrDefinition, (), Undirected>,
 }
 
 impl DefinitionList {
@@ -66,7 +66,7 @@ impl DefinitionList {
     ) -> Vec<&Definition> {
         let g = &self.graph;
         self.find_term_index(into_term)
-            .map(|idx| {
+            .map(|(_, idx)| {
                 g.neighbors(idx)
                     .into_iter()
                     .flat_map(|idx| match &g[idx] {
@@ -85,7 +85,7 @@ impl DefinitionList {
     ) -> Vec<&Term> {
         let g = &self.graph;
         self.find_term_index(into_term)
-            .map(|idx| {
+            .map(|(term, idx)| {
                 g.neighbors(idx)
                     .into_iter()
                     .flat_map(|idx| match &g[idx] {
@@ -96,7 +96,10 @@ impl DefinitionList {
                         g.neighbors(idx)
                             .into_iter()
                             .flat_map(|idx| match &g[idx] {
-                                TermOrDefinition::Term(x) => Some(x),
+                                TermOrDefinition::Term(x) if x != &term => {
+                                    Some(x)
+                                }
+                                TermOrDefinition::Term(_) => None,
                                 TermOrDefinition::Definition(_) => None,
                             })
                             .collect::<Vec<&Term>>()
@@ -107,14 +110,19 @@ impl DefinitionList {
     }
 
     /// Finds the index for a term through brute force
-    fn find_term_index(&self, into_term: impl Into<Term>) -> Option<NodeIndex> {
+    fn find_term_index(
+        &self,
+        into_term: impl Into<Term>,
+    ) -> Option<(Term, NodeIndex)> {
         let term: Term = into_term.into();
         let g = &self.graph;
 
-        g.node_indices().find(|i| match &g[*i] {
-            TermOrDefinition::Term(x) => x == &term,
-            TermOrDefinition::Definition(_) => false,
-        })
+        g.node_indices()
+            .find(|i| match &g[*i] {
+                TermOrDefinition::Term(x) => x == &term,
+                TermOrDefinition::Definition(_) => false,
+            })
+            .map(|idx| (term, idx))
     }
 }
 
@@ -123,21 +131,20 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore]
     fn find_definitions_should_list_all_definitions_for_term() {
         let mut dl = DefinitionList::new();
 
         let t1 = dl.add_term("term1");
-        let d0 = dl.add_definition("def text".to_string());
-        let d1 = dl.add_definition("def1".to_string());
+        let d0 = dl.add_definition("def text");
+        let d1 = dl.add_definition("def1");
         dl.connect_term_to_definition(t1, d0);
         dl.connect_term_to_definition(t1, d1);
 
         let t2 = dl.add_term("term2");
-        let d2 = dl.add_definition("def2".to_string());
+        let d2 = dl.add_definition("def2");
         dl.connect_term_to_definition(t2, d2);
 
-        let t3 = dl.add_term("term3".to_string());
+        dl.add_term("term3");
 
         // Test looking for defs of term with multiple defs
         let defs = dl.find_definitions("term1");
@@ -157,7 +164,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn find_alternative_terms_should_list_all_terms_with_same_definitions() {
         let mut dl = DefinitionList::new();
 
@@ -166,10 +172,10 @@ mod tests {
         let t2 = dl.add_term("term2");
         let t3 = dl.add_term("term3");
         let t4 = dl.add_term("term4");
-        let t5 = dl.add_term("term5");
+        dl.add_term("term5");
 
-        let d0 = dl.add_definition("def0".to_string());
-        let d1 = dl.add_definition("def1".to_string());
+        let d0 = dl.add_definition("def0");
+        let d1 = dl.add_definition("def1");
 
         dl.connect_term_to_definition(t0, d0);
         dl.connect_term_to_definition(t1, d0);
@@ -180,11 +186,13 @@ mod tests {
 
         // Test looking for alternate terms for term that has multiple
         let terms = dl.find_alternative_terms("term1");
+        assert_eq!(terms.len(), 2);
         assert!(terms.contains(&(&"term0".to_string())));
         assert!(terms.contains(&(&"term2".to_string())));
 
         // Test looking for alternate terms for term that has one
         let terms = dl.find_alternative_terms("term3");
+        assert_eq!(terms.len(), 1);
         assert_eq!(terms, vec!["term4"]);
 
         // Test looking for alternate terms for term that has no alternatives

@@ -3,6 +3,8 @@ use derive_more::From;
 use serde::{Deserialize, Serialize};
 
 mod definition;
+pub use definition::{Definition, DefinitionList, Term};
+
 // mod ordered;
 // mod unordered;
 
