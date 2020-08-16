@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 /// Represents the scheme associated with the external link
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum ExternalLinkScheme {
     Local,
     File,
@@ -12,7 +12,9 @@ pub enum ExternalLinkScheme {
 }
 
 /// Represents an external link to some file or directory on the host system
-#[derive(Constructor, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
+)]
 pub struct ExternalLink {
     scheme: ExternalLinkScheme,
     path: PathBuf,

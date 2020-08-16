@@ -5,7 +5,9 @@ use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
 /// Represents a link to an entry in the diary wiki
-#[derive(Constructor, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
+)]
 pub struct DiaryLink {
     date: NaiveDate,
     description: Option<String>,

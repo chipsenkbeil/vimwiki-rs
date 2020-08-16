@@ -1,7 +1,7 @@
 use derive_more::{Constructor, From};
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, From, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, From, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum Header {
     Header1(Header1),
     Header2(Header2),
@@ -11,7 +11,9 @@ pub enum Header {
     Header6(Header6),
 }
 
-#[derive(Constructor, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
+)]
 pub struct Header1 {
     text: String,
 }
@@ -22,7 +24,9 @@ impl From<&str> for Header1 {
     }
 }
 
-#[derive(Constructor, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
+)]
 pub struct Header2 {
     text: String,
 }
@@ -33,7 +37,9 @@ impl From<&str> for Header2 {
     }
 }
 
-#[derive(Constructor, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
+)]
 pub struct Header3 {
     text: String,
 }
@@ -44,7 +50,9 @@ impl From<&str> for Header3 {
     }
 }
 
-#[derive(Constructor, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
+)]
 pub struct Header4 {
     text: String,
 }
@@ -55,7 +63,9 @@ impl From<&str> for Header4 {
     }
 }
 
-#[derive(Constructor, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
+)]
 pub struct Header5 {
     text: String,
 }
@@ -66,7 +76,9 @@ impl From<&str> for Header5 {
     }
 }
 
-#[derive(Constructor, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
+)]
 pub struct Header6 {
     text: String,
 }

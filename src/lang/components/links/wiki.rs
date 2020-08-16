@@ -5,7 +5,15 @@ use std::path::PathBuf;
 
 /// Represents a link to a file or directory in the active wiki
 #[derive(
-    Constructor, Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize,
+    Constructor,
+    Clone,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    Hash,
+    Serialize,
+    Deserialize,
 )]
 pub struct WikiLink {
     path: PathBuf,

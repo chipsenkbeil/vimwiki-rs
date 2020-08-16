@@ -7,8 +7,12 @@ pub enum Comment {
     MultiLine(MultiLineComment),
 }
 
-#[derive(Constructor, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
+)]
 pub struct LineComment(String);
 
-#[derive(Constructor, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
+)]
 pub struct MultiLineComment(Vec<String>);

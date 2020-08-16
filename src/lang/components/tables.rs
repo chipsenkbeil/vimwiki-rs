@@ -1,8 +1,10 @@
-use super::InlineComponent;
+use super::InlineComponentContainer;
 use derive_more::{Constructor, From};
 use serde::{Deserialize, Serialize};
 
-#[derive(Constructor, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
+)]
 pub struct Table {
     rows: Vec<Row>,
     centered: bool,
@@ -14,7 +16,7 @@ impl Table {
     }
 }
 
-#[derive(Clone, Debug, From, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, From, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum Row {
     /// Represents a row containing content
     Content { cells: Vec<Cell> },
@@ -23,14 +25,16 @@ pub enum Row {
     Divider,
 }
 
-#[derive(Constructor, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
+)]
 pub struct Cell {
-    content: Vec<InlineComponent>,
+    content: InlineComponentContainer,
     span: CellSpan,
 }
 
 /// Represents cell spanning relative to another cell
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum CellSpan {
     None,
     Left,

@@ -5,7 +5,7 @@ use derive_more::{Display, Error};
 pub mod vimwiki;
 
 #[derive(Clone, Debug, Eq, PartialEq, Display, Error)]
-pub enum ParserError<'a> {
+pub enum LangParserError<'a> {
     #[display(fmt = "Failure {:?} :: {}", error_kind, remaining)]
     Failure {
         remaining: &'a str,

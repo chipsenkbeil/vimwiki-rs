@@ -5,112 +5,163 @@ use nom::{
     branch::alt,
     bytes::complete::{is_not, tag},
     combinator::map,
+    error::ParseError,
+    multi::fold_many0,
     sequence::delimited,
     IResult,
 };
 
-pub fn header(input: &str) -> IResult<&str, Header> {
+const HEADER1_START: &'static str = "= ";
+const HEADER1_END: &'static str = " =";
+const HEADER2_START: &'static str = "== ";
+const HEADER2_END: &'static str = " ==";
+const HEADER3_START: &'static str = "=== ";
+const HEADER3_END: &'static str = " ===";
+const HEADER4_START: &'static str = "==== ";
+const HEADER4_END: &'static str = " ====";
+const HEADER5_START: &'static str = "===== ";
+const HEADER5_END: &'static str = " =====";
+const HEADER6_START: &'static str = "====== ";
+const HEADER6_END: &'static str = " ======";
+
+pub fn header<'a, E: ParseError<&'a str>>(
+    input: &'a str,
+) -> IResult<&'a str, Header, E> {
     alt((
-        map(header1, From::from),
-        map(header2, From::from),
-        map(header3, From::from),
-        map(header4, From::from),
-        map(header5, From::from),
-        map(header6, From::from),
+        map(
+            make_header_parser(HEADER1_START, HEADER1_END, Header1::new),
+            From::from,
+        ),
+        map(
+            make_header_parser(HEADER2_START, HEADER2_END, Header2::new),
+            From::from,
+        ),
+        map(
+            make_header_parser(HEADER3_START, HEADER3_END, Header3::new),
+            From::from,
+        ),
+        map(
+            make_header_parser(HEADER4_START, HEADER4_END, Header4::new),
+            From::from,
+        ),
+        map(
+            make_header_parser(HEADER5_START, HEADER5_END, Header5::new),
+            From::from,
+        ),
+        map(
+            make_header_parser(HEADER6_START, HEADER6_END, Header6::new),
+            From::from,
+        ),
     ))(input)
 }
 
-fn header1(input: &str) -> IResult<&str, Header1> {
+fn make_header_parser<'a, T, E: ParseError<&'a str>>(
+    start: &'static str,
+    end: &'static str,
+    f: impl Fn(String) -> T,
+) -> impl Fn(&'a str) -> IResult<&'a str, T, E> {
     map(
-        delimited(tag("= "), is_not(" ="), tag(" =")),
-        |text: &str| Header1::new(text.to_string()),
-    )(input)
-}
-
-fn header2(input: &str) -> IResult<&str, Header2> {
-    map(
-        delimited(tag("== "), is_not(" =="), tag(" ==")),
-        |text: &str| Header2::new(text.to_string()),
-    )(input)
-}
-
-fn header3(input: &str) -> IResult<&str, Header3> {
-    map(
-        delimited(tag("=== "), is_not(" ==="), tag(" ===")),
-        |text: &str| Header3::new(text.to_string()),
-    )(input)
-}
-
-fn header4(input: &str) -> IResult<&str, Header4> {
-    map(
-        delimited(tag("==== "), is_not(" ===="), tag(" ====")),
-        |text: &str| Header4::new(text.to_string()),
-    )(input)
-}
-
-fn header5(input: &str) -> IResult<&str, Header5> {
-    map(
-        delimited(tag("===== "), is_not(" ====="), tag(" =====")),
-        |text: &str| Header5::new(text.to_string()),
-    )(input)
-}
-
-fn header6(input: &str) -> IResult<&str, Header6> {
-    map(
-        delimited(tag("====== "), is_not(" ======"), tag(" ======")),
-        |text: &str| Header6::new(text.to_string()),
-    )(input)
+        delimited(
+            tag(start),
+            fold_many0(is_not(end), String::new(), |mut s, item| {
+                s.push_str(item);
+                s
+            }),
+            tag(end),
+        ),
+        f,
+    )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use nom::{
+        error::{convert_error, VerboseError},
+        Err,
+    };
 
     #[test]
     fn header_should_parse_level_1_header() {
-        assert_eq!(
-            header("= test header ="),
-            Ok(("", Header::Header1("test header".into())))
-        )
+        let input = "= test header =";
+        match header::<VerboseError<&str>>(input) {
+            Err(Err::Error(e)) | Err(Err::Failure(e)) => {
+                panic!("{}", convert_error(input, e))
+            }
+            Err(Err::Incomplete(needed)) => panic!("Incomplete: {:?}", needed),
+            Ok(result) => {
+                assert_eq!(result, ("", Header::Header1("test header".into())));
+            }
+        }
     }
 
     #[test]
     fn header_should_parse_level_2_header() {
-        assert_eq!(
-            header("== test header =="),
-            Ok(("", Header::Header2("test header".into())))
-        )
+        let input = "== test header ==";
+        match header::<VerboseError<&str>>(input) {
+            Err(Err::Error(e)) | Err(Err::Failure(e)) => {
+                panic!("{}", convert_error(input, e))
+            }
+            Err(Err::Incomplete(needed)) => panic!("Incomplete: {:?}", needed),
+            Ok(result) => {
+                assert_eq!(result, ("", Header::Header2("test header".into())));
+            }
+        }
     }
 
     #[test]
     fn header_should_parse_level_3_header() {
-        assert_eq!(
-            header("=== test header ==="),
-            Ok(("", Header::Header3("test header".into())))
-        )
+        let input = "=== test header ===";
+        match header::<VerboseError<&str>>(input) {
+            Err(Err::Error(e)) | Err(Err::Failure(e)) => {
+                panic!("{}", convert_error(input, e))
+            }
+            Err(Err::Incomplete(needed)) => panic!("Incomplete: {:?}", needed),
+            Ok(result) => {
+                assert_eq!(result, ("", Header::Header3("test header".into())));
+            }
+        }
     }
 
     #[test]
     fn header_should_parse_level_4_header() {
-        assert_eq!(
-            header("==== test header ===="),
-            Ok(("", Header::Header4("test header".into())))
-        )
+        let input = "==== test header ====";
+        match header::<VerboseError<&str>>(input) {
+            Err(Err::Error(e)) | Err(Err::Failure(e)) => {
+                panic!("{}", convert_error(input, e))
+            }
+            Err(Err::Incomplete(needed)) => panic!("Incomplete: {:?}", needed),
+            Ok(result) => {
+                assert_eq!(result, ("", Header::Header4("test header".into())));
+            }
+        }
     }
 
     #[test]
     fn header_should_parse_level_5_header() {
-        assert_eq!(
-            header("===== test header ====="),
-            Ok(("", Header::Header5("test header".into())))
-        )
+        let input = "===== test header =====";
+        match header::<VerboseError<&str>>(input) {
+            Err(Err::Error(e)) | Err(Err::Failure(e)) => {
+                panic!("{}", convert_error(input, e))
+            }
+            Err(Err::Incomplete(needed)) => panic!("Incomplete: {:?}", needed),
+            Ok(result) => {
+                assert_eq!(result, ("", Header::Header5("test header".into())));
+            }
+        }
     }
 
     #[test]
     fn header_should_parse_level_6_header() {
-        assert_eq!(
-            header("====== test header ======"),
-            Ok(("", Header::Header6("test header".into())))
-        )
+        let input = "====== test header ======";
+        match header::<VerboseError<&str>>(input) {
+            Err(Err::Error(e)) | Err(Err::Failure(e)) => {
+                panic!("{}", convert_error(input, e))
+            }
+            Err(Err::Incomplete(needed)) => panic!("Incomplete: {:?}", needed),
+            Ok(result) => {
+                assert_eq!(result, ("", Header::Header6("test header".into())));
+            }
+        }
     }
 }

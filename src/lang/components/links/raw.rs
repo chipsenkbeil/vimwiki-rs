@@ -4,7 +4,9 @@ use std::convert::TryFrom;
 use url::Url;
 
 /// Represents a raw link in the form of http[s]://example.com
-#[derive(Constructor, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
+)]
 pub struct RawLink {
     url: Url,
 }

@@ -31,7 +31,7 @@ pub trait WithAnchor {
     fn anchor(&self) -> Option<&str>;
 }
 
-#[derive(Clone, Debug, From, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, From, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum Link {
     Wiki(WikiLink),
     InterWiki(InterWikiLink),

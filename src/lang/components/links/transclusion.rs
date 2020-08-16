@@ -5,7 +5,9 @@ use std::convert::TryFrom;
 use url::Url;
 
 /// Represents a link that is used as a "Wiki Include" to pull in resources
-#[derive(Constructor, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
+)]
 pub struct TransclusionLink {
     url: Url,
     description: Option<String>,

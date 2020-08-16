@@ -1,10 +1,10 @@
-use super::InlineComponent;
+use super::InlineComponentContainer;
 use derive_more::From;
 use serde::{Deserialize, Serialize};
 
 mod definition;
-mod ordered;
-mod unordered;
+// mod ordered;
+// mod unordered;
 
 // TODO: How to configure this? have ListItem struct that can have a prefix
 //       for ordered and unordered? Provide special increment/decrement
