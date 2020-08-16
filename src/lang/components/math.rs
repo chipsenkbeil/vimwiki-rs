@@ -4,8 +4,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, From, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Math {
     Inline(MathInline),
-    BlockDisplay(MathBlockDisplay),
-    BlockEnvironment(MathBlockEnvironment),
+    Block(MathBlock),
 }
 
 #[derive(Constructor, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -14,12 +13,7 @@ pub struct MathInline {
 }
 
 #[derive(Constructor, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct MathBlockDisplay {
+pub struct MathBlock {
     lines: Vec<String>,
-}
-
-#[derive(Constructor, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct MathBlockEnvironment {
-    environment: String,
-    lines: Vec<String>,
+    environment: Option<String>,
 }

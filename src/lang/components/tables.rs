@@ -1,10 +1,17 @@
+use super::InlineComponent;
 use derive_more::{Constructor, From};
 use serde::{Deserialize, Serialize};
 
 #[derive(Constructor, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Table {
     rows: Vec<Row>,
-    isCentered: bool,
+    centered: bool,
+}
+
+impl Table {
+    pub fn is_centered(&self) -> bool {
+        self.centered
+    }
 }
 
 #[derive(Clone, Debug, From, Eq, PartialEq, Serialize, Deserialize)]
@@ -18,8 +25,7 @@ pub enum Row {
 
 #[derive(Constructor, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Cell {
-    // TODO: This can support inline wiki syntax such as typeface, links
-    content: String,
+    content: Vec<InlineComponent>,
     span: CellSpan,
 }
 

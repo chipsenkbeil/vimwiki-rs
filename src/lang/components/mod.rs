@@ -59,9 +59,7 @@ pub enum InlineComponent {
     Keyword(Keyword),
     Link(Link),
     TagSequence(TagSequence),
-
-    // TODO: This will only be inline math
-    Math(Math),
+    Math(MathInline),
 }
 
 /// Represents components that are standalone (metaphorically a block element in CSS)
@@ -72,10 +70,7 @@ pub enum BlockComponent {
     List(List),
     Table(Table),
     PreformattedText(PreformattedText),
-
-    // TODO: This will only be displayblock and displayelement
-    Math(Math),
-
+    Math(MathBlock),
     Blockquote(Blockquote),
     Divider(Divider),
     TagSequence(TagSequence),
