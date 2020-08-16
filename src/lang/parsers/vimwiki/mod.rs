@@ -1,5 +1,7 @@
-// Imported for easier access by submodules
-use super::components::{self, BlockComponent, InlineComponent, Page};
+use super::{
+    components::{self, BlockComponent, InlineComponent, Page},
+    ParserError,
+};
 use nom::{
     branch::alt,
     combinator::{all_consuming, map},
@@ -10,8 +12,23 @@ use nom::{
 mod headers;
 
 /// Parses str slice into a wiki page
-pub fn parse_str(input: &str) -> IResult<&str, Page> {
-    page(input)
+pub fn parse_str(input: &str) -> Result<Page, ParserError> {
+    Ok(page(input)
+        .map_err(|x| match x {
+            nom::Err::Error(x) => ParserError::Error {
+                remaining: x.0,
+                error_kind: x.1,
+            },
+            nom::Err::Failure(x) => ParserError::Failure {
+                remaining: x.0,
+                error_kind: x.1,
+            },
+            nom::Err::Incomplete(x) => match x {
+                nom::Needed::Unknown => ParserError::IncompleteUnknown,
+                nom::Needed::Size(size) => ParserError::Incomplete { size },
+            },
+        })?
+        .1)
 }
 
 /// Parses entire vimwiki page
