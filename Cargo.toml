@@ -4,6 +4,14 @@ version = "0.1.0"
 authors = ["Chip Senkbeil <chip@senkbeil.org>"]
 edition = "2018"
 
+[lib]
+name = "vimwikid"
+path = "src/lib.rs"
+
+[[bin]]
+name = "vimwikid"
+path = "src/main.rs"
+
 [dependencies]
 chrono = { version = "0.4.15", features = ["serde"] }
 clap = "3.0.0-beta.1"

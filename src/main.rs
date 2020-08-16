@@ -1,6 +1,8 @@
-mod lang;
+use vimwikid::parse_vimwiki_str;
 
 #[tokio::main]
 async fn main() {
-    println!("Hello, world!");
+    let input = "= Some Header =";
+
+    println!("{:?}", parse_vimwiki_str(input));
 }

@@ -1,4 +1,4 @@
-.PHONY: help test
+.PHONY: help build release clean install uninstall test
 
 help: ## Display help information
 	@printf 'usage: make [target] ...\n\ntargets:\n'
@@ -10,6 +10,9 @@ build: ## Build debug version
 release: ## Build release version and strip the binary
 	@cargo build --release
 	@strip target/release/vimwikid
+
+clean: ## Cleans build resources
+	@cargo clean
 
 install: ## Install release version locally (does not strip)
 	@cargo install --path .

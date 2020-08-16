@@ -11,6 +11,7 @@ use nom::{
     IResult,
 };
 
+/// Parses a vimwiki header, returning the associated header if successful
 pub fn header<'a, E: ParseError<&'a str>>(
     input: &'a str,
 ) -> IResult<&'a str, Header, E> {

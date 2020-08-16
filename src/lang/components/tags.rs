@@ -5,11 +5,11 @@ use serde::{Deserialize, Serialize};
 ///
 /// In vimwiki, :my-tag: would become
 ///
-///     TagSequence([ Tag(my-tag) ])
+/// TagSequence([ Tag(my-tag) ])
 ///
 /// Similarly, :my-tag-1:my-tag-2: would become
 ///
-///     TagSequence([ Tag(my-tag-1), Tag(my-tag-2) ])
+/// TagSequence([ Tag(my-tag-1), Tag(my-tag-2) ])
 ///
 #[derive(Clone, Debug, From, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct TagSequence(Vec<Tag>);
