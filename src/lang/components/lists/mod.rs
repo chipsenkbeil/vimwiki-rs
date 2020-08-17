@@ -22,5 +22,5 @@ pub enum List {
     //       inline text without sublists as lines
     Unordered(),
     Ordered(),
-    Definition(),
+    Definition(DefinitionList),
 }

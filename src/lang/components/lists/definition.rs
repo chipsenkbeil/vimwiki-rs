@@ -14,7 +14,7 @@ pub type Term = String;
 /// A definition can be associated with one or more terms
 pub type Definition = InlineComponentContainer;
 
-#[derive(Clone, Debug, From, Serialize, Deserialize)]
+#[derive(Clone, Debug, From, Eq, PartialEq, Serialize, Deserialize)]
 enum TermOrDefinition {
     Term(Term),
     Definition(Definition),
@@ -123,6 +123,30 @@ impl DefinitionList {
                 TermOrDefinition::Definition(_) => false,
             })
             .map(|idx| (term, idx))
+    }
+}
+
+impl Eq for DefinitionList {}
+
+impl PartialEq for DefinitionList {
+    /// Compares two definition lists, ensuring that their terms and
+    /// definitions are equal as well as the Term <-> Definition associations
+    fn eq(&self, other: &Self) -> bool {
+        // Implementation from Github comment:
+        // https://github.com/petgraph/petgraph/issues/199#issuecomment-484077775
+        let s_ns = self.graph.raw_nodes().iter().map(|n| &n.weight);
+        let o_ns = other.graph.raw_nodes().iter().map(|n| &n.weight);
+        let s_es = self
+            .graph
+            .raw_edges()
+            .iter()
+            .map(|e| (e.source(), e.target(), &e.weight));
+        let o_es = other
+            .graph
+            .raw_edges()
+            .iter()
+            .map(|e| (e.source(), e.target(), &e.weight));
+        s_ns.eq(o_ns) && s_es.eq(o_es)
     }
 }
 
