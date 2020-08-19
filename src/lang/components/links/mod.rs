@@ -1,5 +1,6 @@
 use derive_more::From;
 use serde::{Deserialize, Serialize};
+use url::Url;
 
 mod diary;
 pub use diary::DiaryLink;
@@ -44,6 +45,12 @@ pub use wiki::WikiLink;
 // [[url#a1#a2]]                -> <a href="url.html#a1-a2">url#a1#a2</a>
 // [[#a1#a2]]                   -> <a href="#a1-a2">#a1#a2</a>
 //
+
+/// Represents a description for a link (does not apply to transclusion?)
+pub enum Description {
+    Text(String),
+    URL(Url),
+}
 
 /// Represents support for a description
 pub trait WithDescription {

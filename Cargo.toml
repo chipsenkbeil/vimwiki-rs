@@ -1,30 +1,36 @@
 [package]
-name = "vimwikid"
+name = "vimwiki-server"
 version = "0.1.0"
 authors = ["Chip Senkbeil <chip@senkbeil.org>"]
 edition = "2018"
 
 [lib]
-name = "vimwikid"
+name = "vimwiki"
 path = "src/lib.rs"
 
 [[bin]]
-name = "vimwikid"
+name = "vimwiki-server"
 path = "src/main.rs"
+
+[features]
+default = ["cli", "watch", "web"]
+cli = ["clap"]
+watch = ["notify"]
+web = ["juniper_warp", "warp"]
 
 [dependencies]
 chrono = { version = "0.4.15", features = ["serde"] }
-clap = "3.0.0-beta.1"
+clap = { version = "3.0.0-beta.1", optional = true }
 nom = "5.1.2"
-notify = "5.0.0-pre.3"
+nom_locate = "2.0.0"
+notify = { version = "5.0.0-pre.3", optional = true }
 juniper = "0.14.2"
-juniper_warp = "0.5.2"
-petgraph = { version = "0.5.1", default-features = false, features = ["serde-1"] }
+juniper_warp = { version = "0.5.2", optional = true }
+rstar = { version = "0.8.2", features = ["serde"] }
 serde = { version = "1.0.115", features = ["derive"] }
 serde_json = "1.0.57"
-tokio = { version = "0.2.22", features = ["rt-core", "time", "io-std", "io-util", "macros"] }
 url = { version = "2.1.1", features = ["serde"] }
-warp = "0.2.4"
+warp = { version = "0.2.4", optional = true }
 
 [dependencies.derive_more]
 version = "0.99.0"
@@ -41,3 +47,12 @@ features = [
     "into",
     "into_iterator"
 ]
+
+[dependencies.petgraph]
+version = "0.5.1"
+default-features = false
+features = ["serde-1"]
+
+[dependencies.tokio]
+version = "0.2.22"
+features = ["rt-core", "time", "io-std", "io-util", "macros"]

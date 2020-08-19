@@ -1,4 +1,4 @@
-use vimwikid::parse_vimwiki_str;
+use vimwiki::parse_vimwiki_str;
 
 #[tokio::main]
 async fn main() {
