@@ -24,6 +24,7 @@ clap = { version = "3.0.0-beta.1", optional = true }
 nom = "5.1.2"
 nom_locate = "2.0.0"
 notify = { version = "5.0.0-pre.3", optional = true }
+numerals = "0.1.4"
 juniper = "0.14.2"
 juniper_warp = { version = "0.5.2", optional = true }
 rstar = { version = "0.8.2", features = ["serde"] }
