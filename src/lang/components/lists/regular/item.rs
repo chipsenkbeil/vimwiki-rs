@@ -143,16 +143,15 @@ impl RegularListItem {
         let mut base = match self {
             Self::Hyphen { .. } => String::from("-"),
             Self::Asterisk { .. } => String::from("*"),
-            Self::Number { pos, .. } => pos.to_string(),
-            Self::LowercaseAlphabet { pos, .. } => {
-                pos_to_alphabet(*pos + 1, true)
-            }
-            Self::UppercaseAlphabet { pos, .. } => {
-                pos_to_alphabet(*pos + 1, false)
-            }
+            // NOTE: Numbers start at 1, not 0, so use base 1
+            Self::Number { pos, .. } => (pos + 1).to_string(),
+            Self::LowercaseAlphabet { pos, .. } => pos_to_alphabet(*pos, true),
+            Self::UppercaseAlphabet { pos, .. } => pos_to_alphabet(*pos, false),
+            // NOTE: Roman numerals start at 1, not 0, so use base 1
             Self::LowercaseRoman { pos, .. } => {
                 format!("{:x}", Roman::from((pos + 1) as i16))
             }
+            // NOTE: Roman numerals start at 1, not 0, so use base 1
             Self::UppercaseRoman { pos, .. } => {
                 format!("{:X}", Roman::from((pos + 1) as i16))
             }
@@ -174,106 +173,423 @@ fn pos_to_alphabet(pos: usize, to_lower: bool) -> String {
     let mut i = pos as u32;
     let base = if to_lower { 97 } else { 65 };
 
+    // Work our way backwards, starting with the last character and moving left
     loop {
-        if let Some(c) = std::char::from_u32(base + (i % 26)) {
+        // Get closest character offset
+        let offset = i % 26;
+        if let Some(c) = std::char::from_u32(base + offset) {
             s.push(c);
         }
 
-        if i >= 26 {
-            i %= 26;
+        // Remove closest character from position
+        i -= offset;
+
+        // If we have more to process, shift left one
+        if i > 0 {
+            i = (i / 26) - 1;
         } else {
             break;
         }
     }
 
-    s
+    s.chars().rev().collect()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    macro_rules! unordered_item {
+        ($type:ident) => {
+            RegularListItem::$type {
+                pos: 999,
+                contents: vec![RegularListItemContent::InlineContent(
+                    "test".into(),
+                )],
+            }
+        };
+    }
+
+    macro_rules! ordered_item {
+        ($type:ident, $suffix:ident, $pos:expr) => {
+            RegularListItem::$type {
+                pos: $pos,
+                suffix: RegularListItemSuffix::$suffix,
+                contents: vec![RegularListItemContent::InlineContent(
+                    "test".into(),
+                )],
+            }
+        };
+        ($type:ident, $suffix:ident) => {
+            RegularListItem::$type {
+                pos: 999,
+                suffix: RegularListItemSuffix::$suffix,
+                contents: vec![RegularListItemContent::InlineContent(
+                    "test".into(),
+                )],
+            }
+        };
+        ($type:ident) => {
+            RegularListItem::$type {
+                pos: 999,
+                suffix: RegularListItemSuffix::Period,
+                contents: vec![RegularListItemContent::InlineContent(
+                    "test".into(),
+                )],
+            }
+        };
+    }
+
+    macro_rules! other_item {
+        ($value:expr, $pos:expr) => {
+            RegularListItem::Other {
+                pos: $pos,
+                value: String::from($value),
+                contents: vec![RegularListItemContent::InlineContent(
+                    "test".into(),
+                )],
+            }
+        };
+        ($value:expr) => {
+            RegularListItem::Other {
+                pos: 999,
+                value: String::from($value),
+                contents: vec![RegularListItemContent::InlineContent(
+                    "test".into(),
+                )],
+            }
+        };
+        () => {
+            RegularListItem::Other {
+                pos: 999,
+                value: String::new(),
+                contents: vec![RegularListItemContent::InlineContent(
+                    "test".into(),
+                )],
+            }
+        };
+    }
+
     #[test]
     fn is_ordered_should_return_true_if_ordered_prefix() {
-        panic!("TODO: Implement");
+        assert!(
+            ordered_item!(Number).is_ordered(),
+            "Number should be ordered"
+        );
+
+        assert!(
+            ordered_item!(LowercaseAlphabet).is_ordered(),
+            "Lowercase alphabet should be ordered"
+        );
+
+        assert!(
+            ordered_item!(UppercaseAlphabet).is_ordered(),
+            "Uppercase alphabet should be ordered"
+        );
+
+        assert!(
+            ordered_item!(LowercaseRoman).is_ordered(),
+            "Lowercase roman numerals should be ordered"
+        );
+
+        assert!(
+            ordered_item!(UppercaseRoman).is_ordered(),
+            "Uppercase roman numerals should be ordered"
+        );
     }
 
     #[test]
     fn is_ordered_should_return_false_if_unordered_prefix() {
-        panic!("TODO: Implement");
+        assert!(
+            !unordered_item!(Hyphen).is_ordered(),
+            "Hyphen should not be ordered"
+        );
+
+        assert!(
+            !unordered_item!(Asterisk).is_ordered(),
+            "Asterisk should not be ordered"
+        );
+
+        assert!(!other_item!().is_ordered(), "Other should not be ordered");
     }
 
     #[test]
     fn is_unordered_should_return_true_if_unordered_prefix() {
-        panic!("TODO: Implement");
+        assert!(
+            unordered_item!(Hyphen).is_unordered(),
+            "Hyphen should be unordered"
+        );
+
+        assert!(
+            unordered_item!(Asterisk).is_unordered(),
+            "Asterisk should be unordered"
+        );
+
+        assert!(other_item!().is_unordered(), "Other should be unordered");
     }
 
     #[test]
     fn is_unordered_should_return_false_if_ordered_prefix() {
-        panic!("TODO: Implement");
+        assert!(
+            !ordered_item!(Number).is_unordered(),
+            "Number should not be unordered"
+        );
+
+        assert!(
+            !ordered_item!(LowercaseAlphabet).is_unordered(),
+            "Lowercase alphabet should not be unordered"
+        );
+
+        assert!(
+            !ordered_item!(UppercaseAlphabet).is_unordered(),
+            "Uppercase alphabet should not be unordered"
+        );
+
+        assert!(
+            !ordered_item!(LowercaseRoman).is_unordered(),
+            "Lowercase roman numerals should not be unordered"
+        );
+
+        assert!(
+            !ordered_item!(UppercaseRoman).is_unordered(),
+            "Uppercase roman numerals should not be unordered"
+        );
     }
 
     #[test]
     fn pos_should_return_internal_position() {
-        panic!("TODO: Implement");
+        assert_eq!(unordered_item!(Hyphen).pos(), 999);
+        assert_eq!(unordered_item!(Asterisk).pos(), 999);
+        assert_eq!(ordered_item!(Number).pos(), 999);
+        assert_eq!(ordered_item!(LowercaseAlphabet).pos(), 999);
+        assert_eq!(ordered_item!(UppercaseAlphabet).pos(), 999);
+        assert_eq!(ordered_item!(LowercaseRoman).pos(), 999);
+        assert_eq!(ordered_item!(UppercaseRoman).pos(), 999);
+        assert_eq!(other_item!().pos(), 999);
     }
 
     #[test]
     fn contents_should_return_internal_contents() {
-        panic!("TODO: Implement");
+        assert_eq!(
+            unordered_item!(Hyphen).contents(),
+            &[RegularListItemContent::InlineContent("test".into())],
+        );
+
+        assert_eq!(
+            unordered_item!(Asterisk).contents(),
+            &[RegularListItemContent::InlineContent("test".into())],
+        );
+
+        assert_eq!(
+            ordered_item!(Number).contents(),
+            &[RegularListItemContent::InlineContent("test".into())],
+        );
+
+        assert_eq!(
+            ordered_item!(LowercaseAlphabet).contents(),
+            &[RegularListItemContent::InlineContent("test".into())],
+        );
+
+        assert_eq!(
+            ordered_item!(UppercaseAlphabet).contents(),
+            &[RegularListItemContent::InlineContent("test".into())],
+        );
+
+        assert_eq!(
+            ordered_item!(LowercaseRoman).contents(),
+            &[RegularListItemContent::InlineContent("test".into())],
+        );
+
+        assert_eq!(
+            ordered_item!(UppercaseRoman).contents(),
+            &[RegularListItemContent::InlineContent("test".into())],
+        );
+
+        assert_eq!(
+            other_item!().contents(),
+            &[RegularListItemContent::InlineContent("test".into())],
+        );
     }
 
     #[test]
     fn suffix_should_return_some_suffix_if_applicable() {
-        panic!("TODO: Implement");
+        assert_eq!(
+            ordered_item!(Number, Period).suffix(),
+            Some(RegularListItemSuffix::Period),
+        );
+        assert_eq!(
+            ordered_item!(Number, Paren).suffix(),
+            Some(RegularListItemSuffix::Paren),
+        );
+        assert_eq!(
+            ordered_item!(LowercaseAlphabet, Period).suffix(),
+            Some(RegularListItemSuffix::Period),
+        );
+        assert_eq!(
+            ordered_item!(LowercaseAlphabet, Paren).suffix(),
+            Some(RegularListItemSuffix::Paren),
+        );
+        assert_eq!(
+            ordered_item!(UppercaseAlphabet, Period).suffix(),
+            Some(RegularListItemSuffix::Period),
+        );
+        assert_eq!(
+            ordered_item!(UppercaseAlphabet, Paren).suffix(),
+            Some(RegularListItemSuffix::Paren),
+        );
+        assert_eq!(
+            ordered_item!(LowercaseRoman, Period).suffix(),
+            Some(RegularListItemSuffix::Period),
+        );
+        assert_eq!(
+            ordered_item!(LowercaseRoman, Paren).suffix(),
+            Some(RegularListItemSuffix::Paren),
+        );
+        assert_eq!(
+            ordered_item!(UppercaseRoman, Period).suffix(),
+            Some(RegularListItemSuffix::Period),
+        );
+        assert_eq!(
+            ordered_item!(UppercaseRoman, Paren).suffix(),
+            Some(RegularListItemSuffix::Paren),
+        );
     }
 
     #[test]
     fn suffix_should_return_none_if_not_applicable() {
-        panic!("TODO: Implement");
+        assert_eq!(unordered_item!(Hyphen).suffix(), None);
+        assert_eq!(unordered_item!(Asterisk).suffix(), None);
+        assert_eq!(other_item!().suffix(), None);
     }
 
     #[test]
     fn to_prefix_should_return_hyphen_if_hyphen_type() {
-        panic!("TODO: Implement");
+        assert_eq!(unordered_item!(Hyphen).to_prefix(), "-");
     }
 
     #[test]
     fn to_prefix_should_return_asterisk_if_asterisk_type() {
-        panic!("TODO: Implement");
+        assert_eq!(unordered_item!(Asterisk).to_prefix(), "*");
     }
 
     #[test]
     fn to_prefix_should_return_base_1_position_if_number_type() {
-        panic!("TODO: Implement");
+        assert_eq!(ordered_item!(Number, Paren, 0).to_prefix(), "1)");
+        assert_eq!(ordered_item!(Number, Period, 0).to_prefix(), "1.");
+        assert_eq!(ordered_item!(Number, Paren, 27).to_prefix(), "28)");
+        assert_eq!(ordered_item!(Number, Period, 27).to_prefix(), "28.");
+        assert_eq!(ordered_item!(Number, Paren, 704).to_prefix(), "705)");
+        assert_eq!(ordered_item!(Number, Period, 704).to_prefix(), "705.");
     }
 
     #[test]
     fn to_prefix_should_return_lowercase_alphabetic_string_if_lowercase_alphabetic_type(
     ) {
-        panic!("TODO: Implement");
+        assert_eq!(
+            ordered_item!(LowercaseAlphabet, Paren, 0).to_prefix(),
+            "a)"
+        );
+        assert_eq!(
+            ordered_item!(LowercaseAlphabet, Period, 0).to_prefix(),
+            "a."
+        );
+        assert_eq!(
+            ordered_item!(LowercaseAlphabet, Paren, 27).to_prefix(),
+            "ab)"
+        );
+        assert_eq!(
+            ordered_item!(LowercaseAlphabet, Period, 27).to_prefix(),
+            "ab."
+        );
+        assert_eq!(
+            ordered_item!(LowercaseAlphabet, Paren, 730).to_prefix(),
+            "abc)"
+        );
+        assert_eq!(
+            ordered_item!(LowercaseAlphabet, Period, 730).to_prefix(),
+            "abc."
+        );
     }
 
     #[test]
     fn to_prefix_should_return_uppercase_alphabetic_string_if_uppercase_alphabetic_type(
     ) {
-        panic!("TODO: Implement");
+        assert_eq!(
+            ordered_item!(UppercaseAlphabet, Paren, 0).to_prefix(),
+            "A)"
+        );
+        assert_eq!(
+            ordered_item!(UppercaseAlphabet, Period, 0).to_prefix(),
+            "A."
+        );
+        assert_eq!(
+            ordered_item!(UppercaseAlphabet, Paren, 27).to_prefix(),
+            "AB)"
+        );
+        assert_eq!(
+            ordered_item!(UppercaseAlphabet, Period, 27).to_prefix(),
+            "AB."
+        );
+        assert_eq!(
+            ordered_item!(UppercaseAlphabet, Paren, 730).to_prefix(),
+            "ABC)"
+        );
+        assert_eq!(
+            ordered_item!(UppercaseAlphabet, Period, 730).to_prefix(),
+            "ABC."
+        );
     }
 
     #[test]
     fn to_prefix_should_return_lowercase_roman_numeral_string_if_lowercase_roman_numeral_type(
     ) {
-        panic!("TODO: Implement");
+        assert_eq!(ordered_item!(LowercaseRoman, Paren, 0).to_prefix(), "i)");
+        assert_eq!(ordered_item!(LowercaseRoman, Period, 0).to_prefix(), "i.");
+        assert_eq!(
+            ordered_item!(LowercaseRoman, Paren, 24).to_prefix(),
+            "xxv)"
+        );
+        assert_eq!(
+            ordered_item!(LowercaseRoman, Period, 24).to_prefix(),
+            "xxv."
+        );
+        assert_eq!(
+            ordered_item!(LowercaseRoman, Paren, 704).to_prefix(),
+            "dccv)"
+        );
+        assert_eq!(
+            ordered_item!(LowercaseRoman, Period, 704).to_prefix(),
+            "dccv."
+        );
     }
 
     #[test]
     fn to_prefix_should_return_uppercase_roman_numeral_string_if_uppercase_roman_numeral_type(
     ) {
-        panic!("TODO: Implement");
+        assert_eq!(ordered_item!(UppercaseRoman, Paren, 0).to_prefix(), "I)");
+        assert_eq!(ordered_item!(UppercaseRoman, Period, 0).to_prefix(), "I.");
+        assert_eq!(
+            ordered_item!(UppercaseRoman, Paren, 24).to_prefix(),
+            "XXV)"
+        );
+        assert_eq!(
+            ordered_item!(UppercaseRoman, Period, 24).to_prefix(),
+            "XXV."
+        );
+        assert_eq!(
+            ordered_item!(UppercaseRoman, Paren, 704).to_prefix(),
+            "DCCV)"
+        );
+        assert_eq!(
+            ordered_item!(UppercaseRoman, Period, 704).to_prefix(),
+            "DCCV."
+        );
     }
 
     #[test]
     fn to_prefix_should_return_internal_value_if_other_type() {
-        panic!("TODO: Implement");
+        assert_eq!(other_item!("prefix", 0).to_prefix(), "prefix");
+        assert_eq!(other_item!("prefix", 27).to_prefix(), "prefix");
+        assert_eq!(other_item!("prefix", 704).to_prefix(), "prefix");
     }
 }
