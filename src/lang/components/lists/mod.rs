@@ -7,8 +7,9 @@ pub use definition::{Definition, DefinitionList, Term};
 
 mod regular;
 pub use regular::{
-    RegularList, RegularListItem, RegularListItemContent,
-    RegularListItemContents, RegularListItemSuffix,
+    List as RegularList, ListItem, ListItemContent, ListItemContents,
+    OrderedListItem, OrderedListItemSuffix, OrderedListItemType,
+    UnorderedListItem, UnorderedListItemType,
 };
 
 #[derive(Clone, Debug, From, Eq, PartialEq, Serialize, Deserialize)]

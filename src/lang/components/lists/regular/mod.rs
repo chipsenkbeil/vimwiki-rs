@@ -4,13 +4,14 @@ use serde::{Deserialize, Serialize};
 
 mod item;
 pub use item::{
-    RegularListItem, RegularListItemContent, RegularListItemContents,
-    RegularListItemSuffix,
+    ListItem, ListItemContent, ListItemContents, OrderedListItem,
+    OrderedListItemSuffix, OrderedListItemType, UnorderedListItem,
+    UnorderedListItemType,
 };
 
 #[derive(
     Constructor, Clone, Debug, From, Eq, PartialEq, Serialize, Deserialize,
 )]
-pub struct RegularList {
-    items: Vec<RegularListItem>,
+pub struct List {
+    items: Vec<ListItem>,
 }
