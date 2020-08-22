@@ -49,19 +49,17 @@ impl ListItem {
         self._type
     }
 
-    /// Represents the position of the item within a list, starting at 0
+    /// Represents the suffix such as . or ) that follows an item before the content
+    pub fn suffix(&self) -> ListItemSuffix {
+        self.suffix
+    }
+
     pub fn pos(&self) -> usize {
         self.pos
     }
 
-    /// Represents the contents of the list item
     pub fn contents(&self) -> &[ListItemContent] {
         &self.contents
-    }
-
-    /// Represents the suffix such as . or ) that follows an item before the content
-    pub fn suffix(&self) -> ListItemSuffix {
-        self.suffix
     }
 
     /// Allocates a new string representing the full prefix of the list item
@@ -85,6 +83,17 @@ impl ListItem {
         base.push(self.suffix.as_char());
 
         base
+    }
+}
+
+impl Default for ListItem {
+    fn default() -> Self {
+        Self {
+            _type: ListItemType::Number,
+            suffix: ListItemSuffix::Paren,
+            pos: 0,
+            contents: vec![],
+        }
     }
 }
 

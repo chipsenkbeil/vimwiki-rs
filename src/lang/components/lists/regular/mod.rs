@@ -4,14 +4,26 @@ use serde::{Deserialize, Serialize};
 
 mod item;
 pub use item::{
-    ListItem, ListItemContent, ListItemContents, OrderedListItem,
+    EnhancedListItem, EnhancedListItemAttribute, ListItem, OrderedListItem,
     OrderedListItemSuffix, OrderedListItemType, UnorderedListItem,
     UnorderedListItemType,
 };
 
+/// Represents a regular list comprised of individual items
 #[derive(
     Constructor, Clone, Debug, From, Eq, PartialEq, Serialize, Deserialize,
 )]
 pub struct List {
-    items: Vec<ListItem>,
+    items: Vec<EnhancedListItem>,
 }
+
+/// Represents some content associated with a list item, either being
+/// an inline component or a new sublist
+#[derive(Clone, Debug, From, Eq, PartialEq, Serialize, Deserialize)]
+pub enum ListItemContent {
+    InlineContent(InlineComponentContainer),
+    List(List),
+}
+
+/// Represents a collection of list item content
+pub type ListItemContents = Vec<ListItemContent>;

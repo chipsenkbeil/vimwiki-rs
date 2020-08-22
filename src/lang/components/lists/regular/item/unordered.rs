@@ -27,12 +27,10 @@ impl ListItem {
         &self._type
     }
 
-    /// Represents the position of the item within a list, starting at 0
     pub fn pos(&self) -> usize {
         self.pos
     }
 
-    /// Represents the contents of the list item
     pub fn contents(&self) -> &[ListItemContent] {
         &self.contents
     }
@@ -44,6 +42,16 @@ impl ListItem {
             ListItemType::Hyphen => String::from("-"),
             ListItemType::Asterisk => String::from("*"),
             ListItemType::Other(prefix) => prefix.to_string(),
+        }
+    }
+}
+
+impl Default for ListItem {
+    fn default() -> Self {
+        Self {
+            _type: ListItemType::Hyphen,
+            pos: 0,
+            contents: vec![],
         }
     }
 }

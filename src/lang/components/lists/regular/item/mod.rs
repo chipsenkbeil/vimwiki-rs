@@ -1,6 +1,9 @@
-use super::{InlineComponentContainer, List};
+use super::{ListItemContent, ListItemContents};
 use derive_more::From;
 use serde::{Deserialize, Serialize};
+
+mod enhanced;
+pub use enhanced::{EnhancedListItem, EnhancedListItemAttribute};
 
 mod ordered;
 pub use ordered::{
@@ -12,17 +15,6 @@ mod unordered;
 pub use unordered::{
     ListItem as UnorderedListItem, ListItemType as UnorderedListItemType,
 };
-
-/// Represents some content associated with a list item, either being
-/// an inline component or a new sublist
-#[derive(Clone, Debug, From, Eq, PartialEq, Serialize, Deserialize)]
-pub enum ListItemContent {
-    InlineContent(InlineComponentContainer),
-    List(List),
-}
-
-/// Represents a collection of list item content
-pub type ListItemContents = Vec<ListItemContent>;
 
 /// Represents supported prefix types for a list item
 #[derive(Clone, Debug, From, Eq, PartialEq, Serialize, Deserialize)]
@@ -48,7 +40,6 @@ impl ListItem {
         }
     }
 
-    /// Represents the position of the item within a list, starting at 0
     pub fn pos(&self) -> usize {
         match self {
             Self::Ordered(item) => item.pos(),
@@ -56,7 +47,6 @@ impl ListItem {
         }
     }
 
-    /// Represents the contents of the list item
     pub fn contents(&self) -> &[ListItemContent] {
         match self {
             Self::Ordered(item) => item.contents(),
@@ -64,13 +54,17 @@ impl ListItem {
         }
     }
 
-    /// Allocates a new string representing the full prefix of the list item
-    /// such as * or 1. or iii)
     pub fn to_prefix(&self) -> String {
         match self {
             Self::Ordered(item) => item.to_prefix(),
             Self::Unordered(item) => item.to_prefix(),
         }
+    }
+}
+
+impl Default for ListItem {
+    fn default() -> Self {
+        Self::Unordered(Default::default())
     }
 }
 
