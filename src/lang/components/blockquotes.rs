@@ -5,5 +5,5 @@ use serde::{Deserialize, Serialize};
     Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
 )]
 pub struct Blockquote {
-    lines: Vec<String>,
+    pub lines: Vec<String>,
 }

@@ -42,15 +42,15 @@ impl ListItem {
 
     pub fn pos(&self) -> usize {
         match self {
-            Self::Ordered(item) => item.pos(),
-            Self::Unordered(item) => item.pos(),
+            Self::Ordered(item) => item.pos,
+            Self::Unordered(item) => item.pos,
         }
     }
 
     pub fn contents(&self) -> &[ListItemContent] {
         match self {
-            Self::Ordered(item) => item.contents(),
-            Self::Unordered(item) => item.contents(),
+            Self::Ordered(item) => &item.contents[..],
+            Self::Unordered(item) => &item.contents[..],
         }
     }
 

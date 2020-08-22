@@ -1,4 +1,4 @@
-use super::{WithAnchor, WithDescription};
+use super::{Anchor, Description};
 use chrono::naive::NaiveDate;
 use derive_more::Constructor;
 use serde::{Deserialize, Serialize};
@@ -9,15 +9,9 @@ use std::convert::TryFrom;
     Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
 )]
 pub struct DiaryLink {
-    date: NaiveDate,
-    description: Option<String>,
-    anchor: Option<String>,
-}
-
-impl DiaryLink {
-    pub fn date(&self) -> &NaiveDate {
-        &self.date
-    }
+    pub date: NaiveDate,
+    pub description: Option<Description>,
+    pub anchor: Option<Anchor>,
 }
 
 impl From<NaiveDate> for DiaryLink {
@@ -32,27 +26,5 @@ impl TryFrom<&str> for DiaryLink {
     fn try_from(str_date: &str) -> Result<Self, Self::Error> {
         let date = NaiveDate::parse_from_str(str_date, "%Y-%m-%d")?;
         Ok(Self::from(date))
-    }
-}
-
-impl WithDescription for DiaryLink {
-    fn with_description(&mut self, description: String) -> &mut Self {
-        self.description = Some(description);
-        self
-    }
-
-    fn description(&self) -> Option<&str> {
-        self.description.as_deref()
-    }
-}
-
-impl WithAnchor for DiaryLink {
-    fn with_anchor(&mut self, anchor: String) -> &mut Self {
-        self.anchor = Some(anchor);
-        self
-    }
-
-    fn anchor(&self) -> Option<&str> {
-        self.anchor.as_deref()
     }
 }

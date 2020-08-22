@@ -1,4 +1,4 @@
-use super::{ListItemContent, ListItemContents};
+use super::ListItemContents;
 use derive_more::Constructor;
 use numerals::roman::Roman;
 use serde::{Deserialize, Serialize};
@@ -37,35 +37,17 @@ pub enum ListItemType {
 /// Represents an ordered item in a list
 #[derive(Constructor, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ListItem {
-    _type: ListItemType,
-    suffix: ListItemSuffix,
-    pos: usize,
-    contents: ListItemContents,
+    pub item_type: ListItemType,
+    pub suffix: ListItemSuffix,
+    pub pos: usize,
+    pub contents: ListItemContents,
 }
 
 impl ListItem {
-    /// Represents the type of ordered list item
-    pub fn item_type(&self) -> ListItemType {
-        self._type
-    }
-
-    /// Represents the suffix such as . or ) that follows an item before the content
-    pub fn suffix(&self) -> ListItemSuffix {
-        self.suffix
-    }
-
-    pub fn pos(&self) -> usize {
-        self.pos
-    }
-
-    pub fn contents(&self) -> &[ListItemContent] {
-        &self.contents
-    }
-
     /// Allocates a new string representing the full prefix of the list item
     /// such as 1. or iii)
     pub fn to_prefix(&self) -> String {
-        let mut base = match self._type {
+        let mut base = match self.item_type {
             // NOTE: Numbers start at 1, not 0, so use base 1
             ListItemType::Number => (self.pos + 1).to_string(),
             ListItemType::LowercaseAlphabet => pos_to_alphabet(self.pos, true),
@@ -89,7 +71,7 @@ impl ListItem {
 impl Default for ListItem {
     fn default() -> Self {
         Self {
-            _type: ListItemType::Number,
+            item_type: ListItemType::Number,
             suffix: ListItemSuffix::Paren,
             pos: 0,
             contents: vec![],
@@ -128,6 +110,7 @@ fn pos_to_alphabet(pos: usize, to_lower: bool) -> String {
 
 #[cfg(test)]
 mod tests {
+    use super::super::ListItemContent;
     use super::*;
 
     macro_rules! ordered_item {
@@ -166,41 +149,41 @@ mod tests {
 
     #[test]
     fn pos_should_return_internal_position() {
-        assert_eq!(ordered_item!(Number, Paren, 999).pos(), 999);
-        assert_eq!(ordered_item!(LowercaseAlphabet, Paren, 999).pos(), 999);
-        assert_eq!(ordered_item!(UppercaseAlphabet, Paren, 999).pos(), 999);
-        assert_eq!(ordered_item!(LowercaseRoman, Paren, 999).pos(), 999);
-        assert_eq!(ordered_item!(UppercaseRoman, Paren, 999).pos(), 999);
+        assert_eq!(ordered_item!(Number, Paren, 999).pos, 999);
+        assert_eq!(ordered_item!(LowercaseAlphabet, Paren, 999).pos, 999);
+        assert_eq!(ordered_item!(UppercaseAlphabet, Paren, 999).pos, 999);
+        assert_eq!(ordered_item!(LowercaseRoman, Paren, 999).pos, 999);
+        assert_eq!(ordered_item!(UppercaseRoman, Paren, 999).pos, 999);
     }
 
     #[test]
     fn contents_should_return_internal_contents() {
         assert_eq!(
-            ordered_item!(Number, Paren, 0, make_content("test")).contents(),
+            ordered_item!(Number, Paren, 0, make_content("test")).contents,
             &make_content("test")[..],
         );
 
         assert_eq!(
             ordered_item!(LowercaseAlphabet, Paren, 0, make_content("test"))
-                .contents(),
+                .contents,
             &make_content("test")[..],
         );
 
         assert_eq!(
             ordered_item!(UppercaseAlphabet, Paren, 0, make_content("test"))
-                .contents(),
+                .contents,
             &make_content("test")[..],
         );
 
         assert_eq!(
             ordered_item!(LowercaseRoman, Paren, 0, make_content("test"))
-                .contents(),
+                .contents,
             &make_content("test")[..],
         );
 
         assert_eq!(
             ordered_item!(UppercaseRoman, Paren, 0, make_content("test"))
-                .contents(),
+                .contents,
             &make_content("test")[..],
         );
     }
@@ -208,43 +191,40 @@ mod tests {
     #[test]
     fn suffix_should_return_the_associated_suffix() {
         assert_eq!(
-            ordered_item!(Number, Period).suffix(),
+            ordered_item!(Number, Period).suffix,
+            ListItemSuffix::Period,
+        );
+        assert_eq!(ordered_item!(Number, Paren).suffix, ListItemSuffix::Paren,);
+        assert_eq!(
+            ordered_item!(LowercaseAlphabet, Period).suffix,
             ListItemSuffix::Period,
         );
         assert_eq!(
-            ordered_item!(Number, Paren).suffix(),
+            ordered_item!(LowercaseAlphabet, Paren).suffix,
             ListItemSuffix::Paren,
         );
         assert_eq!(
-            ordered_item!(LowercaseAlphabet, Period).suffix(),
+            ordered_item!(UppercaseAlphabet, Period).suffix,
             ListItemSuffix::Period,
         );
         assert_eq!(
-            ordered_item!(LowercaseAlphabet, Paren).suffix(),
+            ordered_item!(UppercaseAlphabet, Paren).suffix,
             ListItemSuffix::Paren,
         );
         assert_eq!(
-            ordered_item!(UppercaseAlphabet, Period).suffix(),
+            ordered_item!(LowercaseRoman, Period).suffix,
             ListItemSuffix::Period,
         );
         assert_eq!(
-            ordered_item!(UppercaseAlphabet, Paren).suffix(),
+            ordered_item!(LowercaseRoman, Paren).suffix,
             ListItemSuffix::Paren,
         );
         assert_eq!(
-            ordered_item!(LowercaseRoman, Period).suffix(),
+            ordered_item!(UppercaseRoman, Period).suffix,
             ListItemSuffix::Period,
         );
         assert_eq!(
-            ordered_item!(LowercaseRoman, Paren).suffix(),
-            ListItemSuffix::Paren,
-        );
-        assert_eq!(
-            ordered_item!(UppercaseRoman, Period).suffix(),
-            ListItemSuffix::Period,
-        );
-        assert_eq!(
-            ordered_item!(UppercaseRoman, Paren).suffix(),
+            ordered_item!(UppercaseRoman, Paren).suffix,
             ListItemSuffix::Paren,
         );
     }

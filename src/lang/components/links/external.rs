@@ -1,4 +1,4 @@
-use super::WithDescription;
+use super::Description;
 use derive_more::Constructor;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -16,9 +16,9 @@ pub enum ExternalLinkScheme {
     Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
 )]
 pub struct ExternalLink {
-    scheme: ExternalLinkScheme,
-    path: PathBuf,
-    description: Option<String>,
+    pub scheme: ExternalLinkScheme,
+    pub path: PathBuf,
+    pub description: Option<Description>,
 }
 
 impl ExternalLink {
@@ -28,16 +28,5 @@ impl ExternalLink {
         path: PathBuf,
     ) -> Self {
         Self::new(scheme, path, None)
-    }
-}
-
-impl WithDescription for ExternalLink {
-    fn with_description(&mut self, description: String) -> &mut Self {
-        self.description = Some(description);
-        self
-    }
-
-    fn description(&self) -> Option<&str> {
-        self.description.as_deref()
     }
 }

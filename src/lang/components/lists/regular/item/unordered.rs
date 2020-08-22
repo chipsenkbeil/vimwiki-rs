@@ -1,4 +1,4 @@
-use super::{ListItemContent, ListItemContents};
+use super::ListItemContents;
 use derive_more::Constructor;
 use serde::{Deserialize, Serialize};
 
@@ -16,29 +16,16 @@ pub enum ListItemType {
 /// Represents an unordered item in a list
 #[derive(Constructor, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ListItem {
-    _type: ListItemType,
-    pos: usize,
-    contents: ListItemContents,
+    pub item_type: ListItemType,
+    pub pos: usize,
+    pub contents: ListItemContents,
 }
 
 impl ListItem {
-    /// Represents the type of unordered list item
-    pub fn item_type(&self) -> &ListItemType {
-        &self._type
-    }
-
-    pub fn pos(&self) -> usize {
-        self.pos
-    }
-
-    pub fn contents(&self) -> &[ListItemContent] {
-        &self.contents
-    }
-
     /// Allocates a new string representing the full prefix of the list item
     /// such as - or *
     pub fn to_prefix(&self) -> String {
-        match &self._type {
+        match &self.item_type {
             ListItemType::Hyphen => String::from("-"),
             ListItemType::Asterisk => String::from("*"),
             ListItemType::Other(prefix) => prefix.to_string(),
@@ -49,7 +36,7 @@ impl ListItem {
 impl Default for ListItem {
     fn default() -> Self {
         Self {
-            _type: ListItemType::Hyphen,
+            item_type: ListItemType::Hyphen,
             pos: 0,
             contents: vec![],
         }
@@ -58,6 +45,7 @@ impl Default for ListItem {
 
 #[cfg(test)]
 mod tests {
+    use super::super::ListItemContent;
     use super::*;
 
     macro_rules! unordered_item {
@@ -93,25 +81,25 @@ mod tests {
 
     #[test]
     fn pos_should_return_internal_position() {
-        assert_eq!(unordered_item!(Hyphen, 999).pos(), 999);
-        assert_eq!(unordered_item!(Asterisk, 999).pos(), 999);
-        assert_eq!(other_item!(String::new(), 999).pos(), 999);
+        assert_eq!(unordered_item!(Hyphen, 999).pos, 999);
+        assert_eq!(unordered_item!(Asterisk, 999).pos, 999);
+        assert_eq!(other_item!(String::new(), 999).pos, 999);
     }
 
     #[test]
     fn contents_should_return_internal_contents() {
         assert_eq!(
-            unordered_item!(Hyphen, 0, make_content("test")).contents(),
+            unordered_item!(Hyphen, 0, make_content("test")).contents,
             &make_content("test")[..],
         );
 
         assert_eq!(
-            unordered_item!(Asterisk, 0, make_content("test")).contents(),
+            unordered_item!(Asterisk, 0, make_content("test")).contents,
             &make_content("test")[..],
         );
 
         assert_eq!(
-            other_item!(String::new(), 0, make_content("test")).contents(),
+            other_item!(String::new(), 0, make_content("test")).contents,
             &make_content("test")[..],
         );
     }

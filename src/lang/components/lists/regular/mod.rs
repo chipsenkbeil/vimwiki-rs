@@ -14,7 +14,7 @@ pub use item::{
     Constructor, Clone, Debug, From, Eq, PartialEq, Serialize, Deserialize,
 )]
 pub struct List {
-    items: Vec<EnhancedListItem>,
+    pub items: Vec<EnhancedListItem>,
 }
 
 /// Represents some content associated with a list item, either being

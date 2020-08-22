@@ -6,14 +6,8 @@ use serde::{Deserialize, Serialize};
     Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
 )]
 pub struct Table {
-    rows: Vec<Row>,
-    centered: bool,
-}
-
-impl Table {
-    pub fn is_centered(&self) -> bool {
-        self.centered
-    }
+    pub rows: Vec<Row>,
+    pub centered: bool,
 }
 
 #[derive(Clone, Debug, From, Eq, PartialEq, Hash, Serialize, Deserialize)]
@@ -29,8 +23,8 @@ pub enum Row {
     Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
 )]
 pub struct Cell {
-    content: InlineComponentContainer,
-    span: CellSpan,
+    pub content: InlineComponentContainer,
+    pub span: CellSpan,
 }
 
 /// Represents cell spanning relative to another cell

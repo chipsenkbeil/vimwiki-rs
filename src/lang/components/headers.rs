@@ -50,8 +50,8 @@ impl Header {
     Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
 )]
 pub struct Header1 {
-    text: String,
-    centered: bool,
+    pub text: String,
+    pub centered: bool,
 }
 
 impl From<&str> for Header1 {
@@ -70,8 +70,8 @@ impl From<(&str, bool)> for Header1 {
     Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
 )]
 pub struct Header2 {
-    text: String,
-    centered: bool,
+    pub text: String,
+    pub centered: bool,
 }
 
 impl From<&str> for Header2 {
@@ -90,8 +90,8 @@ impl From<(&str, bool)> for Header2 {
     Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
 )]
 pub struct Header3 {
-    text: String,
-    centered: bool,
+    pub text: String,
+    pub centered: bool,
 }
 
 impl From<&str> for Header3 {
@@ -110,8 +110,8 @@ impl From<(&str, bool)> for Header3 {
     Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
 )]
 pub struct Header4 {
-    text: String,
-    centered: bool,
+    pub text: String,
+    pub centered: bool,
 }
 
 impl From<&str> for Header4 {
@@ -130,8 +130,8 @@ impl From<(&str, bool)> for Header4 {
     Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
 )]
 pub struct Header5 {
-    text: String,
-    centered: bool,
+    pub text: String,
+    pub centered: bool,
 }
 
 impl From<&str> for Header5 {
@@ -150,8 +150,8 @@ impl From<(&str, bool)> for Header5 {
     Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
 )]
 pub struct Header6 {
-    text: String,
-    centered: bool,
+    pub text: String,
+    pub centered: bool,
 }
 
 impl From<&str> for Header6 {

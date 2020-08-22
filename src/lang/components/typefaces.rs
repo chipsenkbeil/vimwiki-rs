@@ -18,18 +18,8 @@ pub enum Decoration {
     Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
 )]
 pub struct DecoratedText {
-    text: String,
-    decoration: Decoration,
-}
-
-impl DecoratedText {
-    pub fn text(&self) -> &str {
-        &self.text
-    }
-
-    pub fn decoration(&self) -> Decoration {
-        self.decoration
-    }
+    pub text: String,
+    pub decoration: Decoration,
 }
 
 /// Represents special keywords that have unique syntax highlighting

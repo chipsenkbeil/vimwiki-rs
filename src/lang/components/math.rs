@@ -11,13 +11,13 @@ pub enum Math {
     Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
 )]
 pub struct MathInline {
-    formula: String,
+    pub formula: String,
 }
 
 #[derive(
     Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
 )]
 pub struct MathBlock {
-    lines: Vec<String>,
-    environment: Option<String>,
+    pub lines: Vec<String>,
+    pub environment: Option<String>,
 }

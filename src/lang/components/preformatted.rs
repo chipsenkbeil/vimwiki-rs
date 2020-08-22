@@ -4,6 +4,6 @@ use std::collections::HashMap;
 
 #[derive(Constructor, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PreformattedText {
-    metadata: HashMap<String, String>,
-    lines: Vec<String>,
+    pub metadata: HashMap<String, String>,
+    pub lines: Vec<String>,
 }

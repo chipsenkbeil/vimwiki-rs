@@ -45,8 +45,8 @@ impl EnhancedListItemAttribute {
     Constructor, Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize,
 )]
 pub struct EnhancedListItem {
-    item: ListItem,
-    attributes: HashSet<EnhancedListItemAttribute>,
+    pub item: ListItem,
+    pub attributes: HashSet<EnhancedListItemAttribute>,
 }
 
 impl From<ListItem> for EnhancedListItem {

@@ -46,7 +46,8 @@ features = [
     "index",
     "index_mut",
     "into",
-    "into_iterator"
+    "into_iterator",
+    "try_into",
 ]
 
 [dependencies.petgraph]

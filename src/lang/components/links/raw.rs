@@ -8,7 +8,7 @@ use url::Url;
     Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
 )]
 pub struct RawLink {
-    url: Url,
+    pub url: Url,
 }
 
 impl From<Url> for RawLink {

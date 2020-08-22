@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Constructor, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Paragraph {
-    content: InlineComponentContainer,
+    pub content: InlineComponentContainer,
 }
 
 impl From<Vec<InlineComponent>> for Paragraph {

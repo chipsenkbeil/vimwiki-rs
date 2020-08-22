@@ -12,8 +12,8 @@ use serde::{Deserialize, Serialize};
 /// TagSequence([ Tag(my-tag-1), Tag(my-tag-2) ])
 ///
 #[derive(Clone, Debug, From, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct TagSequence(Vec<Tag>);
+pub struct TagSequence(pub Vec<Tag>);
 
 /// Represents a single tag
 #[derive(Clone, Debug, From, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct Tag(String);
+pub struct Tag(pub String);

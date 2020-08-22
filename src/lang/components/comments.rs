@@ -10,9 +10,9 @@ pub enum Comment {
 #[derive(
     Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
 )]
-pub struct LineComment(String);
+pub struct LineComment(pub String);
 
 #[derive(
     Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
 )]
-pub struct MultiLineComment(Vec<String>);
+pub struct MultiLineComment(pub Vec<String>);
