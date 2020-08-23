@@ -1,4 +1,4 @@
-use super::InlineComponentContainer;
+use super::{InlineComponentContainer, LC};
 use derive_more::From;
 use petgraph::{
     graph::{Graph, NodeIndex},
@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 /// Represents a term in a definition list;
 /// A term can have one or more definitions
-pub type Term = String;
+pub type Term = LC<String>;
 
 /// Represents a definition in a definition list;
 /// A definition can be associated with one or more terms
@@ -152,7 +152,20 @@ impl PartialEq for DefinitionList {
 
 #[cfg(test)]
 mod tests {
+    use super::super::LC;
     use super::*;
+
+    impl From<&str> for LC<String> {
+        fn from(text: &str) -> Self {
+            Self::from(text.to_string())
+        }
+    }
+
+    impl From<&str> for InlineComponentContainer {
+        fn from(text: &str) -> Self {
+            Self::from(vec![LC::from(text)])
+        }
+    }
 
     #[test]
     fn find_definitions_should_list_all_definitions_for_term() {
@@ -211,8 +224,8 @@ mod tests {
         // Test looking for alternate terms for term that has multiple
         let terms = dl.find_alternative_terms("term1");
         assert_eq!(terms.len(), 2);
-        assert!(terms.contains(&(&"term0".to_string())));
-        assert!(terms.contains(&(&"term2".to_string())));
+        assert!(terms.contains(&(&LC::from("term0"))));
+        assert!(terms.contains(&(&LC::from("term2"))));
 
         // Test looking for alternate terms for term that has one
         let terms = dl.find_alternative_terms("term3");

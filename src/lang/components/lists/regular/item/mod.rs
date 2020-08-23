@@ -1,4 +1,4 @@
-use super::{ListItemContent, ListItemContents};
+use super::{ListItemContent, ListItemContents, LC};
 use derive_more::From;
 use serde::{Deserialize, Serialize};
 
@@ -47,7 +47,7 @@ impl ListItem {
         }
     }
 
-    pub fn contents(&self) -> &[ListItemContent] {
+    pub fn contents(&self) -> &[LC<ListItemContent>] {
         match self {
             Self::Ordered(item) => &item.contents[..],
             Self::Unordered(item) => &item.contents[..],

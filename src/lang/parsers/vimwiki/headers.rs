@@ -1,69 +1,69 @@
-use super::components::{
-    Header, Header1, Header2, Header3, Header4, Header5, Header6,
+use super::{
+    components::{
+        Header, Header1, Header2, Header3, Header4, Header5, Header6,
+    },
+    Span, LC,
 };
 use nom::{
     branch::alt,
-    bytes::complete::{tag, take_until},
+    bytes::complete::{char, tag, take, take_until},
     character::complete::space0,
     combinator::{map, verify},
     error::{context, ParseError},
     sequence::{delimited, tuple},
     IResult,
 };
+use nom_locate::position;
 
 /// Parses a vimwiki header, returning the associated header if successful
-pub fn header<'a, E: ParseError<&'a str>>(
-    input: &'a str,
-) -> IResult<&'a str, Header, E> {
+pub fn header<'a, E: ParseError<Span<'a>>>(
+    input: Span<'a>,
+) -> IResult<Span<'a>, LC<Header>, E> {
     // TODO: Custom error type to return error of parser that made the most
     //       progress across all of the below, rather than the last parser
-    alt((
+    let (input, pos) = position(input)?;
+    let (input, header) = alt((
         context(
             "Header1",
-            map(make_header_parser("=", Header1::from), From::from),
+            map(make_header_parser(1, Header1::from), Header::from),
         ),
         context(
             "Header2",
-            map(make_header_parser("==", Header2::from), From::from),
+            map(make_header_parser(2, Header2::from), Header::from),
         ),
         context(
             "Header3",
-            map(make_header_parser("===", Header3::from), From::from),
+            map(make_header_parser(3, Header3::from), Header::from),
         ),
         context(
             "Header4",
-            map(make_header_parser("====", Header4::from), From::from),
+            map(make_header_parser(4, Header4::from), Header::from),
         ),
         context(
             "Header5",
-            map(make_header_parser("=====", Header5::from), From::from),
+            map(make_header_parser(5, Header5::from), Header::from),
         ),
         context(
             "Header6",
-            map(make_header_parser("======", Header6::from), From::from),
+            map(make_header_parser(6, Header6::from), Header::from),
         ),
-    ))(input)
+    ))(input)?;
+
+    Ok((input, LC::from((header, pos))))
 }
 
-fn make_header_parser<'a, T, E: ParseError<&'a str>>(
-    pattern: &'a str,
+fn make_header_parser<'a, T, E: ParseError<Span<'a>>>(
+    level: u8,
     f: impl Fn((&'a str, bool)) -> T,
-) -> impl Fn(&'a str) -> IResult<&'a str, T, E> {
+) -> impl Fn(Span<'a>) -> IResult<Span<'a>, T, E> {
     // TODO: Handle newline; ensure that
-    map(
-        tuple((
-            space0,
-            delimited(
-                tag(pattern),
-                verify(take_until(pattern), |s: &str| {
-                    !s.is_empty() && !s.starts_with('=')
-                }),
-                tag(pattern),
-            ),
-            space0,
-        )),
-        move |x| f((x.1, !x.0.is_empty())),
-    )
+    let pattern_span = Span::new(pattern);
+    let header_content = verify(take_until(pattern_span), |s: Span<'a>| {
+        !s.fragment().is_empty() && !s.fragment().starts_with('=')
+    });
+    let header = delimited(take(level), header_content, take(level));
+    let header_with_space = tuple((space0, header, space0));
+    map(header_with_space, move |x| f((x.1, !x.0.is_empty())))
 }
 
 #[cfg(test)]

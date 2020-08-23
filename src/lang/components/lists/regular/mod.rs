@@ -1,4 +1,4 @@
-use super::InlineComponentContainer;
+use super::{InlineComponentContainer, LC};
 use derive_more::{Constructor, From};
 use serde::{Deserialize, Serialize};
 
@@ -14,7 +14,7 @@ pub use item::{
     Constructor, Clone, Debug, From, Eq, PartialEq, Serialize, Deserialize,
 )]
 pub struct List {
-    pub items: Vec<EnhancedListItem>,
+    pub items: Vec<LC<EnhancedListItem>>,
 }
 
 /// Represents some content associated with a list item, either being
@@ -26,4 +26,4 @@ pub enum ListItemContent {
 }
 
 /// Represents a collection of list item content
-pub type ListItemContents = Vec<ListItemContent>;
+pub type ListItemContents = Vec<LC<ListItemContent>>;

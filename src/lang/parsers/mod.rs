@@ -1,9 +1,13 @@
 // Import to make more easily accessible to submodules
-use super::components;
+use super::{
+    components,
+    utils::{Span, LC},
+};
 use derive_more::{Display, Error};
 
 pub mod vimwiki;
 
+/// Represents an encapsulated error that is encountered
 #[derive(Clone, Debug, Eq, PartialEq, Display, Error)]
 pub enum LangParserError<'a> {
     #[display(fmt = "Failure {:?} :: {}", error_kind, remaining)]

@@ -1,4 +1,4 @@
-use super::InlineComponentContainer;
+use super::{InlineComponentContainer, LC};
 use derive_more::From;
 use serde::{Deserialize, Serialize};
 

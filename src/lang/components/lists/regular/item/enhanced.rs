@@ -87,7 +87,7 @@ impl EnhancedListItem {
         self.item
             .contents()
             .iter()
-            .fold(None, |acc, c| match c {
+            .fold(None, |acc, c| match c.component {
                 ListItemContent::InlineContent(_) => acc,
                 ListItemContent::List(list) => {
                     let (mut sum, mut count) =
@@ -99,7 +99,9 @@ impl EnhancedListItem {
                             //       need to calculate the leaf todos before
                             //       determining the progress of the current
                             //       todo list item
-                            if let Some(p) = item.compute_todo_progress() {
+                            if let Some(p) =
+                                item.component.compute_todo_progress()
+                            {
                                 (acc.0 + p, acc.1 + 1)
                             } else {
                                 acc

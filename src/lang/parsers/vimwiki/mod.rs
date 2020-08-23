@@ -1,6 +1,6 @@
 use super::{
     components::{self, BlockComponent, InlineComponent, Page},
-    LangParserError,
+    LangParserError, Span, LC,
 };
 use nom::{
     branch::alt,
@@ -13,15 +13,15 @@ use nom::{
 mod headers;
 
 /// Parses str slice into a wiki page
-pub fn parse_str(input: &str) -> Result<Page, LangParserError> {
-    Ok(page::<(&str, ErrorKind)>(input)
+pub fn parse_str(input: &str) -> Result<LC<Page>, LangParserError> {
+    Ok(page::<(Span, ErrorKind)>(Span::new(input))
         .map_err(|x| match x {
             nom::Err::Error(x) => LangParserError::Error {
-                remaining: x.0,
+                remaining: x.0.fragment(),
                 error_kind: x.1,
             },
             nom::Err::Failure(x) => LangParserError::Failure {
-                remaining: x.0,
+                remaining: x.0.fragment(),
                 error_kind: x.1,
             },
             nom::Err::Incomplete(x) => match x {
@@ -33,17 +33,18 @@ pub fn parse_str(input: &str) -> Result<Page, LangParserError> {
 }
 
 /// Parses entire vimwiki page
-fn page<'a, E: ParseError<&'a str>>(
-    input: &'a str,
-) -> IResult<&'a str, Page, E> {
-    // Continuously parse input for new block components until we have nothing left (or we fail)
+fn page<'a, E: ParseError<Span<'a>>>(
+    input: Span<'a>,
+) -> IResult<Span<'a>, LC<Page>, E> {
+    // Continuously parse input for new block components until we have
+    // nothing left (or we fail)
     map(all_consuming(many0(block_component)), Page::new)(input)
 }
 
 /// Parses a block component
-fn block_component<'a, E: ParseError<&'a str>>(
-    input: &'a str,
-) -> IResult<&'a str, BlockComponent, E> {
+fn block_component<'a, E: ParseError<Span<'a>>>(
+    input: Span<'a>,
+) -> IResult<Span<'a>, LC<BlockComponent>, E> {
     // TODO: Remove duplicate header and add all other block components
     alt((
         map(headers::header, From::from),
@@ -52,9 +53,9 @@ fn block_component<'a, E: ParseError<&'a str>>(
 }
 
 /// Parses an inline component
-fn inline_component<'a, E: ParseError<&'a str>>(
-    input: &'a str,
-) -> IResult<&'a str, InlineComponent, E> {
+fn inline_component<'a, E: ParseError<Span<'a>>>(
+    input: Span<'a>,
+) -> IResult<Span<'a>, LC<InlineComponent>, E> {
     // TODO: Add all inline component parsers
     panic!("TODO: Implement");
 }

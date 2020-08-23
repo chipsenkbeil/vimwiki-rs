@@ -1,3 +1,4 @@
+use super::utils::LC;
 use derive_more::{
     Constructor, Deref, DerefMut, From, Index, IndexMut, Into, IntoIterator,
 };
@@ -43,10 +44,10 @@ pub use typefaces::*;
 #[derive(
     Constructor, Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize,
 )]
-pub struct Page(Vec<BlockComponent>);
+pub struct Page(Vec<LC<BlockComponent>>);
 
 impl Page {
-    pub fn components(&self) -> &[BlockComponent] {
+    pub fn components(&self) -> &[LC<BlockComponent>] {
         &self.0
     }
 }
@@ -63,6 +64,7 @@ pub enum BlockComponent {
     Blockquote(Blockquote),
     Divider(Divider),
     TagSequence(TagSequence),
+    EmptyLine,
 }
 
 /// Represents components that can be dropped into other components
@@ -94,52 +96,52 @@ pub enum InlineComponent {
     Serialize,
     Deserialize,
 )]
-pub struct InlineComponentContainer(Vec<InlineComponent>);
+pub struct InlineComponentContainer(Vec<LC<InlineComponent>>);
 
-impl From<InlineComponent> for InlineComponentContainer {
-    fn from(component: InlineComponent) -> Self {
+impl From<LC<InlineComponent>> for InlineComponentContainer {
+    fn from(component: LC<InlineComponent>) -> Self {
         Self::new(vec![component])
     }
 }
 
-impl From<&str> for InlineComponentContainer {
-    fn from(component: &str) -> Self {
-        Self::from(InlineComponent::from(component.to_string()))
+impl From<LC<&str>> for InlineComponentContainer {
+    fn from(component: LC<&str>) -> Self {
+        Self::from(component.map(|x| x.to_string()))
     }
 }
 
-impl From<String> for InlineComponentContainer {
-    fn from(component: String) -> Self {
-        Self::from(InlineComponent::from(component))
+impl From<LC<String>> for InlineComponentContainer {
+    fn from(component: LC<String>) -> Self {
+        Self::from(component.map(InlineComponent::from))
     }
 }
 
-impl From<DecoratedText> for InlineComponentContainer {
-    fn from(component: DecoratedText) -> Self {
-        Self::from(InlineComponent::from(component))
+impl From<LC<DecoratedText>> for InlineComponentContainer {
+    fn from(component: LC<DecoratedText>) -> Self {
+        Self::from(component.map(InlineComponent::from))
     }
 }
 
-impl From<Keyword> for InlineComponentContainer {
-    fn from(component: Keyword) -> Self {
-        Self::from(InlineComponent::from(component))
+impl From<LC<Keyword>> for InlineComponentContainer {
+    fn from(component: LC<Keyword>) -> Self {
+        Self::from(component.map(InlineComponent::from))
     }
 }
 
-impl From<Link> for InlineComponentContainer {
-    fn from(component: Link) -> Self {
-        Self::from(InlineComponent::from(component))
+impl From<LC<Link>> for InlineComponentContainer {
+    fn from(component: LC<Link>) -> Self {
+        Self::from(component.map(InlineComponent::from))
     }
 }
 
-impl From<TagSequence> for InlineComponentContainer {
-    fn from(component: TagSequence) -> Self {
-        Self::from(InlineComponent::from(component))
+impl From<LC<TagSequence>> for InlineComponentContainer {
+    fn from(component: LC<TagSequence>) -> Self {
+        Self::from(component.map(InlineComponent::from))
     }
 }
 
-impl From<MathInline> for InlineComponentContainer {
-    fn from(component: MathInline) -> Self {
-        Self::from(InlineComponent::from(component))
+impl From<LC<MathInline>> for InlineComponentContainer {
+    fn from(component: LC<MathInline>) -> Self {
+        Self::from(component.map(InlineComponent::from))
     }
 }
