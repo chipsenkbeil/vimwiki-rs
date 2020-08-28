@@ -84,15 +84,21 @@ fn inner_header<'a, T>(
     })
 }
 
+/// Builds a parser to read content of header, which will not start with
+/// an = sign (that would still be part of the surrounding) and is not empty
+/// (in case a parser tries to inject in the middle of a surrounding)
 #[inline]
 fn content<'a>(
     level: u8,
 ) -> impl Fn(Span<'a>) -> VimwikiIResult<Span<'a>, Span<'a>> {
-    recognize(many1(tuple((
-        not(surrounding(level)),
-        not(line_ending),
-        anychar,
-    ))))
+    verify(
+        recognize(many1(tuple((
+            not(surrounding(level)),
+            not(line_ending),
+            anychar,
+        )))),
+        |s| !s.fragment().is_empty() && !s.fragment().starts_with('='),
+    )
 }
 
 /// Builds a parser to find a header boundary (surrounding =)
