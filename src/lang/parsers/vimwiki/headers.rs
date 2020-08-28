@@ -2,63 +2,80 @@ use super::{
     components::{
         Header, Header1, Header2, Header3, Header4, Header5, Header6,
     },
-    Span, LC,
+    Span, VimwikiIResult, LC,
 };
 use nom::{
     branch::alt,
     bytes::complete::take,
-    character::complete::{not_line_ending, space0},
-    combinator::{map, verify},
-    error::{context, ParseError},
+    character::complete::{anychar, line_ending, space0},
+    combinator::{map, not, recognize, verify},
+    error::context,
+    multi::many1,
     sequence::{delimited, tuple},
-    IResult,
 };
 use nom_locate::position;
 
 /// Parses a vimwiki header, returning the associated header if successful
-pub fn header<'a, E: ParseError<Span<'a>>>(
-    input: Span<'a>,
-) -> IResult<Span<'a>, LC<Header>, E> {
+#[inline]
+pub fn header<'a>(input: Span<'a>) -> VimwikiIResult<Span<'a>, LC<Header>> {
     // TODO: Custom error type to return error of parser that made the most
     //       progress across all of the below, rather than the last parser
     let (input, pos) = position(input)?;
     let (input, header) = alt((
-        context(
-            "Header1",
-            map(make_header_parser(1, Header1::from), Header::from),
-        ),
-        context(
-            "Header2",
-            map(make_header_parser(2, Header2::from), Header::from),
-        ),
-        context(
-            "Header3",
-            map(make_header_parser(3, Header3::from), Header::from),
-        ),
-        context(
-            "Header4",
-            map(make_header_parser(4, Header4::from), Header::from),
-        ),
-        context(
-            "Header5",
-            map(make_header_parser(5, Header5::from), Header::from),
-        ),
-        context(
-            "Header6",
-            map(make_header_parser(6, Header6::from), Header::from),
-        ),
+        map(header1, Header::from),
+        map(header2, Header::from),
+        map(header3, Header::from),
+        map(header4, Header::from),
+        map(header5, Header::from),
+        map(header6, Header::from),
     ))(input)?;
 
     Ok((input, LC::from((header, pos))))
 }
 
-fn make_header_parser<'a, T, E: ParseError<Span<'a>>>(
+#[inline]
+pub fn header1<'a>(input: Span<'a>) -> VimwikiIResult<Span<'a>, Header1> {
+    context("Header1", make_header_parser(1, Header1::from))(input)
+}
+
+#[inline]
+pub fn header2<'a>(input: Span<'a>) -> VimwikiIResult<Span<'a>, Header2> {
+    context("Header2", make_header_parser(2, Header2::from))(input)
+}
+
+#[inline]
+pub fn header3<'a>(input: Span<'a>) -> VimwikiIResult<Span<'a>, Header3> {
+    context("Header3", make_header_parser(3, Header3::from))(input)
+}
+
+#[inline]
+pub fn header4<'a>(input: Span<'a>) -> VimwikiIResult<Span<'a>, Header4> {
+    context("Header4", make_header_parser(4, Header4::from))(input)
+}
+
+#[inline]
+pub fn header5<'a>(input: Span<'a>) -> VimwikiIResult<Span<'a>, Header5> {
+    context("Header5", make_header_parser(5, Header5::from))(input)
+}
+
+#[inline]
+pub fn header6<'a>(input: Span<'a>) -> VimwikiIResult<Span<'a>, Header6> {
+    context("Header6", make_header_parser(6, Header6::from))(input)
+}
+
+/// Builds a parser for a header based on the provided level
+#[inline]
+fn make_header_parser<'a, T>(
     level: u8,
     f: impl Fn((&'a str, bool)) -> T,
-) -> impl Fn(Span<'a>) -> IResult<Span<'a>, T, E> {
+) -> impl Fn(Span<'a>) -> VimwikiIResult<Span<'a>, T> {
     let header = delimited(
         make_surrounding_parser(level),
-        not_line_ending,
+        recognize(many1(tuple((
+            not(make_surrounding_parser(level)),
+            not(line_ending),
+            anychar,
+        )))),
         make_surrounding_parser(level),
     );
     let header_with_space = tuple((space0, header, space0));
@@ -67,22 +84,27 @@ fn make_header_parser<'a, T, E: ParseError<Span<'a>>>(
     })
 }
 
-fn make_surrounding_parser<'a, E: ParseError<Span<'a>>>(
+/// Builds a parser to find a header boundary
+#[inline]
+fn make_surrounding_parser<'a>(
     level: u8,
-) -> impl Fn(Span<'a>) -> IResult<Span<'a>, Span<'a>, E> {
-    verify(take(level), |s: &Span<'a>| {
-        s.fragment().chars().all(|c| c == '=')
-    })
+) -> impl Fn(Span<'a>) -> VimwikiIResult<Span<'a>, Span<'a>> {
+    verify(take(level), is_header_boundary)
+}
+
+#[inline]
+fn is_header_boundary<'a>(span: &Span<'a>) -> bool {
+    span.fragment().chars().all(|c| c == '=')
 }
 
 #[cfg(test)]
 mod tests {
-    use super::super::super::super::utils::convert_error;
+    use super::super::super::utils::convert_error;
     use super::*;
-    use nom::{error::VerboseError, Err};
+    use nom::Err;
 
     fn parse_and_eval<'a>(input: Span<'a>, f: impl Fn((Span<'a>, LC<Header>))) {
-        match header::<VerboseError<Span<'a>>>(input) {
+        match header(input) {
             Err(Err::Error(e)) | Err(Err::Failure(e)) => {
                 panic!("{}", convert_error(input, e))
             }
@@ -101,7 +123,8 @@ mod tests {
         parse_and_eval(input, |result| {
             assert!(
                 result.0.fragment().is_empty(),
-                "Entire input not consumed: '{}'",
+                "Entire input not consumed! Input: '{}' | Remainder: '{}'",
+                input,
                 result.0,
             );
             assert_eq!(
