@@ -21,6 +21,13 @@ pub fn header<'a>(input: Span<'a>) -> VimwikiIResult<Span<'a>, LC<Header>> {
     // TODO: Custom error type to return error of parser that made the most
     //       progress across all of the below, rather than the last parser
     let (input, pos) = position(input)?;
+
+    // NOTE: We split out the header definitions into standalone functions
+    //       as we were hitting a type length limit through a series of
+    //       impl Fn(...) -> IResult<...> in combination with alt(...), which
+    //       itself is a Fn(...) -> IResult<...>; so, breaking out the headers
+    //       enabled us to close off the series of impl Fn(...) -> IResult<...>
+    //       earlier, which prevented the odd type length limit comp error
     let (input, header) = alt((
         map(header1, Header::from),
         map(header2, Header::from),
@@ -35,58 +42,62 @@ pub fn header<'a>(input: Span<'a>) -> VimwikiIResult<Span<'a>, LC<Header>> {
 
 #[inline]
 pub fn header1<'a>(input: Span<'a>) -> VimwikiIResult<Span<'a>, Header1> {
-    context("Header1", make_header_parser(1, Header1::from))(input)
+    context("Header1", inner_header(1, Header1::from))(input)
 }
 
 #[inline]
 pub fn header2<'a>(input: Span<'a>) -> VimwikiIResult<Span<'a>, Header2> {
-    context("Header2", make_header_parser(2, Header2::from))(input)
+    context("Header2", inner_header(2, Header2::from))(input)
 }
 
 #[inline]
 pub fn header3<'a>(input: Span<'a>) -> VimwikiIResult<Span<'a>, Header3> {
-    context("Header3", make_header_parser(3, Header3::from))(input)
+    context("Header3", inner_header(3, Header3::from))(input)
 }
 
 #[inline]
 pub fn header4<'a>(input: Span<'a>) -> VimwikiIResult<Span<'a>, Header4> {
-    context("Header4", make_header_parser(4, Header4::from))(input)
+    context("Header4", inner_header(4, Header4::from))(input)
 }
 
 #[inline]
 pub fn header5<'a>(input: Span<'a>) -> VimwikiIResult<Span<'a>, Header5> {
-    context("Header5", make_header_parser(5, Header5::from))(input)
+    context("Header5", inner_header(5, Header5::from))(input)
 }
 
 #[inline]
 pub fn header6<'a>(input: Span<'a>) -> VimwikiIResult<Span<'a>, Header6> {
-    context("Header6", make_header_parser(6, Header6::from))(input)
+    context("Header6", inner_header(6, Header6::from))(input)
 }
 
 /// Builds a parser for a header based on the provided level
 #[inline]
-fn make_header_parser<'a, T>(
+fn inner_header<'a, T>(
     level: u8,
     f: impl Fn((&'a str, bool)) -> T,
 ) -> impl Fn(Span<'a>) -> VimwikiIResult<Span<'a>, T> {
-    let header = delimited(
-        make_surrounding_parser(level),
-        recognize(many1(tuple((
-            not(make_surrounding_parser(level)),
-            not(line_ending),
-            anychar,
-        )))),
-        make_surrounding_parser(level),
-    );
+    let header =
+        delimited(surrounding(level), content(level), surrounding(level));
     let header_with_space = tuple((space0, header, space0));
     map(header_with_space, move |x: (Span<'a>, Span<'a>, _)| {
         f((x.1.fragment(), !x.0.fragment().is_empty()))
     })
 }
 
-/// Builds a parser to find a header boundary
 #[inline]
-fn make_surrounding_parser<'a>(
+fn content<'a>(
+    level: u8,
+) -> impl Fn(Span<'a>) -> VimwikiIResult<Span<'a>, Span<'a>> {
+    recognize(many1(tuple((
+        not(surrounding(level)),
+        not(line_ending),
+        anychar,
+    ))))
+}
+
+/// Builds a parser to find a header boundary (surrounding =)
+#[inline]
+fn surrounding<'a>(
     level: u8,
 ) -> impl Fn(Span<'a>) -> VimwikiIResult<Span<'a>, Span<'a>> {
     verify(take(level), is_header_boundary)
