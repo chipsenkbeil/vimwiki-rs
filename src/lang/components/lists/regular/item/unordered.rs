@@ -45,7 +45,7 @@ impl Default for ListItem {
 
 #[cfg(test)]
 mod tests {
-    use super::super::ListItemContent;
+    use super::super::{ListItemContent, LC};
     use super::*;
 
     macro_rules! unordered_item {
@@ -76,7 +76,7 @@ mod tests {
     }
 
     fn make_content(text: &str) -> ListItemContents {
-        vec![ListItemContent::InlineContent(text.into())]
+        vec![LC::from(ListItemContent::InlineContent(text.into()))]
     }
 
     #[test]

@@ -9,6 +9,7 @@ use nom::{
     multi::many0,
     IResult,
 };
+use nom_locate::position;
 
 mod headers;
 
@@ -38,7 +39,10 @@ fn page<'a, E: ParseError<Span<'a>>>(
 ) -> IResult<Span<'a>, LC<Page>, E> {
     // Continuously parse input for new block components until we have
     // nothing left (or we fail)
-    map(all_consuming(many0(block_component)), Page::new)(input)
+    let (input, pos) = position(input)?;
+    map(all_consuming(many0(block_component)), move |c| {
+        LC::from((Page::new(c), pos))
+    })(input)
 }
 
 /// Parses a block component
@@ -47,8 +51,8 @@ fn block_component<'a, E: ParseError<Span<'a>>>(
 ) -> IResult<Span<'a>, LC<BlockComponent>, E> {
     // TODO: Remove duplicate header and add all other block components
     alt((
-        map(headers::header, From::from),
-        map(headers::header, From::from),
+        map(headers::header, |c| c.map(BlockComponent::from)),
+        map(headers::header, |c| c.map(BlockComponent::from)),
     ))(input)
 }
 

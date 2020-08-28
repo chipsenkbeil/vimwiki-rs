@@ -163,7 +163,8 @@ mod tests {
 
     impl From<&str> for InlineComponentContainer {
         fn from(text: &str) -> Self {
-            Self::from(vec![LC::from(text)])
+            let x: LC<String> = LC::from(text);
+            Self::from(x)
         }
     }
 
@@ -230,7 +231,7 @@ mod tests {
         // Test looking for alternate terms for term that has one
         let terms = dl.find_alternative_terms("term3");
         assert_eq!(terms.len(), 1);
-        assert_eq!(terms, vec!["term4"]);
+        assert_eq!(terms, vec![&LC::from("term4")]);
 
         // Test looking for alternate terms for term that has no alternatives
         let terms = dl.find_alternative_terms("term5");

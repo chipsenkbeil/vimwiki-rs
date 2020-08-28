@@ -163,7 +163,7 @@ mod tests {
     }
 
     fn make_content(text: &str) -> ListItemContents {
-        vec![ListItemContent::InlineContent(text.into())]
+        vec![LC::from(ListItemContent::InlineContent(text.into()))]
     }
 
     #[test]

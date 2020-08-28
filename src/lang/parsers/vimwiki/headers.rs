@@ -6,8 +6,8 @@ use super::{
 };
 use nom::{
     branch::alt,
-    bytes::complete::{char, tag, take, take_until},
-    character::complete::space0,
+    bytes::complete::take,
+    character::complete::{not_line_ending, space0},
     combinator::{map, verify},
     error::{context, ParseError},
     sequence::{delimited, tuple},
@@ -56,26 +56,33 @@ fn make_header_parser<'a, T, E: ParseError<Span<'a>>>(
     level: u8,
     f: impl Fn((&'a str, bool)) -> T,
 ) -> impl Fn(Span<'a>) -> IResult<Span<'a>, T, E> {
-    // TODO: Handle newline; ensure that
-    let pattern_span = Span::new(pattern);
-    let header_content = verify(take_until(pattern_span), |s: Span<'a>| {
-        !s.fragment().is_empty() && !s.fragment().starts_with('=')
-    });
-    let header = delimited(take(level), header_content, take(level));
+    let header = delimited(
+        make_surrounding_parser(level),
+        not_line_ending,
+        make_surrounding_parser(level),
+    );
     let header_with_space = tuple((space0, header, space0));
-    map(header_with_space, move |x| f((x.1, !x.0.is_empty())))
+    map(header_with_space, move |x: (Span<'a>, Span<'a>, _)| {
+        f((x.1.fragment(), !x.0.fragment().is_empty()))
+    })
+}
+
+fn make_surrounding_parser<'a, E: ParseError<Span<'a>>>(
+    level: u8,
+) -> impl Fn(Span<'a>) -> IResult<Span<'a>, Span<'a>, E> {
+    verify(take(level), |s: &Span<'a>| {
+        s.fragment().chars().all(|c| c == '=')
+    })
 }
 
 #[cfg(test)]
 mod tests {
+    use super::super::super::super::utils::convert_error;
     use super::*;
-    use nom::{
-        error::{convert_error, VerboseError},
-        Err,
-    };
+    use nom::{error::VerboseError, Err};
 
-    fn parse_and_eval(input: &str, f: impl Fn((&str, Header))) {
-        match header::<VerboseError<&str>>(input) {
+    fn parse_and_eval<'a>(input: Span<'a>, f: impl Fn((Span<'a>, LC<Header>))) {
+        match header::<VerboseError<Span<'a>>>(input) {
             Err(Err::Error(e)) | Err(Err::Failure(e)) => {
                 panic!("{}", convert_error(input, e))
             }
@@ -84,32 +91,38 @@ mod tests {
         }
     }
 
-    fn parse_and_test(input: &str, level: usize, text: &str, centered: bool) {
+    fn parse_and_test(
+        input_str: &str,
+        level: usize,
+        text: &str,
+        centered: bool,
+    ) {
+        let input = Span::new(input_str);
         parse_and_eval(input, |result| {
             assert!(
-                result.0.is_empty(),
+                result.0.fragment().is_empty(),
                 "Entire input not consumed: '{}'",
                 result.0,
             );
             assert_eq!(
-                result.1.level(),
+                result.1.component.level(),
                 level,
                 "Wrong header level: Got {}, but wanted {}",
-                result.1.level(),
+                result.1.component.level(),
                 level,
             );
             assert_eq!(
-                result.1.text(),
+                result.1.component.text(),
                 "test header",
                 "Wrong header text: Got '{}', but wanted '{}'",
-                result.1.text(),
+                result.1.component.text(),
                 text,
             );
             assert_eq!(
-                result.1.is_centered(),
+                result.1.component.is_centered(),
                 centered,
                 "Wrong header centered: Got {}, but wanted {}",
-                result.1.is_centered(),
+                result.1.component.is_centered(),
                 centered,
             );
         });

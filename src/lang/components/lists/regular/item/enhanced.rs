@@ -87,7 +87,7 @@ impl EnhancedListItem {
         self.item
             .contents()
             .iter()
-            .fold(None, |acc, c| match c.component {
+            .fold(None, |acc, c| match &c.component {
                 ListItemContent::InlineContent(_) => acc,
                 ListItemContent::List(list) => {
                     let (mut sum, mut count) =
@@ -197,6 +197,7 @@ impl EnhancedListItem {
 
 #[cfg(test)]
 mod tests {
+    use super::super::LC;
     use super::*;
 
     macro_rules! enhanced_item {
@@ -220,9 +221,9 @@ mod tests {
                 ListItem::Unordered(super::super::UnorderedListItem::new(
                     super::super::UnorderedListItemType::Hyphen,
                     0,
-                    vec![super::super::ListItemContent::List(
+                    vec![From::from(super::super::ListItemContent::List(
                         super::super::super::List::new(vec![$($child),+]),
-                    )],
+                    ))],
                 )),
                 vec![EnhancedListItemAttribute::$attr]
                     .iter()
@@ -285,12 +286,12 @@ mod tests {
         assert_eq!(
             enhanced_item!(
                 TodoIncomplete,
-                enhanced_item!(TodoRejected),
-                enhanced_item!(TodoComplete),
-                enhanced_item!(TodoPartiallyComplete1),
-                enhanced_item!(TodoPartiallyComplete2),
-                enhanced_item!(TodoPartiallyComplete3),
-                enhanced_item!(TodoIncomplete)
+                LC::from(enhanced_item!(TodoRejected)),
+                LC::from(enhanced_item!(TodoComplete)),
+                LC::from(enhanced_item!(TodoPartiallyComplete1)),
+                LC::from(enhanced_item!(TodoPartiallyComplete2)),
+                LC::from(enhanced_item!(TodoPartiallyComplete3)),
+                LC::from(enhanced_item!(TodoIncomplete))
             )
             .compute_todo_progress(),
             Some((1.0 + 0.25 + 0.5 + 0.75 + 0.0) / 5.0)
@@ -302,15 +303,15 @@ mod tests {
         assert_eq!(
             enhanced_item!(
                 TodoIncomplete,
-                enhanced_item!(
+                LC::from(enhanced_item!(
                     TodoRejected,
-                    enhanced_item!(TodoRejected),
-                    enhanced_item!(TodoComplete),
-                    enhanced_item!(TodoPartiallyComplete1),
-                    enhanced_item!(TodoPartiallyComplete2),
-                    enhanced_item!(TodoPartiallyComplete3),
-                    enhanced_item!(TodoIncomplete)
-                )
+                    LC::from(enhanced_item!(TodoRejected)),
+                    LC::from(enhanced_item!(TodoComplete)),
+                    LC::from(enhanced_item!(TodoPartiallyComplete1)),
+                    LC::from(enhanced_item!(TodoPartiallyComplete2)),
+                    LC::from(enhanced_item!(TodoPartiallyComplete3)),
+                    LC::from(enhanced_item!(TodoIncomplete))
+                ))
             )
             .compute_todo_progress(),
             Some((1.0 + 0.25 + 0.5 + 0.75 + 0.0) / 5.0)
