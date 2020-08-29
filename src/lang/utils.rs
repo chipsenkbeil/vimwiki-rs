@@ -138,6 +138,11 @@ impl Position {
 
         end
     }
+
+    /// Whether or not this position is at the beginning of a line
+    pub fn is_at_beginning_of_line(&self) -> bool {
+        self.column == 0
+    }
 }
 
 impl<'a> From<Span<'a>> for Position {

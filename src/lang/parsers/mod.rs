@@ -1,7 +1,7 @@
 // Import to make more easily accessible to submodules
 use super::{
     components,
-    utils::{Span, LC},
+    utils::{Position, Span, LC},
 };
 use derive_more::{Constructor, Display, Error};
 

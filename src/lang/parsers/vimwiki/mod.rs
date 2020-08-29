@@ -1,6 +1,6 @@
 use super::{
-    components::{self, BlockComponent, InlineComponent, Page},
-    utils::VimwikiIResult,
+    components::{self, BlockComponent, Page},
+    utils::{self, VimwikiIResult},
     LangParserError, Span, LC,
 };
 use nom::{
@@ -11,6 +11,8 @@ use nom::{
 use nom_locate::position;
 
 mod headers;
+mod inline;
+mod paragraphs;
 
 /// Parses str slice into a wiki page
 pub fn parse_str(text: &str) -> Result<LC<Page>, LangParserError> {
@@ -21,7 +23,7 @@ pub fn parse_str(text: &str) -> Result<LC<Page>, LangParserError> {
 }
 
 /// Parses entire vimwiki page
-fn page<'a>(input: Span<'a>) -> VimwikiIResult<Span<'a>, LC<Page>> {
+fn page(input: Span) -> VimwikiIResult<LC<Page>> {
     // Continuously parse input for new block components until we have
     // nothing left (or we fail)
     let (input, pos) = position(input)?;
@@ -30,21 +32,18 @@ fn page<'a>(input: Span<'a>) -> VimwikiIResult<Span<'a>, LC<Page>> {
     })(input)
 }
 
+//
+// CHIP CHIP CHIP: To ensure parsing works okay, inline components including
+// text are limited to a single line, even if text extends to the next line.
+// It may or may not be a good idea to examine inline components once fully
+// parsed to see if two text components exist next to one another and - if so -
+// join their contents and regions together
+//
+
 /// Parses a block component
-fn block_component<'a>(
-    input: Span<'a>,
-) -> VimwikiIResult<Span<'a>, LC<BlockComponent>> {
-    // TODO: Remove duplicate header and add all other block components
+fn block_component(input: Span) -> VimwikiIResult<LC<BlockComponent>> {
     alt((
         map(headers::header, |c| c.map(BlockComponent::from)),
-        map(headers::header, |c| c.map(BlockComponent::from)),
+        map(paragraphs::paragraph, |c| c.map(BlockComponent::from)),
     ))(input)
-}
-
-/// Parses an inline component
-fn inline_component<'a>(
-    input: Span<'a>,
-) -> VimwikiIResult<Span<'a>, LC<InlineComponent>> {
-    // TODO: Add all inline component parsers
-    panic!("TODO: Implement");
 }

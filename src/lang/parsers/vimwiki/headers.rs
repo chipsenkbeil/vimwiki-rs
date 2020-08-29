@@ -2,6 +2,7 @@ use super::{
     components::{
         Header, Header1, Header2, Header3, Header4, Header5, Header6,
     },
+    utils::end_of_line_or_input,
     Span, VimwikiIResult, LC,
 };
 use nom::{
@@ -17,7 +18,7 @@ use nom_locate::position;
 
 /// Parses a vimwiki header, returning the associated header if successful
 #[inline]
-pub fn header<'a>(input: Span<'a>) -> VimwikiIResult<Span<'a>, LC<Header>> {
+pub fn header(input: Span) -> VimwikiIResult<LC<Header>> {
     // TODO: Custom error type to return error of parser that made the most
     //       progress across all of the below, rather than the last parser
     let (input, pos) = position(input)?;
@@ -41,32 +42,32 @@ pub fn header<'a>(input: Span<'a>) -> VimwikiIResult<Span<'a>, LC<Header>> {
 }
 
 #[inline]
-pub fn header1<'a>(input: Span<'a>) -> VimwikiIResult<Span<'a>, Header1> {
+pub fn header1(input: Span) -> VimwikiIResult<Header1> {
     context("Header1", inner_header(1, Header1::from))(input)
 }
 
 #[inline]
-pub fn header2<'a>(input: Span<'a>) -> VimwikiIResult<Span<'a>, Header2> {
+pub fn header2(input: Span) -> VimwikiIResult<Header2> {
     context("Header2", inner_header(2, Header2::from))(input)
 }
 
 #[inline]
-pub fn header3<'a>(input: Span<'a>) -> VimwikiIResult<Span<'a>, Header3> {
+pub fn header3(input: Span) -> VimwikiIResult<Header3> {
     context("Header3", inner_header(3, Header3::from))(input)
 }
 
 #[inline]
-pub fn header4<'a>(input: Span<'a>) -> VimwikiIResult<Span<'a>, Header4> {
+pub fn header4(input: Span) -> VimwikiIResult<Header4> {
     context("Header4", inner_header(4, Header4::from))(input)
 }
 
 #[inline]
-pub fn header5<'a>(input: Span<'a>) -> VimwikiIResult<Span<'a>, Header5> {
+pub fn header5(input: Span) -> VimwikiIResult<Header5> {
     context("Header5", inner_header(5, Header5::from))(input)
 }
 
 #[inline]
-pub fn header6<'a>(input: Span<'a>) -> VimwikiIResult<Span<'a>, Header6> {
+pub fn header6(input: Span) -> VimwikiIResult<Header6> {
     context("Header6", inner_header(6, Header6::from))(input)
 }
 
@@ -75,22 +76,35 @@ pub fn header6<'a>(input: Span<'a>) -> VimwikiIResult<Span<'a>, Header6> {
 fn inner_header<'a, T>(
     level: u8,
     f: impl Fn((&'a str, bool)) -> T,
-) -> impl Fn(Span<'a>) -> VimwikiIResult<Span<'a>, T> {
-    let header =
-        delimited(surrounding(level), content(level), surrounding(level));
-    let header_with_space = tuple((space0, header, space0));
-    map(header_with_space, move |x: (Span<'a>, Span<'a>, _)| {
-        f((x.1.fragment(), !x.0.fragment().is_empty()))
-    })
+) -> impl Fn(Span<'a>) -> VimwikiIResult<T> {
+    move |input: Span<'a>| {
+        // Header itself is in the form of ===text===
+        let header =
+            delimited(surrounding(level), content(level), surrounding(level));
+
+        // Header can be preceded by zero or more whitespace, which will indicate
+        // whether it should be centered (in HTML) and is ended by zero or more
+        // whitespace and either an end of line termination or the end of all
+        // input if it's on the last line
+        let (input, (leading_space, content, _)) =
+            context("Header", tuple((space0, header, space0)))(input)?;
+
+        // If we did not receive a line termination and the input is not empty,
+        // then this is not actually a header
+        let (input, _) = end_of_line_or_input(input)?;
+
+        Ok((
+            input,
+            f((content.fragment(), !leading_space.fragment().is_empty())),
+        ))
+    }
 }
 
 /// Builds a parser to read content of header, which will not start with
 /// an = sign (that would still be part of the surrounding) and is not empty
 /// (in case a parser tries to inject in the middle of a surrounding)
 #[inline]
-fn content<'a>(
-    level: u8,
-) -> impl Fn(Span<'a>) -> VimwikiIResult<Span<'a>, Span<'a>> {
+fn content<'a>(level: u8) -> impl Fn(Span<'a>) -> VimwikiIResult<Span<'a>> {
     verify(
         recognize(many1(tuple((
             not(surrounding(level)),
@@ -103,9 +117,7 @@ fn content<'a>(
 
 /// Builds a parser to find a header boundary (surrounding =)
 #[inline]
-fn surrounding<'a>(
-    level: u8,
-) -> impl Fn(Span<'a>) -> VimwikiIResult<Span<'a>, Span<'a>> {
+fn surrounding<'a>(level: u8) -> impl Fn(Span<'a>) -> VimwikiIResult<Span<'a>> {
     verify(take(level), is_header_boundary)
 }
 

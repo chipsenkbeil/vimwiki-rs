@@ -1,15 +1,6 @@
-use super::Span;
-use nom::{
-    error::{VerboseError, VerboseErrorKind},
-    Err, HexDisplay, IResult, Offset,
-};
+use super::{Span, VimwikiNomError};
+use nom::{error::VerboseErrorKind, HexDisplay, IResult, Offset};
 use std::fmt::{Debug, Write};
-
-/// Alias to the type of error to use with vimwiki parsing using nom
-pub type VimwikiNomError<'a> = VerboseError<Span<'a>>;
-
-/// Alias to an IResult using VimwikiNomError
-pub type VimwikiIResult<'a, I, O> = Result<(I, O), Err<VimwikiNomError<'a>>>;
 
 /// Port of nom's `dbg_dmp` to support a `Span`
 #[allow(dead_code)]
