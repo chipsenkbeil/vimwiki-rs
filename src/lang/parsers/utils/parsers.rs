@@ -71,12 +71,14 @@ pub fn single_multispace(input: Span) -> VimwikiIResult<()> {
 ///     1. https (https://example.com)
 ///     2. http (http://example.com)
 ///     3. ftp (ftp:)
-///     4. file (file://host/path)
-///     5. mailto (mailto:someone@example.com)
+///     4. file (file:relative/path)
+///     5. local (local:relative/path)
+///     6. mailto (mailto:someone@example.com)
 ///
 /// ### Special cases
 ///
 ///     1. www (www.example.com) -> (https://www.example.com)
+///     2. // (//some/abs/path) -> (file:/some/abs/path)
 #[inline]
 pub fn url(input: Span) -> VimwikiIResult<Url> {
     // URI = scheme:[//authority]path[?query][#fragment]
@@ -98,10 +100,124 @@ pub fn url(input: Span) -> VimwikiIResult<Url> {
         "Url",
         map_res(
             recognize(pair(
-                alt((scheme, tag("www."))),
+                alt((scheme, tag("www."), tag("//"))),
                 many1(pair(not(single_multispace), anychar)),
             )),
             |s| Url::parse(s.fragment()),
         ),
     )(input)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn end_of_line_or_input_should_succeed_if_line_ending() {
+        todo!();
+    }
+
+    #[test]
+    fn end_of_line_or_input_should_succeed_if_input_empty() {
+        todo!();
+    }
+
+    #[test]
+    fn count_from_beginning_of_line_should_yield_0_if_at_beginning_of_line() {
+        todo!();
+    }
+
+    #[test]
+    fn count_from_beginning_of_line_should_yield_N_where_N_is_characters_from_beginning_of_line(
+    ) {
+        todo!();
+    }
+
+    #[test]
+    fn beginning_of_line_should_fail_if_not_at_beginning_of_line() {
+        todo!();
+    }
+
+    #[test]
+    fn beginning_of_line_should_succeed_if_at_beginning_of_line() {
+        todo!();
+    }
+
+    #[test]
+    fn blank_line_should_fail_if_line_contains_non_whitespace() {
+        todo!();
+    }
+
+    #[test]
+    fn blank_line_should_succeed_if_input_empty_and_at_beginning_of_line() {
+        todo!();
+    }
+
+    #[test]
+    fn blank_line_should_succeed_if_line_empty() {
+        todo!();
+    }
+
+    #[test]
+    fn blank_line_should_succeed_if_line_only_has_whitespace() {
+        todo!();
+    }
+
+    #[test]
+    fn blank_line_should_succeed_if_on_last_line_and_only_whitespace() {
+        todo!();
+    }
+
+    #[test]
+    fn single_multispace_should_fail_if_input_empty() {
+        todo!();
+    }
+
+    #[test]
+    fn single_multispace_should_fail_if_not_multispace_character() {
+        todo!();
+    }
+
+    #[test]
+    fn single_multispace_should_succeed_if_tab() {
+        todo!();
+    }
+
+    #[test]
+    fn single_multispace_should_succeed_if_space() {
+        todo!();
+    }
+
+    #[test]
+    fn single_multispace_should_succeed_if_crlf() {
+        todo!();
+    }
+
+    #[test]
+    fn single_multispace_should_succeed_if_newline() {
+        todo!();
+    }
+
+    #[test]
+    fn url_should_fail_if_input_empty() {
+        todo!();
+    }
+
+    #[test]
+    fn url_should_fail_if_no_scheme_and_not_www() {
+        todo!();
+    }
+
+    #[test]
+    fn url_should_succeed_if_starts_with_www_and_will_add_https_as_scheme() {
+        todo!();
+    }
+
+    #[test]
+    fn url_should_succeed_if_starts_with_scheme() {
+        // https://github.com/vimwiki/vimwiki.git
+        // mailto:habamax@gmail.com
+        // ftp://vim.org
+        todo!();
+    }
 }
