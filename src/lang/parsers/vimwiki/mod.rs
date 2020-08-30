@@ -1,12 +1,15 @@
 use super::{
-    components::{self, BlockComponent, InlineComponent, Page},
+    components::{
+        self, BlockComponent, InlineComponent, InlineComponentContainer, Page,
+    },
     utils::{self, VimwikiIResult},
     LangParserError, Span, LC,
 };
 use nom::{
     branch::alt,
     combinator::{all_consuming, map},
-    multi::many0,
+    error::context,
+    multi::{many0, many1},
 };
 use nom_locate::position;
 
@@ -55,6 +58,7 @@ fn block_component(input: Span) -> VimwikiIResult<LC<BlockComponent>> {
         // Blockquote(Blockquote),
         // Divider(Divider),
         map(tags::tag_sequence, |c| c.map(BlockComponent::from)),
+        // NOTE: Parses a single line to end, failing if contains non-whitespace
         map(blank_line, |c| LC::new(BlockComponent::EmptyLine, c.region)),
         // NOTE: Parses a single line to end; final type because will match
         //       anychar and consume the line
@@ -64,20 +68,38 @@ fn block_component(input: Span) -> VimwikiIResult<LC<BlockComponent>> {
     ))(input)
 }
 
+/// Parses one or more inline components and wraps it in a container
+#[inline]
+pub fn inline_component_container(
+    input: Span,
+) -> VimwikiIResult<LC<InlineComponentContainer>> {
+    let (input, pos) = position(input)?;
+
+    let (input, container) = context(
+        "Inline Component Container",
+        map(many1(inline_component), InlineComponentContainer::from),
+    )(input)?;
+
+    Ok((input, LC::from((container, pos))))
+}
+
 /// Parses an inline component, which can only exist on a single line
 #[inline]
 pub fn inline_component(input: Span) -> VimwikiIResult<LC<InlineComponent>> {
     // NOTE: Ordering matters here as the first match is used as the
     //       component. This means that we want to ensure that text,
     //       which can match any character, is the last of our components.
-    alt((
-        map(math::math_inline, |c| c.map(InlineComponent::from)),
-        map(tags::tag_sequence, |c| c.map(InlineComponent::from)),
-        map(links::link, |c| c.map(InlineComponent::from)),
-        map(typefaces::decorated_text, |c| c.map(InlineComponent::from)),
-        map(typefaces::keyword, |c| c.map(InlineComponent::from)),
-        map(typefaces::text, |c| c.map(InlineComponent::from)),
-    ))(input)
+    context(
+        "Inline Component",
+        alt((
+            map(math::math_inline, |c| c.map(InlineComponent::from)),
+            map(tags::tag_sequence, |c| c.map(InlineComponent::from)),
+            map(links::link, |c| c.map(InlineComponent::from)),
+            map(typefaces::decorated_text, |c| c.map(InlineComponent::from)),
+            map(typefaces::keyword, |c| c.map(InlineComponent::from)),
+            map(typefaces::text, |c| c.map(InlineComponent::from)),
+        )),
+    )(input)
 }
 
 /// Parses a blank line
