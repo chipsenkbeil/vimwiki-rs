@@ -1,4 +1,4 @@
-use derive_more::From;
+use derive_more::Constructor;
 use serde::{Deserialize, Serialize};
 
 /// Represents a sequence of one or more tags
@@ -11,9 +11,13 @@ use serde::{Deserialize, Serialize};
 ///
 /// TagSequence([ Tag(my-tag-1), Tag(my-tag-2) ])
 ///
-#[derive(Clone, Debug, From, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(
+    Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
+)]
 pub struct TagSequence(pub Vec<Tag>);
 
 /// Represents a single tag
-#[derive(Clone, Debug, From, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(
+    Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
+)]
 pub struct Tag(pub String);

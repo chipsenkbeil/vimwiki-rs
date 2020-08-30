@@ -1,4 +1,5 @@
-use derive_more::Constructor;
+use super::{Link, LC};
+use derive_more::{Constructor, From};
 use serde::{Deserialize, Serialize};
 
 /// Represents a typeface decoration that can be applied to text
@@ -13,12 +14,21 @@ pub enum Decoration {
     Subscript,
 }
 
-/// Represents text with a typeface decoration
+/// Represents content that can be contained within a decoration
+#[derive(Clone, Debug, From, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub enum DecoratedTextContent {
+    Text(String),
+    DecoratedText(DecoratedText),
+    Keyword(Keyword),
+    Link(Link),
+}
+
+/// Represents text (series of content) with a typeface decoration
 #[derive(
     Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
 )]
 pub struct DecoratedText {
-    pub text: String,
+    pub contents: Vec<LC<DecoratedTextContent>>,
     pub decoration: Decoration,
 }
 

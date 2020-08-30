@@ -1,10 +1,14 @@
 use super::{new_nom_error, Position, Span, VimwikiIResult};
 use nom::{
-    character::complete::{line_ending, space0},
-    combinator::{opt, rest_len, value, verify},
+    branch::alt,
+    bytes::complete::{tag, take_while},
+    character::complete::{anychar, crlf, line_ending, space0},
+    combinator::{map, map_res, not, opt, recognize, rest_len, value, verify},
     error::context,
-    sequence::{pair, tuple},
+    multi::many1,
+    sequence::{pair, terminated, tuple},
 };
+use url::Url;
 
 /// Parser that will consume an end of line (\n or \r\n) or do nothing if
 /// the input is empty
@@ -51,5 +55,53 @@ pub fn blank_line(input: Span) -> VimwikiIResult<()> {
     context(
         "Blank Line",
         value((), tuple((beginning_of_line, space0, end_of_line_or_input))),
+    )(input)
+}
+
+/// Parser that consumes a single multispace that could be \r\n, \n, \t, or
+/// a space character
+pub fn single_multispace(input: Span) -> VimwikiIResult<()> {
+    value((), alt((crlf, tag("\n"), tag("\t"), tag(" "))))(input)
+}
+
+/// Parser for a general purpose URL.
+///
+/// ### Regular cases
+///
+///     1. https (https://example.com)
+///     2. http (http://example.com)
+///     3. ftp (ftp:)
+///     4. file (file://host/path)
+///     5. mailto (mailto:someone@example.com)
+///
+/// ### Special cases
+///
+///     1. www (www.example.com) -> (https://www.example.com)
+#[inline]
+pub fn url(input: Span) -> VimwikiIResult<Url> {
+    // URI = scheme:[//authority]path[?query][#fragment]
+    // scheme = sequence of characters beginning with a letter and followed
+    //          by any combination of letters, digits, plus (+), period (.),
+    //          or hyphen (-)
+    // authority = [userinfo@]host[:port] where host is a hostname or IP address
+    // path = sequence of path segments separated by / with an empty segment
+    //        resulting in //
+    let scheme = terminated(
+        take_while(|c: char| {
+            c.is_alphanumeric() || c == '+' || c == '.' || c == '-'
+        }),
+        tag(":"),
+    );
+
+    // TODO: Do we need to support whitespace in our raw URLs?
+    context(
+        "Url",
+        map_res(
+            recognize(pair(
+                alt((scheme, tag("www."))),
+                many1(pair(not(single_multispace), anychar)),
+            )),
+            |s| Url::parse(s.fragment()),
+        ),
     )(input)
 }

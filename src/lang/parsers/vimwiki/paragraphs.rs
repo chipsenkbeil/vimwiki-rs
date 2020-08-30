@@ -1,6 +1,6 @@
 use super::{
     components::Paragraph,
-    inline::inline_component,
+    inline_component,
     utils::{beginning_of_line, blank_line},
     Span, VimwikiIResult, LC,
 };
