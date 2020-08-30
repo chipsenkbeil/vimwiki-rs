@@ -64,6 +64,7 @@ pub enum BlockComponent {
     Blockquote(Blockquote),
     Divider(Divider),
     TagSequence(TagSequence),
+    NonemptyLine(String),
     EmptyLine,
 }
 

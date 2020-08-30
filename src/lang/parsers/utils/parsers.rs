@@ -58,6 +58,31 @@ pub fn blank_line(input: Span) -> VimwikiIResult<()> {
     )(input)
 }
 
+/// Parser that will consume a line if it is not blank, which means that it is
+/// comprised of more than just whitespace and line termination
+pub fn non_blank_line(input: Span) -> VimwikiIResult<String> {
+    context(
+        "Non Blank Line",
+        verify(
+            map(
+                map(
+                    tuple((
+                        beginning_of_line,
+                        recognize(many1(pair(
+                            not(end_of_line_or_input),
+                            anychar,
+                        ))),
+                        end_of_line_or_input,
+                    )),
+                    |x| x.1,
+                ),
+                |s: Span| s.fragment().to_string(),
+            ),
+            |s: &str| !s.trim().is_empty(),
+        ),
+    )(input)
+}
+
 /// Parser that consumes a single multispace that could be \r\n, \n, \t, or
 /// a space character
 pub fn single_multispace(input: Span) -> VimwikiIResult<()> {
@@ -165,6 +190,26 @@ mod tests {
 
     #[test]
     fn blank_line_should_succeed_if_on_last_line_and_only_whitespace() {
+        todo!();
+    }
+
+    #[test]
+    fn non_blank_line_should_fail_if_input_empty_and_at_beginning_of_line() {
+        todo!();
+    }
+
+    #[test]
+    fn non_blank_line_should_fail_if_line_is_empty() {
+        todo!();
+    }
+
+    #[test]
+    fn non_blank_line_should_succeed_if_line_has_more_than_whitespace() {
+        todo!();
+    }
+
+    #[test]
+    fn non_blank_line_should_succeed_if_on_last_line_and_not_only_whitespace() {
         todo!();
     }
 

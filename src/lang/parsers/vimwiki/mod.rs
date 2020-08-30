@@ -51,11 +51,16 @@ fn block_component(input: Span) -> VimwikiIResult<LC<BlockComponent>> {
         // List(List),
         // Table(Table),
         // PreformattedText(PreformattedText),
-        // Math(MathBlock),
+        map(math::math_block, |c| c.map(BlockComponent::from)),
         // Blockquote(Blockquote),
         // Divider(Divider),
         map(tags::tag_sequence, |c| c.map(BlockComponent::from)),
         map(blank_line, |c| LC::new(BlockComponent::EmptyLine, c.region)),
+        // NOTE: Parses a single line to end; final type because will match
+        //       anychar and consume the line
+        map(non_blank_line, |c| {
+            LC::new(BlockComponent::from(c.component), c.region)
+        }),
     ))(input)
 }
 
@@ -82,4 +87,13 @@ fn blank_line(input: Span) -> VimwikiIResult<LC<()>> {
     let (input, _) = utils::blank_line(input)?;
 
     Ok((input, LC::from(((), pos))))
+}
+
+/// Parses a non-blank line
+fn non_blank_line(input: Span) -> VimwikiIResult<LC<String>> {
+    let (input, pos) = position(input)?;
+
+    let (input, text) = utils::non_blank_line(input)?;
+
+    Ok((input, LC::from((text, pos))))
 }
