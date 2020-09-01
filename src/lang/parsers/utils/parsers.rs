@@ -6,7 +6,7 @@ use nom::{
     combinator::{map, map_res, not, opt, recognize, rest_len, value, verify},
     error::context,
     multi::many1,
-    sequence::{pair, terminated, tuple},
+    sequence::{delimited, pair, terminated, tuple},
 };
 use url::Url;
 
@@ -44,7 +44,7 @@ pub fn beginning_of_line(input: Span) -> VimwikiIResult<()> {
 
 /// Parser that will consume a line if it is blank, which means that it is
 /// comprised of nothing but whitespace and line termination
-pub fn blank_line(input: Span) -> VimwikiIResult<()> {
+pub fn blank_line(input: Span) -> VimwikiIResult<String> {
     // 1. We must assert (using span) that we're actually at the beginning of
     //    a line, otherwise this could have been used somewhere after some
     //    other content was matched, and we don't want it to succeed
@@ -54,7 +54,10 @@ pub fn blank_line(input: Span) -> VimwikiIResult<()> {
     //    that would be a blank line at the end of a file
     context(
         "Blank Line",
-        value((), tuple((beginning_of_line, space0, end_of_line_or_input))),
+        map(
+            delimited(beginning_of_line, space0, end_of_line_or_input),
+            |s| s.fragment().to_string(),
+        ),
     )(input)
 }
 
@@ -81,6 +84,12 @@ pub fn non_blank_line(input: Span) -> VimwikiIResult<String> {
             |s: &str| !s.trim().is_empty(),
         ),
     )(input)
+}
+
+/// Parser that will consume any line, returning the line's content as output
+/// (not including line termination)
+pub fn any_line(input: Span) -> VimwikiIResult<String> {
+    alt((non_blank_line, blank_line))(input)
 }
 
 /// Parser that consumes a single multispace that could be \r\n, \n, \t, or
