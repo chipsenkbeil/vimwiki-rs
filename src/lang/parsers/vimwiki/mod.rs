@@ -13,6 +13,8 @@ use nom::{
 };
 use nom_locate::position;
 
+mod blockquotes;
+mod divider;
 mod headers;
 mod links;
 mod math;
@@ -55,8 +57,8 @@ fn block_component(input: Span) -> VimwikiIResult<LC<BlockComponent>> {
         // Table(Table),
         // PreformattedText(PreformattedText),
         map(math::math_block, |c| c.map(BlockComponent::from)),
-        // Blockquote(Blockquote),
-        // Divider(Divider),
+        map(blockquotes::blockquote, |c| c.map(BlockComponent::from)),
+        map(divider::divider, |c| c.map(BlockComponent::from)),
         map(tags::tag_sequence, |c| c.map(BlockComponent::from)),
         // NOTE: Parses a single line to end, failing if contains non-whitespace
         map(blank_line, |c| LC::new(BlockComponent::EmptyLine, c.region)),
