@@ -19,18 +19,9 @@ pub enum Row {
     Divider,
 }
 
-#[derive(
-    Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
-)]
-pub struct Cell {
-    pub content: InlineComponentContainer,
-    pub span: CellSpan,
-}
-
-/// Represents cell spanning relative to another cell
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub enum CellSpan {
-    None,
-    Left,
-    Above,
+#[derive(Clone, Debug, From, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub enum Cell {
+    Content(InlineComponentContainer),
+    SpanLeft,
+    SpanAbove,
 }

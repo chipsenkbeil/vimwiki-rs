@@ -20,6 +20,7 @@ mod links;
 mod math;
 mod paragraphs;
 mod preformatted;
+mod tables;
 mod tags;
 mod typefaces;
 
@@ -55,7 +56,7 @@ fn block_component(input: Span) -> VimwikiIResult<LC<BlockComponent>> {
         map(headers::header, |c| c.map(BlockComponent::from)),
         map(paragraphs::paragraph, |c| c.map(BlockComponent::from)),
         // List(List),
-        // Table(Table),
+        map(tables::table, |c| c.map(BlockComponent::from)),
         map(preformatted::preformatted_text, |c| {
             c.map(BlockComponent::from)
         }),
