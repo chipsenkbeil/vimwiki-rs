@@ -1,14 +1,28 @@
 // Import to make more easily accessible to submodules
 use super::{
-    components,
+    components::{self, Page},
     utils::{Position, Span, LC},
 };
 use derive_more::{Constructor, Display, Error};
+use std::path::Path;
 
 mod utils;
 use utils::VimwikiNomError;
 
 pub mod vimwiki;
+
+pub trait Parser {
+    /// Attempts to parse text as a page
+    fn parse_str(text: &str) -> Result<LC<Page>, LangParserError>;
+
+    /// Attempts to read and parse the contents of a file as a page
+    fn parse_file(path: impl AsRef<Path>) -> Result<LC<Page>, LangParserError> {
+        match std::fs::read_to_string(path) {
+            Ok(contents) => Self::parse_str(&contents),
+            Err(x) => Err(LangParserError::new(format!("{:?}", x))),
+        }
+    }
+}
 
 /// Represents an encapsulated error that is encountered
 #[derive(Constructor, Clone, Debug, Eq, PartialEq, Display, Error)]

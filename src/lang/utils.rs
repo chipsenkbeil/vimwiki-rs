@@ -59,10 +59,14 @@ impl<T> From<T> for LocatedComponent<T> {
     }
 }
 
-impl<'a, T> From<(T, Span<'a>)> for LocatedComponent<T> {
+impl<'a, T> From<(T, Span<'a>)> for LocatedComponent<T>
+where
+    T: std::fmt::Debug,
+{
     /// Creates a new located component around `T`, using a default location
     fn from(x: (T, Span<'a>)) -> Self {
-        Self::new(x.0, From::from(x.1))
+        println!("LocatedComponent::from({:?})", x);
+        Self::new(x.0, Region::from(x.1))
     }
 }
 
@@ -122,11 +126,15 @@ impl Position {
 
     /// Constructs a position based on the end of a span
     pub fn end_of_span(span: Span) -> Self {
+        println!("end_of_span: '{}'", span);
         let mut end = Self::start_of_span(span);
+        println!("INITIAL END: {:?}", end);
         let (total_lines, last_line) = span
             .fragment()
             .lines()
             .fold((0, ""), |acc, x| (acc.0 + 1, x));
+        println!("TOTAL LINES: {:?}", total_lines);
+        println!("LAST LINE: {:?}", last_line);
 
         // Adjust end position to be that of the final line, at final column
         // NOTE: Checking to ensure that we have some result as an empty
@@ -134,6 +142,11 @@ impl Position {
         if total_lines > 0 && !last_line.is_empty() {
             end.line += total_lines - 1;
             end.column = last_line.len() - 1;
+        // Otherwise, we could have a span that is a single line without
+        // line termination, in which case we want to treat the column as the
+        // end of the entire fragment (&str)
+        } else if !span.fragment().is_empty() {
+            end.column = span.fragment().len() - 1;
         }
 
         end
@@ -199,6 +212,7 @@ impl From<(u32, usize, u32, usize)> for Region {
 
 impl<'a> From<Span<'a>> for Region {
     fn from(span: Span<'a>) -> Self {
+        println!("Span -> Region :: '{}'", span);
         let start = Position::start_of_span(span);
         let end = Position::end_of_span(span);
 

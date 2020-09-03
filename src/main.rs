@@ -1,8 +1,8 @@
-use vimwiki::parse_vimwiki_str;
+use vimwiki::{Parser, VimwikiParser};
 
 #[tokio::main]
 async fn main() {
     let input = "= Some Header =";
 
-    println!("{:?}", parse_vimwiki_str(input));
+    println!("{:?}", VimwikiParser::parse_str(input));
 }

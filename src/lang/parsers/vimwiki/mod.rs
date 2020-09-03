@@ -3,7 +3,7 @@ use super::{
         self, BlockComponent, InlineComponent, InlineComponentContainer, Page,
     },
     utils::{self, VimwikiIResult},
-    LangParserError, Span, LC,
+    LangParserError, Parser, Span, LC,
 };
 use nom::{
     branch::alt,
@@ -24,12 +24,16 @@ mod tables;
 mod tags;
 mod typefaces;
 
-/// Parses str slice into a wiki page
-pub fn parse_str(text: &str) -> Result<LC<Page>, LangParserError> {
-    let input = Span::new(text);
-    Ok(page(input)
-        .map_err(|x| LangParserError::from((input, x)))?
-        .1)
+/// Represents a parser for vimwiki files
+pub struct VimwikiParser;
+
+impl Parser for VimwikiParser {
+    fn parse_str(text: &str) -> Result<LC<Page>, LangParserError> {
+        let input = Span::new(text);
+        Ok(page(input)
+            .map_err(|x| LangParserError::from((input, x)))?
+            .1)
+    }
 }
 
 /// Parses entire vimwiki page

@@ -1,3 +1,5 @@
 pub mod lang;
 
-pub use lang::parsers::vimwiki::parse_str as parse_vimwiki_str;
+pub use lang::components::*;
+pub use lang::parsers::{vimwiki::VimwikiParser, LangParserError, Parser};
+pub use lang::utils::*;
