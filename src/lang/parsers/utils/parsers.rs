@@ -10,6 +10,11 @@ use nom::{
 };
 use url::Url;
 
+/// Alternative to the `position` function of nom_locate that retains the fragment
+pub fn position(input: Span) -> VimwikiIResult<Span> {
+    Ok((input, input))
+}
+
 /// Parser that will consume an end of line (\n or \r\n) or do nothing if
 /// the input is empty
 pub fn end_of_line_or_input(input: Span) -> VimwikiIResult<()> {

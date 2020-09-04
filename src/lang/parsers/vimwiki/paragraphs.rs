@@ -1,7 +1,7 @@
 use super::{
     components::Paragraph,
     inline_component,
-    utils::{beginning_of_line, blank_line},
+    utils::{beginning_of_line, blank_line, position},
     Span, VimwikiIResult, LC,
 };
 use nom::{
@@ -10,7 +10,6 @@ use nom::{
     multi::many1,
     sequence::pair,
 };
-use nom_locate::position;
 
 /// Parses a vimwiki paragraph, returning the associated paragraph is successful
 #[inline]
@@ -29,7 +28,7 @@ pub fn paragraph(input: Span) -> VimwikiIResult<LC<Paragraph>> {
     // Transform contents into the paragraph itself
     let paragraph = Paragraph::from(components);
 
-    Ok((input, LC::from((paragraph, pos))))
+    Ok((input, LC::from((paragraph, pos, input))))
 }
 
 #[cfg(test)]

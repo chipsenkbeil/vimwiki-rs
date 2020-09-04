@@ -1,6 +1,6 @@
 use super::{
     components::{Tag, TagSequence},
-    utils::end_of_line_or_input,
+    utils::{end_of_line_or_input, position},
     Span, VimwikiIResult, LC,
 };
 use nom::{
@@ -10,13 +10,11 @@ use nom::{
     multi::{many1, separated_nonempty_list},
     sequence::{delimited, pair},
 };
-use nom_locate::position;
 
 #[inline]
 pub fn tag_sequence(input: Span) -> VimwikiIResult<LC<TagSequence>> {
     let (input, pos) = position(input)?;
 
-    // NOTE: Tag sequences are just :tag1:tag2:...: on a single line
     let (input, tags) = context(
         "TagSequence",
         delimited(
@@ -35,7 +33,7 @@ pub fn tag_sequence(input: Span) -> VimwikiIResult<LC<TagSequence>> {
         ),
     )(input)?;
 
-    Ok((input, LC::from((TagSequence::new(tags), pos))))
+    Ok((input, LC::from((TagSequence::new(tags), pos, input))))
 }
 
 #[cfg(test)]

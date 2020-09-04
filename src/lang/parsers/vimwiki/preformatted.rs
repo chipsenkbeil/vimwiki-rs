@@ -1,18 +1,15 @@
 use super::{
     components::PreformattedText,
-    utils::{any_line, beginning_of_line},
+    utils::{any_line, beginning_of_line, position},
     Span, VimwikiIResult, LC,
 };
 use nom::{
-    branch::alt,
     bytes::complete::{tag, take_till, take_till1},
-    character::complete::{char, not_line_ending, space0},
-    combinator::{map, not, opt, value, verify},
-    error::context,
-    multi::{many0, many1},
+    character::complete::char,
+    combinator::{map, not},
+    multi::many1,
     sequence::{delimited, preceded, separated_pair},
 };
-use nom_locate::position;
 use std::collections::HashMap;
 
 #[inline]
@@ -26,7 +23,7 @@ pub fn preformatted_text(input: Span) -> VimwikiIResult<LC<PreformattedText>> {
 
     Ok((
         input,
-        LC::from((PreformattedText::new(metadata, lines), pos)),
+        LC::from((PreformattedText::new(metadata, lines), pos, input)),
     ))
 }
 

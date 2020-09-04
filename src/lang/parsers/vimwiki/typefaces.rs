@@ -3,7 +3,7 @@ use super::{
     links::link,
     math::math_inline,
     tags::tag_sequence,
-    utils::end_of_line_or_input,
+    utils::{end_of_line_or_input, position},
     Span, VimwikiIResult, LC,
 };
 
@@ -16,7 +16,6 @@ use nom::{
     multi::many1,
     sequence::{delimited, tuple},
 };
-use nom_locate::position;
 
 #[inline]
 pub fn text(input: Span) -> VimwikiIResult<LC<String>> {
@@ -48,7 +47,7 @@ pub fn text(input: Span) -> VimwikiIResult<LC<String>> {
         ),
     )(input)?;
 
-    Ok((input, LC::from((text, pos))))
+    Ok((input, LC::from((text, pos, input))))
 }
 
 #[inline]
@@ -94,7 +93,7 @@ pub fn decorated_text(input: Span) -> VimwikiIResult<LC<DecoratedText>> {
         parser!("Sub Script Text", tag(",,"), Subscript),
     ))(input)?;
 
-    Ok((input, LC::from((decorated_text, pos))))
+    Ok((input, LC::from((decorated_text, pos, input))))
 }
 
 #[inline]
@@ -118,7 +117,7 @@ pub fn keyword(input: Span) -> VimwikiIResult<LC<Keyword>> {
         )),
     )(input)?;
 
-    Ok((input, LC::from((keyword, pos))))
+    Ok((input, LC::from((keyword, pos, input))))
 }
 
 #[cfg(test)]

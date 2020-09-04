@@ -3,20 +3,10 @@ use super::{
         DiaryLink, ExternalLink, InterWikiLink, Link, RawLink,
         TransclusionLink, WikiLink,
     },
-    utils::url,
+    utils::{position, url},
     Span, VimwikiIResult, LC,
 };
-use nom::{
-    branch::alt,
-    bytes::complete::{tag, take_till1, take_while},
-    character::complete::{anychar, char as nomchar, crlf, newline, tab},
-    combinator::{map, map_res, not, recognize},
-    error::context,
-    multi::many1,
-    sequence::{delimited, pair, terminated, tuple},
-};
-use nom_locate::position;
-use url::Url;
+use nom::{branch::alt, combinator::map, error::context};
 
 /// Inspecting vimwiki source code, there are a couple of link utils
 ///
@@ -85,7 +75,7 @@ fn raw_link(input: Span) -> VimwikiIResult<LC<RawLink>> {
 
     let (input, url) = url(input)?;
 
-    Ok((input, LC::from((RawLink::from(url), pos))))
+    Ok((input, LC::from((RawLink::from(url), pos, input))))
 }
 
 #[inline]

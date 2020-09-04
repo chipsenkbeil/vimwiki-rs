@@ -1,11 +1,12 @@
 use super::{
-    components::Divider, utils::beginning_of_line, Span, VimwikiIResult, LC,
+    components::Divider,
+    utils::{beginning_of_line, position},
+    Span, VimwikiIResult, LC,
 };
 use nom::{
     bytes::complete::take_while, character::complete::line_ending,
     combinator::verify,
 };
-use nom_locate::position;
 
 #[inline]
 pub fn divider(input: Span) -> VimwikiIResult<LC<Divider>> {
@@ -18,7 +19,7 @@ pub fn divider(input: Span) -> VimwikiIResult<LC<Divider>> {
         )?;
     let (input, _) = line_ending(input)?;
 
-    Ok((input, LC::from((Divider, pos))))
+    Ok((input, LC::from((Divider, pos, input))))
 }
 
 #[cfg(test)]

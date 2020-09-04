@@ -1,6 +1,6 @@
 use super::{
     components::Blockquote,
-    utils::{beginning_of_line, blank_line, end_of_line_or_input},
+    utils::{beginning_of_line, blank_line, end_of_line_or_input, position},
     Span, VimwikiIResult, LC,
 };
 use nom::{
@@ -11,7 +11,6 @@ use nom::{
     multi::{many0, many1},
     sequence::pair,
 };
-use nom_locate::position;
 
 #[inline]
 pub fn blockquote(input: Span) -> VimwikiIResult<LC<Blockquote>> {
@@ -36,7 +35,7 @@ pub fn blockquote(input: Span) -> VimwikiIResult<LC<Blockquote>> {
         )),
     )(input)?;
 
-    Ok((input, LC::from((Blockquote::new(lines), pos))))
+    Ok((input, LC::from((Blockquote::new(lines), pos, input))))
 }
 
 /// Parses a blockquote line that begins with four or more spaces

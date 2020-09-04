@@ -1,7 +1,7 @@
 use super::{
     components::{Cell, Row, Table},
     inline_component_container,
-    utils::end_of_line_or_input,
+    utils::{end_of_line_or_input, position},
     Span, VimwikiIResult, LC,
 };
 use nom::{
@@ -13,7 +13,6 @@ use nom::{
     multi::{many0, separated_nonempty_list},
     sequence::{delimited, pair, preceded, terminated},
 };
-use nom_locate::position;
 
 #[inline]
 pub fn table(input: Span) -> VimwikiIResult<LC<Table>> {
@@ -27,7 +26,7 @@ pub fn table(input: Span) -> VimwikiIResult<LC<Table>> {
     let (input, mut rows) = many0(preceded(space0, row))(input)?;
     rows.insert(0, table_header);
 
-    Ok((input, LC::from((Table::new(rows, centered), pos))))
+    Ok((input, LC::from((Table::new(rows, centered), pos, input))))
 }
 
 #[inline]
@@ -51,7 +50,7 @@ fn row(input: Span) -> VimwikiIResult<LC<Row>> {
         ),
     )(input)?;
 
-    Ok((input, LC::from((row, pos))))
+    Ok((input, LC::from((row, pos, input))))
 }
 
 #[inline]
@@ -78,7 +77,7 @@ fn cell(input: Span) -> VimwikiIResult<LC<Cell>> {
         )),
     )(input)?;
 
-    Ok((input, LC::from((cell, pos))))
+    Ok((input, LC::from((cell, pos, input))))
 }
 
 #[inline]

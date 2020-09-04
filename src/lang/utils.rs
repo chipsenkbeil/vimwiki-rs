@@ -59,14 +59,13 @@ impl<T> From<T> for LocatedComponent<T> {
     }
 }
 
-impl<'a, T> From<(T, Span<'a>)> for LocatedComponent<T>
+impl<'a, T> From<(T, Span<'a>, Span<'a>)> for LocatedComponent<T>
 where
     T: std::fmt::Debug,
 {
     /// Creates a new located component around `T`, using a default location
-    fn from(x: (T, Span<'a>)) -> Self {
-        println!("LocatedComponent::from({:?})", x);
-        Self::new(x.0, Region::from(x.1))
+    fn from((component, start, end): (T, Span<'a>, Span<'a>)) -> Self {
+        Self::new(component, Region::from((start, end)))
     }
 }
 
@@ -115,43 +114,6 @@ impl PartialOrd for Position {
 }
 
 impl Position {
-    /// Constructs a position based on the start of a span
-    pub fn start_of_span(span: Span) -> Self {
-        // NOTE: Span from nom_locate has base 1 for line/col
-        // TODO: Compare performance of naive_get_utf8_column, which is
-        //       supposedly better for shorter lines (100 or less), which
-        //       I imagine is more common for vimwiki
-        Self::new(span.location_line() - 1, span.get_utf8_column() - 1)
-    }
-
-    /// Constructs a position based on the end of a span
-    pub fn end_of_span(span: Span) -> Self {
-        println!("end_of_span: '{}'", span);
-        let mut end = Self::start_of_span(span);
-        println!("INITIAL END: {:?}", end);
-        let (total_lines, last_line) = span
-            .fragment()
-            .lines()
-            .fold((0, ""), |acc, x| (acc.0 + 1, x));
-        println!("TOTAL LINES: {:?}", total_lines);
-        println!("LAST LINE: {:?}", last_line);
-
-        // Adjust end position to be that of the final line, at final column
-        // NOTE: Checking to ensure that we have some result as an empty
-        //       span will yield zero lines
-        if total_lines > 0 && !last_line.is_empty() {
-            end.line += total_lines - 1;
-            end.column = last_line.len() - 1;
-        // Otherwise, we could have a span that is a single line without
-        // line termination, in which case we want to treat the column as the
-        // end of the entire fragment (&str)
-        } else if !span.fragment().is_empty() {
-            end.column = span.fragment().len() - 1;
-        }
-
-        end
-    }
-
     /// Whether or not this position is at the beginning of a line
     pub fn is_at_beginning_of_line(&self) -> bool {
         self.column == 0
@@ -159,8 +121,13 @@ impl Position {
 }
 
 impl<'a> From<Span<'a>> for Position {
+    /// Constructs a position based on the start of a span
     fn from(span: Span<'a>) -> Self {
-        Self::start_of_span(span)
+        // NOTE: Span from nom_locate has base 1 for line/col
+        // TODO: Compare performance of naive_get_utf8_column, which is
+        //       supposedly better for shorter lines (100 or less), which
+        //       I imagine is more common for vimwiki
+        Self::new(span.location_line() - 1, span.get_utf8_column() - 1)
     }
 }
 
@@ -210,11 +177,28 @@ impl From<(u32, usize, u32, usize)> for Region {
     }
 }
 
-impl<'a> From<Span<'a>> for Region {
-    fn from(span: Span<'a>) -> Self {
-        println!("Span -> Region :: '{}'", span);
-        let start = Position::start_of_span(span);
-        let end = Position::end_of_span(span);
+impl<'a> From<(Span<'a>, Span<'a>)> for Region {
+    /// Converts a start and end span into a region that they represent,
+    /// assuming that the end span is non-inclusive (one step past end)
+    fn from((start, end): (Span<'a>, Span<'a>)) -> Self {
+        use nom::Offset;
+        let mut offset = start.offset(&end);
+
+        // Assume that if the spans are not equal, the end span is one past
+        // the actual end of the region
+        if offset > 0 {
+            offset -= 1;
+        }
+
+        Self::from((start, offset))
+    }
+}
+
+impl<'a> From<(Span<'a>, usize)> for Region {
+    fn from((span, offset): (Span<'a>, usize)) -> Self {
+        use nom::Slice;
+        let start = Position::from(span);
+        let end = Position::from(span.slice(offset..));
 
         Self::new(start, end)
     }

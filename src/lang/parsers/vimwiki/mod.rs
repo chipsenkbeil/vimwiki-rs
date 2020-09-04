@@ -2,7 +2,7 @@ use super::{
     components::{
         self, BlockComponent, InlineComponent, InlineComponentContainer, Page,
     },
-    utils::{self, VimwikiIResult},
+    utils::{self, position, VimwikiIResult},
     LangParserError, Parser, Span, LC,
 };
 use nom::{
@@ -11,7 +11,6 @@ use nom::{
     error::context,
     multi::{many0, many1},
 };
-use nom_locate::position;
 
 mod blockquotes;
 mod divider;
@@ -41,9 +40,9 @@ fn page(input: Span) -> VimwikiIResult<LC<Page>> {
     // Continuously parse input for new block components until we have
     // nothing left (or we fail)
     let (input, pos) = position(input)?;
-    map(all_consuming(many0(block_component)), move |c| {
-        LC::from((Page::new(c), pos))
-    })(input)
+    let (input, c) = all_consuming(many0(block_component))(input)?;
+
+    Ok((input, LC::from((Page::new(c), pos, input))))
 }
 
 //
@@ -90,7 +89,7 @@ pub fn inline_component_container(
         map(many1(inline_component), InlineComponentContainer::from),
     )(input)?;
 
-    Ok((input, LC::from((container, pos))))
+    Ok((input, LC::from((container, pos, input))))
 }
 
 /// Parses an inline component, which can only exist on a single line
@@ -118,7 +117,7 @@ fn blank_line(input: Span) -> VimwikiIResult<LC<()>> {
 
     let (input, _) = utils::blank_line(input)?;
 
-    Ok((input, LC::from(((), pos))))
+    Ok((input, LC::from(((), pos, input))))
 }
 
 /// Parses a non-blank line
@@ -127,5 +126,5 @@ fn non_blank_line(input: Span) -> VimwikiIResult<LC<String>> {
 
     let (input, text) = utils::non_blank_line(input)?;
 
-    Ok((input, LC::from((text, pos))))
+    Ok((input, LC::from((text, pos, input))))
 }

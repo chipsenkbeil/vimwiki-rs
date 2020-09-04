@@ -1,6 +1,6 @@
 use super::{
     components::{Math, MathBlock, MathInline},
-    utils::beginning_of_line,
+    utils::{beginning_of_line, position},
     Span, VimwikiIResult, LC,
 };
 use nom::{
@@ -12,7 +12,6 @@ use nom::{
     multi::many1,
     sequence::{delimited, pair, tuple},
 };
-use nom_locate::position;
 
 #[inline]
 pub fn math(input: Span) -> VimwikiIResult<LC<Math>> {
@@ -36,7 +35,7 @@ pub fn math_inline(input: Span) -> VimwikiIResult<LC<MathInline>> {
         ),
     )(input)?;
 
-    Ok((input, LC::from((math, pos))))
+    Ok((input, LC::from((math, pos, input))))
 }
 
 #[inline]
@@ -68,7 +67,7 @@ pub fn math_block(input: Span) -> VimwikiIResult<LC<MathBlock>> {
         tuple((beginning_of_line, tag("$}}"), line_ending))(input)?;
 
     let math_block = MathBlock::new(lines, environment);
-    Ok((input, LC::from((math_block, pos))))
+    Ok((input, LC::from((math_block, pos, input))))
 }
 
 #[cfg(test)]

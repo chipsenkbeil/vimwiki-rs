@@ -2,7 +2,7 @@ use super::{
     components::{
         Header, Header1, Header2, Header3, Header4, Header5, Header6,
     },
-    utils::end_of_line_or_input,
+    utils::{end_of_line_or_input, position},
     Span, VimwikiIResult, LC,
 };
 use nom::{
@@ -14,7 +14,6 @@ use nom::{
     multi::many1,
     sequence::{delimited, tuple},
 };
-use nom_locate::position;
 
 /// Parses a vimwiki header, returning the associated header if successful
 #[inline]
@@ -38,7 +37,7 @@ pub fn header(input: Span) -> VimwikiIResult<LC<Header>> {
         map(header6, Header::from),
     ))(input)?;
 
-    Ok((input, LC::from((header, pos))))
+    Ok((input, LC::from((header, pos, input))))
 }
 
 #[inline]
