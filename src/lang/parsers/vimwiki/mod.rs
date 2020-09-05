@@ -16,6 +16,7 @@ mod blockquotes;
 mod divider;
 mod headers;
 mod links;
+mod lists;
 mod math;
 mod paragraphs;
 mod preformatted;
@@ -45,20 +46,12 @@ fn page(input: Span) -> VimwikiIResult<LC<Page>> {
     Ok((input, LC::from((Page::new(c), pos, input))))
 }
 
-//
-// CHIP CHIP CHIP: To ensure parsing works okay, inline components including
-// text are limited to a single line, even if text extends to the next line.
-// It may or may not be a good idea to examine inline components once fully
-// parsed to see if two text components exist next to one another and - if so -
-// join their contents and regions together
-//
-
 /// Parses a block component
 fn block_component(input: Span) -> VimwikiIResult<LC<BlockComponent>> {
     alt((
         map(headers::header, |c| c.map(BlockComponent::from)),
         map(paragraphs::paragraph, |c| c.map(BlockComponent::from)),
-        // List(List),
+        map(lists::list, |c| c.map(BlockComponent::from)),
         map(tables::table, |c| c.map(BlockComponent::from)),
         map(preformatted::preformatted_text, |c| {
             c.map(BlockComponent::from)
@@ -77,7 +70,8 @@ fn block_component(input: Span) -> VimwikiIResult<LC<BlockComponent>> {
     ))(input)
 }
 
-/// Parses one or more inline components and wraps it in a container
+/// Parses one or more inline components and wraps it in a container; note
+/// that this does NOT consume a line termination
 #[inline]
 pub fn inline_component_container(
     input: Span,

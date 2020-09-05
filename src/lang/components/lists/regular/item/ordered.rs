@@ -6,15 +6,17 @@ use serde::{Deserialize, Serialize};
 /// Represents a suffix such as . or ) used after beginning of list item
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum ListItemSuffix {
+    None,
     Period,
     Paren,
 }
 
 impl ListItemSuffix {
-    pub fn as_char(self) -> char {
+    pub fn as_char(self) -> Option<char> {
         match self {
-            Self::Period => '.',
-            Self::Paren => ')',
+            Self::Period => Some('.'),
+            Self::Paren => Some(')'),
+            Self::None => None,
         }
     }
 }
@@ -24,6 +26,8 @@ impl ListItemSuffix {
 pub enum ListItemType {
     /// 1
     Number,
+    /// #
+    Pound,
     /// a
     LowercaseAlphabet,
     /// A
@@ -50,6 +54,7 @@ impl ListItem {
         let mut base = match self.item_type {
             // NOTE: Numbers start at 1, not 0, so use base 1
             ListItemType::Number => (self.pos + 1).to_string(),
+            ListItemType::Pound => String::from("#"),
             ListItemType::LowercaseAlphabet => pos_to_alphabet(self.pos, true),
             ListItemType::UppercaseAlphabet => pos_to_alphabet(self.pos, false),
             // NOTE: Roman numerals start at 1, not 0, so use base 1
@@ -62,7 +67,9 @@ impl ListItem {
             }
         };
 
-        base.push(self.suffix.as_char());
+        if let Some(c) = self.suffix.as_char() {
+            base.push(c);
+        }
 
         base
     }

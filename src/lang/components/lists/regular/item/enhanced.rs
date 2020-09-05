@@ -62,6 +62,17 @@ impl From<EnhancedListItem> for ListItem {
 }
 
 impl EnhancedListItem {
+    /// Constructs an enhanced list item with a single attribute
+    pub fn new_with_attr(
+        item: ListItem,
+        attr: EnhancedListItemAttribute,
+    ) -> Self {
+        let mut set = HashSet::new();
+        set.insert(attr);
+
+        Self::new(item, set)
+    }
+
     /// Returns the underlying list item
     pub fn item(&self) -> &ListItem {
         &self.item

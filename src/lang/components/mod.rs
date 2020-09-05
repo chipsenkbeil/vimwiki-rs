@@ -99,6 +99,12 @@ pub enum InlineComponent {
 )]
 pub struct InlineComponentContainer(Vec<LC<InlineComponent>>);
 
+impl From<Vec<InlineComponentContainer>> for InlineComponentContainer {
+    fn from(mut containers: Vec<Self>) -> Self {
+        Self::new(containers.drain(..).flat_map(|c| c.0).collect())
+    }
+}
+
 impl From<LC<InlineComponent>> for InlineComponentContainer {
     fn from(component: LC<InlineComponent>) -> Self {
         Self::new(vec![component])
