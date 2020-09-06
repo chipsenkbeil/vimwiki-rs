@@ -32,6 +32,12 @@ pub enum Description {
     URL(Url),
 }
 
+impl From<&str> for Description {
+    fn from(s: &str) -> Self {
+        Self::from(s.to_string())
+    }
+}
+
 /// Represents an anchor
 #[derive(
     Constructor,
