@@ -28,6 +28,7 @@ pub fn transclusion_link(input: Span) -> VimwikiIResult<LC<TransclusionLink>> {
     ))(input)?;
     let (input, maybe_properties) =
         opt(preceded(tag("|"), transclusion_properties))(input)?;
+    let (input, _) = tag("}}")(input)?;
 
     Ok((
         input,
@@ -80,43 +81,109 @@ mod tests {
     use super::*;
 
     #[test]
-    fn transclusion_link_should_support_local_url() {
-        // {{file:../../images/vimwiki_logo.png}}
-        todo!();
+    fn transclusion_link_should_support_local_relative_url() {
+        let input = Span::new("{{file:../../images/vimwiki_logo.png}}");
+        let (input, link) = transclusion_link(input).unwrap();
+        assert!(input.fragment().is_empty(), "Did not consume link");
+        assert_eq!(link.url.scheme(), "file");
+
+        // Currently failing due to not handling relative URLs as expected:
+        //
+        // - https://github.com/servo/rust-url/issues/641
+        // - https://github.com/vimwiki/vimwiki/issues/989#issuecomment-687900789
+        assert_eq!(link.url.path(), "../../images/vimwiki_logo.png");
+        assert_eq!(link.description, None);
+        assert!(link.properties.is_empty(), "Unexpectedly found property");
+    }
+
+    #[test]
+    fn transclusion_link_should_support_local_absolute_url() {
+        let input = Span::new("{{file:/some/path/images/vimwiki_logo.png}}");
+        let (input, link) = transclusion_link(input).unwrap();
+        assert!(input.fragment().is_empty(), "Did not consume link");
+        assert_eq!(link.url.scheme(), "file");
+        assert_eq!(link.url.path(), "/some/path/images/vimwiki_logo.png");
+        assert_eq!(link.description, None);
+        assert!(link.properties.is_empty(), "Unexpectedly found property");
     }
 
     #[test]
     fn transclusion_link_should_support_universal_url() {
-        // {{http://vimwiki.googlecode.com/hg/images/vimwiki_logo.png}}
-        todo!();
+        let input = Span::new(
+            "{{http://vimwiki.googlecode.com/hg/images/vimwiki_logo.png}}",
+        );
+        let (input, link) = transclusion_link(input).unwrap();
+        assert!(input.fragment().is_empty(), "Did not consume link");
+        assert_eq!(link.url.scheme(), "http");
+        assert_eq!(link.url.host_str(), Some("vimwiki.googlecode.com"));
+        assert_eq!(link.url.path(), "/hg/images/vimwiki_logo.png");
+        assert_eq!(link.description, None);
+        assert!(link.properties.is_empty(), "Unexpectedly found property");
     }
 
     #[test]
     fn transclusion_link_should_support_alternate_text() {
-        // {{http://vimwiki.googlecode.com/hg/images/vimwiki_logo.png|Vimwiki}}
-        //
         // maps to in HTML
         //
         // <img src="http://vimwiki.googlecode.com/hg/images/vimwiki_logo.png"
         // alt="Vimwiki"/>
-        todo!();
+        //
+        let input = Span::new("{{http://vimwiki.googlecode.com/hg/images/vimwiki_logo.png|Vimwiki}}");
+        let (input, link) = transclusion_link(input).unwrap();
+        assert!(input.fragment().is_empty(), "Did not consume link");
+        assert_eq!(link.url.scheme(), "http");
+        assert_eq!(link.url.host_str(), Some("vimwiki.googlecode.com"));
+        assert_eq!(link.url.path(), "/hg/images/vimwiki_logo.png");
+        assert_eq!(link.description, Some(Description::from("Vimwiki")));
+        assert!(link.properties.is_empty(), "Unexpectedly found property");
     }
 
     #[test]
     fn transclusion_link_should_support_alternate_text_and_style() {
-        // {{http://.../vimwiki_logo.png|cool stuff|style="width:150px;height:120px;"}}
         // in HTML:
+        //
         // <img src="http://vimwiki.googlecode.com/hg/images/vimwiki_logo.png"
         // alt="cool stuff" style="width:150px; height:120px"/>
-        todo!();
+        //
+        let input = Span::new("{{http://vimwiki.googlecode.com/vimwiki_logo.png|cool stuff|style=\"width:150px;height:120px;\"}}");
+        let (input, link) = transclusion_link(input).unwrap();
+        assert!(input.fragment().is_empty(), "Did not consume link");
+        assert_eq!(link.url.scheme(), "http");
+        assert_eq!(link.url.host_str(), Some("vimwiki.googlecode.com"));
+        assert_eq!(link.url.path(), "/vimwiki_logo.png");
+        assert_eq!(link.description, Some(Description::from("cool stuff")));
+        assert_eq!(
+            link.properties,
+            vec![(
+                "style".to_string(),
+                "width:150px;height:120px;".to_string()
+            )]
+            .drain(..)
+            .collect()
+        );
     }
 
     #[test]
     fn transclusion_link_should_support_css_class_without_alternate_text() {
-        // {{http://.../vimwiki_logo.png||class="center flow blabla"}}
         // in HTML:
+        //
         // <img src="http://vimwiki.googlecode.com/hg/images/vimwiki_logo.png"
         // alt="" class="center flow blabla"/>
-        todo!();
+        //
+        let input = Span::new(
+            "{{http://vimwiki.googlecode.com/vimwiki_logo.png||class=\"center flow blabla\"}}",
+        );
+        let (input, link) = transclusion_link(input).unwrap();
+        assert!(input.fragment().is_empty(), "Did not consume link");
+        assert_eq!(link.url.scheme(), "http");
+        assert_eq!(link.url.host_str(), Some("vimwiki.googlecode.com"));
+        assert_eq!(link.url.path(), "/vimwiki_logo.png");
+        assert_eq!(link.description, Some(Description::from("")));
+        assert_eq!(
+            link.properties,
+            vec![("class".to_string(), "center flow blabla".to_string())]
+                .drain(..)
+                .collect()
+        );
     }
 }
