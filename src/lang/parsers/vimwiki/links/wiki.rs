@@ -104,12 +104,7 @@ mod tests {
     #[test]
     fn wiki_link_should_not_consume_across_lines() {
         let input = Span::new("[[link\n]]");
-        let result = wiki_link(input);
-
-        // No input should have been consumed
-        assert_eq!(*input.fragment(), "[[link\n]]");
-
-        assert!(result.is_err());
+        assert!(wiki_link(input).is_err());
     }
 
     #[test]

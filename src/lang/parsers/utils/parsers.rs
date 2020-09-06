@@ -11,12 +11,14 @@ use nom::{
 use url::Url;
 
 /// Alternative to the `position` function of nom_locate that retains the fragment
+#[inline]
 pub fn position(input: Span) -> VimwikiIResult<Span> {
     Ok((input, input))
 }
 
 /// Parser that will consume an end of line (\n or \r\n) or do nothing if
 /// the input is empty
+#[inline]
 pub fn end_of_line_or_input(input: Span) -> VimwikiIResult<()> {
     context(
         "End of Line/Input",
@@ -52,12 +54,14 @@ pub fn take_line_while1<'a, T>(
 
 /// Parser that will report the total columns consumed since the beginning of
 /// the line (0 being none); input will not be consumed
+#[inline]
 pub fn count_from_beginning_of_line(input: Span) -> VimwikiIResult<usize> {
     Ok((input, Position::from(input).column))
 }
 
 /// Parser that will succeed if input is at the beginning of a line; input
 /// will not be consumed
+#[inline]
 pub fn beginning_of_line(input: Span) -> VimwikiIResult<()> {
     context(
         "Beginning of Line",
@@ -70,6 +74,7 @@ pub fn beginning_of_line(input: Span) -> VimwikiIResult<()> {
 
 /// Parser that will consume a line if it is blank, which means that it is
 /// comprised of nothing but whitespace and line termination
+#[inline]
 pub fn blank_line(input: Span) -> VimwikiIResult<String> {
     // 1. We must assert (using span) that we're actually at the beginning of
     //    a line, otherwise this could have been used somewhere after some
@@ -89,6 +94,7 @@ pub fn blank_line(input: Span) -> VimwikiIResult<String> {
 
 /// Parser that will consume a line if it is not blank, which means that it is
 /// comprised of more than just whitespace and line termination
+#[inline]
 pub fn non_blank_line(input: Span) -> VimwikiIResult<String> {
     context(
         "Non Blank Line",
@@ -114,12 +120,14 @@ pub fn non_blank_line(input: Span) -> VimwikiIResult<String> {
 
 /// Parser that will consume any line, returning the line's content as output
 /// (not including line termination)
+#[inline]
 pub fn any_line(input: Span) -> VimwikiIResult<String> {
     alt((non_blank_line, blank_line))(input)
 }
 
 /// Parser that consumes a single multispace that could be \r\n, \n, \t, or
 /// a space character
+#[inline]
 pub fn single_multispace(input: Span) -> VimwikiIResult<()> {
     value((), alt((crlf, tag("\n"), tag("\t"), tag(" "))))(input)
 }
@@ -160,10 +168,18 @@ pub fn url(input: Span) -> VimwikiIResult<Url> {
         "Url",
         map_res(
             recognize(pair(
-                alt((scheme, tag("www."), tag("//"))),
+                alt((tag("www."), tag("//"), scheme)),
                 many1(pair(not(single_multispace), anychar)),
             )),
-            |s| Url::parse(s.fragment()),
+            |s| match *s.fragment() {
+                text if text.starts_with("www.") => {
+                    Url::parse(&["https://", text].join(""))
+                }
+                text if text.starts_with("//") => {
+                    Url::parse(&["file:/", text].join(""))
+                }
+                text => Url::parse(text),
+            },
         ),
     )(input)
 }
@@ -172,132 +188,233 @@ pub fn url(input: Span) -> VimwikiIResult<Url> {
 mod tests {
     use super::*;
 
+    #[inline]
+    fn take_and_toss(n: usize) -> impl Fn(Span) -> VimwikiIResult<()> {
+        move |input: Span| {
+            nom::combinator::value((), nom::bytes::complete::take(n))(input)
+        }
+    }
+
     #[test]
     fn end_of_line_or_input_should_succeed_if_line_ending() {
-        todo!();
+        assert!(end_of_line_or_input(Span::new("\n")).is_ok());
+        assert!(end_of_line_or_input(Span::new("\r\n")).is_ok());
     }
 
     #[test]
     fn end_of_line_or_input_should_succeed_if_input_empty() {
-        todo!();
+        assert!(end_of_line_or_input(Span::new("")).is_ok());
     }
 
     #[test]
     fn count_from_beginning_of_line_should_yield_0_if_at_beginning_of_line() {
-        todo!();
+        let (_, count) =
+            count_from_beginning_of_line(Span::new("")).expect("Parser failed");
+        assert_eq!(count, 0);
+
+        let (_, count) = count_from_beginning_of_line(Span::new("some text"))
+            .expect("Parser failed");
+        assert_eq!(count, 0);
     }
 
     #[test]
-    fn count_from_beginning_of_line_should_yield_N_where_N_is_characters_from_beginning_of_line(
+    fn count_from_beginning_of_line_should_yield_n_where_n_is_characters_from_beginning_of_line(
     ) {
-        todo!();
+        let input = Span::new("some text");
+        let (input, _) =
+            take_and_toss(4)(input).expect("Failed to take N characters");
+        let (_, count) = count_from_beginning_of_line(input)
+            .expect("Failed to count characters");
+        assert_eq!(count, 4);
+    }
+
+    #[test]
+    fn count_from_beginning_of_line_should_use_only_current_line_progress() {
+        let input = Span::new("1234\n1234");
+        let (input, _) =
+            take_and_toss(5)(input).expect("Failed to take first line");
+        let (_, count) = count_from_beginning_of_line(input)
+            .expect("Failed to count characters");
+        assert_eq!(count, 0);
     }
 
     #[test]
     fn beginning_of_line_should_fail_if_not_at_beginning_of_line() {
-        todo!();
+        let input = Span::new("1234");
+        let (input, _) =
+            take_and_toss(1)(input).expect("Failed to take a character");
+        assert!(beginning_of_line(input).is_err());
     }
 
     #[test]
     fn beginning_of_line_should_succeed_if_at_beginning_of_line() {
-        todo!();
+        let input = Span::new("1234");
+        let (input, _) = beginning_of_line(input)
+            .expect("Unexpectedly think not at beginning of line");
+
+        // Input shouldn't be consumed
+        assert_eq!(*input.fragment(), "1234");
     }
 
     #[test]
     fn blank_line_should_fail_if_line_contains_non_whitespace() {
-        todo!();
+        let input = Span::new("1234");
+        assert!(blank_line(input).is_err());
     }
 
     #[test]
     fn blank_line_should_succeed_if_input_empty_and_at_beginning_of_line() {
-        todo!();
+        let input = Span::new("");
+        assert!(blank_line(input).is_ok());
     }
 
     #[test]
     fn blank_line_should_succeed_if_line_empty() {
-        todo!();
+        let input = Span::new("\nabcd");
+        let (input, _) = blank_line(input).expect("Failed to parse blank line");
+
+        // Line including termination should be consumed
+        assert_eq!(*input.fragment(), "abcd");
     }
 
     #[test]
     fn blank_line_should_succeed_if_line_only_has_whitespace() {
-        todo!();
+        let input = Span::new(" \t\nabcd");
+        let (input, _) = blank_line(input).expect("Failed to parse blank line");
+
+        // Line including termination should be consumed
+        assert_eq!(*input.fragment(), "abcd");
     }
 
     #[test]
     fn blank_line_should_succeed_if_on_last_line_and_only_whitespace() {
-        todo!();
+        let input = Span::new(" \t");
+        let (input, _) = blank_line(input).expect("Failed to parse blank line");
+
+        // Line including termination should be consumed
+        assert_eq!(*input.fragment(), "");
     }
 
     #[test]
     fn non_blank_line_should_fail_if_input_empty_and_at_beginning_of_line() {
-        todo!();
+        let input = Span::new("");
+        assert!(non_blank_line(input).is_err());
     }
 
     #[test]
     fn non_blank_line_should_fail_if_line_is_empty() {
-        todo!();
+        let input = Span::new("\nabcd");
+        assert!(non_blank_line(input).is_err());
     }
 
     #[test]
     fn non_blank_line_should_succeed_if_line_has_more_than_whitespace() {
-        todo!();
+        let input = Span::new("  a  \nabcd");
+        let (input, line) =
+            non_blank_line(input).expect("Failed to parse non blank line");
+        assert_eq!(*input.fragment(), "abcd");
+        assert_eq!(line, "  a  ");
     }
 
     #[test]
     fn non_blank_line_should_succeed_if_on_last_line_and_not_only_whitespace() {
-        todo!();
+        let input = Span::new("  a  ");
+        let (input, line) =
+            non_blank_line(input).expect("Failed to parse non blank line");
+        assert_eq!(*input.fragment(), "");
+        assert_eq!(line, "  a  ");
     }
 
     #[test]
     fn single_multispace_should_fail_if_input_empty() {
-        todo!();
+        let input = Span::new("");
+        assert!(single_multispace(input).is_err());
     }
 
     #[test]
     fn single_multispace_should_fail_if_not_multispace_character() {
-        todo!();
+        let input = Span::new("a");
+        assert!(single_multispace(input).is_err());
     }
 
     #[test]
     fn single_multispace_should_succeed_if_tab() {
-        todo!();
+        let input = Span::new("\t abc");
+        let (input, _) = single_multispace(input).unwrap();
+        assert_eq!(*input.fragment(), " abc");
     }
 
     #[test]
     fn single_multispace_should_succeed_if_space() {
-        todo!();
+        let input = Span::new("  abc");
+        let (input, _) = single_multispace(input).unwrap();
+        assert_eq!(*input.fragment(), " abc");
     }
 
     #[test]
     fn single_multispace_should_succeed_if_crlf() {
-        todo!();
+        let input = Span::new("\r\n abc");
+        let (input, _) = single_multispace(input).unwrap();
+        assert_eq!(*input.fragment(), " abc");
     }
 
     #[test]
     fn single_multispace_should_succeed_if_newline() {
-        todo!();
+        let input = Span::new("\n abc");
+        let (input, _) = single_multispace(input).unwrap();
+        assert_eq!(*input.fragment(), " abc");
     }
 
     #[test]
     fn url_should_fail_if_input_empty() {
-        todo!();
+        let input = Span::new("");
+        assert!(url(input).is_err());
     }
 
     #[test]
-    fn url_should_fail_if_no_scheme_and_not_www() {
-        todo!();
+    fn url_should_fail_if_no_scheme_and_not_www_or_absolute_path() {
+        let input = Span::new("example.com");
+        assert!(url(input).is_err());
     }
 
     #[test]
     fn url_should_succeed_if_starts_with_www_and_will_add_https_as_scheme() {
-        todo!();
+        let input = Span::new("www.example.com");
+        let (input, u) = url(input).expect("Failed to parse url");
+        assert!(input.fragment().is_empty());
+        assert_eq!(u.scheme(), "https");
+        assert_eq!(u.host_str(), Some("www.example.com"));
+    }
+
+    #[test]
+    fn url_should_succeed_if_starts_with_absolute_path_and_will_add_file_as_scheme(
+    ) {
+        let input = Span::new("//some/absolute/path");
+        let (input, u) = url(input).expect("Failed to parse url");
+        assert!(input.fragment().is_empty());
+        assert_eq!(u.scheme(), "file");
+        assert_eq!(u.path(), "/some/absolute/path");
     }
 
     #[test]
     fn url_should_succeed_if_starts_with_scheme() {
-        // https://github.com/vimwiki/vimwiki.git
-        // mailto:habamax@gmail.com
-        // ftp://vim.org
-        todo!();
+        let input = Span::new("https://github.com/vimwiki/vimwiki.git");
+        let (input, u) = url(input).expect("Failed to parse url");
+        assert!(input.fragment().is_empty());
+        assert_eq!(u.scheme(), "https");
+        assert_eq!(u.host_str(), Some("github.com"));
+        assert_eq!(u.path(), "/vimwiki/vimwiki.git");
+
+        let input = Span::new("mailto:habamax@gmail.com");
+        let (input, u) = url(input).expect("Failed to parse url");
+        assert!(input.fragment().is_empty());
+        assert_eq!(u.scheme(), "mailto");
+        assert_eq!(u.path(), "habamax@gmail.com");
+
+        let input = Span::new("ftp://vim.org");
+        let (input, u) = url(input).expect("Failed to parse url");
+        assert!(input.fragment().is_empty());
+        assert_eq!(u.scheme(), "ftp");
+        assert_eq!(u.host_str(), Some("vim.org"));
     }
 }
