@@ -41,6 +41,15 @@ pub fn link(input: Span) -> VimwikiIResult<LC<Link>> {
     context(
         "Link",
         alt((
+            // NOTE: We reuse the wiki_link logic for other links and then
+            //       do a second pass to determine if external, diary, or
+            //       interwiki versus wiki; so, we need to run the other
+            //       parsers first to avoid wiki_link consuming other types
+            //
+            // TODO: This could be better optimized for diary and interwiki by
+            //       duplicating the [[ ]] delimited check and then parsing
+            //       the beginning, which is unique to diary/interwiki,
+            //       avoiding another complete parsing
             map(external::external_link, |c| c.map(Link::from)),
             map(diary::diary_link, |c| c.map(Link::from)),
             map(interwiki::inter_wiki_link, |c| c.map(Link::from)),

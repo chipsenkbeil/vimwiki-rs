@@ -92,23 +92,13 @@ mod tests {
     #[test]
     fn wiki_link_should_fail_if_does_not_have_proper_prefix() {
         let input = Span::new("link]]");
-        let result = wiki_link(input);
-
-        // No input should have been consumed
-        assert_eq!(*input.fragment(), "link]]");
-
-        assert!(result.is_err());
+        assert!(wiki_link(input).is_err());
     }
 
     #[test]
     fn wiki_link_should_fail_if_does_not_have_proper_suffix() {
         let input = Span::new("[[link");
-        let result = wiki_link(input);
-
-        // No input should have been consumed
-        assert_eq!(*input.fragment(), "[[link");
-
-        assert!(result.is_err());
+        assert!(wiki_link(input).is_err());
     }
 
     #[test]
@@ -131,6 +121,7 @@ mod tests {
         // Link should be consumed
         assert!(input.fragment().is_empty());
 
+        assert!(link.path.is_relative(), "Not detected as relative");
         assert_eq!(link.path.to_str().unwrap(), "This is a link");
         assert_eq!(link.description, None);
         assert_eq!(link.anchor, None);
@@ -146,6 +137,7 @@ mod tests {
         // Link should be consumed
         assert!(input.fragment().is_empty());
 
+        assert!(link.path.is_relative(), "Not detected as relative");
         assert_eq!(link.path.to_str().unwrap(), "This is a link source");
         assert_eq!(
             link.description,
@@ -163,6 +155,7 @@ mod tests {
         // Link should be consumed
         assert!(input.fragment().is_empty());
 
+        assert!(link.path.is_relative(), "Not detected as relative");
         assert_eq!(link.path.to_str().unwrap(), "projects/Important Project 1");
         assert_eq!(link.description, None);
         assert_eq!(link.anchor, None);
@@ -177,6 +170,7 @@ mod tests {
         // Link should be consumed
         assert!(input.fragment().is_empty());
 
+        assert!(link.path.is_relative(), "Not detected as relative");
         assert_eq!(link.path.to_str().unwrap(), "../index");
         assert_eq!(link.description, None);
         assert_eq!(link.anchor, None);
@@ -191,6 +185,7 @@ mod tests {
         // Link should be consumed
         assert!(input.fragment().is_empty());
 
+        assert!(link.path.is_absolute(), "Not detected as absolute");
         assert_eq!(link.path.to_str().unwrap(), "/index");
         assert_eq!(link.description, None);
         assert_eq!(link.anchor, None);
@@ -205,6 +200,7 @@ mod tests {
         // Link should be consumed
         assert!(input.fragment().is_empty());
 
+        assert!(link.is_path_dir(), "Not detected as subdirectory");
         assert_eq!(link.path.to_str().unwrap(), "a subdirectory/");
         assert_eq!(
             link.description,
@@ -215,6 +211,43 @@ mod tests {
 
     #[test]
     fn wiki_link_should_support_an_anchor() {
+        let input = Span::new("[[Todo List#Tomorrow]]");
+        let (input, link) =
+            wiki_link(input).expect("Parser unexpectedly failed");
+
+        // Link should be consumed
+        assert!(input.fragment().is_empty());
+
+        assert_eq!(link.path.to_str().unwrap(), "Todo List");
+        assert_eq!(link.description, None);
+        assert_eq!(
+            link.anchor,
+            Some(Anchor::new(vec!["Tomorrow".to_string()]))
+        );
+    }
+
+    #[test]
+    fn wiki_link_should_support_multiple_anchors() {
+        let input = Span::new("[[Todo List#Tomorrow#Later]]");
+        let (input, link) =
+            wiki_link(input).expect("Parser unexpectedly failed");
+
+        // Link should be consumed
+        assert!(input.fragment().is_empty());
+
+        assert_eq!(link.path.to_str().unwrap(), "Todo List");
+        assert_eq!(link.description, None);
+        assert_eq!(
+            link.anchor,
+            Some(Anchor::new(vec![
+                "Tomorrow".to_string(),
+                "Later".to_string()
+            ]))
+        );
+    }
+
+    #[test]
+    fn wiki_link_should_support_an_anchor_and_a_description() {
         let input = Span::new("[[Todo List#Tomorrow|Tasks for tomorrow]]");
         let (input, link) =
             wiki_link(input).expect("Parser unexpectedly failed");
@@ -234,7 +267,7 @@ mod tests {
     }
 
     #[test]
-    fn wiki_link_should_support_multiple_anchors() {
+    fn wiki_link_should_support_multiple_anchors_and_a_description() {
         let input =
             Span::new("[[Todo List#Tomorrow#Later|Tasks for tomorrow]]");
         let (input, link) =
@@ -266,6 +299,7 @@ mod tests {
         // Link should be consumed
         assert!(input.fragment().is_empty());
 
+        assert!(link.is_local_anchor(), "Not detected as local anchor");
         assert_eq!(link.path.to_str().unwrap(), "");
         assert_eq!(link.description, None,);
         assert_eq!(

@@ -26,6 +26,18 @@ impl WikiLink {
     pub fn is_local_anchor(&self) -> bool {
         self.path.as_os_str().is_empty() && self.anchor.is_some()
     }
+
+    /// Checks if the link's path is to a directory without actually evaluating
+    /// in the filesystem. Only checks if the path appears as that of a
+    /// directory
+    pub fn is_path_dir(&self) -> bool {
+        self.path
+            .to_string_lossy()
+            .chars()
+            .last()
+            .map(std::path::is_separator)
+            .unwrap_or_default()
+    }
 }
 
 impl From<PathBuf> for WikiLink {
