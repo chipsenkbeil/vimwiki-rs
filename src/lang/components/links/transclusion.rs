@@ -1,16 +1,17 @@
 use super::Description;
 use derive_more::Constructor;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::convert::TryFrom;
+use std::hash::{Hash, Hasher};
 use url::Url;
 
 /// Represents a link that is used as a "Wiki Include" to pull in resources
-#[derive(
-    Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
-)]
+#[derive(Constructor, Clone, Debug, Eq, Serialize, Deserialize)]
 pub struct TransclusionLink {
     pub url: Url,
     pub description: Option<Description>,
+    pub properties: HashMap<String, String>,
 }
 
 impl TransclusionLink {
@@ -26,9 +27,34 @@ impl TransclusionLink {
     }
 }
 
+impl PartialEq for TransclusionLink {
+    fn eq(&self, other: &Self) -> bool {
+        self.url == other.url
+            && self.description == other.description
+            && self.properties == other.properties
+    }
+}
+
+impl Hash for TransclusionLink {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.url.hash(state);
+        self.description.hash(state);
+
+        // Grab all property keys and sort them so we get a reproducible
+        // iteration over the keys
+        let mut keys = self.properties.keys().collect::<Vec<&String>>();
+        keys.sort_unstable();
+
+        // Use property keys in hash
+        for k in keys.drain(..) {
+            k.hash(state);
+        }
+    }
+}
+
 impl From<Url> for TransclusionLink {
     fn from(url: Url) -> Self {
-        Self::new(url, None)
+        Self::new(url, None, HashMap::default())
     }
 }
 

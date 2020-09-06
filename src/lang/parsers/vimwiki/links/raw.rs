@@ -3,7 +3,6 @@ use super::{
     utils::{position, url},
     Span, VimwikiIResult, LC,
 };
-use nom::{branch::alt, combinator::map, error::context};
 
 #[inline]
 pub fn raw_link(input: Span) -> VimwikiIResult<LC<RawLink>> {

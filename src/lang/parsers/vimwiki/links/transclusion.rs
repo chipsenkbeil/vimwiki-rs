@@ -1,15 +1,78 @@
 use super::{
-    components::TransclusionLink,
-    utils::{position, url},
+    components::{Description, TransclusionLink},
+    utils::{position, take_line_while, take_line_while1},
     Span, VimwikiIResult, LC,
 };
-use nom::{branch::alt, combinator::map, error::context};
+use nom::{
+    branch::alt,
+    bytes::complete::tag,
+    combinator::{map, map_parser, map_res, not, opt},
+    multi::separated_nonempty_list,
+    sequence::{delimited, preceded, separated_pair},
+};
+use std::collections::HashMap;
+use url::Url;
 
 #[inline]
 pub fn transclusion_link(input: Span) -> VimwikiIResult<LC<TransclusionLink>> {
     let (input, pos) = position(input)?;
-    // delimited(tag("[["), anychar, tag("]]")),
-    todo!();
+
+    let (input, _) = tag("{{")(input)?;
+    let (input, link_url) = map_res(
+        take_line_while1(not(alt((tag("|"), tag("}}"))))),
+        |s: Span| Url::parse(s.fragment()),
+    )(input)?;
+    let (input, maybe_description) = opt(map(
+        preceded(tag("|"), take_line_while(not(alt((tag("|"), tag("}}")))))),
+        |s: Span| Description::from(s.fragment().to_string()),
+    ))(input)?;
+    let (input, maybe_properties) =
+        opt(preceded(tag("|"), transclusion_properties))(input)?;
+
+    Ok((
+        input,
+        LC::from((
+            TransclusionLink::new(
+                link_url,
+                maybe_description,
+                maybe_properties.unwrap_or_default(),
+            ),
+            pos,
+            input,
+        )),
+    ))
+}
+
+/// Parser for property pairs separated by | in the form of
+///
+///     key1="value1"|key2="value2"|...
+#[inline]
+fn transclusion_properties(
+    input: Span,
+) -> VimwikiIResult<HashMap<String, String>> {
+    map(
+        separated_nonempty_list(
+            tag("|"),
+            map_parser(
+                take_line_while1(not(alt((tag("|"), tag("}}"))))),
+                separated_pair(
+                    map(take_line_while1(not(tag("="))), |s: Span| {
+                        s.fragment().to_string()
+                    }),
+                    tag("="),
+                    map(
+                        delimited(
+                            tag("\""),
+                            take_line_while(not(tag("\""))),
+                            tag("\""),
+                        ),
+                        |s: Span| s.fragment().to_string(),
+                    ),
+                ),
+            ),
+        ),
+        |mut pairs| pairs.drain(..).collect(),
+    )(input)
 }
 
 #[cfg(test)]

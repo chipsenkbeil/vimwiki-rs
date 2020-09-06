@@ -1,4 +1,4 @@
-use derive_more::Constructor;
+use derive_more::{AsMut, AsRef, Constructor, Deref, DerefMut};
 use nom_locate::LocatedSpan;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
@@ -9,9 +9,24 @@ pub type Span<'a> = LocatedSpan<&'a str>;
 /// Represents an encapsulation of a language component and its location
 /// within some string/file
 #[derive(
-    Constructor, Clone, Debug, Hash, Eq, PartialEq, Serialize, Deserialize,
+    AsRef,
+    AsMut,
+    Constructor,
+    Clone,
+    Debug,
+    Deref,
+    DerefMut,
+    Hash,
+    Eq,
+    PartialEq,
+    Serialize,
+    Deserialize,
 )]
 pub struct LocatedComponent<T> {
+    #[as_ref]
+    #[as_mut]
+    #[deref]
+    #[deref_mut]
     pub component: T,
     pub region: Region,
 }

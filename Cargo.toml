@@ -37,6 +37,8 @@ warp = { version = "0.2.4", optional = true }
 version = "0.99.0"
 default-features = false
 features = [
+    "as_mut",
+    "as_ref",
     "constructor",
     "deref",
     "deref_mut",
@@ -58,3 +60,6 @@ features = ["serde-1"]
 [dependencies.tokio]
 version = "0.2.22"
 features = ["rt-core", "time", "io-std", "io-util", "macros"]
+
+[dev-dependencies]
+indoc = "1.0.2"

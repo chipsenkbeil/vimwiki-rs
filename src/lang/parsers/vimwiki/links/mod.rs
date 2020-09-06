@@ -1,7 +1,6 @@
 use super::{
     components::{self, Link},
-    utils::{self, url},
-    Span, VimwikiIResult, LC,
+    utils, Span, VimwikiIResult, LC,
 };
 use nom::{branch::alt, combinator::map, error::context};
 
@@ -9,7 +8,6 @@ mod diary;
 mod external;
 mod interwiki;
 mod raw;
-mod thumbnail;
 mod transclusion;
 mod wiki;
 
@@ -43,12 +41,11 @@ pub fn link(input: Span) -> VimwikiIResult<LC<Link>> {
     context(
         "Link",
         alt((
-            map(thumbnail::thumbnail_link, |c| c.map(Link::from)),
-            map(wiki::wiki_link, |c| c.map(Link::from)),
-            map(interwiki::inter_wiki_link, |c| c.map(Link::from)),
-            map(diary::diary_link, |c| c.map(Link::from)),
-            map(raw::raw_link, |c| c.map(Link::from)),
             map(external::external_link, |c| c.map(Link::from)),
+            map(diary::diary_link, |c| c.map(Link::from)),
+            map(interwiki::inter_wiki_link, |c| c.map(Link::from)),
+            map(wiki::wiki_link, |c| c.map(Link::from)),
+            map(raw::raw_link, |c| c.map(Link::from)),
             map(transclusion::transclusion_link, |c| c.map(Link::from)),
         )),
     )(input)

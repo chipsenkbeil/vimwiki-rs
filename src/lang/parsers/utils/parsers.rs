@@ -5,8 +5,8 @@ use nom::{
     character::complete::{anychar, crlf, line_ending, space0},
     combinator::{map, map_res, not, opt, recognize, rest_len, value, verify},
     error::context,
-    multi::many1,
-    sequence::{delimited, pair, terminated, tuple},
+    multi::{many0, many1},
+    sequence::{delimited, pair, preceded, terminated, tuple},
 };
 use url::Url;
 
@@ -27,6 +27,27 @@ pub fn end_of_line_or_input(input: Span) -> VimwikiIResult<()> {
             }),
         ),
     )(input)
+}
+
+/// Parser that consumes input while the pattern succeeds or we reach the
+/// end of the line. Note that this does NOT consume the line termination.
+#[inline]
+pub fn take_line_while<'a, T>(
+    parser: impl Fn(Span<'a>) -> VimwikiIResult<T>,
+) -> impl Fn(Span<'a>) -> VimwikiIResult<Span<'a>> {
+    recognize(many0(preceded(
+        pair(parser, not(end_of_line_or_input)),
+        anychar,
+    )))
+}
+
+/// Parser that consumes input while the pattern succeeds or we reach the
+/// end of the line. Note that this does NOT consume the line termination.
+#[inline]
+pub fn take_line_while1<'a, T>(
+    parser: impl Fn(Span<'a>) -> VimwikiIResult<T>,
+) -> impl Fn(Span<'a>) -> VimwikiIResult<Span<'a>> {
+    verify(take_line_while(parser), |s| !s.fragment().is_empty())
 }
 
 /// Parser that will report the total columns consumed since the beginning of

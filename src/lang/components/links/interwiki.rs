@@ -28,6 +28,12 @@ pub struct IndexedInterWikiLink {
     pub link: WikiLink,
 }
 
+impl From<(u32, WikiLink)> for IndexedInterWikiLink {
+    fn from((index, link): (u32, WikiLink)) -> Self {
+        Self::new(index, link)
+    }
+}
+
 /// Represents a link to a file or directory in another wiki specified by
 /// a name that maps to the name key in g:vimwiki_list
 #[derive(
@@ -36,4 +42,10 @@ pub struct IndexedInterWikiLink {
 pub struct NamedInterWikiLink {
     pub name: String,
     pub link: WikiLink,
+}
+
+impl From<(String, WikiLink)> for NamedInterWikiLink {
+    fn from((name, link): (String, WikiLink)) -> Self {
+        Self::new(name, link)
+    }
 }
