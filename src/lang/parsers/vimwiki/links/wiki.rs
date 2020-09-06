@@ -62,7 +62,14 @@ pub(super) fn wiki_link_internal(input: Span) -> VimwikiIResult<WikiLink> {
         map_parser(
             take_line_while1(not(tag("]]"))),
             alt((
-                map(delimited(tag("{{"), url, tag("}}")), Description::from),
+                map(
+                    delimited(
+                        tag("{{"),
+                        map_parser(take_line_while1(not(tag("}}"))), url),
+                        tag("}}"),
+                    ),
+                    Description::from,
+                ),
                 map(rest, |s: Span| {
                     Description::from(s.fragment().to_string())
                 }),
@@ -88,6 +95,7 @@ pub(super) fn wiki_link_internal(input: Span) -> VimwikiIResult<WikiLink> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use url::Url;
 
     #[test]
     fn wiki_link_should_fail_if_does_not_have_proper_prefix() {
@@ -137,6 +145,28 @@ mod tests {
         assert_eq!(
             link.description,
             Some(Description::Text("Description of the link".to_string()))
+        );
+        assert_eq!(link.anchor, None);
+    }
+
+    #[test]
+    fn wiki_link_should_support_thumbnail_description() {
+        let input = Span::new(
+            "[[This is a link source|{{https://example.com/img.jpg}}]]",
+        );
+        let (input, link) =
+            wiki_link(input).expect("Parser unexpectedly failed");
+
+        // Link should be consumed
+        assert!(input.fragment().is_empty());
+
+        assert!(link.path.is_relative(), "Not detected as relative");
+        assert_eq!(link.path.to_str().unwrap(), "This is a link source");
+        assert_eq!(
+            link.description,
+            Some(Description::from(
+                Url::parse("https://example.com/img.jpg").unwrap()
+            ))
         );
         assert_eq!(link.anchor, None);
     }
