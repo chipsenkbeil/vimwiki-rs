@@ -1,6 +1,7 @@
-use super::WikiLink;
+use super::{Anchor, Description, WikiLink};
 use derive_more::{Constructor, From};
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 
 /// Represents a link to a file or directory in another wiki
 #[derive(Clone, Debug, From, Eq, PartialEq, Hash, Serialize, Deserialize)]
@@ -10,11 +11,41 @@ pub enum InterWikiLink {
 }
 
 impl InterWikiLink {
+    /// Returns the index associated with this interwiki link if it is an
+    /// indexed interwiki link
+    pub fn index(&self) -> Option<u32> {
+        match self {
+            Self::Indexed(x) => Some(x.index),
+            _ => None,
+        }
+    }
+
+    /// Returns the name associated with this interwiki link if it is a
+    /// named interwiki link
+    pub fn name(&self) -> Option<&str> {
+        match self {
+            Self::Named(x) => Some(&x.name),
+            _ => None,
+        }
+    }
+
     pub fn link(&self) -> &WikiLink {
         match self {
             Self::Indexed(x) => &x.link,
             Self::Named(x) => &x.link,
         }
+    }
+
+    pub fn path(&self) -> &Path {
+        &self.link().path
+    }
+
+    pub fn description(&self) -> Option<&Description> {
+        self.link().description.as_ref()
+    }
+
+    pub fn anchor(&self) -> Option<&Anchor> {
+        self.link().anchor.as_ref()
     }
 }
 

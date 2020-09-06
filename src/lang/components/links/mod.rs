@@ -60,6 +60,18 @@ pub struct Anchor {
     components: Vec<String>,
 }
 
+impl From<String> for Anchor {
+    fn from(s: String) -> Self {
+        Self::new(vec![s])
+    }
+}
+
+impl From<&str> for Anchor {
+    fn from(s: &str) -> Self {
+        Self::new(vec![s.to_string()])
+    }
+}
+
 #[derive(Clone, Debug, From, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum Link {
     Wiki(WikiLink),
