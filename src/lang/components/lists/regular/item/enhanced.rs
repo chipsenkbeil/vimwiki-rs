@@ -1,5 +1,5 @@
 use super::{ListItem, ListItemContent};
-use derive_more::Constructor;
+use derive_more::{AsMut, AsRef, Constructor, Deref, DerefMut};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
@@ -42,9 +42,24 @@ impl EnhancedListItemAttribute {
 /// and functionality without needing to implement it for ordered/unordered
 /// list item instances directly
 #[derive(
-    Constructor, Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize,
+    AsRef,
+    AsMut,
+    Constructor,
+    Clone,
+    Debug,
+    Default,
+    Deref,
+    DerefMut,
+    Eq,
+    PartialEq,
+    Serialize,
+    Deserialize,
 )]
 pub struct EnhancedListItem {
+    #[as_ref]
+    #[as_mut]
+    #[deref]
+    #[deref_mut]
     pub item: ListItem,
     pub attributes: HashSet<EnhancedListItemAttribute>,
 }
@@ -96,7 +111,7 @@ impl EnhancedListItem {
     /// None will be returned.
     pub fn compute_todo_progress(&self) -> Option<f32> {
         self.item
-            .contents()
+            .contents
             .iter()
             .fold(None, |acc, c| match &c.component {
                 ListItemContent::InlineContent(_) => acc,
@@ -208,7 +223,7 @@ impl EnhancedListItem {
 
 #[cfg(test)]
 mod tests {
-    use super::super::LC;
+    use super::super::super::LC;
     use super::*;
 
     macro_rules! enhanced_item {
@@ -229,13 +244,14 @@ mod tests {
         };
         ($attr:ident, $($child:expr),+) => {
             EnhancedListItem::new(
-                ListItem::Unordered(super::super::UnorderedListItem::new(
-                    super::super::UnorderedListItemType::Hyphen,
+                ListItem::new(
+                    Default::default(),
+                    Default::default(),
                     0,
                     vec![From::from(super::super::ListItemContent::List(
-                        super::super::super::List::new(vec![$($child),+]),
-                    ))],
-                )),
+                        super::super::super::RegularList::new(vec![$($child),+]),
+                    ))].into(),
+                ),
                 vec![EnhancedListItemAttribute::$attr]
                     .iter()
                     .cloned()

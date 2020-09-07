@@ -97,11 +97,13 @@ pub enum InlineComponent {
     Serialize,
     Deserialize,
 )]
-pub struct InlineComponentContainer(Vec<LC<InlineComponent>>);
+pub struct InlineComponentContainer {
+    pub components: Vec<LC<InlineComponent>>,
+}
 
 impl From<Vec<InlineComponentContainer>> for InlineComponentContainer {
     fn from(mut containers: Vec<Self>) -> Self {
-        Self::new(containers.drain(..).flat_map(|c| c.0).collect())
+        Self::new(containers.drain(..).flat_map(|c| c.components).collect())
     }
 }
 

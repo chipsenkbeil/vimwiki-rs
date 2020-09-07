@@ -1,169 +1,327 @@
-use super::{ListItemContent, ListItemContents, LC};
-use derive_more::From;
+use super::{ListItemContent, ListItemContents};
+use derive_more::{Constructor, From};
+use numerals::roman::Roman;
 use serde::{Deserialize, Serialize};
 
 mod enhanced;
-pub use enhanced::{EnhancedListItem, EnhancedListItemAttribute};
+pub use enhanced::*;
 
-mod ordered;
-pub use ordered::{
-    ListItem as OrderedListItem, ListItemSuffix as OrderedListItemSuffix,
-    ListItemType as OrderedListItemType,
-};
-
-mod unordered;
-pub use unordered::{
-    ListItem as UnorderedListItem, ListItemType as UnorderedListItemType,
-};
-
-/// Represents supported prefix types for a list item
-#[derive(Clone, Debug, From, Eq, PartialEq, Serialize, Deserialize)]
-pub enum ListItem {
-    Ordered(OrderedListItem),
-    Unordered(UnorderedListItem),
+/// Represents an item in a list
+#[derive(
+    Constructor, Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize,
+)]
+pub struct ListItem {
+    pub item_type: ListItemType,
+    pub suffix: ListItemSuffix,
+    pub pos: usize,
+    pub contents: ListItemContents,
 }
 
 impl ListItem {
     /// Indicates whether or not this list item represents an unordered item
     pub fn is_unordered(&self) -> bool {
-        match self {
-            Self::Ordered(_) => false,
-            Self::Unordered(_) => true,
-        }
+        self.item_type.is_unordered()
     }
 
     /// Indicates whether or not this list item represents an ordered item
     pub fn is_ordered(&self) -> bool {
-        match self {
-            Self::Ordered(_) => true,
-            Self::Unordered(_) => false,
-        }
+        self.item_type.is_ordered()
     }
 
-    pub fn pos(&self) -> usize {
-        match self {
-            Self::Ordered(item) => item.pos,
-            Self::Unordered(item) => item.pos,
-        }
-    }
-
-    pub fn contents(&self) -> &[LC<ListItemContent>] {
-        match self {
-            Self::Ordered(item) => &item.contents[..],
-            Self::Unordered(item) => &item.contents[..],
-        }
-    }
-
+    /// Allocates a new string to represent the prefix of this list item
     pub fn to_prefix(&self) -> String {
+        self.item_type.to_prefix(self.pos, self.suffix)
+    }
+}
+
+/// Represents a suffix such as . or ) used after beginning of list item
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum ListItemSuffix {
+    None,
+    Period,
+    Paren,
+}
+
+impl ListItemSuffix {
+    pub fn as_char(self) -> Option<char> {
         match self {
-            Self::Ordered(item) => item.to_prefix(),
-            Self::Unordered(item) => item.to_prefix(),
+            Self::Period => Some('.'),
+            Self::Paren => Some(')'),
+            Self::None => None,
         }
     }
 }
 
-impl Default for ListItem {
+impl Default for ListItemSuffix {
     fn default() -> Self {
-        Self::Unordered(Default::default())
+        Self::None
     }
+}
+
+#[derive(Clone, Debug, From, Eq, PartialEq, Serialize, Deserialize)]
+pub enum ListItemType {
+    Ordered(OrderedListItemType),
+    Unordered(UnorderedListItemType),
+}
+
+impl ListItemType {
+    pub fn is_ordered(&self) -> bool {
+        match self {
+            Self::Ordered(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_unordered(&self) -> bool {
+        match self {
+            Self::Unordered(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn to_prefix(&self, pos: usize, suffix: ListItemSuffix) -> String {
+        match self {
+            Self::Ordered(x) => x.to_prefix(pos, suffix),
+            Self::Unordered(x) => x.to_prefix(suffix),
+        }
+    }
+}
+
+impl Default for ListItemType {
+    fn default() -> Self {
+        Self::Unordered(UnorderedListItemType::default())
+    }
+}
+
+/// Represents the type associated with an unordered item
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum UnorderedListItemType {
+    /// -
+    Hyphen,
+    /// *
+    Asterisk,
+    /// Catchall
+    Other(String),
+}
+
+impl UnorderedListItemType {
+    /// Allocates a new string representing the full prefix of the list item
+    /// such as - or *
+    pub fn to_prefix(&self, suffix: ListItemSuffix) -> String {
+        match &self {
+            Self::Hyphen => String::from("-"),
+            Self::Asterisk => String::from("*"),
+            Self::Other(prefix) => {
+                let mut base = prefix.to_string();
+
+                if let Some(c) = suffix.as_char() {
+                    base.push(c);
+                }
+
+                base
+            }
+        }
+    }
+}
+
+impl Default for UnorderedListItemType {
+    fn default() -> Self {
+        Self::Hyphen
+    }
+}
+
+/// Represents the type associated with an ordered item
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum OrderedListItemType {
+    /// 1
+    Number,
+    /// #
+    Pound,
+    /// a
+    LowercaseAlphabet,
+    /// A
+    UppercaseAlphabet,
+    /// i
+    LowercaseRoman,
+    /// I
+    UppercaseRoman,
+}
+
+impl OrderedListItemType {
+    /// Allocates a new string representing the full prefix of the list item
+    /// such as 1. or iii)
+    pub fn to_prefix(&self, pos: usize, suffix: ListItemSuffix) -> String {
+        let mut base = match self {
+            // NOTE: Numbers start at 1, not 0, so use base 1
+            Self::Number => (pos + 1).to_string(),
+            Self::Pound => String::from("#"),
+            Self::LowercaseAlphabet => pos_to_alphabet(pos, true),
+            Self::UppercaseAlphabet => pos_to_alphabet(pos, false),
+            // NOTE: Roman numerals start at 1, not 0, so use base 1
+            Self::LowercaseRoman => {
+                format!("{:x}", Roman::from((pos + 1) as i16))
+            }
+            // NOTE: Roman numerals start at 1, not 0, so use base 1
+            Self::UppercaseRoman => {
+                format!("{:X}", Roman::from((pos + 1) as i16))
+            }
+        };
+
+        if let Some(c) = suffix.as_char() {
+            base.push(c);
+        }
+
+        base
+    }
+}
+
+impl Default for OrderedListItemType {
+    fn default() -> Self {
+        Self::Number
+    }
+}
+
+/// Converts a position in a list (base 0) to an alphabetic representation
+/// where 0 == a, 25 == z, 26 == aa, and so on
+fn pos_to_alphabet(pos: usize, to_lower: bool) -> String {
+    let mut s = String::new();
+    let mut i = pos as u32;
+    let base = if to_lower { 97 } else { 65 };
+
+    // Work our way backwards, starting with the last character and moving left
+    loop {
+        // Get closest character offset
+        let offset = i % 26;
+        if let Some(c) = std::char::from_u32(base + offset) {
+            s.push(c);
+        }
+
+        // Remove closest character from position
+        i -= offset;
+
+        // If we have more to process, shift left one
+        if i > 0 {
+            i = (i / 26) - 1;
+        } else {
+            break;
+        }
+    }
+
+    s.chars().rev().collect()
 }
 
 #[cfg(test)]
 mod tests {
+    use super::super::LC;
     use super::*;
 
     macro_rules! unordered_item {
         ($type:ident, $pos:expr, $content:expr) => {
-            ListItem::Unordered(UnorderedListItem::new(
-                UnorderedListItemType::$type,
+            ListItem::new(
+                ListItemType::from(UnorderedListItemType::$type),
+                ListItemSuffix::default(),
                 $pos,
-                $content,
-            ))
+                $content.into(),
+            )
         };
         ($type:ident, $pos:expr) => {
-            ListItem::Unordered(UnorderedListItem::new(
-                UnorderedListItemType::$type,
+            ListItem::new(
+                ListItemType::from(UnorderedListItemType::$type),
+                ListItemSuffix::default(),
                 $pos,
-                vec![],
-            ))
+                vec![].into(),
+            )
         };
         ($type:ident) => {
-            ListItem::Unordered(UnorderedListItem::new(
-                UnorderedListItemType::$type,
+            ListItem::new(
+                ListItemType::from(UnorderedListItemType::$type),
+                ListItemSuffix::default(),
                 0,
-                vec![],
-            ))
+                vec![].into(),
+            )
         };
     }
 
     macro_rules! ordered_item {
         ($type:ident, $suffix:ident, $pos:expr, $content:expr) => {
-            ListItem::Ordered(OrderedListItem::new(
-                OrderedListItemType::$type,
-                OrderedListItemSuffix::$suffix,
+            ListItem::new(
+                ListItemType::from(OrderedListItemType::$type),
+                ListItemSuffix::$suffix,
                 $pos,
-                $content,
-            ))
+                $content.into(),
+            )
         };
         ($type:ident, $suffix:ident, $pos:expr) => {
-            ListItem::Ordered(OrderedListItem::new(
-                OrderedListItemType::$type,
-                OrderedListItemSuffix::$suffix,
+            ListItem::new(
+                ListItemType::from(OrderedListItemType::$type),
+                ListItemSuffix::$suffix,
                 $pos,
-                vec![],
-            ))
+                vec![].into(),
+            )
         };
         ($type:ident, $suffix:ident) => {
-            ListItem::Ordered(OrderedListItem::new(
-                OrderedListItemType::$type,
-                OrderedListItemSuffix::$suffix,
+            ListItem::new(
+                ListItemType::from(OrderedListItemType::$type),
+                ListItemSuffix::$suffix,
                 0,
-                vec![],
-            ))
+                vec![].into(),
+            )
         };
         ($type:ident) => {
-            ListItem::Ordered(OrderedListItem::new(
-                OrderedListItemType::$type,
-                OrderedListItemSuffix::Paren,
+            ListItem::new(
+                ListItemType::from(OrderedListItemType::$type),
+                ListItemSuffix::Paren,
                 0,
-                vec![],
-            ))
+                vec![].into(),
+            )
         };
     }
 
     macro_rules! other_item {
-        ($value:expr, $pos:expr, $content:expr) => {
-            ListItem::Unordered(UnorderedListItem::new(
-                UnorderedListItemType::Other($value),
+        ($value:expr, $suffix:ident, $pos:expr, $content:expr) => {
+            ListItem::new(
+                ListItemType::from(UnorderedListItemType::Other($value)),
+                ListItemSuffix::$suffix,
                 $pos,
-                $content,
-            ))
+                $content.into(),
+            )
         };
-        ($value:expr, $pos:expr) => {
-            ListItem::Unordered(UnorderedListItem::new(
-                UnorderedListItemType::Other($value),
+        ($value:expr, $suffix:ident, $pos:expr) => {
+            ListItem::new(
+                ListItemType::from(UnorderedListItemType::Other($value)),
+                ListItemSuffix::$suffix,
                 $pos,
-                vec![],
-            ))
+                vec![].into(),
+            )
+        };
+        ($value:expr, $suffix:ident) => {
+            ListItem::new(
+                ListItemType::from(UnorderedListItemType::Other($value)),
+                ListItemSuffix::$suffix,
+                0,
+                vec![].into(),
+            )
         };
         ($value:expr) => {
-            ListItem::Unordered(UnorderedListItem::new(
-                UnorderedListItemType::Other($value),
+            ListItem::new(
+                ListItemType::from(UnorderedListItemType::Other($value)),
+                ListItemSuffix::default(),
                 0,
-                vec![],
-            ))
+                vec![].into(),
+            )
         };
         () => {
-            ListItem::Unordered(UnorderedListItem::new(
-                UnorderedListItemType::Other(String::new()),
+            ListItem::new(
+                ListItemType::from(UnorderedListItemType::Other(String::new())),
+                ListItemSuffix::default(),
                 0,
-                vec![],
-            ))
+                vec![].into(),
+            )
         };
     }
 
     fn make_content(text: &str) -> ListItemContents {
-        vec![LC::from(ListItemContent::InlineContent(text.into()))]
+        vec![LC::from(ListItemContent::InlineContent(text.into()))].into()
     }
 
     #[test]
@@ -254,60 +412,60 @@ mod tests {
 
     #[test]
     fn pos_should_return_internal_position() {
-        assert_eq!(unordered_item!(Hyphen, 999).pos(), 999);
-        assert_eq!(unordered_item!(Asterisk, 999).pos(), 999);
-        assert_eq!(ordered_item!(Number, Paren, 999).pos(), 999);
-        assert_eq!(ordered_item!(LowercaseAlphabet, Paren, 999).pos(), 999);
-        assert_eq!(ordered_item!(UppercaseAlphabet, Paren, 999).pos(), 999);
-        assert_eq!(ordered_item!(LowercaseRoman, Paren, 999).pos(), 999);
-        assert_eq!(ordered_item!(UppercaseRoman, Paren, 999).pos(), 999);
-        assert_eq!(other_item!(String::new(), 999).pos(), 999);
+        assert_eq!(unordered_item!(Hyphen, 999).pos, 999);
+        assert_eq!(unordered_item!(Asterisk, 999).pos, 999);
+        assert_eq!(ordered_item!(Number, Paren, 999).pos, 999);
+        assert_eq!(ordered_item!(LowercaseAlphabet, Paren, 999).pos, 999);
+        assert_eq!(ordered_item!(UppercaseAlphabet, Paren, 999).pos, 999);
+        assert_eq!(ordered_item!(LowercaseRoman, Paren, 999).pos, 999);
+        assert_eq!(ordered_item!(UppercaseRoman, Paren, 999).pos, 999);
+        assert_eq!(other_item!(String::new(), None, 999).pos, 999);
     }
 
     #[test]
     fn contents_should_return_internal_contents() {
         assert_eq!(
-            unordered_item!(Hyphen, 0, make_content("test")).contents(),
-            &make_content("test")[..]
+            unordered_item!(Hyphen, 0, make_content("test")).contents,
+            make_content("test"),
         );
 
         assert_eq!(
-            unordered_item!(Asterisk, 0, make_content("test")).contents(),
-            &make_content("test")[..]
+            unordered_item!(Asterisk, 0, make_content("test")).contents,
+            make_content("test"),
         );
 
         assert_eq!(
-            ordered_item!(Number, Paren, 0, make_content("test")).contents(),
-            &make_content("test")[..]
+            ordered_item!(Number, Paren, 0, make_content("test")).contents,
+            make_content("test"),
         );
 
         assert_eq!(
             ordered_item!(LowercaseAlphabet, Paren, 0, make_content("test"))
-                .contents(),
-            &make_content("test")[..],
+                .contents,
+            make_content("test"),
         );
 
         assert_eq!(
             ordered_item!(UppercaseAlphabet, Paren, 0, make_content("test"))
-                .contents(),
-            &make_content("test")[..],
+                .contents,
+            make_content("test"),
         );
 
         assert_eq!(
             ordered_item!(LowercaseRoman, Paren, 0, make_content("test"))
-                .contents(),
-            &make_content("test")[..],
+                .contents,
+            make_content("test"),
         );
 
         assert_eq!(
             ordered_item!(UppercaseRoman, Paren, 0, make_content("test"))
-                .contents(),
-            &make_content("test")[..],
+                .contents,
+            make_content("test"),
         );
 
         assert_eq!(
-            other_item!(String::new(), 0, make_content("test")).contents(),
-            &make_content("test")[..]
+            other_item!(String::new(), None, 0, make_content("test")).contents,
+            make_content("test"),
         );
     }
 
@@ -436,9 +594,44 @@ mod tests {
     }
 
     #[test]
-    fn to_prefix_should_return_internal_value_if_other_type() {
-        assert_eq!(other_item!("prefix".to_string(), 0).to_prefix(), "prefix");
-        assert_eq!(other_item!("prefix".to_string(), 27).to_prefix(), "prefix");
-        assert_eq!(other_item!("prefix".to_string(), 99).to_prefix(), "prefix");
+    fn to_prefix_should_return_internal_value_with_suffix_if_other_type() {
+        assert_eq!(
+            other_item!("prefix".to_string(), None, 0).to_prefix(),
+            "prefix"
+        );
+        assert_eq!(
+            other_item!("prefix".to_string(), None, 27).to_prefix(),
+            "prefix"
+        );
+        assert_eq!(
+            other_item!("prefix".to_string(), None, 99).to_prefix(),
+            "prefix"
+        );
+
+        assert_eq!(
+            other_item!("prefix".to_string(), Period, 0).to_prefix(),
+            "prefix."
+        );
+        assert_eq!(
+            other_item!("prefix".to_string(), Period, 27).to_prefix(),
+            "prefix."
+        );
+        assert_eq!(
+            other_item!("prefix".to_string(), Period, 99).to_prefix(),
+            "prefix."
+        );
+
+        assert_eq!(
+            other_item!("prefix".to_string(), Paren, 0).to_prefix(),
+            "prefix)"
+        );
+        assert_eq!(
+            other_item!("prefix".to_string(), Paren, 27).to_prefix(),
+            "prefix)"
+        );
+        assert_eq!(
+            other_item!("prefix".to_string(), Paren, 99).to_prefix(),
+            "prefix)"
+        );
     }
 }

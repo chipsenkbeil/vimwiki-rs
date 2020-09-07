@@ -1,9 +1,8 @@
 use super::{
     components::{
         EnhancedListItem, EnhancedListItemAttribute, InlineComponentContainer,
-        ListItem, ListItemContent, ListItemContents, OrderedListItem,
-        OrderedListItemSuffix, OrderedListItemType, RegularList,
-        UnorderedListItem, UnorderedListItemType,
+        ListItem, ListItemContent, ListItemContents, ListItemSuffix,
+        ListItemType, OrderedListItemType, RegularList, UnorderedListItemType,
     },
     inline_component_container,
     utils::{beginning_of_line, end_of_line_or_input, position},
@@ -14,7 +13,7 @@ use nom::{
     bytes::complete::{tag, take_while1},
     character::complete::{digit1, one_of, space0},
     combinator::{map, opt, peek, value, verify},
-    multi::{many0, many1},
+    multi::{fold_many0, many0, many1},
     sequence::{pair, preceded, terminated},
 };
 
@@ -24,7 +23,7 @@ pub fn regular_list(input: Span) -> VimwikiIResult<LC<RegularList>> {
 
     // A list must at least have one item, whose indentation level we will
     // use to determine how far to go
-    let (input, (indentation, item)) = list_item(0)(input)?;
+    let (input, (indentation, item)) = list_item(input)?;
 
     // TODO: Keep track of indentation level for a list based on its first
     //       item
@@ -38,72 +37,58 @@ pub fn regular_list(input: Span) -> VimwikiIResult<LC<RegularList>> {
     //       4. Any item with less indentation terminates a list
     //       5. Non-blank line not starting with a list item terminates a list
     //       6. Blank line terminates a list
-    let mut items = vec![item];
-    let mut index: usize = 1;
-    while let Ok((input, item)) = preceded(
-        verify(indentation_level(false), |level| *level == indentation),
-        map(list_item(index), |x| x.1),
-    )(input)
-    {
-        items.push(item);
-        index += 1;
-    }
+    let (input, (_, items)) = fold_many0(
+        preceded(
+            verify(indentation_level(false), |level| *level == indentation),
+            map(list_item, |x| x.1),
+        ),
+        (1, vec![item]),
+        |(index, mut items), mut item| {
+            // NOTE: The index information isn't available to the list_item
+            //       parser, so we have to assign it here
+            item.pos = index;
 
-    Ok((input, LC::from((RegularList::new(items), pos, input))))
+            items.push(item);
+            (index + 1, items)
+        },
+    )(input)?;
+
+    // NOTE: When parsing list item types, we aren't able to distinguish
+    //       alphabetic versus roman numerals as they both involve
+    //       alphabetic characters. We need to analyze the entire list after
+    //       it is created to see if all items resolved to roman numerals,
+    //       otherwise we will need to convert types to alphabetic instead
+    let list = RegularList::new(items).normalize().to_owned();
+
+    Ok((input, LC::from((list, pos, input))))
 }
 
 /// Parse space/tabs before a list item, followed by the list item
 #[inline]
-fn list_item(
-    index: usize,
-) -> impl Fn(Span) -> VimwikiIResult<(usize, LC<EnhancedListItem>)> {
-    move |input: Span| {
-        // 1. Start at the beginning of the line
-        let (input, _) = beginning_of_line(input)?;
+fn list_item(input: Span) -> VimwikiIResult<(usize, LC<EnhancedListItem>)> {
+    // 1. Start at the beginning of the line
+    let (input, _) = beginning_of_line(input)?;
 
-        // 2. Determine the indentation level of this list item
-        let (input, indentation) = indentation_level(true)(input)?;
+    // 2. Determine the indentation level of this list item
+    let (input, indentation) = indentation_level(true)(input)?;
 
-        // 3. Ensure that the item starts with a valid prefix
-        let (input, pos) = position(input)?;
-        let (input, item) = alt((
-            map(
-                pair(ordered_list_item_prefix, list_item_tail(indentation)),
-                |((item_type, item_suffix), (maybe_attr, contents))| {
-                    // Construct list item based on results
-                    let item = ListItem::from(OrderedListItem::new(
-                        item_type,
-                        item_suffix,
-                        index,
-                        contents,
-                    ));
-                    match maybe_attr {
-                        Some(attr) => {
-                            EnhancedListItem::new_with_attr(item, attr)
-                        }
-                        None => EnhancedListItem::from(item),
-                    }
-                },
-            ),
-            map(
-                pair(unordered_list_item_prefix, list_item_tail(indentation)),
-                |(item_type, (maybe_attr, contents))| {
-                    // Construct list item based on results
-                    let item = ListItem::from(UnorderedListItem::new(
-                        item_type, index, contents,
-                    ));
-                    match maybe_attr {
-                        Some(attr) => {
-                            EnhancedListItem::new_with_attr(item, attr)
-                        }
-                        None => EnhancedListItem::from(item),
-                    }
-                },
-            ),
-        ))(input)?;
+    // 3. Ensure that the item starts with a valid prefix
+    let (input, pos) = position(input)?;
+    let (input, item) = map(
+        pair(list_item_prefix, list_item_tail(indentation)),
+        |((item_type, item_suffix), (maybe_attr, contents))| {
+            // NOTE: To make things easier, we aren't assigning the index
+            //       within this parser; rather, we put a filler index and
+            //       will assign the actual index in the parent parser
+            let item = ListItem::new(item_type, item_suffix, 0, contents);
+            match maybe_attr {
+                Some(attr) => EnhancedListItem::new_with_attr(item, attr),
+                None => EnhancedListItem::from(item),
+            }
+        },
+    )(input)?;
 
-        Ok((input, (indentation, LC::from((item, pos, input)))))
-    }
+    Ok((input, (indentation, LC::from((item, pos, input)))))
 }
 
 #[inline]
@@ -145,7 +130,7 @@ fn list_item_tail(
 
         contents.insert(0, content);
 
-        Ok((input, (maybe_attr, contents)))
+        Ok((input, (maybe_attr, contents.into())))
     }
 }
 
@@ -184,6 +169,20 @@ fn todo_attr(input: Span) -> VimwikiIResult<EnhancedListItemAttribute> {
     ))(input)
 }
 
+#[inline]
+fn list_item_prefix(
+    input: Span,
+) -> VimwikiIResult<(ListItemType, ListItemSuffix)> {
+    alt((
+        map(unordered_list_item_prefix, |(t, s)| {
+            (ListItemType::from(t), s)
+        }),
+        map(ordered_list_item_prefix, |(t, s)| {
+            (ListItemType::from(t), s)
+        }),
+    ))(input)
+}
+
 /// Parses the prefix, including the tailing required space, of an unordered
 /// list item
 ///
@@ -195,8 +194,13 @@ fn todo_attr(input: Span) -> VimwikiIResult<EnhancedListItemAttribute> {
 #[inline]
 fn unordered_list_item_prefix(
     input: Span,
-) -> VimwikiIResult<UnorderedListItemType> {
-    alt((unordered_item_type_hyphen, unordered_item_type_asterisk))(input)
+) -> VimwikiIResult<(UnorderedListItemType, ListItemSuffix)> {
+    let (input, item_type) = alt((
+        unordered_list_item_type_hyphen,
+        unordered_list_item_type_asterisk,
+    ))(input)?;
+
+    Ok((input, (item_type, ListItemSuffix::default())))
 }
 
 /// Parses the prefix, including the tailing required space, of an ordered
@@ -215,48 +219,58 @@ fn unordered_list_item_prefix(
 #[inline]
 fn ordered_list_item_prefix(
     input: Span,
-) -> VimwikiIResult<(OrderedListItemType, OrderedListItemSuffix)> {
+) -> VimwikiIResult<(OrderedListItemType, ListItemSuffix)> {
+    // NOTE: Roman numeral check comes before alphabetic as alphabetic would
+    //       also match roman numerals
     let (input, (item_type, item_suffix)) = alt((
-        pair(ordered_item_type_number, ordered_item_suffix_period),
-        pair(ordered_item_type_number, ordered_item_suffix_paren),
-        pair(ordered_item_type_lower_alphabet, ordered_item_suffix_paren),
-        pair(ordered_item_type_upper_alphabet, ordered_item_suffix_paren),
-        pair(ordered_item_type_lower_roman, ordered_item_suffix_paren),
-        pair(ordered_item_type_upper_roman, ordered_item_suffix_paren),
-        pair(ordered_item_type_pound, ordered_item_suffix_none),
+        pair(ordered_list_item_type_number, list_item_suffix_period),
+        pair(ordered_list_item_type_number, list_item_suffix_paren),
+        pair(ordered_list_item_type_lower_roman, list_item_suffix_paren),
+        pair(ordered_list_item_type_upper_roman, list_item_suffix_paren),
+        pair(
+            ordered_list_item_type_lower_alphabet,
+            list_item_suffix_paren,
+        ),
+        pair(
+            ordered_list_item_type_upper_alphabet,
+            list_item_suffix_paren,
+        ),
+        pair(ordered_list_item_type_pound, list_item_suffix_none),
     ))(input)?;
 
     Ok((input, (item_type, item_suffix)))
 }
 
 #[inline]
-fn unordered_item_type_hyphen(
+fn unordered_list_item_type_hyphen(
     input: Span,
 ) -> VimwikiIResult<UnorderedListItemType> {
     value(UnorderedListItemType::Hyphen, tag("- "))(input)
 }
 
 #[inline]
-fn unordered_item_type_asterisk(
+fn unordered_list_item_type_asterisk(
     input: Span,
 ) -> VimwikiIResult<UnorderedListItemType> {
-    value(UnorderedListItemType::Hyphen, tag("* "))(input)
+    value(UnorderedListItemType::Asterisk, tag("* "))(input)
 }
 
 #[inline]
-fn ordered_item_type_number(
+fn ordered_list_item_type_number(
     input: Span,
 ) -> VimwikiIResult<OrderedListItemType> {
     value(OrderedListItemType::Number, digit1)(input)
 }
 
 #[inline]
-fn ordered_item_type_pound(input: Span) -> VimwikiIResult<OrderedListItemType> {
+fn ordered_list_item_type_pound(
+    input: Span,
+) -> VimwikiIResult<OrderedListItemType> {
     value(OrderedListItemType::Pound, tag("#"))(input)
 }
 
 #[inline]
-fn ordered_item_type_lower_alphabet(
+fn ordered_list_item_type_lower_alphabet(
     input: Span,
 ) -> VimwikiIResult<OrderedListItemType> {
     value(
@@ -268,7 +282,7 @@ fn ordered_item_type_lower_alphabet(
 }
 
 #[inline]
-fn ordered_item_type_upper_alphabet(
+fn ordered_list_item_type_upper_alphabet(
     input: Span,
 ) -> VimwikiIResult<OrderedListItemType> {
     value(
@@ -280,7 +294,7 @@ fn ordered_item_type_upper_alphabet(
 }
 
 #[inline]
-fn ordered_item_type_lower_roman(
+fn ordered_list_item_type_lower_roman(
     input: Span,
 ) -> VimwikiIResult<OrderedListItemType> {
     value(
@@ -290,7 +304,7 @@ fn ordered_item_type_lower_roman(
 }
 
 #[inline]
-fn ordered_item_type_upper_roman(
+fn ordered_list_item_type_upper_roman(
     input: Span,
 ) -> VimwikiIResult<OrderedListItemType> {
     value(
@@ -300,47 +314,250 @@ fn ordered_item_type_upper_roman(
 }
 
 #[inline]
-fn ordered_item_suffix_paren(
-    input: Span,
-) -> VimwikiIResult<OrderedListItemSuffix> {
-    value(OrderedListItemSuffix::Paren, tag(") "))(input)
+fn list_item_suffix_paren(input: Span) -> VimwikiIResult<ListItemSuffix> {
+    value(ListItemSuffix::Paren, tag(") "))(input)
 }
 
 #[inline]
-fn ordered_item_suffix_period(
-    input: Span,
-) -> VimwikiIResult<OrderedListItemSuffix> {
-    value(OrderedListItemSuffix::Period, tag(". "))(input)
+fn list_item_suffix_period(input: Span) -> VimwikiIResult<ListItemSuffix> {
+    value(ListItemSuffix::Period, tag(". "))(input)
 }
 
 #[inline]
-fn ordered_item_suffix_none(
-    input: Span,
-) -> VimwikiIResult<OrderedListItemSuffix> {
-    value(OrderedListItemSuffix::None, tag(" "))(input)
+fn list_item_suffix_none(input: Span) -> VimwikiIResult<ListItemSuffix> {
+    value(ListItemSuffix::None, tag(" "))(input)
 }
 
 #[cfg(test)]
 mod tests {
+    use super::super::components::InlineComponent;
     use super::*;
+    use indoc::indoc;
 
-    #[test]
-    fn divider_should_fail_if_not_at_beginning_of_line() {
-        todo!();
+    fn check_single_line_list_item(
+        list: &RegularList,
+        item_type: ListItemType,
+        item_suffix: ListItemSuffix,
+        text: &str,
+    ) {
+        let item = &list.items[0].component;
+        assert_eq!(item.item_type, item_type);
+        assert_eq!(item.suffix, item_suffix);
+        assert_eq!(item.pos, 0);
+
+        let component = match &item.contents[0].component {
+            ListItemContent::InlineContent(c) => &c.components[0].component,
+            x => panic!("Unexpected list item content: {:?}", x),
+        };
+        assert_eq!(component, &InlineComponent::Text(text.to_string()));
     }
 
     #[test]
-    fn divider_should_fail_if_not_at_least_four_hyphens() {
-        todo!();
+    fn regular_list_should_fail_if_no_proper_start_to_single_list_item() {
+        let input = Span::new("| some item with bad prefix");
+        assert!(regular_list(input).is_err());
     }
 
     #[test]
-    fn divider_should_fail_if_not_only_hyphens_within_line() {
-        todo!();
+    fn regular_list_should_fail_if_no_space_after_single_list_item_prefix() {
+        assert!(regular_list(Span::new("-some item with no space")).is_err());
+        assert!(regular_list(Span::new("*some item with no space")).is_err());
+        assert!(regular_list(Span::new("1.some item with no space")).is_err());
+        assert!(regular_list(Span::new("1)some item with no space")).is_err());
+        assert!(regular_list(Span::new("a)some item with no space")).is_err());
+        assert!(regular_list(Span::new("A)some item with no space")).is_err());
+        assert!(regular_list(Span::new("i)some item with no space")).is_err());
+        assert!(regular_list(Span::new("I)some item with no space")).is_err());
+        assert!(regular_list(Span::new("#some item with no space")).is_err());
     }
 
     #[test]
-    fn divider_should_succeed_if_four_or_more_hyphens_at_start_of_line() {
-        todo!();
+    fn regular_list_should_succeed_for_single_unordered_hyphen_item() {
+        let input = Span::new("- list item 1");
+        let (input, list) = regular_list(input).unwrap();
+        assert!(input.fragment().is_empty(), "Did not consume list");
+        assert_eq!(list.items.len(), 1, "Unexpected number of list items");
+
+        check_single_line_list_item(
+            &list.component,
+            ListItemType::from(UnorderedListItemType::Hyphen),
+            ListItemSuffix::None,
+            "list item 1",
+        );
+    }
+
+    #[test]
+    fn regular_list_should_succeed_for_single_unordered_asterisk_item() {
+        let input = Span::new("* list item 1");
+        let (input, list) = regular_list(input).unwrap();
+        assert!(input.fragment().is_empty(), "Did not consume list");
+        assert_eq!(list.items.len(), 1, "Unexpected number of list items");
+
+        check_single_line_list_item(
+            &list.component,
+            ListItemType::from(UnorderedListItemType::Asterisk),
+            ListItemSuffix::None,
+            "list item 1",
+        );
+    }
+
+    #[test]
+    fn regular_list_should_succeed_for_single_ordered_pound_item() {
+        let input = Span::new("# list item 1");
+        let (input, list) = regular_list(input).unwrap();
+        assert!(input.fragment().is_empty(), "Did not consume list");
+        assert_eq!(list.items.len(), 1, "Unexpected number of list items");
+
+        check_single_line_list_item(
+            &list.component,
+            ListItemType::from(OrderedListItemType::Pound),
+            ListItemSuffix::None,
+            "list item 1",
+        );
+    }
+
+    #[test]
+    fn regular_list_should_succeed_for_single_ordered_number_period_item() {
+        let input = Span::new("1. list item 1");
+        let (input, list) = regular_list(input).unwrap();
+        assert!(input.fragment().is_empty(), "Did not consume list");
+        assert_eq!(list.items.len(), 1, "Unexpected number of list items");
+
+        check_single_line_list_item(
+            &list.component,
+            ListItemType::from(OrderedListItemType::Number),
+            ListItemSuffix::Period,
+            "list item 1",
+        );
+    }
+
+    #[test]
+    fn regular_list_should_succeed_for_single_ordered_number_paren_item() {
+        let input = Span::new("1) list item 1");
+        let (input, list) = regular_list(input).unwrap();
+        assert!(input.fragment().is_empty(), "Did not consume list");
+        assert_eq!(list.items.len(), 1, "Unexpected number of list items");
+
+        check_single_line_list_item(
+            &list.component,
+            ListItemType::from(OrderedListItemType::Number),
+            ListItemSuffix::Paren,
+            "list item 1",
+        );
+    }
+
+    #[test]
+    fn regular_list_should_succeed_for_single_ordered_lowercase_alphabet_paren_item(
+    ) {
+        let input = Span::new("a) list item 1");
+        let (input, list) = regular_list(input).unwrap();
+        assert!(input.fragment().is_empty(), "Did not consume list");
+        assert_eq!(list.items.len(), 1, "Unexpected number of list items");
+
+        check_single_line_list_item(
+            &list.component,
+            ListItemType::from(OrderedListItemType::LowercaseAlphabet),
+            ListItemSuffix::Paren,
+            "list item 1",
+        );
+    }
+
+    #[test]
+    fn regular_list_should_succeed_for_single_ordered_uppercase_alphabet_paren_item(
+    ) {
+        let input = Span::new("A) list item 1");
+        let (input, list) = regular_list(input).unwrap();
+        assert!(input.fragment().is_empty(), "Did not consume list");
+        assert_eq!(list.items.len(), 1, "Unexpected number of list items");
+
+        check_single_line_list_item(
+            &list.component,
+            ListItemType::from(OrderedListItemType::UppercaseAlphabet),
+            ListItemSuffix::Paren,
+            "list item 1",
+        );
+    }
+
+    #[test]
+    fn regular_list_should_succeed_for_single_ordered_lowercase_roman_paren_item(
+    ) {
+        let input = Span::new("i) list item 1");
+        let (input, list) = regular_list(input).unwrap();
+        assert!(input.fragment().is_empty(), "Did not consume list");
+        assert_eq!(list.items.len(), 1, "Unexpected number of list items");
+
+        check_single_line_list_item(
+            &list.component,
+            ListItemType::from(OrderedListItemType::LowercaseRoman),
+            ListItemSuffix::Paren,
+            "list item 1",
+        );
+    }
+
+    #[test]
+    fn regular_list_should_succeed_for_single_ordered_uppercase_roman_paren_item(
+    ) {
+        let input = Span::new("I) list item 1");
+        let (input, list) = regular_list(input).unwrap();
+        assert!(input.fragment().is_empty(), "Did not consume list");
+        assert_eq!(list.items.len(), 1, "Unexpected number of list items");
+
+        check_single_line_list_item(
+            &list.component,
+            ListItemType::from(OrderedListItemType::UppercaseRoman),
+            ListItemSuffix::Paren,
+            "list item 1",
+        );
+    }
+
+    #[test]
+    fn regular_list_should_support_todo_list_items() {
+        let input = Span::new(indoc! {"
+            - [ ] list item 1
+            - [.] list item 2
+            - [o] list item 3
+            - [O] list item 4
+            - [X] list item 5
+            - [-] list item 6
+        "});
+        let (input, list) = regular_list(input).unwrap();
+        assert!(input.fragment().is_empty(), "Did not consume list");
+        assert_eq!(list.items.len(), 6, "Unexpected number of list items");
+
+        assert!(list.items[0].is_todo_incomplete());
+        assert_eq!(
+            list.items[0].contents.inline_content_iter().next(),
+            Some(&InlineComponent::Text("list item 1".to_string())),
+        );
+
+        assert!(list.items[1].is_todo_partially_complete_1());
+        assert_eq!(
+            list.items[1].contents.inline_content_iter().next(),
+            Some(&InlineComponent::Text("list item 2".to_string())),
+        );
+
+        assert!(list.items[2].is_todo_partially_complete_2());
+        assert_eq!(
+            list.items[2].contents.inline_content_iter().next(),
+            Some(&InlineComponent::Text("list item 3".to_string())),
+        );
+
+        assert!(list.items[3].is_todo_partially_complete_3());
+        assert_eq!(
+            list.items[3].contents.inline_content_iter().next(),
+            Some(&InlineComponent::Text("list item 4".to_string())),
+        );
+
+        assert!(list.items[4].is_todo_complete());
+        assert_eq!(
+            list.items[4].contents.inline_content_iter().next(),
+            Some(&InlineComponent::Text("list item 5".to_string())),
+        );
+
+        assert!(list.items[5].is_todo_rejected());
+        assert_eq!(
+            list.items[5].contents.inline_content_iter().next(),
+            Some(&InlineComponent::Text("list item 6".to_string())),
+        );
     }
 }
