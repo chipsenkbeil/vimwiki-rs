@@ -50,7 +50,7 @@ pub fn link(input: Span) -> VimwikiIResult<LC<Link>> {
             //       duplicating the [[ ]] delimited check and then parsing
             //       the beginning, which is unique to diary/interwiki,
             //       avoiding another complete parsing
-            map(external::external_link, |c| c.map(Link::from)),
+            map(external::external_file_link, |c| c.map(Link::from)),
             map(diary::diary_link, |c| c.map(Link::from)),
             map(interwiki::inter_wiki_link, |c| c.map(Link::from)),
             map(wiki::wiki_link, |c| c.map(Link::from)),
@@ -63,4 +63,50 @@ pub fn link(input: Span) -> VimwikiIResult<LC<Link>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn link_should_return_external_link_where_appropriate() {
+        let input = Span::new("[[file:/home/somebody/a/b/c/music.mp3]]");
+        let (_, l) = link(input).unwrap();
+        assert!(matches!(l.component, Link::ExternalFile(_)));
+    }
+
+    #[test]
+    fn link_should_return_diary_link_where_appropriate() {
+        let input = Span::new("[[diary:2012-03-05]]");
+        let (_, l) = link(input).unwrap();
+        assert!(matches!(l.component, Link::Diary(_)));
+    }
+
+    #[test]
+    fn link_should_return_interwiki_link_where_appropriate() {
+        let input = Span::new("[[wiki1:Some Link]]");
+        let (_, l) = link(input).unwrap();
+        assert!(matches!(l.component, Link::InterWiki(_)));
+
+        let input = Span::new("[[wn.My Name:Some Link]]");
+        let (_, l) = link(input).unwrap();
+        assert!(matches!(l.component, Link::InterWiki(_)));
+    }
+
+    #[test]
+    fn link_should_return_wiki_link_where_appropriate() {
+        let input = Span::new("[[Some Link]]");
+        let (_, l) = link(input).unwrap();
+        assert!(matches!(l.component, Link::Wiki(_)));
+    }
+
+    #[test]
+    fn link_should_return_raw_link_where_appropriate() {
+        let input = Span::new("https://example.com");
+        let (_, l) = link(input).unwrap();
+        assert!(matches!(l.component, Link::Raw(_)));
+    }
+
+    #[test]
+    fn link_should_return_transclusion_link_where_appropriate() {
+        let input = Span::new("{{https://example.com/img.jpg}}");
+        let (_, l) = link(input).unwrap();
+        assert!(matches!(l.component, Link::Transclusion(_)));
+    }
 }

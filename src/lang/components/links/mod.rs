@@ -9,7 +9,7 @@ mod diary;
 pub use diary::DiaryLink;
 
 mod external;
-pub use external::{ExternalLink, ExternalLinkScheme};
+pub use external::{ExternalFileLink, ExternalFileLinkScheme};
 
 mod interwiki;
 pub use interwiki::{IndexedInterWikiLink, InterWikiLink, NamedInterWikiLink};
@@ -78,7 +78,7 @@ pub enum Link {
     InterWiki(InterWikiLink),
     Diary(DiaryLink),
     Raw(RawLink),
-    External(ExternalLink),
+    ExternalFile(ExternalFileLink),
     Transclusion(TransclusionLink),
 }
 
@@ -89,7 +89,7 @@ impl Link {
             Self::InterWiki(x) => x.link().description.as_ref(),
             Self::Diary(x) => x.description.as_ref(),
             Self::Raw(_) => None,
-            Self::External(x) => x.description.as_ref(),
+            Self::ExternalFile(x) => x.description.as_ref(),
             Self::Transclusion(x) => x.description.as_ref(),
         }
     }
@@ -100,7 +100,7 @@ impl Link {
             Self::InterWiki(x) => x.link().anchor.as_ref(),
             Self::Diary(x) => x.anchor.as_ref(),
             Self::Raw(_) => None,
-            Self::External(_) => None,
+            Self::ExternalFile(_) => None,
             Self::Transclusion(_) => None,
         }
     }
