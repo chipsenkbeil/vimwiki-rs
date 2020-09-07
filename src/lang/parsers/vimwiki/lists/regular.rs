@@ -121,10 +121,10 @@ fn list_item_tail(
         let (input, mut contents) = many0(preceded(
             verify(indentation_level(false), |level| *level > indentation),
             alt((
+                map(regular_list, |c| c.map(ListItemContent::from)),
                 map(preceded(space0, list_item_line_content), |c| {
                     c.map(ListItemContent::from)
                 }),
-                map(regular_list, |c| c.map(ListItemContent::from)),
             )),
         ))(input)?;
 
@@ -507,6 +507,108 @@ mod tests {
             ListItemType::from(OrderedListItemType::UppercaseRoman),
             ListItemSuffix::Paren,
             "list item 1",
+        );
+    }
+
+    #[test]
+    fn regular_list_should_support_list_item_with_decorated_text() {
+        let input = Span::new(indoc! {"
+            - list *item 1*
+              _has_ extra content
+              on ~~multiple~~ lines
+        "});
+        let (input, list) = regular_list(input).unwrap();
+        assert!(input.fragment().is_empty(), "Did not consume list item");
+        assert_eq!(list.items.len(), 1, "Unexpected number of list items");
+
+        assert_eq!(
+            list.items[0]
+                .contents
+                .inline_content_iter()
+                .collect::<Vec<&InlineComponent>>(),
+            vec![
+                &InlineComponent::Text("list item 1".to_string()),
+                &InlineComponent::Text("has extra content".to_string()),
+                &InlineComponent::Text("on multiple lines".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn regular_list_should_support_list_item_with_multiple_lines_of_content() {
+        let input = Span::new(indoc! {"
+            - list item 1
+              has extra content
+              on multiple lines
+            not a list item
+        "});
+        let (input, list) = regular_list(input).unwrap();
+        assert_eq!(*input.fragment(), "not a list item\n");
+        assert_eq!(list.items.len(), 1, "Unexpected number of list items");
+
+        assert_eq!(
+            list.items[0]
+                .contents
+                .inline_content_iter()
+                .collect::<Vec<&InlineComponent>>(),
+            vec![
+                &InlineComponent::Text("list item 1".to_string()),
+                &InlineComponent::Text("has extra content".to_string()),
+                &InlineComponent::Text("on multiple lines".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn regular_list_should_support_list_item_with_content_separated_by_sublist()
+    {
+        let input = Span::new(indoc! {"
+            - list item 1
+              has extra content
+              - sublist item 1
+                has content
+              - sublist item 2
+              on multiple lines
+            not a list item
+        "});
+        let (input, list) = regular_list(input).unwrap();
+        assert_eq!(*input.fragment(), "not a list item\n");
+        assert_eq!(list.items.len(), 1, "Unexpected number of list items");
+
+        // Should only have three lines of inline content
+        assert_eq!(
+            list.items[0]
+                .contents
+                .inline_content_iter()
+                .collect::<Vec<&InlineComponent>>(),
+            vec![
+                &InlineComponent::Text("list item 1".to_string()),
+                &InlineComponent::Text("has extra content".to_string()),
+                &InlineComponent::Text("on multiple lines".to_string()),
+            ]
+        );
+
+        // Should have a single sublist with two items and content
+        let sublist = list.items[0].contents.sublist_iter().next().unwrap();
+        assert_eq!(sublist.items.len(), 2, "Unexpected number of list items");
+
+        assert_eq!(
+            sublist.items[0]
+                .contents
+                .inline_content_iter()
+                .collect::<Vec<&InlineComponent>>(),
+            vec![
+                &InlineComponent::Text("sublist item 1".to_string()),
+                &InlineComponent::Text("has content".to_string()),
+            ]
+        );
+
+        assert_eq!(
+            sublist.items[1]
+                .contents
+                .inline_content_iter()
+                .collect::<Vec<&InlineComponent>>(),
+            vec![&InlineComponent::Text("sublist item 2".to_string()),]
         );
     }
 
