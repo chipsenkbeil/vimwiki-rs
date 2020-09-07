@@ -1,9 +1,11 @@
-use super::{new_nom_error, Position, Span, VimwikiIResult};
+use super::{Position, Span, VimwikiIResult};
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_while},
     character::complete::{anychar, crlf, line_ending, space0},
-    combinator::{map, map_res, not, opt, recognize, rest_len, value, verify},
+    combinator::{
+        map, map_res, not, opt, peek, recognize, rest_len, value, verify,
+    },
     error::context,
     multi::{many0, many1},
     sequence::{delimited, pair, preceded, terminated, tuple},
@@ -38,7 +40,7 @@ pub fn take_line_while<'a, T>(
     parser: impl Fn(Span<'a>) -> VimwikiIResult<T>,
 ) -> impl Fn(Span<'a>) -> VimwikiIResult<Span<'a>> {
     recognize(many0(preceded(
-        pair(parser, not(end_of_line_or_input)),
+        pair(not(end_of_line_or_input), peek(parser)),
         anychar,
     )))
 }
@@ -187,6 +189,7 @@ pub fn url(input: Span) -> VimwikiIResult<Url> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use nom::character::complete::char;
 
     #[inline]
     fn take_and_toss(n: usize) -> impl Fn(Span) -> VimwikiIResult<()> {
@@ -416,5 +419,112 @@ mod tests {
         assert!(input.fragment().is_empty());
         assert_eq!(u.scheme(), "ftp");
         assert_eq!(u.host_str(), Some("vim.org"));
+    }
+
+    #[test]
+    fn take_line_while_should_yield_empty_if_empty_input() {
+        let input = Span::new("");
+        let (_, taken) = take_line_while(anychar)(input).unwrap();
+        assert_eq!(*taken.fragment(), "");
+    }
+
+    #[test]
+    fn take_line_while_should_yield_empty_if_line_termination_next() {
+        let input = Span::new("\nabcd");
+        let (input, taken) = take_line_while(anychar)(input).unwrap();
+        assert_eq!(*input.fragment(), "\nabcd");
+        assert_eq!(*taken.fragment(), "");
+
+        let input = Span::new("\r\nabcd");
+        let (input, taken) = take_line_while(anychar)(input).unwrap();
+        assert_eq!(*input.fragment(), "\r\nabcd");
+        assert_eq!(*taken.fragment(), "");
+    }
+
+    #[test]
+    fn take_line_while_should_yield_empty_if_stops_without_ever_succeeding() {
+        let input = Span::new("aabb\nabcd");
+        let (input, taken) = take_line_while(char('c'))(input).unwrap();
+        assert_eq!(*input.fragment(), "aabb\nabcd");
+        assert_eq!(*taken.fragment(), "");
+    }
+
+    #[test]
+    fn take_line_while_should_take_until_provided_parser_fails() {
+        let input = Span::new("aabb\nabcd");
+        let (input, taken) = take_line_while(char('a'))(input).unwrap();
+        assert_eq!(*input.fragment(), "bb\nabcd");
+        assert_eq!(*taken.fragment(), "aa");
+    }
+
+    #[test]
+    fn take_line_while_should_take_until_line_termination_reached() {
+        let input = Span::new("aabb\nabcd");
+        let (input, taken) = take_line_while(anychar)(input).unwrap();
+        assert_eq!(*input.fragment(), "\nabcd");
+        assert_eq!(*taken.fragment(), "aabb");
+    }
+
+    #[test]
+    fn take_line_while_should_count_condition_parser_towards_consumption() {
+        // NOTE: Using an ODD number of characters as otherwise we wouldn't
+        //       catch the error which was happening where we would use the
+        //       parser, char('-'), which would consume a character since it
+        //       was not a not(...) and then try to use an anychar, so we
+        //       would end up consuming TWO parsers instead of one
+        let input = Span::new("-----");
+        let (input, taken) = take_line_while(char('-'))(input).unwrap();
+        assert_eq!(*input.fragment(), "");
+        assert_eq!(*taken.fragment(), "-----");
+    }
+
+    #[test]
+    fn take_line_while1_should_fail_if_empty_input() {
+        let input = Span::new("");
+        assert!(take_line_while1(anychar)(input).is_err());
+    }
+
+    #[test]
+    fn take_line_while1_should_fail_if_line_termination_next() {
+        let input = Span::new("\nabcd");
+        assert!(take_line_while1(anychar)(input).is_err());
+
+        let input = Span::new("\r\nabcd");
+        assert!(take_line_while1(anychar)(input).is_err());
+    }
+
+    #[test]
+    fn take_line_while1_should_fail_if_stops_without_ever_succeeding() {
+        let input = Span::new("aabb\nabcd");
+        assert!(take_line_while1(char('c'))(input).is_err());
+    }
+
+    #[test]
+    fn take_line_while1_should_take_until_provided_parser_fails() {
+        let input = Span::new("aabb\nabcd");
+        let (input, taken) = take_line_while1(char('a'))(input).unwrap();
+        assert_eq!(*input.fragment(), "bb\nabcd");
+        assert_eq!(*taken.fragment(), "aa");
+    }
+
+    #[test]
+    fn take_line_while1_should_take_until_line_termination_reached() {
+        let input = Span::new("aabb\nabcd");
+        let (input, taken) = take_line_while1(anychar)(input).unwrap();
+        assert_eq!(*input.fragment(), "\nabcd");
+        assert_eq!(*taken.fragment(), "aabb");
+    }
+
+    #[test]
+    fn take_line_while1_should_count_condition_parser_towards_consumption() {
+        // NOTE: Using an ODD number of characters as otherwise we wouldn't
+        //       catch the error which was happening where we would use the
+        //       parser, char('-'), which would consume a character since it
+        //       was not a not(...) and then try to use an anychar, so we
+        //       would end up consuming TWO parsers instead of one
+        let input = Span::new("-----");
+        let (input, taken) = take_line_while1(char('-'))(input).unwrap();
+        assert_eq!(*input.fragment(), "");
+        assert_eq!(*taken.fragment(), "-----");
     }
 }

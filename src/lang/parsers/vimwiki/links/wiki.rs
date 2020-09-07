@@ -62,14 +62,7 @@ pub(super) fn wiki_link_internal(input: Span) -> VimwikiIResult<WikiLink> {
         map_parser(
             take_line_while1(not(tag("]]"))),
             alt((
-                map(
-                    delimited(
-                        tag("{{"),
-                        map_parser(take_line_while1(not(tag("}}"))), url),
-                        tag("}}"),
-                    ),
-                    Description::from,
-                ),
+                description_from_url,
                 map(rest, |s: Span| {
                     Description::from(s.fragment().to_string())
                 }),
@@ -90,6 +83,22 @@ pub(super) fn wiki_link_internal(input: Span) -> VimwikiIResult<WikiLink> {
             "Missing path and anchor",
         ))),
     }
+}
+
+// NOTE: This function exists purely because we were hitting some nom
+//       error about type-length limit being reached and that means that
+//       we've nested too many parsers without breaking them up into
+//       functions that do NOT take parsers at input
+#[inline]
+fn description_from_url(input: Span) -> VimwikiIResult<Description> {
+    map(
+        delimited(
+            tag("{{"),
+            map_parser(take_line_while1(not(tag("}}"))), url),
+            tag("}}"),
+        ),
+        Description::from,
+    )(input)
 }
 
 #[cfg(test)]
