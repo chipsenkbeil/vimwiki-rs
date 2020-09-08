@@ -2,7 +2,7 @@ use super::{
     components::{DecoratedText, DecoratedTextContent, Decoration, Keyword},
     links::link,
     math::math_inline,
-    tags::tag_sequence,
+    tags::tags,
     utils::{end_of_line_or_input, position},
     Span, VimwikiIResult, LC,
 };
@@ -34,7 +34,7 @@ pub fn text(input: Span) -> VimwikiIResult<LC<String>> {
                 //       all not(...) pass, then apply some parser
                 tuple((
                     not(math_inline),
-                    not(tag_sequence),
+                    not(tags),
                     not(link),
                     not(decorated_text),
                     not(keyword),

@@ -1,18 +1,18 @@
 use super::{
-    components::{Tag, TagSequence},
-    utils::{end_of_line_or_input, position},
+    components::{Tag, Tags},
+    utils::{position, take_line_while1},
     Span, VimwikiIResult, LC,
 };
 use nom::{
     character::complete::char,
-    combinator::{map, not, recognize},
+    combinator::{map, not},
     error::context,
-    multi::{many1, separated_nonempty_list},
-    sequence::{delimited, pair},
+    multi::separated_nonempty_list,
+    sequence::delimited,
 };
 
 #[inline]
-pub fn tag_sequence(input: Span) -> VimwikiIResult<LC<TagSequence>> {
+pub fn tags(input: Span) -> VimwikiIResult<LC<Tags>> {
     let (input, pos) = position(input)?;
 
     let (input, tags) = context(
@@ -21,19 +21,15 @@ pub fn tag_sequence(input: Span) -> VimwikiIResult<LC<TagSequence>> {
             char(':'),
             separated_nonempty_list(
                 char(':'),
-                map(
-                    recognize(many1(pair(
-                        not(char(':')),
-                        not(end_of_line_or_input),
-                    ))),
-                    |s| Tag::new(s.fragment().to_string()),
-                ),
+                map(take_line_while1(not(char(':'))), |s| {
+                    Tag::new(s.fragment().to_string())
+                }),
             ),
             char(':'),
         ),
     )(input)?;
 
-    Ok((input, LC::from((TagSequence::new(tags), pos, input))))
+    Ok((input, LC::from((Tags::new(tags), pos, input))))
 }
 
 #[cfg(test)]
@@ -41,33 +37,42 @@ mod tests {
     use super::*;
 
     #[test]
-    fn tag_sequence_should_fail_if_input_empty() {
-        panic!("TODO: Implement");
+    fn tags_should_fail_if_input_empty() {
+        let input = Span::new("");
+        assert!(tags(input).is_err());
     }
 
     #[test]
-    fn tag_sequence_should_fail_if_not_starting_with_colon() {
-        panic!("TODO: Implement");
+    fn tags_should_fail_if_not_starting_with_colon() {
+        let input = Span::new("tag-example:");
+        assert!(tags(input).is_err());
     }
 
     #[test]
-    fn tag_sequence_should_fail_if_not_ending_with_colon() {
-        panic!("TODO: Implement");
+    fn tags_should_fail_if_not_ending_with_colon() {
+        let input = Span::new(":tag-example");
+        assert!(tags(input).is_err());
     }
 
     #[test]
-    fn tag_sequence_should_fail_if_only_comprised_of_colons() {
-        panic!("TODO: Implement");
+    fn tags_should_fail_if_only_comprised_of_colons() {
+        let input = Span::new("::");
+        assert!(tags(input).is_err());
     }
 
     #[test]
-    fn tag_sequence_should_yield_a_single_tag_if_one_pair_of_colons_with_text()
-    {
-        panic!("TODO: Implement");
+    fn tags_should_yield_a_single_tag_if_one_pair_of_colons_with_text() {
+        let input = Span::new(":tag-example:");
+        let (input, tags) = tags(input).unwrap();
+        assert!(input.fragment().is_empty(), "Did not consume tags");
+        assert_eq!(tags.0, vec![Tag::from("tag-example")]);
     }
 
     #[test]
-    fn tag_sequence_should_yield_multiple_tags_if_many_colons_with_text() {
-        panic!("TODO: Implement");
+    fn tags_should_yield_multiple_tags_if_many_colons_with_text() {
+        let input = Span::new(":tag-one:tag-two:");
+        let (input, tags) = tags(input).unwrap();
+        assert!(input.fragment().is_empty(), "Did not consume tags");
+        assert_eq!(tags.0, vec![Tag::from("tag-one"), Tag::from("tag-two")]);
     }
 }

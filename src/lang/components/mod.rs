@@ -63,7 +63,7 @@ pub enum BlockComponent {
     Math(MathBlock),
     Blockquote(Blockquote),
     Divider(Divider),
-    TagSequence(TagSequence),
+    Tags(Tags),
     NonemptyLine(String),
     EmptyLine,
 }
@@ -75,7 +75,7 @@ pub enum InlineComponent {
     DecoratedText(DecoratedText),
     Keyword(Keyword),
     Link(Link),
-    TagSequence(TagSequence),
+    Tags(Tags),
     Math(MathInline),
 }
 
@@ -143,8 +143,8 @@ impl From<LC<Link>> for InlineComponentContainer {
     }
 }
 
-impl From<LC<TagSequence>> for InlineComponentContainer {
-    fn from(component: LC<TagSequence>) -> Self {
+impl From<LC<Tags>> for InlineComponentContainer {
+    fn from(component: LC<Tags>) -> Self {
         Self::from(component.map(InlineComponent::from))
     }
 }
