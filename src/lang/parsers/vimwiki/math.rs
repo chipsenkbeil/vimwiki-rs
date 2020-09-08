@@ -1,15 +1,18 @@
 use super::{
     components::{MathBlock, MathInline},
-    utils::{beginning_of_line, position, take_line_while1},
+    utils::{
+        any_line, beginning_of_line, end_of_line_or_input, position,
+        take_line_while1,
+    },
     Span, VimwikiIResult, LC,
 };
 use nom::{
     bytes::complete::tag,
-    character::complete::{char, line_ending, not_line_ending},
-    combinator::{map, not, opt, recognize},
+    character::complete::{char, line_ending},
+    combinator::{map, not, opt},
     error::context,
     multi::many1,
-    sequence::{delimited, pair, preceded, terminated},
+    sequence::{delimited, preceded},
 };
 
 #[inline]
@@ -45,18 +48,15 @@ pub fn math_block(input: Span) -> VimwikiIResult<LC<MathBlock>> {
     let (input, _) = line_ending(input)?;
 
     // Second, parse all lines while we don't encounter the closing block
-    let (input, lines) = many1(map(
-        preceded(
-            not(delimited(beginning_of_line, tag("$}}"), line_ending)),
-            terminated(not_line_ending, line_ending),
-        ),
-        |s| s.fragment().to_string(),
+    let (input, lines) = many1(preceded(
+        not(delimited(beginning_of_line, tag("$}}"), line_ending)),
+        any_line,
     ))(input)?;
 
     // Third, parse the closing block
     let (input, _) = beginning_of_line(input)?;
     let (input, _) = tag("$}}")(input)?;
-    let (input, _) = line_ending(input)?;
+    let (input, _) = end_of_line_or_input(input)?;
 
     let math_block = MathBlock::new(lines, environment);
     Ok((input, LC::from((math_block, pos, input))))
