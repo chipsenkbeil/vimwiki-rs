@@ -1,15 +1,17 @@
 use super::{
     components::{Definition, DefinitionList, Term},
     inline_component_container,
-    utils::{beginning_of_line, end_of_line_or_input, position},
+    utils::{
+        beginning_of_line, end_of_line_or_input, position, take_line_while1,
+    },
     Span, VimwikiIResult, LC,
 };
 use nom::{
     bytes::complete::tag,
-    character::complete::{anychar, space1},
-    combinator::{map, opt, recognize},
+    character::complete::{space0, space1},
+    combinator::{map, not, opt},
     multi::{many0, many1},
-    sequence::{delimited, pair, preceded},
+    sequence::{pair, preceded, terminated},
 };
 
 #[inline]
@@ -54,23 +56,22 @@ fn term_line(input: Span) -> VimwikiIResult<(Term, Option<Definition>)> {
     let (input, _) = beginning_of_line(input)?;
     let (input, pos) = position(input)?;
 
-    // Parse our definition and provide location information for it
-    let (input, term) = map(
-        recognize(many1(preceded(
-            pair(tag("::"), end_of_line_or_input),
-            anychar,
-        ))),
-        |s: Span| LC::from((s.fragment().to_string(), pos, input)),
+    // Parse our term and provide location information for it
+    let (input, term) = terminated(
+        map(take_line_while1(not(tag("::"))), |s: Span| {
+            LC::from((s.fragment().to_string(), pos, input))
+        }),
+        tag("::"),
     )(input)?;
 
     // Now check if we have a definition following
-    let (input, maybe_def) = opt(delimited(
-        space1,
-        inline_component_container,
-        end_of_line_or_input,
-    ))(input)?;
+    let (input, maybe_def) =
+        opt(preceded(space1, inline_component_container))(input)?;
 
-    Ok((input, (term, maybe_def.map(|c| c.component))))
+    // Conclude with any lingering space and newline
+    let (input, _) = pair(space0, end_of_line_or_input)(input)?;
+
+    Ok((input, (term, maybe_def)))
 }
 
 /// Parses a line as a definition
@@ -82,7 +83,7 @@ fn definition_line(input: Span) -> VimwikiIResult<Definition> {
     let (input, def) = inline_component_container(input)?;
     let (input, _) = end_of_line_or_input(input)?;
 
-    Ok((input, def.component))
+    Ok((input, def))
 }
 
 #[cfg(test)]
@@ -90,17 +91,34 @@ mod tests {
     use super::*;
 
     #[test]
+    fn definition_list_should_fail_if_input_empty() {
+        let input = Span::new("");
+        assert!(definition_list(input).is_err());
+    }
+
+    #[test]
     fn definition_list_should_fail_if_not_starting_with_a_term() {
-        todo!();
+        let input = Span::new("no term here");
+        assert!(definition_list(input).is_err());
+    }
+
+    #[test]
+    fn definition_list_should_fail_if_starting_with_a_definition() {
+        let input = Span::new(":: some definition");
+        assert!(definition_list(input).is_err());
     }
 
     #[test]
     fn definition_list_should_fail_if_no_space_between_term_and_def_sep() {
-        todo!();
+        let input = Span::new("term::some definition");
+        assert!(definition_list(input).is_err());
     }
 
     #[test]
     fn definition_list_should_succeed_if_one_term_and_no_defs() {
+        let input = Span::new("term::");
+        let (input, l) = definition_list(input).unwrap();
+        assert!(input.fragment().is_empty(), "Did not consume def list");
         todo!();
     }
 

@@ -249,7 +249,7 @@ mod tests {
                     Default::default(),
                     0,
                     vec![From::from(super::super::ListItemContent::List(
-                        super::super::super::RegularList::new(vec![$($child),+]),
+                        super::super::super::List::new(vec![$($child),+]),
                     ))].into(),
                 ),
                 vec![EnhancedListItemAttribute::$attr]

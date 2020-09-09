@@ -12,7 +12,7 @@ pub type Term = LC<String>;
 
 /// Represents a definition in a definition list;
 /// A definition can be associated with one or more terms
-pub type Definition = InlineComponentContainer;
+pub type Definition = LC<InlineComponentContainer>;
 
 #[derive(Clone, Debug, From, Eq, PartialEq, Serialize, Deserialize)]
 enum TermOrDefinition {
@@ -68,7 +68,6 @@ impl DefinitionList {
         self.find_term_index(into_term)
             .map(|(_, idx)| {
                 g.neighbors(idx)
-                    .into_iter()
                     .flat_map(|idx| match &g[idx] {
                         TermOrDefinition::Term(_) => None,
                         TermOrDefinition::Definition(x) => Some(x),
@@ -87,14 +86,12 @@ impl DefinitionList {
         self.find_term_index(into_term)
             .map(|(term, idx)| {
                 g.neighbors(idx)
-                    .into_iter()
                     .flat_map(|idx| match &g[idx] {
                         TermOrDefinition::Term(_) => None,
                         TermOrDefinition::Definition(_) => Some(idx),
                     })
                     .flat_map(|idx| {
                         g.neighbors(idx)
-                            .into_iter()
                             .flat_map(|idx| match &g[idx] {
                                 TermOrDefinition::Term(x) if x != &term => {
                                     Some(x)
@@ -161,10 +158,11 @@ mod tests {
         }
     }
 
-    impl From<&str> for InlineComponentContainer {
+    impl From<&str> for LC<InlineComponentContainer> {
         fn from(text: &str) -> Self {
             let x: LC<String> = LC::from(text);
-            Self::from(x)
+            let c = InlineComponentContainer::from(x);
+            LC::new(c, Default::default())
         }
     }
 

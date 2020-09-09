@@ -13,6 +13,7 @@ use nom::{
 };
 
 mod blockquotes;
+mod definitions;
 mod divider;
 mod headers;
 mod links;
@@ -51,6 +52,9 @@ fn block_component(input: Span) -> VimwikiIResult<LC<BlockComponent>> {
     alt((
         map(headers::header, |c| c.map(BlockComponent::from)),
         map(paragraphs::paragraph, |c| c.map(BlockComponent::from)),
+        map(definitions::definition_list, |c| {
+            c.map(BlockComponent::from)
+        }),
         map(lists::list, |c| c.map(BlockComponent::from)),
         map(tables::table, |c| c.map(BlockComponent::from)),
         map(preformatted::preformatted_text, |c| {

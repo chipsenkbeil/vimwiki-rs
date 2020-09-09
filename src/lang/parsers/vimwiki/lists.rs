@@ -1,8 +1,8 @@
 use super::{
     components::{
         EnhancedListItem, EnhancedListItemAttribute, InlineComponentContainer,
-        ListItem, ListItemContent, ListItemContents, ListItemSuffix,
-        ListItemType, OrderedListItemType, RegularList, UnorderedListItemType,
+        List, ListItem, ListItemContent, ListItemContents, ListItemSuffix,
+        ListItemType, OrderedListItemType, UnorderedListItemType,
     },
     inline_component_container,
     utils::{beginning_of_line, end_of_line_or_input, position},
@@ -18,7 +18,7 @@ use nom::{
 };
 
 #[inline]
-pub fn regular_list(input: Span) -> VimwikiIResult<LC<RegularList>> {
+pub fn list(input: Span) -> VimwikiIResult<LC<List>> {
     let (input, pos) = position(input)?;
 
     // A list must at least have one item, whose indentation level we will
@@ -58,9 +58,9 @@ pub fn regular_list(input: Span) -> VimwikiIResult<LC<RegularList>> {
     //       alphabetic characters. We need to analyze the entire list after
     //       it is created to see if all items resolved to roman numerals,
     //       otherwise we will need to convert types to alphabetic instead
-    let list = RegularList::new(items).normalize().to_owned();
+    let l = List::new(items).normalize().to_owned();
 
-    Ok((input, LC::from((list, pos, input))))
+    Ok((input, LC::from((l, pos, input))))
 }
 
 /// Parse space/tabs before a list item, followed by the list item
@@ -121,7 +121,7 @@ fn list_item_tail(
         let (input, mut contents) = many0(preceded(
             verify(indentation_level(false), |level| *level > indentation),
             alt((
-                map(regular_list, |c| c.map(ListItemContent::from)),
+                map(list, |c| c.map(ListItemContent::from)),
                 map(preceded(space0, list_item_line_content), |c| {
                     c.map(ListItemContent::from)
                 }),
@@ -335,12 +335,12 @@ mod tests {
     use indoc::indoc;
 
     fn check_single_line_list_item(
-        list: &RegularList,
+        l: &List,
         item_type: ListItemType,
         item_suffix: ListItemSuffix,
         text: &str,
     ) {
-        let item = &list.items[0].component;
+        let item = &l.items[0].component;
         assert_eq!(item.item_type, item_type);
         assert_eq!(item.suffix, item_suffix);
         assert_eq!(item.pos, 0);
@@ -353,33 +353,33 @@ mod tests {
     }
 
     #[test]
-    fn regular_list_should_fail_if_no_proper_start_to_single_list_item() {
+    fn list_should_fail_if_no_proper_start_to_single_list_item() {
         let input = Span::new("| some item with bad prefix");
-        assert!(regular_list(input).is_err());
+        assert!(list(input).is_err());
     }
 
     #[test]
-    fn regular_list_should_fail_if_no_space_after_single_list_item_prefix() {
-        assert!(regular_list(Span::new("-some item with no space")).is_err());
-        assert!(regular_list(Span::new("*some item with no space")).is_err());
-        assert!(regular_list(Span::new("1.some item with no space")).is_err());
-        assert!(regular_list(Span::new("1)some item with no space")).is_err());
-        assert!(regular_list(Span::new("a)some item with no space")).is_err());
-        assert!(regular_list(Span::new("A)some item with no space")).is_err());
-        assert!(regular_list(Span::new("i)some item with no space")).is_err());
-        assert!(regular_list(Span::new("I)some item with no space")).is_err());
-        assert!(regular_list(Span::new("#some item with no space")).is_err());
+    fn list_should_fail_if_no_space_after_single_list_item_prefix() {
+        assert!(list(Span::new("-some item with no space")).is_err());
+        assert!(list(Span::new("*some item with no space")).is_err());
+        assert!(list(Span::new("1.some item with no space")).is_err());
+        assert!(list(Span::new("1)some item with no space")).is_err());
+        assert!(list(Span::new("a)some item with no space")).is_err());
+        assert!(list(Span::new("A)some item with no space")).is_err());
+        assert!(list(Span::new("i)some item with no space")).is_err());
+        assert!(list(Span::new("I)some item with no space")).is_err());
+        assert!(list(Span::new("#some item with no space")).is_err());
     }
 
     #[test]
-    fn regular_list_should_succeed_for_single_unordered_hyphen_item() {
+    fn list_should_succeed_for_single_unordered_hyphen_item() {
         let input = Span::new("- list item 1");
-        let (input, list) = regular_list(input).unwrap();
+        let (input, l) = list(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume list");
-        assert_eq!(list.items.len(), 1, "Unexpected number of list items");
+        assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
-            &list.component,
+            &l.component,
             ListItemType::from(UnorderedListItemType::Hyphen),
             ListItemSuffix::None,
             "list item 1",
@@ -387,14 +387,14 @@ mod tests {
     }
 
     #[test]
-    fn regular_list_should_succeed_for_single_unordered_asterisk_item() {
+    fn list_should_succeed_for_single_unordered_asterisk_item() {
         let input = Span::new("* list item 1");
-        let (input, list) = regular_list(input).unwrap();
+        let (input, l) = list(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume list");
-        assert_eq!(list.items.len(), 1, "Unexpected number of list items");
+        assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
-            &list.component,
+            &l.component,
             ListItemType::from(UnorderedListItemType::Asterisk),
             ListItemSuffix::None,
             "list item 1",
@@ -402,14 +402,14 @@ mod tests {
     }
 
     #[test]
-    fn regular_list_should_succeed_for_single_ordered_pound_item() {
+    fn list_should_succeed_for_single_ordered_pound_item() {
         let input = Span::new("# list item 1");
-        let (input, list) = regular_list(input).unwrap();
+        let (input, l) = list(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume list");
-        assert_eq!(list.items.len(), 1, "Unexpected number of list items");
+        assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
-            &list.component,
+            &l.component,
             ListItemType::from(OrderedListItemType::Pound),
             ListItemSuffix::None,
             "list item 1",
@@ -417,14 +417,14 @@ mod tests {
     }
 
     #[test]
-    fn regular_list_should_succeed_for_single_ordered_number_period_item() {
+    fn list_should_succeed_for_single_ordered_number_period_item() {
         let input = Span::new("1. list item 1");
-        let (input, list) = regular_list(input).unwrap();
+        let (input, l) = list(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume list");
-        assert_eq!(list.items.len(), 1, "Unexpected number of list items");
+        assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
-            &list.component,
+            &l.component,
             ListItemType::from(OrderedListItemType::Number),
             ListItemSuffix::Period,
             "list item 1",
@@ -432,14 +432,14 @@ mod tests {
     }
 
     #[test]
-    fn regular_list_should_succeed_for_single_ordered_number_paren_item() {
+    fn list_should_succeed_for_single_ordered_number_paren_item() {
         let input = Span::new("1) list item 1");
-        let (input, list) = regular_list(input).unwrap();
+        let (input, l) = list(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume list");
-        assert_eq!(list.items.len(), 1, "Unexpected number of list items");
+        assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
-            &list.component,
+            &l.component,
             ListItemType::from(OrderedListItemType::Number),
             ListItemSuffix::Paren,
             "list item 1",
@@ -447,15 +447,14 @@ mod tests {
     }
 
     #[test]
-    fn regular_list_should_succeed_for_single_ordered_lowercase_alphabet_paren_item(
-    ) {
+    fn list_should_succeed_for_single_ordered_lowercase_alphabet_paren_item() {
         let input = Span::new("a) list item 1");
-        let (input, list) = regular_list(input).unwrap();
+        let (input, l) = list(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume list");
-        assert_eq!(list.items.len(), 1, "Unexpected number of list items");
+        assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
-            &list.component,
+            &l.component,
             ListItemType::from(OrderedListItemType::LowercaseAlphabet),
             ListItemSuffix::Paren,
             "list item 1",
@@ -463,15 +462,14 @@ mod tests {
     }
 
     #[test]
-    fn regular_list_should_succeed_for_single_ordered_uppercase_alphabet_paren_item(
-    ) {
+    fn list_should_succeed_for_single_ordered_uppercase_alphabet_paren_item() {
         let input = Span::new("A) list item 1");
-        let (input, list) = regular_list(input).unwrap();
+        let (input, l) = list(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume list");
-        assert_eq!(list.items.len(), 1, "Unexpected number of list items");
+        assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
-            &list.component,
+            &l.component,
             ListItemType::from(OrderedListItemType::UppercaseAlphabet),
             ListItemSuffix::Paren,
             "list item 1",
@@ -479,15 +477,14 @@ mod tests {
     }
 
     #[test]
-    fn regular_list_should_succeed_for_single_ordered_lowercase_roman_paren_item(
-    ) {
+    fn list_should_succeed_for_single_ordered_lowercase_roman_paren_item() {
         let input = Span::new("i) list item 1");
-        let (input, list) = regular_list(input).unwrap();
+        let (input, l) = list(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume list");
-        assert_eq!(list.items.len(), 1, "Unexpected number of list items");
+        assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
-            &list.component,
+            &l.component,
             ListItemType::from(OrderedListItemType::LowercaseRoman),
             ListItemSuffix::Paren,
             "list item 1",
@@ -495,15 +492,14 @@ mod tests {
     }
 
     #[test]
-    fn regular_list_should_succeed_for_single_ordered_uppercase_roman_paren_item(
-    ) {
+    fn list_should_succeed_for_single_ordered_uppercase_roman_paren_item() {
         let input = Span::new("I) list item 1");
-        let (input, list) = regular_list(input).unwrap();
+        let (input, l) = list(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume list");
-        assert_eq!(list.items.len(), 1, "Unexpected number of list items");
+        assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
-            &list.component,
+            &l.component,
             ListItemType::from(OrderedListItemType::UppercaseRoman),
             ListItemSuffix::Paren,
             "list item 1",
@@ -511,23 +507,24 @@ mod tests {
     }
 
     #[test]
-    fn regular_list_should_support_list_item_with_decorated_text() {
-        let input = Span::new(indoc! {"
+    fn list_should_support_list_item_with_decorated_text() {
+        let input = Span::new(indoc! {r#"
             - list *item 1*
               _has_ extra content
               on ~~multiple~~ lines
-        "});
-        let (input, list) = regular_list(input).unwrap();
+        "#});
+        let (input, l) = list(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume list item");
-        assert_eq!(list.items.len(), 1, "Unexpected number of list items");
+        assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         assert_eq!(
-            list.items[0]
+            l.items[0]
                 .contents
                 .inline_content_iter()
                 .collect::<Vec<&InlineComponent>>(),
             vec![
-                &InlineComponent::Text("list item 1".to_string()),
+                &InlineComponent::Text("list ".to_string()),
+                // &InlineComponent::DecoratedText("item 1".to_string().into()),
                 &InlineComponent::Text("has extra content".to_string()),
                 &InlineComponent::Text("on multiple lines".to_string()),
             ]
@@ -535,19 +532,19 @@ mod tests {
     }
 
     #[test]
-    fn regular_list_should_support_list_item_with_multiple_lines_of_content() {
+    fn list_should_support_list_item_with_multiple_lines_of_content() {
         let input = Span::new(indoc! {"
             - list item 1
               has extra content
               on multiple lines
             not a list item
         "});
-        let (input, list) = regular_list(input).unwrap();
+        let (input, l) = list(input).unwrap();
         assert_eq!(*input.fragment(), "not a list item\n");
-        assert_eq!(list.items.len(), 1, "Unexpected number of list items");
+        assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         assert_eq!(
-            list.items[0]
+            l.items[0]
                 .contents
                 .inline_content_iter()
                 .collect::<Vec<&InlineComponent>>(),
@@ -560,8 +557,7 @@ mod tests {
     }
 
     #[test]
-    fn regular_list_should_support_list_item_with_content_separated_by_sublist()
-    {
+    fn list_should_support_list_item_with_content_separated_by_sublist() {
         let input = Span::new(indoc! {"
             - list item 1
               has extra content
@@ -571,13 +567,13 @@ mod tests {
               on multiple lines
             not a list item
         "});
-        let (input, list) = regular_list(input).unwrap();
+        let (input, l) = list(input).unwrap();
         assert_eq!(*input.fragment(), "not a list item\n");
-        assert_eq!(list.items.len(), 1, "Unexpected number of list items");
+        assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         // Should only have three lines of inline content
         assert_eq!(
-            list.items[0]
+            l.items[0]
                 .contents
                 .inline_content_iter()
                 .collect::<Vec<&InlineComponent>>(),
@@ -589,7 +585,7 @@ mod tests {
         );
 
         // Should have a single sublist with two items and content
-        let sublist = list.items[0].contents.sublist_iter().next().unwrap();
+        let sublist = l.items[0].contents.sublist_iter().next().unwrap();
         assert_eq!(sublist.items.len(), 2, "Unexpected number of list items");
 
         assert_eq!(
@@ -613,7 +609,7 @@ mod tests {
     }
 
     #[test]
-    fn regular_list_should_support_todo_list_items() {
+    fn list_should_support_todo_list_items() {
         let input = Span::new(indoc! {"
             - [ ] list item 1
             - [.] list item 2
@@ -622,43 +618,43 @@ mod tests {
             - [X] list item 5
             - [-] list item 6
         "});
-        let (input, list) = regular_list(input).unwrap();
+        let (input, l) = list(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume list");
-        assert_eq!(list.items.len(), 6, "Unexpected number of list items");
+        assert_eq!(l.items.len(), 6, "Unexpected number of list items");
 
-        assert!(list.items[0].is_todo_incomplete());
+        assert!(l.items[0].is_todo_incomplete());
         assert_eq!(
-            list.items[0].contents.inline_content_iter().next(),
+            l.items[0].contents.inline_content_iter().next(),
             Some(&InlineComponent::Text("list item 1".to_string())),
         );
 
-        assert!(list.items[1].is_todo_partially_complete_1());
+        assert!(l.items[1].is_todo_partially_complete_1());
         assert_eq!(
-            list.items[1].contents.inline_content_iter().next(),
+            l.items[1].contents.inline_content_iter().next(),
             Some(&InlineComponent::Text("list item 2".to_string())),
         );
 
-        assert!(list.items[2].is_todo_partially_complete_2());
+        assert!(l.items[2].is_todo_partially_complete_2());
         assert_eq!(
-            list.items[2].contents.inline_content_iter().next(),
+            l.items[2].contents.inline_content_iter().next(),
             Some(&InlineComponent::Text("list item 3".to_string())),
         );
 
-        assert!(list.items[3].is_todo_partially_complete_3());
+        assert!(l.items[3].is_todo_partially_complete_3());
         assert_eq!(
-            list.items[3].contents.inline_content_iter().next(),
+            l.items[3].contents.inline_content_iter().next(),
             Some(&InlineComponent::Text("list item 4".to_string())),
         );
 
-        assert!(list.items[4].is_todo_complete());
+        assert!(l.items[4].is_todo_complete());
         assert_eq!(
-            list.items[4].contents.inline_content_iter().next(),
+            l.items[4].contents.inline_content_iter().next(),
             Some(&InlineComponent::Text("list item 5".to_string())),
         );
 
-        assert!(list.items[5].is_todo_rejected());
+        assert!(l.items[5].is_todo_rejected());
         assert_eq!(
-            list.items[5].contents.inline_content_iter().next(),
+            l.items[5].contents.inline_content_iter().next(),
             Some(&InlineComponent::Text("list item 6".to_string())),
         );
     }

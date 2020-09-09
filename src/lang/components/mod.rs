@@ -10,6 +10,9 @@ pub use blockquotes::*;
 mod comments;
 pub use comments::*;
 
+mod definitions;
+pub use definitions::*;
+
 mod dividers;
 pub use dividers::*;
 
@@ -57,6 +60,7 @@ impl Page {
 pub enum BlockComponent {
     Header(Header),
     Paragraph(Paragraph),
+    DefinitionList(DefinitionList),
     List(List),
     Table(Table),
     PreformattedText(PreformattedText),
