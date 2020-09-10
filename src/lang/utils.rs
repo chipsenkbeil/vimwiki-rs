@@ -2,6 +2,7 @@ use derive_more::{AsMut, AsRef, Constructor, Deref, DerefMut};
 use nom_locate::LocatedSpan;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
+use std::hash::{Hash, Hasher};
 
 /// Represents input for the parser
 pub type Span<'a> = LocatedSpan<&'a str>;
@@ -16,9 +17,7 @@ pub type Span<'a> = LocatedSpan<&'a str>;
     Debug,
     Deref,
     DerefMut,
-    Hash,
     Eq,
-    PartialEq,
     Serialize,
     Deserialize,
 )]
@@ -64,6 +63,18 @@ impl<T> LocatedComponent<T> {
             let component = f(input);
             Self::new(component, region)
         }
+    }
+}
+
+impl<T: PartialEq> PartialEq for LocatedComponent<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.component == other.component
+    }
+}
+
+impl<T: Hash> Hash for LocatedComponent<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.component.hash(state);
     }
 }
 

@@ -1,29 +1,28 @@
-use super::{InlineComponentContainer, LC};
-use derive_more::From;
+use super::LC;
 use petgraph::{
     graph::{Graph, NodeIndex},
     Undirected,
 };
 use serde::{Deserialize, Serialize};
 
-/// Represents a term in a definition list;
-/// A term can have one or more definitions
+/// Represents the type of terms stored in a definition list
 pub type Term = LC<String>;
 
-/// Represents a definition in a definition list;
-/// A definition can be associated with one or more terms
-pub type Definition = LC<InlineComponentContainer>;
+/// Represents the type of definitions stored in a definition list
+pub type Definition = LC<String>;
 
-#[derive(Clone, Debug, From, Eq, PartialEq, Serialize, Deserialize)]
-enum TermOrDefinition {
+/// Represents a node in our graph used for definitions
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+enum GraphNode {
     Term(Term),
     Definition(Definition),
 }
 
-/// Represents a list of terms and definitions
+/// Represents a list of terms and definitions, where a term can have multiple
+/// definitions associated with it
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct DefinitionList {
-    graph: Graph<TermOrDefinition, (), Undirected>,
+    graph: Graph<GraphNode, (), Undirected>,
 }
 
 impl DefinitionList {
@@ -33,19 +32,19 @@ impl DefinitionList {
 
     /// Adds a new, unconnected term to the list, returning an index that
     /// is used when connecting a term with a definition
-    pub fn add_term(&mut self, into_term: impl Into<Term>) -> usize {
-        let term: Term = into_term.into();
-        self.graph.add_node(term.into()).index()
+    pub fn add_term(&mut self, term: Term) -> usize {
+        self.graph.add_node(GraphNode::Term(term)).index()
+    }
+
+    /// Whether or not the list has the specified term
+    pub fn has_term(&self, term: &Term) -> bool {
+        self.find_term_index(term).is_some()
     }
 
     /// Adds a new, unconnected definition to the list, returning an index that
     /// is used when connecting a term with a definition
-    pub fn add_definition(
-        &mut self,
-        into_definition: impl Into<Definition>,
-    ) -> usize {
-        let definition: Definition = into_definition.into();
-        self.graph.add_node(definition.into()).index()
+    pub fn add_definition(&mut self, def: Definition) -> usize {
+        self.graph.add_node(GraphNode::Definition(def)).index()
     }
 
     /// Connects a term with a definition
@@ -60,17 +59,14 @@ impl DefinitionList {
     }
 
     /// Searches for all definitions associated with term
-    pub fn find_definitions(
-        &self,
-        into_term: impl Into<Term>,
-    ) -> Vec<&Definition> {
+    pub fn find_definitions(&self, term: &Term) -> Vec<&Definition> {
         let g = &self.graph;
-        self.find_term_index(into_term)
+        self.find_term_index(term)
             .map(|(_, idx)| {
                 g.neighbors(idx)
                     .flat_map(|idx| match &g[idx] {
-                        TermOrDefinition::Term(_) => None,
-                        TermOrDefinition::Definition(x) => Some(x),
+                        GraphNode::Definition(x) => Some(x),
+                        _ => None,
                     })
                     .collect::<Vec<&Definition>>()
             })
@@ -78,26 +74,20 @@ impl DefinitionList {
     }
 
     /// Searches for all alternative terms to the specified term
-    pub fn find_alternative_terms(
-        &self,
-        into_term: impl Into<Term>,
-    ) -> Vec<&Term> {
+    pub fn find_alternative_terms(&self, term: &Term) -> Vec<&Term> {
         let g = &self.graph;
-        self.find_term_index(into_term)
+        self.find_term_index(term)
             .map(|(term, idx)| {
                 g.neighbors(idx)
                     .flat_map(|idx| match &g[idx] {
-                        TermOrDefinition::Term(_) => None,
-                        TermOrDefinition::Definition(_) => Some(idx),
+                        GraphNode::Definition(_) => Some(idx),
+                        _ => None,
                     })
                     .flat_map(|idx| {
                         g.neighbors(idx)
                             .flat_map(|idx| match &g[idx] {
-                                TermOrDefinition::Term(x) if x != &term => {
-                                    Some(x)
-                                }
-                                TermOrDefinition::Term(_) => None,
-                                TermOrDefinition::Definition(_) => None,
+                                GraphNode::Term(x) if x != term => Some(x),
+                                _ => None,
                             })
                             .collect::<Vec<&Term>>()
                     })
@@ -107,17 +97,16 @@ impl DefinitionList {
     }
 
     /// Finds the index for a term through brute force
-    fn find_term_index(
-        &self,
-        into_term: impl Into<Term>,
-    ) -> Option<(Term, NodeIndex)> {
-        let term: Term = into_term.into();
+    fn find_term_index<'a>(
+        &'a self,
+        term: &'a Term,
+    ) -> Option<(&'a Term, NodeIndex)> {
         let g = &self.graph;
 
         g.node_indices()
             .find(|i| match &g[*i] {
-                TermOrDefinition::Term(x) => x == &term,
-                TermOrDefinition::Definition(_) => false,
+                GraphNode::Term(x) => x == term,
+                _ => false,
             })
             .map(|idx| (term, idx))
     }
@@ -158,44 +147,36 @@ mod tests {
         }
     }
 
-    impl From<&str> for LC<InlineComponentContainer> {
-        fn from(text: &str) -> Self {
-            let x: LC<String> = LC::from(text);
-            let c = InlineComponentContainer::from(x);
-            LC::new(c, Default::default())
-        }
-    }
-
     #[test]
     fn find_definitions_should_list_all_definitions_for_term() {
         let mut dl = DefinitionList::new();
 
-        let t1 = dl.add_term("term1");
-        let d0 = dl.add_definition("def text");
-        let d1 = dl.add_definition("def1");
+        let t1 = dl.add_term("term1".into());
+        let d0 = dl.add_definition("def text".into());
+        let d1 = dl.add_definition("def1".into());
         dl.connect_term_to_definition(t1, d0);
         dl.connect_term_to_definition(t1, d1);
 
-        let t2 = dl.add_term("term2");
-        let d2 = dl.add_definition("def2");
+        let t2 = dl.add_term("term2".into());
+        let d2 = dl.add_definition("def2".into());
         dl.connect_term_to_definition(t2, d2);
 
-        dl.add_term("term3");
+        dl.add_term("term3".into());
 
         // Test looking for defs of term with multiple defs
-        let defs = dl.find_definitions("term1");
+        let defs = dl.find_definitions(&"term1".into());
         assert_eq!(2, defs.len());
 
         // Test looking for defs of term with one def
-        let defs = dl.find_definitions("term2");
+        let defs = dl.find_definitions(&"term2".into());
         assert_eq!(1, defs.len());
 
         // Test looking for defs of term with no defs
-        let defs = dl.find_definitions("term3");
+        let defs = dl.find_definitions(&"term3".into());
         assert_eq!(0, defs.len());
 
         // Test looking for defs of term that does not exist
-        let defs = dl.find_definitions("term4");
+        let defs = dl.find_definitions(&"term4".into());
         assert_eq!(0, defs.len());
     }
 
@@ -203,15 +184,15 @@ mod tests {
     fn find_alternative_terms_should_list_all_terms_with_same_definitions() {
         let mut dl = DefinitionList::new();
 
-        let t0 = dl.add_term("term0");
-        let t1 = dl.add_term("term1");
-        let t2 = dl.add_term("term2");
-        let t3 = dl.add_term("term3");
-        let t4 = dl.add_term("term4");
-        dl.add_term("term5");
+        let t0 = dl.add_term("term0".into());
+        let t1 = dl.add_term("term1".into());
+        let t2 = dl.add_term("term2".into());
+        let t3 = dl.add_term("term3".into());
+        let t4 = dl.add_term("term4".into());
+        dl.add_term("term5".into());
 
-        let d0 = dl.add_definition("def0");
-        let d1 = dl.add_definition("def1");
+        let d0 = dl.add_definition("def0".into());
+        let d1 = dl.add_definition("def1".into());
 
         dl.connect_term_to_definition(t0, d0);
         dl.connect_term_to_definition(t1, d0);
@@ -221,22 +202,22 @@ mod tests {
         dl.connect_term_to_definition(t4, d1);
 
         // Test looking for alternate terms for term that has multiple
-        let terms = dl.find_alternative_terms("term1");
+        let terms = dl.find_alternative_terms(&"term1".into());
         assert_eq!(terms.len(), 2);
         assert!(terms.contains(&(&LC::from("term0"))));
         assert!(terms.contains(&(&LC::from("term2"))));
 
         // Test looking for alternate terms for term that has one
-        let terms = dl.find_alternative_terms("term3");
+        let terms = dl.find_alternative_terms(&"term3".into());
         assert_eq!(terms.len(), 1);
         assert_eq!(terms, vec![&LC::from("term4")]);
 
         // Test looking for alternate terms for term that has no alternatives
-        let terms = dl.find_alternative_terms("term5");
+        let terms = dl.find_alternative_terms(&"term5".into());
         assert_eq!(terms.len(), 0);
 
         // Test looking for alternate terms for term that does not exist
-        let terms = dl.find_alternative_terms("term999");
+        let terms = dl.find_alternative_terms(&"term999".into());
         assert_eq!(terms.len(), 0);
     }
 }

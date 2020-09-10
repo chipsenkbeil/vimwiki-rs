@@ -1,4 +1,4 @@
-use super::{Position, Span, VimwikiIResult};
+use super::{Position, Region, Span, VimwikiIResult, LC};
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_while},
@@ -8,7 +8,7 @@ use nom::{
     },
     error::context,
     multi::{many0, many1},
-    sequence::{delimited, pair, preceded, terminated, tuple},
+    sequence::{delimited, pair, preceded, terminated},
 };
 use url::Url;
 
@@ -16,6 +16,19 @@ use url::Url;
 #[inline]
 pub fn position(input: Span) -> VimwikiIResult<Span> {
     Ok((input, input))
+}
+
+/// Parser that wraps another parser's output in a LocatedComponent based on
+/// the consumed input
+#[inline]
+pub fn lc<'a, T>(
+    parser: impl Fn(Span<'a>) -> VimwikiIResult<T>,
+) -> impl Fn(Span<'a>) -> VimwikiIResult<LC<T>> {
+    move |input: Span<'a>| {
+        let (input, pos) = position(input)?;
+        let (input, x) = parser(input)?;
+        Ok((input, LC::new(x, Region::from((pos, input)))))
+    }
 }
 
 /// Parser that will consume an end of line (\n or \r\n) or do nothing if
@@ -52,6 +65,12 @@ pub fn take_line_while1<'a, T>(
     parser: impl Fn(Span<'a>) -> VimwikiIResult<T>,
 ) -> impl Fn(Span<'a>) -> VimwikiIResult<Span<'a>> {
     verify(take_line_while(parser), |s| !s.fragment().is_empty())
+}
+
+/// Parser that will consume the remainder of a line (or end of input)
+#[inline]
+pub fn take_until_end_of_line_or_input(input: Span) -> VimwikiIResult<Span> {
+    take_line_while(anychar)(input)
 }
 
 /// Parser that will report the total columns consumed since the beginning of
@@ -102,16 +121,10 @@ pub fn non_blank_line(input: Span) -> VimwikiIResult<String> {
         "Non Blank Line",
         verify(
             map(
-                map(
-                    tuple((
-                        beginning_of_line,
-                        recognize(many1(pair(
-                            not(end_of_line_or_input),
-                            anychar,
-                        ))),
-                        end_of_line_or_input,
-                    )),
-                    |x| x.1,
+                delimited(
+                    beginning_of_line,
+                    recognize(many1(pair(not(end_of_line_or_input), anychar))),
+                    end_of_line_or_input,
                 ),
                 |s: Span| s.fragment().to_string(),
             ),
@@ -132,6 +145,14 @@ pub fn any_line(input: Span) -> VimwikiIResult<String> {
 #[inline]
 pub fn single_multispace(input: Span) -> VimwikiIResult<()> {
     value((), alt((crlf, tag("\n"), tag("\t"), tag(" "))))(input)
+}
+
+/// Parser that transforms the output of a parser into an allocated string
+#[inline]
+pub fn pstring<'a>(
+    parser: impl Fn(Span<'a>) -> VimwikiIResult<Span<'a>>,
+) -> impl Fn(Span<'a>) -> VimwikiIResult<String> {
+    map(parser, |s: Span<'a>| s.fragment().to_string())
 }
 
 /// Parser for a general purpose URL.

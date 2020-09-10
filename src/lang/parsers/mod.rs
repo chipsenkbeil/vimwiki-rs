@@ -1,7 +1,7 @@
 // Import to make more easily accessible to submodules
 use super::{
     components::{self, Page},
-    utils::{Position, Span, LC},
+    utils::{Position, Region, Span, LC},
 };
 use derive_more::{Constructor, Display, Error};
 use std::path::Path;

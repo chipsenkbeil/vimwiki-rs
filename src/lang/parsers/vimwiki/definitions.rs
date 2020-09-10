@@ -1,15 +1,15 @@
 use super::{
     components::{Definition, DefinitionList, Term},
-    inline_component_container,
     utils::{
-        beginning_of_line, end_of_line_or_input, position, take_line_while1,
+        beginning_of_line, end_of_line_or_input, lc, position, pstring,
+        take_line_while1, take_until_end_of_line_or_input,
     },
     Span, VimwikiIResult, LC,
 };
 use nom::{
     bytes::complete::tag,
     character::complete::{space0, space1},
-    combinator::{map, not, opt},
+    combinator::{map, not, opt, verify},
     multi::{many0, many1},
     sequence::{pair, preceded, terminated},
 };
@@ -41,7 +41,10 @@ fn term_and_definitions(
 ) -> VimwikiIResult<(Term, Vec<Definition>)> {
     let (input, _) = beginning_of_line(input)?;
     let (input, (term, maybe_def)) = term_line(input)?;
-    let (input, mut defs) = many0(definition_line)(input)?;
+    let (input, mut defs) =
+        verify(many0(definition_line), |defs: &Vec<Definition>| {
+            maybe_def.is_some() || !defs.is_empty()
+        })(input)?;
 
     if let Some(def) = maybe_def {
         defs.insert(0, def);
@@ -65,8 +68,10 @@ fn term_line(input: Span) -> VimwikiIResult<(Term, Option<Definition>)> {
     )(input)?;
 
     // Now check if we have a definition following
-    let (input, maybe_def) =
-        opt(preceded(space1, inline_component_container))(input)?;
+    let (input, maybe_def) = opt(preceded(
+        space1,
+        lc(pstring(take_until_end_of_line_or_input)),
+    ))(input)?;
 
     // Conclude with any lingering space and newline
     let (input, _) = pair(space0, end_of_line_or_input)(input)?;
@@ -80,7 +85,7 @@ fn definition_line(input: Span) -> VimwikiIResult<Definition> {
     let (input, _) = beginning_of_line(input)?;
     let (input, _) = tag("::")(input)?;
     let (input, _) = space1(input)?;
-    let (input, def) = inline_component_container(input)?;
+    let (input, def) = lc(pstring(take_until_end_of_line_or_input))(input)?;
     let (input, _) = end_of_line_or_input(input)?;
 
     Ok((input, def))
@@ -89,6 +94,23 @@ fn definition_line(input: Span) -> VimwikiIResult<Definition> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use indoc::indoc;
+
+    /// Checks defs match those of a provided list in ANY order
+    fn check_text_defs(defs: Vec<&Definition>, expected: Vec<&str>) {
+        assert_eq!(
+            defs.len(),
+            expected.len(),
+            "Mismatch of expected definitions"
+        );
+        for d in defs.iter() {
+            assert!(
+                expected.contains(&d.component.as_str()),
+                "Definition {} not expected",
+                d.component
+            );
+        }
+    }
 
     #[test]
     fn definition_list_should_fail_if_input_empty() {
@@ -115,51 +137,121 @@ mod tests {
     }
 
     #[test]
-    fn definition_list_should_succeed_if_one_term_and_no_defs() {
+    fn definition_list_should_fail_if_one_term_and_no_defs() {
         let input = Span::new("term::");
-        let (input, l) = definition_list(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume def list");
-        todo!();
+        assert!(definition_list(input).is_err());
+    }
+
+    #[test]
+    fn definition_list_should_fail_if_multiple_terms_and_no_defs() {
+        let input = Span::new(indoc! {r#"
+            term 1::
+            term 2::
+        "#});
+        assert!(definition_list(input).is_err());
     }
 
     #[test]
     fn definition_list_should_succeed_if_one_term_and_inline_def() {
-        todo!();
+        let input = Span::new("term 1:: def 1");
+        let (input, l) = definition_list(input).unwrap();
+        assert!(input.fragment().is_empty(), "Did not consume def list");
+
+        let defs = l.find_definitions(&"term 1".into());
+        check_text_defs(defs, vec!["def 1"]);
     }
 
     #[test]
     fn definition_list_should_succeed_if_one_term_and_def_on_next_line() {
-        todo!();
+        let input = Span::new(indoc! {r#"
+            term 1::
+            :: def 1
+        "#});
+        let (input, l) = definition_list(input).unwrap();
+        assert!(input.fragment().is_empty(), "Did not consume def list");
+
+        let defs = l.find_definitions(&"term 1".into());
+        check_text_defs(defs, vec!["def 1"]);
     }
 
     #[test]
     fn definition_list_should_succeed_if_one_term_and_multiple_line_defs() {
-        todo!();
+        let input = Span::new(indoc! {r#"
+            term 1::
+            :: def 1
+            :: def 2
+        "#});
+        let (input, l) = definition_list(input).unwrap();
+        assert!(input.fragment().is_empty(), "Did not consume def list");
+
+        let defs = l.find_definitions(&"term 1".into());
+        check_text_defs(defs, vec!["def 1", "def 2"]);
     }
 
     #[test]
     fn definition_list_should_succeed_if_one_term_and_inline_def_and_line_def()
     {
-        todo!();
-    }
+        let input = Span::new(indoc! {r#"
+            term 1:: def 1
+            :: def 2
+        "#});
+        let (input, l) = definition_list(input).unwrap();
+        assert!(input.fragment().is_empty(), "Did not consume def list");
 
-    #[test]
-    fn definition_list_should_succeed_if_multiple_terms_and_no_defs() {
-        todo!();
+        let defs = l.find_definitions(&"term 1".into());
+        check_text_defs(defs, vec!["def 1", "def 2"]);
     }
 
     #[test]
     fn definition_list_should_succeed_if_multiple_terms_and_inline_defs() {
-        todo!();
+        let input = Span::new(indoc! {r#"
+            term 1:: def 1
+            term 2:: def 2
+        "#});
+        let (input, l) = definition_list(input).unwrap();
+        assert!(input.fragment().is_empty(), "Did not consume def list");
+
+        let defs = l.find_definitions(&"term 1".into());
+        check_text_defs(defs, vec!["def 1"]);
+
+        let defs = l.find_definitions(&"term 2".into());
+        check_text_defs(defs, vec!["def 2"]);
     }
 
     #[test]
     fn definition_list_should_succeed_if_multiple_terms_and_line_defs() {
-        todo!();
+        let input = Span::new(indoc! {r#"
+            term 1::
+            :: def 1
+            term 2::
+            :: def 2
+        "#});
+        let (input, l) = definition_list(input).unwrap();
+        assert!(input.fragment().is_empty(), "Did not consume def list");
+
+        let defs = l.find_definitions(&"term 1".into());
+        check_text_defs(defs, vec!["def 1"]);
+
+        let defs = l.find_definitions(&"term 2".into());
+        check_text_defs(defs, vec!["def 2"]);
     }
 
     #[test]
     fn definition_list_should_succeed_if_multiple_terms_and_mixed_defs() {
-        todo!();
+        let input = Span::new(indoc! {r#"
+            term 1:: def 1
+            :: def 2
+            term 2:: def 3
+            :: def 4
+        "#});
+        let (input, l) = definition_list(input).unwrap();
+        assert!(input.fragment().is_empty(), "Did not consume def list");
+        println!("{:?}", l);
+
+        let defs = l.find_definitions(&"term 1".into());
+        check_text_defs(defs, vec!["def 1", "def 2"]);
+
+        let defs = l.find_definitions(&"term 2".into());
+        check_text_defs(defs, vec!["def 3", "def 4"]);
     }
 }
