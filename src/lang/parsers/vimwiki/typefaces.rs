@@ -3,57 +3,40 @@ use super::{
     links::link,
     math::math_inline,
     tags::tags,
-    utils::{end_of_line_or_input, position},
+    utils::{lc, pstring, take_line_while1},
     Span, VimwikiIResult, LC,
 };
 
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    character::complete::{anychar, char},
-    combinator::{map, not, recognize},
+    character::complete::char,
+    combinator::{map, not},
     error::context,
     multi::many1,
-    sequence::{delimited, tuple},
+    sequence::delimited,
 };
 
 #[inline]
 pub fn text(input: Span) -> VimwikiIResult<LC<String>> {
-    let (input, pos) = position(input)?;
-
     // NOTE: Text as an inline component should continue until it encounters
     //       something different (math, keyword, link, etc); so, text should
     //       use all other inline components other than itself as not(...)
     //       in a pattern of recoginize(multi1(...))
-    let (input, text) = context(
+    context(
         "Text",
-        map(
-            recognize(many1(map(
-                // TODO: Extract this logic to a separate helper parser whose
-                //       purpose is to apply not(...) around N parsers and if
-                //       all not(...) pass, then apply some parser
-                tuple((
-                    not(math_inline),
-                    not(tags),
-                    not(link),
-                    not(decorated_text),
-                    not(keyword),
-                    not(end_of_line_or_input),
-                    anychar,
-                )),
-                |x: (_, _, _, _, _, _, char)| x.6,
-            ))),
-            |s: Span| s.fragment().to_string(),
-        ),
-    )(input)?;
-
-    Ok((input, LC::from((text, pos, input))))
+        lc(pstring(take_line_while1(alt((
+            not(math_inline),
+            not(tags),
+            not(link),
+            not(decorated_text),
+            not(keyword),
+        ))))),
+    )(input)
 }
 
 #[inline]
 pub fn decorated_text(input: Span) -> VimwikiIResult<LC<DecoratedText>> {
-    let (input, pos) = position(input)?;
-
     macro_rules! parser {
         ($name:expr, $start:expr, $end:expr, $decoration:ident) => {
             context(
@@ -82,7 +65,7 @@ pub fn decorated_text(input: Span) -> VimwikiIResult<LC<DecoratedText>> {
         };
     }
 
-    let (input, decorated_text) = alt((
+    lc(alt((
         parser!("Bold Text", char('*'), Bold),
         parser!("Italic Text", char('_'), Italic),
         parser!("Bold Italic Text", tag("_*"), tag("*_"), BoldItalic),
@@ -91,33 +74,27 @@ pub fn decorated_text(input: Span) -> VimwikiIResult<LC<DecoratedText>> {
         parser!("Code Text", char('`'), Code),
         parser!("Super Script Text", char('^'), Superscript),
         parser!("Sub Script Text", tag(",,"), Subscript),
-    ))(input)?;
-
-    Ok((input, LC::from((decorated_text, pos, input))))
+    )))(input)
 }
 
 #[inline]
 pub fn keyword(input: Span) -> VimwikiIResult<LC<Keyword>> {
-    let (input, pos) = position(input)?;
-
     // TODO: Generate using strum to iterate over all keyword items,
     //       forming a tag based on the string version and parsing the
     //       string back into the keyword in a map (or possibly using
     //       the keyword enum variant directly if we can iterate over
     //       the variants themselves)
-    let (input, keyword) = context(
+    context(
         "Keyword",
-        alt((
+        lc(alt((
             map(tag("DONE"), |_| Keyword::DONE),
             map(tag("FIXED"), |_| Keyword::FIXED),
             map(tag("FIXME"), |_| Keyword::FIXME),
             map(tag("STARTED"), |_| Keyword::STARTED),
             map(tag("TODO"), |_| Keyword::TODO),
             map(tag("XXX"), |_| Keyword::XXX),
-        )),
-    )(input)?;
-
-    Ok((input, LC::from((keyword, pos, input))))
+        ))),
+    )(input)
 }
 
 #[cfg(test)]
@@ -126,12 +103,16 @@ mod tests {
 
     #[test]
     fn text_should_fail_if_input_empty() {
-        panic!("TODO: Implement");
+        let input = Span::new("");
+        assert!(text(input).is_err());
     }
 
     #[test]
     fn text_should_consume_until_encountering_inline_math() {
-        panic!("TODO: Implement");
+        let input = Span::new("abc123$math$");
+        let (input, t) = text(input).unwrap();
+        assert_eq!(*input.fragment(), "$math$", "Unexpected input consumption");
+        assert_eq!(&t.component, "abc123");
     }
 
     #[test]
@@ -166,27 +147,45 @@ mod tests {
 
     #[test]
     fn decorated_text_should_fail_if_input_empty() {
-        panic!("TODO: Implement");
+        let input = Span::new("");
+        assert!(decorated_text(input).is_err());
     }
 
     #[test]
     fn decorated_text_should_fail_if_start_is_followed_by_whitespace() {
-        panic!("TODO: Implement");
+        let input = Span::new("* bold text*");
+        assert!(decorated_text(input).is_err());
     }
 
     #[test]
     fn decorated_text_should_fail_if_end_is_preceded_by_whitespace() {
-        panic!("TODO: Implement");
+        let input = Span::new("*bold text *");
+        assert!(decorated_text(input).is_err());
     }
 
     #[test]
     fn decorated_text_should_fail_if_start_and_end_separated_by_newline() {
-        panic!("TODO: Implement");
+        let input = Span::new("*bold text\n*");
+        assert!(decorated_text(input).is_err());
     }
 
     #[test]
     fn decorated_text_should_support_bold() {
-        panic!("TODO: Implement");
+        let input = Span::new("*bold text*");
+        let (input, dt) = decorated_text(input).unwrap();
+        assert!(
+            input.fragment().is_empty(),
+            "Did not consume decorated text"
+        );
+        assert_eq!(
+            dt.component,
+            DecoratedText::new(
+                vec![LC::from(DecoratedTextContent::Text(
+                    "bold text".to_string()
+                ))],
+                Decoration::Bold
+            )
+        );
     }
 
     #[test]
@@ -231,17 +230,40 @@ mod tests {
 
     #[test]
     fn keyword_should_fail_if_input_empty() {
-        panic!("TODO: Implement");
+        let input = Span::new("");
+        assert!(keyword(input).is_err());
+    }
+
+    #[test]
+    fn keyword_should_fail_if_not_a_matching_identifier() {
+        let input = Span::new("NOTHING");
+        assert!(keyword(input).is_err());
     }
 
     #[test]
     fn keyword_should_consume_specific_keywords() {
-        // map(tag("DONE"), |_| Keyword::DONE),
-        // map(tag("FIXED"), |_| Keyword::FIXED),
-        // map(tag("FIXME"), |_| Keyword::FIXME),
-        // map(tag("STARTED"), |_| Keyword::STARTED),
-        // map(tag("TODO"), |_| Keyword::TODO),
-        // map(tag("XXX"), |_| Keyword::XXX),
-        panic!("TODO: Implement");
+        let input = Span::new("DONE");
+        let (_, k) = keyword(input).unwrap();
+        assert_eq!(k.component, Keyword::DONE);
+
+        let input = Span::new("FIXED");
+        let (_, k) = keyword(input).unwrap();
+        assert_eq!(k.component, Keyword::FIXED);
+
+        let input = Span::new("FIXME");
+        let (_, k) = keyword(input).unwrap();
+        assert_eq!(k.component, Keyword::FIXME);
+
+        let input = Span::new("STARTED");
+        let (_, k) = keyword(input).unwrap();
+        assert_eq!(k.component, Keyword::STARTED);
+
+        let input = Span::new("TODO");
+        let (_, k) = keyword(input).unwrap();
+        assert_eq!(k.component, Keyword::TODO);
+
+        let input = Span::new("XXX");
+        let (_, k) = keyword(input).unwrap();
+        assert_eq!(k.component, Keyword::XXX);
     }
 }
