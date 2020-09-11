@@ -1,14 +1,15 @@
 use super::{
     components::Paragraph,
-    inline_component,
-    utils::{beginning_of_line, blank_line, position},
+    inline_component_container,
+    utils::{beginning_of_line, blank_line, end_of_line_or_input, position},
     Span, VimwikiIResult, LC,
 };
 use nom::{
+    character::complete::space1,
     combinator::{map, not},
     error::context,
     multi::many1,
-    sequence::pair,
+    sequence::delimited,
 };
 
 /// Parses a vimwiki paragraph, returning the associated paragraph is successful
@@ -19,61 +20,59 @@ pub fn paragraph(input: Span) -> VimwikiIResult<LC<Paragraph>> {
     // Ensure that we are starting at the beginning of a line
     let (input, _) = beginning_of_line(input)?;
 
+    // Paragraph has NO indentation
+    let (input, _) = not(space1)(input)?;
+
     // Continuously take content until we reach a blank line
     let (input, components) = context(
         "Paragraph",
-        many1(map(pair(not(blank_line), inline_component), |(_, c)| c)),
+        many1(delimited(
+            not(blank_line),
+            map(inline_component_container, |c| c.component),
+            end_of_line_or_input,
+        )),
     )(input)?;
 
     // Transform contents into the paragraph itself
-    let paragraph = Paragraph::from(components);
+    let paragraph = Paragraph::new(From::from(components));
 
     Ok((input, LC::from((paragraph, pos, input))))
 }
 
 #[cfg(test)]
 mod tests {
-    use super::super::super::utils::convert_error;
     use super::*;
-    use nom::Err;
 
-    fn parse_and_eval<'a>(
-        input: Span<'a>,
-        f: impl Fn((Span<'a>, LC<Paragraph>)),
-    ) {
-        match paragraph(input) {
-            Err(Err::Error(e)) | Err(Err::Failure(e)) => {
-                panic!("{}", convert_error(input, e))
-            }
-            Err(Err::Incomplete(needed)) => panic!("Incomplete: {:?}", needed),
-            Ok(result) => f(result),
-        }
+    #[test]
+    fn paragraph_should_fail_if_on_blank_line() {
+        let input = Span::new(" ");
+        assert!(paragraph(input).is_err());
     }
 
-    fn parse_and_test(input_str: &str) {
-        let input = Span::new(input_str);
-        parse_and_eval(input, |result| {
-            assert!(
-                result.0.fragment().is_empty(),
-                "Entire input not consumed! Input: '{}' | Remainder: '{}'",
-                input,
-                result.0,
-            );
-        });
+    #[test]
+    fn paragraph_should_fail_if_line_indented() {
+        let input = Span::new(" some text");
+        assert!(paragraph(input).is_err());
     }
 
     #[test]
     fn paragraph_should_parse_single_line() {
-        panic!("TODO: Implement");
+        todo!();
     }
 
     #[test]
     fn paragraph_should_parse_multiple_lines() {
-        panic!("TODO: Implement");
+        todo!();
+    }
+
+    #[test]
+    fn paragraph_should_support_whitespace_at_beginning_of_all_following_lines()
+    {
+        todo!();
     }
 
     #[test]
     fn paragraph_should_stop_at_a_blank_line() {
-        panic!("TODO: Implement");
+        todo!();
     }
 }
