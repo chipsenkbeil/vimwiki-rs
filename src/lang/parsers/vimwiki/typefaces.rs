@@ -10,71 +10,77 @@ use super::{
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    character::complete::char,
     combinator::{map, not},
     error::context,
     multi::many1,
-    sequence::delimited,
 };
 
 #[inline]
 pub fn text(input: Span) -> VimwikiIResult<LC<String>> {
-    // NOTE: Text as an inline component should continue until it encounters
-    //       something different (math, keyword, link, etc); so, text should
-    //       use all other inline components other than itself as not(...)
-    //       in a pattern of recoginize(multi1(...))
-    context(
-        "Text",
-        lc(pstring(take_line_while1(alt((
-            not(math_inline),
-            not(tags),
-            not(link),
-            not(decorated_text),
-            not(keyword),
-        ))))),
-    )(input)
+    fn is_text(input: Span) -> VimwikiIResult<()> {
+        let (input, _) = not(math_inline)(input)?;
+        let (input, _) = not(tags)(input)?;
+        let (input, _) = not(link)(input)?;
+        let (input, _) = not(decorated_text)(input)?;
+        let (input, _) = not(keyword)(input)?;
+        Ok((input, ()))
+    }
+
+    context("Text", lc(pstring(take_line_while1(is_text))))(input)
 }
 
 #[inline]
 pub fn decorated_text(input: Span) -> VimwikiIResult<LC<DecoratedText>> {
-    macro_rules! parser {
-        ($name:expr, $start:expr, $end:expr, $decoration:ident) => {
-            context(
-                $name,
-                delimited(
-                    $start,
-                    map(
-                        many1(alt((
-                            map(link, |c| c.map(DecoratedTextContent::from)),
-                            map(keyword, |c| c.map(DecoratedTextContent::from)),
-                            map(text, |c| c.map(DecoratedTextContent::from)),
-                        ))),
-                        |components| {
-                            DecoratedText::new(
-                                components,
-                                Decoration::$decoration,
-                            )
-                        },
-                    ),
-                    $end,
-                ),
-            )
-        };
-        ($name:expr, $start_end:expr, $decoration:ident) => {
-            parser!($name, $start_end, $start_end, $decoration)
-        };
+    #[inline]
+    fn dt(
+        start: &'static str,
+        end: &'static str,
+        decoration: Decoration,
+    ) -> impl Fn(Span) -> VimwikiIResult<DecoratedText> {
+        move |input: Span| {
+            fn is_other(
+                end: &'static str,
+            ) -> impl Fn(Span) -> VimwikiIResult<()> {
+                move |input: Span| {
+                    let (input, _) = not(link)(input)?;
+                    let (input, _) = not(keyword)(input)?;
+                    let (input, _) = not(decorated_text)(input)?;
+                    let (input, _) = not(tag(end))(input)?;
+                    Ok((input, ()))
+                }
+            }
+
+            fn other<'a>(
+                end: &'static str,
+            ) -> impl Fn(Span<'a>) -> VimwikiIResult<LC<String>> {
+                lc(pstring(take_line_while1(is_other(end))))
+            }
+
+            let (input, _) = tag(start)(input)?;
+            let (input, contents) = many1(alt((
+                map(link, |c| c.map(DecoratedTextContent::from)),
+                map(keyword, |c| c.map(DecoratedTextContent::from)),
+                map(decorated_text, |c| c.map(DecoratedTextContent::from)),
+                map(other(end), |c| c.map(DecoratedTextContent::from)),
+            )))(input)?;
+            let (input, _) = tag(end)(input)?;
+            Ok((input, DecoratedText::new(contents, decoration)))
+        }
     }
 
-    lc(alt((
-        parser!("Bold Text", char('*'), Bold),
-        parser!("Italic Text", char('_'), Italic),
-        parser!("Bold Italic Text", tag("_*"), tag("*_"), BoldItalic),
-        parser!("Italic Bold Text", tag("*_"), tag("_*"), BoldItalic),
-        parser!("Strikeout Text", tag("~~"), Strikeout),
-        parser!("Code Text", char('`'), Code),
-        parser!("Super Script Text", char('^'), Superscript),
-        parser!("Sub Script Text", tag(",,"), Subscript),
-    )))(input)
+    context(
+        "Decorated Text",
+        lc(alt((
+            dt("_*", "*_", Decoration::BoldItalic),
+            dt("*_", "_*", Decoration::BoldItalic),
+            dt("*", "*", Decoration::Bold),
+            dt("_", "_", Decoration::Italic),
+            dt("~~", "~~", Decoration::Strikeout),
+            dt("`", "`", Decoration::Code),
+            dt("^", "^", Decoration::Superscript),
+            dt(",,", ",,", Decoration::Subscript),
+        ))),
+    )(input)
 }
 
 #[inline]
@@ -99,7 +105,9 @@ pub fn keyword(input: Span) -> VimwikiIResult<LC<Keyword>> {
 
 #[cfg(test)]
 mod tests {
+    use super::super::components::{Link, WikiLink};
     use super::*;
+    use std::path::PathBuf;
 
     #[test]
     fn text_should_fail_if_input_empty() {
@@ -117,49 +125,67 @@ mod tests {
 
     #[test]
     fn text_should_consume_until_encountering_a_tag() {
-        panic!("TODO: Implement");
+        let input = Span::new("abc123:tag:");
+        let (input, t) = text(input).unwrap();
+        assert_eq!(*input.fragment(), ":tag:", "Unexpected input consumption");
+        assert_eq!(&t.component, "abc123");
     }
 
     #[test]
     fn text_should_consume_until_encountering_a_link() {
-        panic!("TODO: Implement");
+        let input = Span::new("abc123[[some link]]");
+        let (input, t) = text(input).unwrap();
+        assert_eq!(
+            *input.fragment(),
+            "[[some link]]",
+            "Unexpected input consumption"
+        );
+        assert_eq!(&t.component, "abc123");
     }
 
     #[test]
     fn text_should_consume_until_encountering_decorated_text() {
-        panic!("TODO: Implement");
+        let input = Span::new("abc123*bold text*");
+        let (input, t) = text(input).unwrap();
+        assert_eq!(
+            *input.fragment(),
+            "*bold text*",
+            "Unexpected input consumption"
+        );
+        assert_eq!(&t.component, "abc123");
     }
 
     #[test]
     fn text_should_consume_until_encountering_a_keyword() {
-        panic!("TODO: Implement");
+        let input = Span::new("abc123 TODO");
+        let (input, t) = text(input).unwrap();
+        assert_eq!(*input.fragment(), "TODO", "Unexpected input consumption");
+        assert_eq!(&t.component, "abc123 ");
     }
 
     #[test]
     fn text_should_consume_until_reaching_end_of_line() {
-        panic!("TODO: Implement");
+        let input = Span::new("abc123\nsome other text");
+        let (input, t) = text(input).unwrap();
+        assert_eq!(
+            *input.fragment(),
+            "\nsome other text",
+            "Unexpected input consumption"
+        );
+        assert_eq!(&t.component, "abc123");
     }
 
     #[test]
     fn text_should_consume_until_reaching_end_of_input() {
-        panic!("TODO: Implement");
+        let input = Span::new("abc123");
+        let (input, t) = text(input).unwrap();
+        assert_eq!(*input.fragment(), "", "Unexpected input consumption");
+        assert_eq!(&t.component, "abc123");
     }
 
     #[test]
     fn decorated_text_should_fail_if_input_empty() {
         let input = Span::new("");
-        assert!(decorated_text(input).is_err());
-    }
-
-    #[test]
-    fn decorated_text_should_fail_if_start_is_followed_by_whitespace() {
-        let input = Span::new("* bold text*");
-        assert!(decorated_text(input).is_err());
-    }
-
-    #[test]
-    fn decorated_text_should_fail_if_end_is_preceded_by_whitespace() {
-        let input = Span::new("*bold text *");
         assert!(decorated_text(input).is_err());
     }
 
@@ -190,42 +216,200 @@ mod tests {
 
     #[test]
     fn decorated_text_should_support_italic() {
-        panic!("TODO: Implement");
+        let input = Span::new("_italic text_");
+        let (input, dt) = decorated_text(input).unwrap();
+        assert!(
+            input.fragment().is_empty(),
+            "Did not consume decorated text"
+        );
+        assert_eq!(
+            dt.component,
+            DecoratedText::new(
+                vec![LC::from(DecoratedTextContent::Text(
+                    "italic text".to_string()
+                ))],
+                Decoration::Italic
+            )
+        );
     }
 
     #[test]
-    fn decorated_text_should_support_bold_italic() {
-        panic!("TODO: Implement");
+    fn decorated_text_should_support_bold_italic_1() {
+        let input = Span::new("_*bold italic text*_");
+        let (input, dt) = decorated_text(input).unwrap();
+        assert!(
+            input.fragment().is_empty(),
+            "Did not consume decorated text"
+        );
+        assert_eq!(
+            dt.component,
+            DecoratedText::new(
+                vec![LC::from(DecoratedTextContent::Text(
+                    "bold italic text".to_string()
+                ))],
+                Decoration::BoldItalic
+            )
+        );
+    }
+
+    #[test]
+    fn decorated_text_should_support_bold_italic_2() {
+        let input = Span::new("*_bold italic text_*");
+        let (input, dt) = decorated_text(input).unwrap();
+        assert!(
+            input.fragment().is_empty(),
+            "Did not consume decorated text"
+        );
+        assert_eq!(
+            dt.component,
+            DecoratedText::new(
+                vec![LC::from(DecoratedTextContent::Text(
+                    "bold italic text".to_string()
+                ))],
+                Decoration::BoldItalic
+            )
+        );
     }
 
     #[test]
     fn decorated_text_should_support_strikeout() {
-        panic!("TODO: Implement");
+        let input = Span::new("~~strikeout text~~");
+        let (input, dt) = decorated_text(input).unwrap();
+        assert!(
+            input.fragment().is_empty(),
+            "Did not consume decorated text"
+        );
+        assert_eq!(
+            dt.component,
+            DecoratedText::new(
+                vec![LC::from(DecoratedTextContent::Text(
+                    "strikeout text".to_string()
+                ))],
+                Decoration::Strikeout
+            )
+        );
     }
 
     #[test]
     fn decorated_text_should_support_code() {
-        panic!("TODO: Implement");
+        let input = Span::new("`code text`");
+        let (input, dt) = decorated_text(input).unwrap();
+        assert!(
+            input.fragment().is_empty(),
+            "Did not consume decorated text"
+        );
+        assert_eq!(
+            dt.component,
+            DecoratedText::new(
+                vec![LC::from(DecoratedTextContent::Text(
+                    "code text".to_string()
+                ))],
+                Decoration::Code
+            )
+        );
     }
 
     #[test]
     fn decorated_text_should_support_superscript() {
-        panic!("TODO: Implement");
+        let input = Span::new("^superscript text^");
+        let (input, dt) = decorated_text(input).unwrap();
+        assert!(
+            input.fragment().is_empty(),
+            "Did not consume decorated text"
+        );
+        assert_eq!(
+            dt.component,
+            DecoratedText::new(
+                vec![LC::from(DecoratedTextContent::Text(
+                    "superscript text".to_string()
+                ))],
+                Decoration::Superscript
+            )
+        );
     }
 
     #[test]
     fn decorated_text_should_support_subscript() {
-        panic!("TODO: Implement");
+        let input = Span::new(",,subscript text,,");
+        let (input, dt) = decorated_text(input).unwrap();
+        assert!(
+            input.fragment().is_empty(),
+            "Did not consume decorated text"
+        );
+        assert_eq!(
+            dt.component,
+            DecoratedText::new(
+                vec![LC::from(DecoratedTextContent::Text(
+                    "subscript text".to_string()
+                ))],
+                Decoration::Subscript
+            )
+        );
     }
 
     #[test]
     fn decorated_text_should_support_links() {
-        panic!("TODO: Implement");
+        let input = Span::new("*[[some link]]*");
+        let (input, dt) = decorated_text(input).unwrap();
+        assert!(
+            input.fragment().is_empty(),
+            "Did not consume decorated text"
+        );
+        assert_eq!(
+            dt.component,
+            DecoratedText::new(
+                vec![LC::from(DecoratedTextContent::Link(Link::Wiki(
+                    WikiLink::from(PathBuf::from("some link"))
+                )))],
+                Decoration::Bold
+            )
+        );
     }
 
     #[test]
     fn decorated_text_should_support_keywords() {
-        panic!("TODO: Implement");
+        let input = Span::new("*TODO*");
+        let (input, dt) = decorated_text(input).unwrap();
+        assert!(
+            input.fragment().is_empty(),
+            "Did not consume decorated text"
+        );
+        assert_eq!(
+            dt.component,
+            DecoratedText::new(
+                vec![LC::from(DecoratedTextContent::Keyword(Keyword::TODO))],
+                Decoration::Bold
+            )
+        );
+    }
+
+    #[test]
+    fn decorated_text_should_support_nested_decorations() {
+        let input = Span::new("*Bold Text ~~Bold Strikeout Text~~*");
+        let (input, dt) = decorated_text(input).unwrap();
+        assert!(
+            input.fragment().is_empty(),
+            "Did not consume decorated text"
+        );
+        assert_eq!(
+            dt.component,
+            DecoratedText::new(
+                vec![
+                    LC::from(DecoratedTextContent::Text(
+                        "Bold Text ".to_string()
+                    )),
+                    LC::from(DecoratedTextContent::DecoratedText(
+                        DecoratedText::new(
+                            vec![LC::from(DecoratedTextContent::Text(
+                                "Bold Strikeout Text".to_string()
+                            ))],
+                            Decoration::Strikeout
+                        )
+                    ))
+                ],
+                Decoration::Bold
+            )
+        );
     }
 
     #[test]

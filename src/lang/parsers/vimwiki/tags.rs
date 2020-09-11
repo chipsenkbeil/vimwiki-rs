@@ -16,7 +16,7 @@ pub fn tags(input: Span) -> VimwikiIResult<LC<Tags>> {
     let (input, pos) = position(input)?;
 
     let (input, tags) = context(
-        "TagSequence",
+        "Tags",
         delimited(
             char(':'),
             separated_nonempty_list(
