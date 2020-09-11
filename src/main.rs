@@ -1,4 +1,4 @@
-use vimwiki::{Parser, VimwikiParser};
+use vimwiki_server::{Parser, VimwikiParser};
 
 #[tokio::main]
 async fn main() {

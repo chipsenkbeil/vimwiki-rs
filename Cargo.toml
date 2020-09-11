@@ -5,7 +5,7 @@ authors = ["Chip Senkbeil <chip@senkbeil.org>"]
 edition = "2018"
 
 [lib]
-name = "vimwiki"
+name = "vimwiki_server"
 path = "src/lib.rs"
 
 [[bin]]
@@ -19,48 +19,14 @@ watch = ["notify"]
 web = ["juniper_warp", "warp"]
 
 [dependencies]
-chrono = { version = "0.4.15", features = ["serde"] }
-clap = { version = "3.0.0-beta.1", optional = true }
-nom = "5.1.2"
-nom_locate = "2.0.0"
-notify = { version = "5.0.0-pre.3", optional = true }
-numerals = "0.1.4"
 juniper = "0.14.2"
-juniper_warp = { version = "0.5.2", optional = true }
-rstar = { version = "0.8.2", features = ["serde"] }
-serde = { version = "1.0.115", features = ["derive"] }
 serde_json = "1.0.57"
-shellexpand = "2.0.0"
-url = { version = "2.1.1", features = ["serde"] }
+vimwiki = { version = "0.1.0", path = "vimwiki" }
+clap = { version = "3.0.0-beta.1", optional = true }
+notify = { version = "5.0.0-pre.3", optional = true }
+juniper_warp = { version = "0.5.2", optional = true }
 warp = { version = "0.2.4", optional = true }
-
-[dependencies.derive_more]
-version = "0.99.0"
-default-features = false
-features = [
-    "as_mut",
-    "as_ref",
-    "constructor",
-    "deref",
-    "deref_mut",
-    "display",
-    "error",
-    "from",
-    "index",
-    "index_mut",
-    "into",
-    "into_iterator",
-    "try_into",
-]
-
-[dependencies.petgraph]
-version = "0.5.1"
-default-features = false
-features = ["serde-1"]
 
 [dependencies.tokio]
 version = "0.2.22"
 features = ["rt-core", "time", "io-std", "io-util", "macros"]
-
-[dev-dependencies]
-indoc = "1.0.2"

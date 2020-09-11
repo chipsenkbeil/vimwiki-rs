@@ -310,9 +310,9 @@ dependencies = [
 
 [[package]]
 name = "derive_more"
-version = "0.99.9"
+version = "0.99.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "298998b1cf6b5b2c8a7b023dfd45821825ce3ba8a8af55c921a0e734e4653f76"
+checksum = "1dcfabdab475c16a93d669dddfc393027803e347d09663f524447f642fbb84ba"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -860,15 +860,6 @@ dependencies = [
  "autocfg 1.0.0",
  "hashbrown",
  "serde",
-]
-
-[[package]]
-name = "indoc"
-version = "1.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "644defcefee68d7805653a682e99a2e2a5014a1fc3cc9be7059a215844eeea6f"
-dependencies = [
- "unindent",
 ]
 
 [[package]]
@@ -2362,12 +2353,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f7fe0bb3479651439c9112f72b6c505038574c9fbb575ed1bf3b797fa39dd564"
 
 [[package]]
-name = "unindent"
-version = "0.1.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af41d708427f8fd0e915dcebb2cae0f0e6acb2a939b2d399c265c39a38a18942"
-
-[[package]]
 name = "url"
 version = "2.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2416,26 +2401,32 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b5a972e5669d67ba988ce3dc826706fb0a8b01471c088cb0b6110b805cc36aed"
 
 [[package]]
-name = "vimwiki-server"
+name = "vimwiki"
 version = "0.1.0"
 dependencies = [
  "chrono",
- "clap",
  "derive_more",
- "indoc",
- "juniper",
- "juniper_warp",
  "nom",
  "nom_locate",
- "notify",
  "numerals",
  "petgraph",
  "rstar",
  "serde",
- "serde_json",
  "shellexpand",
- "tokio 0.2.22",
  "url",
+]
+
+[[package]]
+name = "vimwiki-server"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "juniper",
+ "juniper_warp",
+ "notify",
+ "serde_json",
+ "tokio 0.2.22",
+ "vimwiki",
  "warp 0.2.4",
 ]
 
