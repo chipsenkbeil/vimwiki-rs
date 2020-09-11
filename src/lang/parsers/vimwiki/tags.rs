@@ -4,32 +4,30 @@ use super::{
     Span, VimwikiIResult, LC,
 };
 use nom::{
-    character::complete::char,
-    combinator::{map, not},
-    error::context,
-    multi::separated_nonempty_list,
-    sequence::delimited,
+    character::complete::char, combinator::not, multi::many1,
+    sequence::terminated,
 };
 
 #[inline]
 pub fn tags(input: Span) -> VimwikiIResult<LC<Tags>> {
     let (input, pos) = position(input)?;
 
-    let (input, tags) = context(
-        "Tags",
-        delimited(
-            char(':'),
-            separated_nonempty_list(
-                char(':'),
-                map(take_line_while1(not(char(':'))), |s| {
-                    Tag::new(s.fragment().to_string())
-                }),
-            ),
-            char(':'),
-        ),
-    )(input)?;
+    let (input, _) = char(':')(input)?;
+    let (input, contents) = many1(terminated(tag_content, char(':')))(input)?;
 
-    Ok((input, LC::from((Tags::new(tags), pos, input))))
+    Ok((input, LC::from((Tags::new(contents), pos, input))))
+}
+
+fn tag_content(input: Span) -> VimwikiIResult<Tag> {
+    fn has_more(input: Span) -> VimwikiIResult<()> {
+        let (input, _) = not(char(':'))(input)?;
+        let (input, _) = not(char(' '))(input)?;
+        let (input, _) = not(char('\t'))(input)?;
+        Ok((input, ()))
+    }
+
+    let (input, s) = take_line_while1(has_more)(input)?;
+    Ok((input, Tag::from(*s.fragment())))
 }
 
 #[cfg(test)]
@@ -65,6 +63,19 @@ mod tests {
         let input = Span::new(":tag-example:");
         let (input, tags) = tags(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume tags");
+        assert_eq!(tags.0, vec![Tag::from("tag-example")]);
+    }
+
+    #[test]
+    fn tags_should_yield_a_single_tag_if_one_pair_of_colons_with_trailing_content(
+    ) {
+        let input = Span::new(":tag-example:and other text");
+        let (input, tags) = tags(input).unwrap();
+        assert_eq!(
+            *input.fragment(),
+            "and other text",
+            "Unexpected input consumed"
+        );
         assert_eq!(tags.0, vec![Tag::from("tag-example")]);
     }
 

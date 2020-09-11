@@ -126,3 +126,47 @@ fn non_blank_line(input: Span) -> VimwikiIResult<LC<String>> {
 
     Ok((input, LC::from((text, pos, input))))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::super::components::{
+        DecoratedText, DecoratedTextContent, Decoration, InlineComponent,
+        Keyword, Link, MathInline, Tags, WikiLink,
+    };
+    use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    fn inline_component_container_should_correctly_identify_components() {
+        let input = Span::new(
+            "*item 1* has a [[link]] with :tag: and $formula$ is DONE",
+        );
+        let (input, mut container) = inline_component_container(input).unwrap();
+        assert!(input.fragment().is_empty(), "Did not consume all of input");
+        assert_eq!(
+            container
+                .components
+                .drain(..)
+                .map(|c| c.component)
+                .collect::<Vec<InlineComponent>>(),
+            vec![
+                InlineComponent::DecoratedText(DecoratedText::new(
+                    vec![LC::from(DecoratedTextContent::Text(
+                        "item 1".to_string()
+                    ))],
+                    Decoration::Bold
+                )),
+                InlineComponent::Text(" has a ".to_string()),
+                InlineComponent::Link(Link::from(WikiLink::from(
+                    PathBuf::from("link")
+                ))),
+                InlineComponent::Text(" with ".to_string()),
+                InlineComponent::Tags(Tags::from("tag")),
+                InlineComponent::Text(" and ".to_string()),
+                InlineComponent::Math(MathInline::new("formula".to_string())),
+                InlineComponent::Text(" is ".to_string()),
+                InlineComponent::Keyword(Keyword::DONE),
+            ]
+        );
+    }
+}

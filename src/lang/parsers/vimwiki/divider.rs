@@ -12,11 +12,9 @@ pub fn divider(input: Span) -> VimwikiIResult<LC<Divider>> {
     let (input, pos) = position(input)?;
 
     let (input, _) = beginning_of_line(input)?;
-    println!("PREPARING TO TAKE FROM: '{}'", input.fragment());
     let (input, _) = verify(take_line_while1(char('-')), |s: &Span| {
         s.fragment().len() >= 4
     })(input)?;
-    println!("REMAINING: '{}'", input.fragment());
     let (input, _) = end_of_line_or_input(input)?;
 
     Ok((input, LC::from((Divider, pos, input))))

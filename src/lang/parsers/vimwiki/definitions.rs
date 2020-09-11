@@ -246,7 +246,6 @@ mod tests {
         "#});
         let (input, l) = definition_list(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume def list");
-        println!("{:?}", l);
 
         let defs = l.find_definitions(&"term 1".into());
         check_text_defs(defs, vec!["def 1", "def 2"]);

@@ -330,9 +330,13 @@ fn list_item_suffix_none(input: Span) -> VimwikiIResult<ListItemSuffix> {
 
 #[cfg(test)]
 mod tests {
-    use super::super::components::InlineComponent;
+    use super::super::components::{
+        DecoratedText, DecoratedTextContent, Decoration, InlineComponent,
+        Keyword, Link, MathInline, Tags, WikiLink,
+    };
     use super::*;
     use indoc::indoc;
+    use std::path::PathBuf;
 
     fn check_single_line_list_item(
         l: &List,
@@ -507,11 +511,9 @@ mod tests {
     }
 
     #[test]
-    fn list_should_support_list_item_with_decorated_text() {
+    fn list_should_support_list_item_with_inline_content() {
         let input = Span::new(indoc! {r#"
-            - list *item 1*
-              _has_ extra content
-              on ~~multiple~~ lines
+            - list *item 1* has a [[link]] with :tag: and $formula$ is DONE
         "#});
         let (input, l) = list(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume list item");
@@ -524,9 +526,22 @@ mod tests {
                 .collect::<Vec<&InlineComponent>>(),
             vec![
                 &InlineComponent::Text("list ".to_string()),
-                // &InlineComponent::DecoratedText("item 1".to_string().into()),
-                &InlineComponent::Text("has extra content".to_string()),
-                &InlineComponent::Text("on multiple lines".to_string()),
+                &InlineComponent::DecoratedText(DecoratedText::new(
+                    vec![LC::from(DecoratedTextContent::Text(
+                        "item 1".to_string()
+                    ))],
+                    Decoration::Bold
+                )),
+                &InlineComponent::Text(" has a ".to_string()),
+                &InlineComponent::Link(Link::from(WikiLink::from(
+                    PathBuf::from("link")
+                ))),
+                &InlineComponent::Text(" with ".to_string()),
+                &InlineComponent::Tags(Tags::from("tag")),
+                &InlineComponent::Text(" and ".to_string()),
+                &InlineComponent::Math(MathInline::new("formula".to_string())),
+                &InlineComponent::Text(" is ".to_string()),
+                &InlineComponent::Keyword(Keyword::DONE),
             ]
         );
     }
