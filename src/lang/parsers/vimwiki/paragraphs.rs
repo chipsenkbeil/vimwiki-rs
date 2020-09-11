@@ -41,7 +41,13 @@ pub fn paragraph(input: Span) -> VimwikiIResult<LC<Paragraph>> {
 
 #[cfg(test)]
 mod tests {
+    use super::super::components::{
+        DecoratedText, DecoratedTextContent, Decoration, InlineComponent, Link,
+        MathInline, WikiLink,
+    };
     use super::*;
+    use indoc::indoc;
+    use std::path::PathBuf;
 
     #[test]
     fn paragraph_should_fail_if_on_blank_line() {
@@ -57,22 +63,144 @@ mod tests {
 
     #[test]
     fn paragraph_should_parse_single_line() {
-        todo!();
+        let input = Span::new(indoc! {"
+        Some paragraph with *decorations*, [[links]], $math$, and more
+        "});
+        let (input, mut p) = paragraph(input).unwrap();
+        assert!(input.fragment().is_empty(), "Did not consume paragraph");
+
+        assert_eq!(
+            p.content
+                .components
+                .drain(..)
+                .map(|c| c.component)
+                .collect::<Vec<InlineComponent>>(),
+            vec![
+                InlineComponent::Text("Some paragraph with ".to_string()),
+                InlineComponent::DecoratedText(DecoratedText::new(
+                    vec![LC::from(DecoratedTextContent::Text(
+                        "decorations".to_string()
+                    ))],
+                    Decoration::Bold
+                )),
+                InlineComponent::Text(", ".to_string()),
+                InlineComponent::Link(Link::from(WikiLink::from(
+                    PathBuf::from("links")
+                ))),
+                InlineComponent::Text(", ".to_string()),
+                InlineComponent::Math(MathInline::new("math".to_string())),
+                InlineComponent::Text(", and more".to_string()),
+            ],
+        );
     }
 
     #[test]
     fn paragraph_should_parse_multiple_lines() {
-        todo!();
+        let input = Span::new(indoc! {"
+        Some paragraph with *decorations*,
+        [[links]], $math$, and more
+        "});
+        let (input, mut p) = paragraph(input).unwrap();
+        assert!(input.fragment().is_empty(), "Did not consume paragraph");
+
+        assert_eq!(
+            p.content
+                .components
+                .drain(..)
+                .map(|c| c.component)
+                .collect::<Vec<InlineComponent>>(),
+            vec![
+                InlineComponent::Text("Some paragraph with ".to_string()),
+                InlineComponent::DecoratedText(DecoratedText::new(
+                    vec![LC::from(DecoratedTextContent::Text(
+                        "decorations".to_string()
+                    ))],
+                    Decoration::Bold
+                )),
+                InlineComponent::Text(",".to_string()),
+                InlineComponent::Link(Link::from(WikiLink::from(
+                    PathBuf::from("links")
+                ))),
+                InlineComponent::Text(", ".to_string()),
+                InlineComponent::Math(MathInline::new("math".to_string())),
+                InlineComponent::Text(", and more".to_string()),
+            ],
+        );
     }
 
     #[test]
     fn paragraph_should_support_whitespace_at_beginning_of_all_following_lines()
     {
-        todo!();
+        let input = Span::new(indoc! {"
+        Some paragraph with *decorations*,
+            [[links]], $math$, and more
+        "});
+        let (input, mut p) = paragraph(input).unwrap();
+        assert!(input.fragment().is_empty(), "Did not consume paragraph");
+
+        assert_eq!(
+            p.content
+                .components
+                .drain(..)
+                .map(|c| c.component)
+                .collect::<Vec<InlineComponent>>(),
+            vec![
+                InlineComponent::Text("Some paragraph with ".to_string()),
+                InlineComponent::DecoratedText(DecoratedText::new(
+                    vec![LC::from(DecoratedTextContent::Text(
+                        "decorations".to_string()
+                    ))],
+                    Decoration::Bold
+                )),
+                InlineComponent::Text(",".to_string()),
+                InlineComponent::Text("    ".to_string()),
+                InlineComponent::Link(Link::from(WikiLink::from(
+                    PathBuf::from("links")
+                ))),
+                InlineComponent::Text(", ".to_string()),
+                InlineComponent::Math(MathInline::new("math".to_string())),
+                InlineComponent::Text(", and more".to_string()),
+            ],
+        );
     }
 
     #[test]
     fn paragraph_should_stop_at_a_blank_line() {
-        todo!();
+        let input = Span::new(indoc! {"
+        Some paragraph with *decorations*,
+        [[links]], $math$, and more
+
+        And this would be a second paragraph
+        "});
+        let (input, mut p) = paragraph(input).unwrap();
+        assert_eq!(
+            *input.fragment(),
+            "\nAnd this would be a second paragraph\n",
+            "Unexpected consumption of input"
+        );
+
+        assert_eq!(
+            p.content
+                .components
+                .drain(..)
+                .map(|c| c.component)
+                .collect::<Vec<InlineComponent>>(),
+            vec![
+                InlineComponent::Text("Some paragraph with ".to_string()),
+                InlineComponent::DecoratedText(DecoratedText::new(
+                    vec![LC::from(DecoratedTextContent::Text(
+                        "decorations".to_string()
+                    ))],
+                    Decoration::Bold
+                )),
+                InlineComponent::Text(",".to_string()),
+                InlineComponent::Link(Link::from(WikiLink::from(
+                    PathBuf::from("links")
+                ))),
+                InlineComponent::Text(", ".to_string()),
+                InlineComponent::Math(MathInline::new("math".to_string())),
+                InlineComponent::Text(", and more".to_string()),
+            ],
+        );
     }
 }
