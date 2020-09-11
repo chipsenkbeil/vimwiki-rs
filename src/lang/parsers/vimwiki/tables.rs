@@ -98,11 +98,18 @@ fn cell_span_above(input: Span) -> VimwikiIResult<Cell> {
 
 #[cfg(test)]
 mod tests {
-    use super::super::components::InlineComponent;
+    use super::super::components::{InlineComponent, Link, WikiLink};
     use super::*;
     use indoc::indoc;
+    use std::path::PathBuf;
 
     fn check_cell_text_value(cell: &Cell, value: &str) {
+        check_cell_value(cell, |c| {
+            assert_eq!(c, &InlineComponent::Text(value.to_string()));
+        });
+    }
+
+    fn check_cell_value(cell: &Cell, f: impl Fn(&InlineComponent)) {
         match cell {
             Cell::Content(x) => {
                 assert_eq!(
@@ -110,10 +117,7 @@ mod tests {
                     1,
                     "Unexpected number of inline components in cell"
                 );
-                assert_eq!(
-                    x.components[0].component,
-                    InlineComponent::Text(value.to_string()),
-                );
+                f(&x.components[0].component);
             }
             x => panic!("Unexpected cell: {:?}", x),
         }
@@ -305,6 +309,28 @@ mod tests {
     }
 
     #[test]
+    fn table_should_support_span_left_cell() {
+        let input = Span::new("|>|");
+        let (input, t) = table(input).unwrap();
+        assert!(input.fragment().is_empty(), "Did not consume table");
+        assert!(!t.centered, "Table unexpectedly centered");
+
+        let cell = &t.get_cell(0, 0).unwrap().component;
+        assert_eq!(cell, &Cell::SpanLeft);
+    }
+
+    #[test]
+    fn table_should_support_span_above_cell() {
+        let input = Span::new(r"|\/|");
+        let (input, t) = table(input).unwrap();
+        assert!(input.fragment().is_empty(), "Did not consume table");
+        assert!(!t.centered, "Table unexpectedly centered");
+
+        let cell = &t.get_cell(0, 0).unwrap().component;
+        assert_eq!(cell, &Cell::SpanAbove);
+    }
+
+    #[test]
     fn table_should_support_centering_through_indentation() {
         let input = Span::new(" |value1|");
         let (input, t) = table(input).unwrap();
@@ -313,5 +339,23 @@ mod tests {
 
         let cell = &t.get_cell(0, 0).unwrap().component;
         check_cell_text_value(cell, "value1");
+    }
+
+    #[test]
+    fn table_should_support_inline_content_in_cells() {
+        let input = Span::new("|[[some link]]|");
+        let (input, t) = table(input).unwrap();
+        assert!(input.fragment().is_empty(), "Did not consume table");
+        assert!(!t.centered, "Table unexpectedly centered");
+
+        let cell = &t.get_cell(0, 0).unwrap().component;
+        check_cell_value(cell, |c| {
+            assert_eq!(
+                c,
+                &InlineComponent::Link(Link::from(WikiLink::from(
+                    PathBuf::from("some link")
+                )))
+            );
+        });
     }
 }
