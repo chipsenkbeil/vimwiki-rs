@@ -10,6 +10,15 @@ pub struct Table {
     pub centered: bool,
 }
 
+impl Table {
+    pub fn get_cell(&self, row: usize, col: usize) -> Option<&LC<Cell>> {
+        self.rows.get(row).and_then(|r| match &r.component {
+            Row::Content { cells } => cells.get(col),
+            _ => None,
+        })
+    }
+}
+
 #[derive(Clone, Debug, From, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum Row {
     /// Represents a row containing content
