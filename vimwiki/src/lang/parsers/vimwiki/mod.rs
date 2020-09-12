@@ -2,12 +2,12 @@ use super::{
     components::{
         self, BlockComponent, InlineComponent, InlineComponentContainer, Page,
     },
-    utils::{self, position, VimwikiIResult},
+    utils::{self, lc, VimwikiIResult},
     LangParserError, Parser, Span, LC,
 };
 use nom::{
     branch::alt,
-    combinator::{all_consuming, map},
+    combinator::{all_consuming, map, value},
     error::context,
     multi::{many0, many1},
 };
@@ -31,6 +31,7 @@ pub struct VimwikiParser;
 impl Parser for VimwikiParser {
     fn parse_str(text: &str) -> Result<LC<Page>, LangParserError> {
         let input = Span::new(text);
+        // println!("{:?}", page(input));
         Ok(page(input)
             .map_err(|x| LangParserError::from((input, x)))?
             .1)
@@ -41,37 +42,43 @@ impl Parser for VimwikiParser {
 fn page(input: Span) -> VimwikiIResult<LC<Page>> {
     // Continuously parse input for new block components until we have
     // nothing left (or we fail)
-    let (input, pos) = position(input)?;
-    let (input, c) = all_consuming(many0(block_component))(input)?;
-
-    Ok((input, LC::from((Page::new(c), pos, input))))
+    context(
+        "Page",
+        lc(map(
+            all_consuming(context("Page Component", many0(block_component))),
+            Page::new,
+        )),
+    )(input)
 }
 
 /// Parses a block component
 fn block_component(input: Span) -> VimwikiIResult<LC<BlockComponent>> {
-    alt((
-        map(headers::header, |c| c.map(BlockComponent::from)),
-        map(paragraphs::paragraph, |c| c.map(BlockComponent::from)),
-        map(definitions::definition_list, |c| {
-            c.map(BlockComponent::from)
-        }),
-        map(lists::list, |c| c.map(BlockComponent::from)),
-        map(tables::table, |c| c.map(BlockComponent::from)),
-        map(preformatted::preformatted_text, |c| {
-            c.map(BlockComponent::from)
-        }),
-        map(math::math_block, |c| c.map(BlockComponent::from)),
-        map(blockquotes::blockquote, |c| c.map(BlockComponent::from)),
-        map(divider::divider, |c| c.map(BlockComponent::from)),
-        map(tags::tags, |c| c.map(BlockComponent::from)),
-        // NOTE: Parses a single line to end, failing if contains non-whitespace
-        map(blank_line, |c| LC::new(BlockComponent::EmptyLine, c.region)),
-        // NOTE: Parses a single line to end; final type because will match
-        //       anychar and consume the line
-        map(non_blank_line, |c| {
-            LC::new(BlockComponent::from(c.component), c.region)
-        }),
-    ))(input)
+    context(
+        "Block Component",
+        alt((
+            map(headers::header, |c| c.map(BlockComponent::from)),
+            map(paragraphs::paragraph, |c| c.map(BlockComponent::from)),
+            map(definitions::definition_list, |c| {
+                c.map(BlockComponent::from)
+            }),
+            map(lists::list, |c| c.map(BlockComponent::from)),
+            map(tables::table, |c| c.map(BlockComponent::from)),
+            map(preformatted::preformatted_text, |c| {
+                c.map(BlockComponent::from)
+            }),
+            map(math::math_block, |c| c.map(BlockComponent::from)),
+            map(blockquotes::blockquote, |c| c.map(BlockComponent::from)),
+            map(divider::divider, |c| c.map(BlockComponent::from)),
+            map(tags::tags, |c| c.map(BlockComponent::from)),
+            // NOTE: Parses a single line to end, failing if contains non-whitespace
+            map(blank_line, |c| LC::new(BlockComponent::EmptyLine, c.region)),
+            // NOTE: Parses a single line to end; final type because will match
+            //       anychar and consume the line
+            map(non_blank_line, |c| {
+                LC::new(BlockComponent::from(c.component), c.region)
+            }),
+        )),
+    )(input)
 }
 
 /// Parses one or more inline components and wraps it in a container; note
@@ -80,14 +87,10 @@ fn block_component(input: Span) -> VimwikiIResult<LC<BlockComponent>> {
 pub fn inline_component_container(
     input: Span,
 ) -> VimwikiIResult<LC<InlineComponentContainer>> {
-    let (input, pos) = position(input)?;
-
-    let (input, container) = context(
+    context(
         "Inline Component Container",
-        map(many1(inline_component), InlineComponentContainer::from),
-    )(input)?;
-
-    Ok((input, LC::from((container, pos, input))))
+        lc(map(many1(inline_component), InlineComponentContainer::from)),
+    )(input)
 }
 
 /// Parses an inline component, which can only exist on a single line
@@ -111,20 +114,12 @@ pub fn inline_component(input: Span) -> VimwikiIResult<LC<InlineComponent>> {
 
 /// Parses a blank line
 fn blank_line(input: Span) -> VimwikiIResult<LC<()>> {
-    let (input, pos) = position(input)?;
-
-    let (input, _) = utils::blank_line(input)?;
-
-    Ok((input, LC::from(((), pos, input))))
+    context("Blank Line", lc(value((), utils::blank_line)))(input)
 }
 
 /// Parses a non-blank line
 fn non_blank_line(input: Span) -> VimwikiIResult<LC<String>> {
-    let (input, pos) = position(input)?;
-
-    let (input, text) = utils::non_blank_line(input)?;
-
-    Ok((input, LC::from((text, pos, input))))
+    context("Non Blank Line", lc(utils::non_blank_line))(input)
 }
 
 #[cfg(test)]

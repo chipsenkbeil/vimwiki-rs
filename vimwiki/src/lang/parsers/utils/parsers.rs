@@ -2,7 +2,7 @@ use super::{Position, Region, Span, VimwikiIResult, LC};
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_while},
-    character::complete::{anychar, crlf, line_ending, space0},
+    character::complete::{anychar, crlf, line_ending, space0, space1},
     combinator::{
         map, map_res, not, opt, peek, recognize, rest_len, value, verify,
     },
@@ -103,13 +103,17 @@ pub fn blank_line(input: Span) -> VimwikiIResult<String> {
     //
     // 2. We want to eat up all spaces & tabs on that line, followed by a line
     //    termination. If we happen to be at end of input, then that's okay as
-    //    that would be a blank line at the end of a file
+    //    long as there was some space as that would be a blank line at the
+    //    end of a file
     context(
         "Blank Line",
-        map(
-            delimited(beginning_of_line, space0, end_of_line_or_input),
-            |s| s.fragment().to_string(),
-        ),
+        pstring(preceded(
+            beginning_of_line,
+            alt((
+                terminated(space1, end_of_line_or_input),
+                terminated(space0, line_ending),
+            )),
+        )),
     )(input)
 }
 
@@ -287,9 +291,16 @@ mod tests {
     }
 
     #[test]
-    fn blank_line_should_succeed_if_input_empty_and_at_beginning_of_line() {
+    fn blank_line_should_fail_if_input_empty_and_at_beginning_of_line() {
         let input = Span::new("");
-        assert!(blank_line(input).is_ok());
+        assert!(blank_line(input).is_err());
+    }
+    #[test]
+    fn blank_line_should_succeed_if_has_whitespace_but_no_line_termination() {
+        let input = Span::new(" ");
+        let (input, s) = blank_line(input).expect("Failed to parse blank line");
+        assert!(input.fragment().is_empty(), "Did not consume blank line");
+        assert_eq!(s, " ");
     }
 
     #[test]
