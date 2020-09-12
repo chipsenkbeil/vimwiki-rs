@@ -1,0 +1,32 @@
+[package]
+name = "vimwiki-server"
+version = "0.1.0"
+authors = ["Chip Senkbeil <chip@senkbeil.org>"]
+edition = "2018"
+
+[lib]
+name = "vimwiki_server"
+path = "src/lib.rs"
+
+[[bin]]
+name = "vimwiki-server"
+path = "src/main.rs"
+
+[features]
+default = ["cli", "watch", "web"]
+cli = ["clap"]
+watch = ["notify"]
+web = ["juniper_warp", "warp"]
+
+[dependencies]
+juniper = "0.14.2"
+serde_json = "1.0.57"
+vimwiki = { version = "0.1.0", path = "../vimwiki" }
+clap = { version = "3.0.0-beta.1", optional = true }
+notify = { version = "5.0.0-pre.3", optional = true }
+juniper_warp = { version = "0.5.2", optional = true }
+warp = { version = "0.2.4", optional = true }
+
+[dependencies.tokio]
+version = "0.2.22"
+features = ["rt-core", "time", "io-std", "io-util", "macros"]
