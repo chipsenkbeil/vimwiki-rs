@@ -47,12 +47,8 @@ pub use typefaces::*;
 #[derive(
     Constructor, Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize,
 )]
-pub struct Page(Vec<LC<BlockComponent>>);
-
-impl Page {
-    pub fn components(&self) -> &[LC<BlockComponent>] {
-        &self.0
-    }
+pub struct Page {
+    pub components: Vec<LC<BlockComponent>>,
 }
 
 /// Represents components that are standalone (metaphorically a block element in CSS)
@@ -68,8 +64,8 @@ pub enum BlockComponent {
     Blockquote(Blockquote),
     Divider(Divider),
     Tags(Tags),
-    NonemptyLine(String),
-    EmptyLine,
+    NonBlankLine(String),
+    BlankLine,
 }
 
 /// Represents components that can be dropped into other components

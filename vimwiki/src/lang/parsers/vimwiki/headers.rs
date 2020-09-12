@@ -36,7 +36,7 @@ pub fn header(input: Span) -> VimwikiIResult<LC<Header>> {
         take_line_while1(verify(many0_count(char('=')), |count| {
             *count < level
         })),
-        |s: Span| Header::new(level, s.fragment().to_string(), centered),
+        |s: Span| Header::new(level, s.fragment().trim().to_string(), centered),
     )(input)?;
 
     // Fourth, take the right-side of the header's = boundary
@@ -163,5 +163,13 @@ mod tests {
 
         let input = Span::new(" =======test header======= ");
         assert!(header(input).is_err(), "Header succeeded above max level");
+    }
+
+    #[test]
+    fn header_should_trim_whitespace_around_text() {
+        let input = Span::new("= test header\t=");
+        let (input, h) = header(input).unwrap();
+        assert_eq!(*input.fragment(), "", "Did not consume header");
+        assert_eq!(h.text, "test header", "Wrong header text");
     }
 }

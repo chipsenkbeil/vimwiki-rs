@@ -71,12 +71,10 @@ fn block_component(input: Span) -> VimwikiIResult<LC<BlockComponent>> {
             map(divider::divider, |c| c.map(BlockComponent::from)),
             map(tags::tags, |c| c.map(BlockComponent::from)),
             // NOTE: Parses a single line to end, failing if contains non-whitespace
-            map(blank_line, |c| LC::new(BlockComponent::EmptyLine, c.region)),
+            map(blank_line, |c| LC::new(BlockComponent::BlankLine, c.region)),
             // NOTE: Parses a single line to end; final type because will match
             //       anychar and consume the line
-            map(non_blank_line, |c| {
-                LC::new(BlockComponent::from(c.component), c.region)
-            }),
+            map(non_blank_line, |c| c.map(BlockComponent::from)),
         )),
     )(input)
 }

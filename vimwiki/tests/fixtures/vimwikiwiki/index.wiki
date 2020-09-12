@@ -1,0 +1,44 @@
+= Vimwiki Wiki =
+
+*Welcome to the Vimwiki wiki!*
+
+== Official Repositories ==
+
+Here are links to the official Vimwiki repositories:
+
+- [[https://github.com/vimwiki/vimwiki|Vimwiki]]
+- [[https://vimwiki.github.io/vimwikiwiki/|Vimwiki Wiki]] (GitHub pages site built using Vimwiki)
+    - [[https://github.com/vimwiki/vimwikiwiki|source repository]]
+- [[https://github.com/vimwiki/utils|Utilities]]
+- [[https://github.com/vimwiki/testwikis|Test wikis]] - sample wikis in each of
+  the 3 syntax variants. Used for testing and development.
+
+== Wiki Pages ==
+
+Checkout these pages for additional information and tips!
+
+- [[Tips and Snips]]
+- [[Related Tools]]
+- [[Troubleshooting]]
+
+== Chat/Forums ==
+
+- [[https://groups.google.com/forum/#!forum/vimwiki|Google Vimwiki group]]
+- [[https://webchat.freenode.net/?channels=#vimwiki|Freenode Webchat]]
+
+== Outdated Versions ==
+
+These links point to some old versions of Vimwiki that are no longer maintained.
+The original Vimwiki was hosted on Google Code which has since shutdown.
+
+- [[https://code.google.com/archive/p/vimwiki/|Google Code Archive]]
+- [[https://github.com/vimwiki-backup/vimwiki|Google Code Backup on Github]]
+- [[https://www.vim.org/scripts/script.php?script_id=2226|Vimwiki on vim.org]]
+
+== Related Projects ==
+
+- [[https://github.com/lervag/wiki.vim|wiki.vim]]
+- [[https://github.com/fcpg/vim-waikiki|vim-waikiki]]
+- [[https://github.com/jceb/vim-orgmode|vim-orgmode]]
+- [[https://github.com/tbabej/taskwiki|taskwiki]]
+- [[https://github.com/xolox/vim-notes|vim-notes]]
