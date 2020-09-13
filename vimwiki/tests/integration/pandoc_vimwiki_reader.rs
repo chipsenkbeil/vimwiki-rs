@@ -1,11 +1,12 @@
 use super::fixtures::VimwikiFile;
-use vimwiki::{Parser, VimwikiParser};
+use std::convert::TryInto;
+use vimwiki::{components::*, RawStr, LC};
 
 #[test]
 fn test() {
-    let _page = VimwikiParser::parse_str(
-        &VimwikiFile::PandocVimwikiReader.load().unwrap(),
-    )
-    .unwrap();
+    let _page: LC<Page> =
+        RawStr::Vimwiki(&VimwikiFile::PandocVimwikiReader.load().unwrap())
+            .try_into()
+            .unwrap();
     todo!();
 }

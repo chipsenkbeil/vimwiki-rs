@@ -82,28 +82,11 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore]
     fn transclusion_link_should_support_local_relative_uri() {
         let input = Span::new("{{file:../../images/vimwiki_logo.png}}");
         let (input, link) = transclusion_link(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume link");
         assert_eq!(link.uri.scheme().as_str(), "file");
-
-        // Currently failing due to not handling relative URLs as expected:
-        //
-        // - https://github.com/servo/rust-url/issues/641
-        // - https://github.com/vimwiki/vimwiki/issues/989#issuecomment-687900789
-        //
-        // Given that the Url class is following the URL spec instead of URI,
-        // the path is being resolved inline. Couple of options are as follows:
-        //
-        // 1. Use uriparse-rs (it doesn't support serde and hasn't had a
-        //    stable release, only nightly)
-        // 2. Provide a wrapper class around Url that captures the raw input
-        //    and can provide it back along with the Url (maybe even trim
-        //    the scheme on the front)
-        // 3. Store a PathBuf for specific schemes like file: and local: and
-        //    have different handling throughout
         assert_eq!(link.uri.path(), "../../images/vimwiki_logo.png");
         assert_eq!(link.description, None);
         assert!(link.properties.is_empty(), "Unexpectedly found property");

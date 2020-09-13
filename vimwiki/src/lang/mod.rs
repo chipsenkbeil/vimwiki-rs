@@ -121,6 +121,7 @@ mod tests {
     use super::*;
     use std::convert::TryInto;
 
+    /// Contains tests for the vimwiki language parsers
     mod vimwiki {
         use super::*;
 
@@ -158,25 +159,23 @@ mod tests {
                 input.try_into().expect("Failed to parse");
         }
 
-        // #[test]
-        // fn try_from_raw_str_to_lc_comment() {
-        //     let input = RawStr::Vimwiki("some text");
-        //     let _result: LC<Comment> = input.try_into().expect("Failed to parse");
-        // }
+        #[test]
+        #[ignore]
+        fn try_from_raw_str_to_lc_comment() {
+            todo!();
+        }
 
-        // #[test]
-        // fn try_from_raw_str_to_lc_line_comment() {
-        //     let input = RawStr::Vimwiki("some text");
-        //     let _result: LC<LineComment> =
-        //         input.try_into().expect("Failed to parse");
-        // }
+        #[test]
+        #[ignore]
+        fn try_from_raw_str_to_lc_line_comment() {
+            todo!();
+        }
 
-        // #[test]
-        // fn try_from_raw_str_to_lc_multi_line_comment() {
-        //     let input = RawStr::Vimwiki("some text");
-        //     let _result: LC<MultiLineComment> =
-        //         input.try_into().expect("Failed to parse");
-        // }
+        #[test]
+        #[ignore]
+        fn try_from_raw_str_to_lc_multi_line_comment() {
+            todo!();
+        }
 
         #[test]
         fn try_from_raw_str_to_lc_definition_list() {
