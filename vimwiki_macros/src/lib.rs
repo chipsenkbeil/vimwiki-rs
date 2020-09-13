@@ -12,7 +12,7 @@ use tokens::Tokenize;
 mod utils;
 
 macro_rules! impl_macro {
-    ($name:ident, $raw_str:ident, $type:ty) => {
+    ($name:ident, $raw_str:ident, $type:ty, $raw_mode:expr) => {
         #[proc_macro]
         pub fn $name(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let input = TokenStream::from(input);
@@ -27,7 +27,7 @@ macro_rules! impl_macro {
                     )
                 })?;
 
-                let raw_source = utils::input_to_string(first)?;
+                let raw_source = utils::input_to_string(first, $raw_mode)?;
                 let component: $type = RawStr::$raw_str(&raw_source)
                     .try_into()
                     .map_err(|x| Error::new(Span::call_site(), &format!("{}", x)))?;
@@ -49,12 +49,21 @@ macro_rules! impl_macro {
     };
 }
 
-/// Macro that generates a macro in the form of vimwiki_$suffix to convert
-/// the given text to the specified vimwiki type at compile time
+/// Macro that generates two macros in the form of
+///
+///     vimwiki_${suffix}
+///     vimwiki_${suffix}_raw
+///
+/// Both convert the given text to the specified vimwiki type at compile time,
+/// but the raw version uses the string literal as-is while the non-raw
+/// version removes all leading and trailing blank lines AND determines the
+/// minimum indentation level (poor man's indoc) and removes that from the
+/// beginning of each line.
 macro_rules! impl_macro_vimwiki {
     ($suffix:ident, $type:ty) => {
         paste! {
-            impl_macro!([<vimwiki_ $suffix>], Vimwiki, $type);
+            impl_macro!([<vimwiki_ $suffix>], Vimwiki, $type, false);
+            impl_macro!([<vimwiki_ $suffix _raw>], Vimwiki, $type, true);
         }
     };
 }

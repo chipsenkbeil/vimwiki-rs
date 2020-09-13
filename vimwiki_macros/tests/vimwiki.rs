@@ -172,7 +172,79 @@ fn vimwiki_inter_wiki_link() {
 
 #[test]
 fn vimwiki_list() {
-    let x = vimwiki_list!("- some list item");
+    let x = vimwiki_list! {"
+        - some list item
+        - some other list item
+            1. sub list item
+    "};
+    assert_eq!(
+        x.component,
+        List::new(vec![
+            LC::from(EnhancedListItem::new(
+                ListItem::new(
+                    ListItemType::Unordered(UnorderedListItemType::Hyphen),
+                    ListItemSuffix::None,
+                    0,
+                    ListItemContents::new(vec![LC::from(
+                        ListItemContent::InlineContent(
+                            InlineComponentContainer::new(vec![LC::from(
+                                InlineComponent::Text(
+                                    "some list item".to_string()
+                                )
+                            )])
+                        )
+                    )]),
+                ),
+                Default::default(),
+            )),
+            LC::from(EnhancedListItem::new(
+                ListItem::new(
+                    ListItemType::Unordered(UnorderedListItemType::Hyphen),
+                    ListItemSuffix::None,
+                    1,
+                    ListItemContents::new(vec![
+                        LC::from(ListItemContent::InlineContent(
+                            InlineComponentContainer::new(vec![LC::from(
+                                InlineComponent::Text(
+                                    "some other list item".to_string()
+                                )
+                            )])
+                        )),
+                        LC::from(ListItemContent::List(List::new(vec![
+                            LC::from(EnhancedListItem::new(
+                                ListItem::new(
+                                    ListItemType::Ordered(
+                                        OrderedListItemType::Number
+                                    ),
+                                    ListItemSuffix::Period,
+                                    0,
+                                    ListItemContents::new(vec![LC::from(
+                                        ListItemContent::InlineContent(
+                                            InlineComponentContainer::new(
+                                                vec![LC::from(
+                                                    InlineComponent::Text(
+                                                        "sub list item"
+                                                            .to_string()
+                                                    )
+                                                )]
+                                            )
+                                        )
+                                    )]),
+                                ),
+                                Default::default(),
+                            )),
+                        ],)))
+                    ]),
+                ),
+                Default::default(),
+            ))
+        ])
+    );
+}
+
+#[test]
+fn vimwiki_list_raw() {
+    let x = vimwiki_list_raw!("- some list item");
     assert_eq!(
         x.component,
         List::new(vec![LC::from(EnhancedListItem::new(
@@ -201,7 +273,17 @@ fn vimwiki_math_inline() {
 
 #[test]
 fn vimwiki_math_block() {
-    let x = vimwiki_math_block! {r#"{{$
+    let x = vimwiki_math_block! {r#"
+    {{$
+    math
+    }}$
+    "#};
+    assert_eq!(x.component, MathBlock::new(vec!["math".to_string()], None));
+}
+
+#[test]
+fn vimwiki_math_block_raw() {
+    let x = vimwiki_math_block_raw! {r#"{{$
     math
     }}$"#};
     assert_eq!(
@@ -223,7 +305,23 @@ fn vimwiki_paragraph() {
 
 #[test]
 fn vimwiki_preformatted_text() {
-    let x = vimwiki_preformatted_text! {r#"{{{
+    let x = vimwiki_preformatted_text! {r#"
+    {{{
+    some code
+    }}}
+    "#};
+    assert_eq!(
+        x.component,
+        PreformattedText::new(
+            Default::default(),
+            vec!["some code".to_string()]
+        )
+    );
+}
+
+#[test]
+fn vimwiki_preformatted_text_raw() {
+    let x = vimwiki_preformatted_text_raw! {r#"{{{
     some code
     }}}"#};
     assert_eq!(
