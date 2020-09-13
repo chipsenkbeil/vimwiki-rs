@@ -85,11 +85,78 @@ impl<T> From<T> for LocatedComponent<T> {
     }
 }
 
-impl<'a, T> From<(T, Span<'a>, Span<'a>)> for LocatedComponent<T>
-where
-    T: std::fmt::Debug,
-{
+impl<'a, T> From<(T, Span<'a>, Span<'a>)> for LocatedComponent<T> {
     /// Creates a new located component around `T`, using a default location
+    fn from((component, start, end): (T, Span<'a>, Span<'a>)) -> Self {
+        Self::new(component, Region::from((start, end)))
+    }
+}
+
+/// Represents a located component that has strict equality enforcement
+/// (component + region versus just component)
+#[derive(
+    AsRef,
+    AsMut,
+    Constructor,
+    Clone,
+    Debug,
+    Deref,
+    DerefMut,
+    Hash,
+    Eq,
+    PartialEq,
+    Serialize,
+    Deserialize,
+)]
+pub struct StrictLocatedComponent<T> {
+    #[as_ref]
+    #[as_mut]
+    #[deref]
+    #[deref_mut]
+    pub component: T,
+    pub region: Region,
+}
+
+/// Shorthand alias for StrictLocatedComponent
+pub type SLC<T> = StrictLocatedComponent<T>;
+
+impl<T> From<LocatedComponent<T>> for StrictLocatedComponent<T> {
+    fn from(lc: LocatedComponent<T>) -> Self {
+        Self::new(lc.component, lc.region)
+    }
+}
+
+impl<T> From<StrictLocatedComponent<T>> for LocatedComponent<T> {
+    fn from(slc: StrictLocatedComponent<T>) -> Self {
+        Self::new(slc.component, slc.region)
+    }
+}
+
+impl<T: PartialEq> PartialEq<LocatedComponent<T>>
+    for StrictLocatedComponent<T>
+{
+    fn eq(&self, other: &LocatedComponent<T>) -> bool {
+        self.component == other.component && self.region == other.region
+    }
+}
+
+impl<T: PartialEq> PartialEq<StrictLocatedComponent<T>>
+    for LocatedComponent<T>
+{
+    fn eq(&self, other: &StrictLocatedComponent<T>) -> bool {
+        self.component == other.component && self.region == other.region
+    }
+}
+
+impl<T> From<T> for StrictLocatedComponent<T> {
+    /// Creates a new strict located component around `T`, using a default location
+    fn from(t: T) -> Self {
+        Self::new(t, Default::default())
+    }
+}
+
+impl<'a, T> From<(T, Span<'a>, Span<'a>)> for StrictLocatedComponent<T> {
+    /// Creates a new strict located component around `T`, using a default location
     fn from((component, start, end): (T, Span<'a>, Span<'a>)) -> Self {
         Self::new(component, Region::from((start, end)))
     }
@@ -227,5 +294,223 @@ impl<'a> From<(Span<'a>, usize)> for Region {
         let end = Position::from(span.slice(offset..));
 
         Self::new(start, end)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashSet;
+
+    #[test]
+    fn located_component_map_should_transform_inner_component_and_keep_region()
+    {
+        let lc = LC::new(3, Region::from(((1, 2), (3, 4))));
+        let mapped_lc = lc.map(|c| c + 1);
+        assert_eq!(mapped_lc.component, 4);
+        assert_eq!(mapped_lc.region, Region::from(((1, 2), (3, 4))));
+    }
+
+    #[test]
+    fn located_component_wrap_should_apply_function_and_wrap_in_default_region()
+    {
+        let lc = LC::wrap(|x: usize| x.to_string())(3);
+        assert_eq!(lc.component, String::from("3"));
+        assert_eq!(lc.region, Region::default());
+    }
+
+    #[test]
+    fn located_component_wrap_with_region_should_apply_function_and_wrap_in_provided_region(
+    ) {
+        let lc =
+            LC::wrap_with_region(Region::from(((1, 2), (3, 4))), |x: usize| {
+                x.to_string()
+            })(3);
+        assert_eq!(lc.component, String::from("3"));
+        assert_eq!(lc.region, Region::from(((1, 2), (3, 4))));
+    }
+
+    #[test]
+    fn located_component_equality_with_other_located_component_should_only_use_inner_component(
+    ) {
+        let lc1 = LC::new(3, Region::from(((1, 2), (3, 4))));
+        let lc2 = LC::new(3, Region::default());
+        assert_eq!(lc1, lc2);
+    }
+
+    #[test]
+    fn located_component_hashing_should_only_use_inner_component() {
+        let lc1 = LC::new(3, Region::from(((1, 2), (3, 4))));
+        let lc2 = LC::new(3, Region::default());
+        let lc3 = LC::new(4, Region::from(((1, 2), (3, 4))));
+        let lc4 = LC::new(3, Region::from(((1, 2), (3, 4))));
+
+        let mut m = HashSet::new();
+        m.insert(lc1);
+
+        let lc = m.get(&lc2).expect("Failed to retrieve LC with another LC");
+        assert_eq!(lc.component, 3);
+        assert_eq!(lc.region, Region::from(((1, 2), (3, 4))));
+
+        assert_eq!(m.get(&lc3), None);
+
+        let lc = m.get(&lc4).expect("Failed to retrieve LC with another LC");
+        assert_eq!(lc.component, 3);
+        assert_eq!(lc.region, Region::from(((1, 2), (3, 4))));
+    }
+
+    #[test]
+    fn located_component_equality_with_strict_located_component_should_use_inner_component_and_region(
+    ) {
+        let lc = LC::new(3, Region::from(((1, 2), (3, 4))));
+        let slc = SLC::new(3, Region::default());
+        assert!(lc != slc, "{:?} unexpectedly equaled {:?}", lc, slc);
+    }
+
+    #[test]
+    fn strict_located_component_equality_with_other_located_component_should_use_inner_component_and_region(
+    ) {
+        let slc1 = SLC::new(3, Region::from(((1, 2), (3, 4))));
+        let slc2 = SLC::new(3, Region::from(((1, 2), (3, 4))));
+        assert_eq!(slc1, slc2);
+
+        let slc1 = SLC::new(3, Region::from(((1, 2), (3, 4))));
+        let slc2 = SLC::new(3, Region::default());
+        assert!(slc1 != slc2, "{:?} unexpectedly equaled {:?}", slc1, slc2);
+    }
+
+    #[test]
+    fn strict_located_component_hashing_should_use_inner_component_and_region()
+    {
+        let slc1 = SLC::new(3, Region::from(((1, 2), (3, 4))));
+        let slc2 = SLC::new(3, Region::default());
+        let slc3 = SLC::new(4, Region::from(((1, 2), (3, 4))));
+        let slc4 = SLC::new(3, Region::from(((1, 2), (3, 4))));
+
+        let mut m = HashSet::new();
+        m.insert(slc1);
+
+        assert_eq!(m.get(&slc2), None);
+        assert_eq!(m.get(&slc3), None);
+
+        let slc = m.get(&slc4).expect("Failed to get SLC with exact match");
+        assert_eq!(slc.component, 3);
+        assert_eq!(slc.region, Region::from(((1, 2), (3, 4))));
+    }
+
+    #[test]
+    fn strict_located_component_equality_with_located_component_should_use_inner_component_and_region(
+    ) {
+        let slc = SLC::new(3, Region::default());
+        let lc = LC::new(3, Region::from(((1, 2), (3, 4))));
+        assert!(slc != lc, "{:?} unexpectedly equaled {:?}", slc, lc);
+    }
+
+    #[test]
+    fn position_ordering_should_have_position_with_earliest_line_first() {
+        let p1 = Position::new(0, 5);
+        let p2 = Position::new(1, 0);
+        assert!(p1 < p2)
+    }
+
+    #[test]
+    fn position_ordering_should_have_position_with_earliest_column_first_if_lines_are_equal(
+    ) {
+        let p1 = Position::new(1, 1);
+        let p2 = Position::new(1, 2);
+        assert!(p1 < p2)
+    }
+
+    #[test]
+    fn position_is_at_beginning_of_line_should_return_true_if_column_is_0() {
+        assert!(Position::new(1, 0).is_at_beginning_of_line());
+        assert!(!Position::new(1, 1).is_at_beginning_of_line());
+    }
+
+    #[test]
+    fn position_from_span_should_offset_line_and_column_by_1() {
+        let input = Span::new("abc\n123");
+        let p = Position::from(input);
+        assert_eq!(p.line, 0);
+        assert_eq!(p.column, 0);
+
+        fn take5(input: Span) -> nom::IResult<Span, Span> {
+            nom::bytes::complete::take(5usize)(input)
+        }
+
+        let (input, _) = take5(input).unwrap();
+        let p = Position::from(input);
+        assert_eq!(p.line, 1);
+        assert_eq!(p.column, 1);
+    }
+
+    #[test]
+    fn region_contains_should_yield_true_if_between_start_and_end() {
+        let region = Region::from((1, 1, 2, 2));
+        assert!(!region.contains(Position::new(0, 0)));
+        assert!(!region.contains(Position::new(0, 1)));
+        assert!(!region.contains(Position::new(0, 2)));
+        assert!(!region.contains(Position::new(0, 999)));
+        assert!(!region.contains(Position::new(1, 0)));
+        assert!(region.contains(Position::new(1, 1)));
+        assert!(region.contains(Position::new(1, 2)));
+        assert!(region.contains(Position::new(1, 999)));
+        assert!(region.contains(Position::new(2, 0)));
+        assert!(region.contains(Position::new(2, 1)));
+        assert!(region.contains(Position::new(2, 2)));
+        assert!(!region.contains(Position::new(2, 3)));
+    }
+
+    #[test]
+    fn region_from_span_tuple_should_use_start_location_for_end_if_spans_equal()
+    {
+        let input = Span::new("abc\n12345");
+
+        fn take1(input: Span) -> nom::IResult<Span, Span> {
+            nom::bytes::complete::take(1usize)(input)
+        }
+
+        // Start at line 0, column 1
+        let (start, _) = take1(input).unwrap();
+
+        // Start span should be at (1, 2), which is (0, 1) in our coord space
+        assert_eq!(start.location_line(), 1);
+        assert_eq!(start.get_utf8_column(), 2);
+
+        let region = Region::from((start, start));
+        assert_eq!(region, Region::from((0, 1, 0, 1)));
+    }
+
+    #[test]
+    fn region_from_span_tuple_should_assume_second_span_is_right_after_region_ends(
+    ) {
+        let input = Span::new("abc\n12345");
+
+        fn take1(input: Span) -> nom::IResult<Span, Span> {
+            nom::bytes::complete::take(1usize)(input)
+        }
+
+        // Start at line 0, column 1
+        let (start, _) = take1(input).unwrap();
+
+        // Start span should be at (1, 2), which is (0, 1) in our coord space
+        assert_eq!(start.location_line(), 1);
+        assert_eq!(start.get_utf8_column(), 2);
+
+        // End at line 1, column 3
+        let (end, _) = take1(start).unwrap();
+        let (end, _) = take1(end).unwrap();
+        let (end, _) = take1(end).unwrap();
+        let (end, _) = take1(end).unwrap();
+        let (end, _) = take1(end).unwrap();
+        let (end, _) = take1(end).unwrap();
+
+        // Span should now be at (2, 4), which is (1, 3) in our coord space
+        assert_eq!(end.location_line(), 2);
+        assert_eq!(end.get_utf8_column(), 4);
+
+        // region should start at (0, 1) and end at (1, 3-1)
+        let region = Region::from((start, end));
+        assert_eq!(region, Region::from((0, 1, 1, 2)));
     }
 }
