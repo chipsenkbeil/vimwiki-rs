@@ -4,10 +4,14 @@ pub mod lang;
 pub use lang::components;
 
 // Export our top-level parser structs
-pub use lang::parsers::{vimwiki::VimwikiParser, LangParserError, Parser};
+pub use lang::{LangParserError, RawStr};
 
 // Dump our utilities (LocatedComponent, Region, Point, ...) into top level
 pub use lang::utils::*;
 
-// Re-export the URI library so we're able to reconstruct it from macros
-pub use uriparse as uri;
+// Re-export the vendor libraries so we're able to reconstruct their
+// structs from macros
+pub mod vendor {
+    pub use chrono;
+    pub use uriparse;
+}

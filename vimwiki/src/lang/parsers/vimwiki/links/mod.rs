@@ -4,12 +4,12 @@ use super::{
 };
 use nom::{branch::alt, combinator::map, error::context};
 
-mod diary;
-mod external;
-mod interwiki;
-mod raw;
-mod transclusion;
-mod wiki;
+pub(crate) mod diary;
+pub(crate) mod external;
+pub(crate) mod interwiki;
+pub(crate) mod raw;
+pub(crate) mod transclusion;
+pub(crate) mod wiki;
 
 /// Inspecting vimwiki source code, there are a couple of link utils
 ///

@@ -8,7 +8,7 @@ use super::{
 };
 use nom::{
     bytes::complete::tag,
-    character::complete::{char, line_ending},
+    character::complete::{char, line_ending, space0},
     combinator::{map, not, opt},
     error::context,
     multi::many1,
@@ -36,30 +36,43 @@ pub fn math_inline(input: Span) -> VimwikiIResult<LC<MathInline>> {
 pub fn math_block(input: Span) -> VimwikiIResult<LC<MathBlock>> {
     let (input, pos) = position(input)?;
 
+    // First, look for the beginning section including an optional environment
+    let (input, environment) = beginning_of_math_block(input)?;
+
+    // Second, parse all lines while we don't encounter the closing block
+    let (input, lines) =
+        many1(preceded(not(end_of_math_block), any_line))(input)?;
+
+    // Third, parse the closing block
+    let (input, _) = end_of_math_block(input)?;
+
+    let math_block = MathBlock::new(lines, environment);
+    Ok((input, LC::from((math_block, pos, input))))
+}
+
+fn beginning_of_math_block(input: Span) -> VimwikiIResult<Option<String>> {
     let environment_parser = map(
         delimited(char('%'), take_line_while1(not(char('%'))), char('%')),
         |s: Span| s.fragment().to_string(),
     );
 
-    // First, look for the beginning section including an optional environment
     let (input, _) = beginning_of_line(input)?;
+    let (input, _) = space0(input)?;
     let (input, _) = tag("{{$")(input)?;
     let (input, environment) = opt(environment_parser)(input)?;
+    let (input, _) = space0(input)?;
     let (input, _) = line_ending(input)?;
 
-    // Second, parse all lines while we don't encounter the closing block
-    let (input, lines) = many1(preceded(
-        not(delimited(beginning_of_line, tag("$}}"), line_ending)),
-        any_line,
-    ))(input)?;
+    Ok((input, environment))
+}
 
-    // Third, parse the closing block
+fn end_of_math_block(input: Span) -> VimwikiIResult<()> {
     let (input, _) = beginning_of_line(input)?;
-    let (input, _) = tag("$}}")(input)?;
+    let (input, _) = space0(input)?;
+    let (input, _) = tag("}}$")(input)?;
+    let (input, _) = space0(input)?;
     let (input, _) = end_of_line_or_input(input)?;
-
-    let math_block = MathBlock::new(lines, environment);
-    Ok((input, LC::from((math_block, pos, input))))
+    Ok((input, ()))
 }
 
 #[cfg(test)]
@@ -112,7 +125,7 @@ mod tests {
     fn math_block_should_fail_if_does_not_start_with_dedicated_line() {
         let input = Span::new(indoc! {r"
                 \sum_i a_i^2
-            $}}
+            }}$
         "});
         assert!(math_block(input).is_err());
     }
@@ -133,7 +146,7 @@ mod tests {
             \sum_i a_i^2
             =
             1
-            $}}
+            }}$
         "});
         let (input, m) = math_block(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume math block");
@@ -148,7 +161,7 @@ mod tests {
             \sum_i a_i^2
             =
             1
-            $}}
+            }}$
         "});
         assert!(math_block(input).is_err());
 
@@ -157,7 +170,7 @@ mod tests {
             \sum_i a_i^2
             =
             1
-            $}}
+            }}$
         "});
         assert!(math_block(input).is_err());
 
@@ -166,7 +179,7 @@ mod tests {
             \sum_i a_i^2
             =
             1
-            $}}
+            }}$
         "});
         assert!(math_block(input).is_err());
     }
@@ -177,7 +190,7 @@ mod tests {
              {{$%align%
              \sum_i a_i^2 &= 1 + 1 \\
              &= 2.
-             $}}
+             }}$
         "});
         let (input, m) = math_block(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume math block");

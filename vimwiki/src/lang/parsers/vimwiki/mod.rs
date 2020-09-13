@@ -3,7 +3,7 @@ use super::{
         self, BlockComponent, InlineComponent, InlineComponentContainer, Page,
     },
     utils::{self, lc, VimwikiIResult},
-    LangParserError, Parser, Span, LC,
+    Span, LC,
 };
 use nom::{
     branch::alt,
@@ -12,34 +12,21 @@ use nom::{
     multi::{many0, many1},
 };
 
-mod blockquotes;
-mod definitions;
-mod divider;
-mod headers;
-mod links;
-mod lists;
-mod math;
-mod paragraphs;
-mod preformatted;
-mod tables;
-mod tags;
-mod typefaces;
-
-/// Represents a parser for vimwiki files
-pub struct VimwikiParser;
-
-impl Parser for VimwikiParser {
-    fn parse_str(text: &str) -> Result<LC<Page>, LangParserError> {
-        let input = Span::new(text);
-        // println!("{:?}", page(input));
-        Ok(page(input)
-            .map_err(|x| LangParserError::from((input, x)))?
-            .1)
-    }
-}
+pub mod blockquotes;
+pub mod definitions;
+pub mod dividers;
+pub mod headers;
+pub mod links;
+pub mod lists;
+pub mod math;
+pub mod paragraphs;
+pub mod preformatted;
+pub mod tables;
+pub mod tags;
+pub mod typefaces;
 
 /// Parses entire vimwiki page
-fn page(input: Span) -> VimwikiIResult<LC<Page>> {
+pub fn page(input: Span) -> VimwikiIResult<LC<Page>> {
     // Continuously parse input for new block components until we have
     // nothing left (or we fail)
     context(
@@ -52,7 +39,7 @@ fn page(input: Span) -> VimwikiIResult<LC<Page>> {
 }
 
 /// Parses a block component
-fn block_component(input: Span) -> VimwikiIResult<LC<BlockComponent>> {
+pub fn block_component(input: Span) -> VimwikiIResult<LC<BlockComponent>> {
     context(
         "Block Component",
         alt((
@@ -68,7 +55,7 @@ fn block_component(input: Span) -> VimwikiIResult<LC<BlockComponent>> {
             }),
             map(math::math_block, |c| c.map(BlockComponent::from)),
             map(blockquotes::blockquote, |c| c.map(BlockComponent::from)),
-            map(divider::divider, |c| c.map(BlockComponent::from)),
+            map(dividers::divider, |c| c.map(BlockComponent::from)),
             map(tags::tags, |c| c.map(BlockComponent::from)),
             // NOTE: Parses a single line to end, failing if contains non-whitespace
             map(blank_line, |c| LC::new(BlockComponent::BlankLine, c.region)),
