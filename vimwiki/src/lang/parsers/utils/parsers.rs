@@ -10,7 +10,8 @@ use nom::{
     multi::{many0, many1},
     sequence::{delimited, pair, preceded, terminated},
 };
-use url::Url;
+use std::convert::TryFrom;
+use uriparse::URI;
 
 /// Alternative to the `position` function of nom_locate that retains the fragment
 #[inline]
@@ -159,7 +160,7 @@ pub fn pstring<'a>(
     map(parser, |s: Span<'a>| s.fragment().to_string())
 }
 
-/// Parser for a general purpose URL.
+/// Parser for a general purpose URI.
 ///
 /// ### Regular cases
 ///
@@ -175,7 +176,7 @@ pub fn pstring<'a>(
 ///     1. www (www.example.com) -> (https://www.example.com)
 ///     2. // (//some/abs/path) -> (file:/some/abs/path)
 #[inline]
-pub fn url(input: Span) -> VimwikiIResult<Url> {
+pub fn uri(input: Span) -> VimwikiIResult<URI<'static>> {
     // URI = scheme:[//authority]path[?query][#fragment]
     // scheme = sequence of characters beginning with a letter and followed
     //          by any combination of letters, digits, plus (+), period (.),
@@ -190,22 +191,28 @@ pub fn url(input: Span) -> VimwikiIResult<Url> {
         tag(":"),
     );
 
-    // TODO: Do we need to support whitespace in our raw URLs?
+    // TODO: Do we need to support whitespace in our raw URIs?
     context(
-        "Url",
+        "URI",
         map_res(
             recognize(pair(
                 alt((tag("www."), tag("//"), scheme)),
                 many1(pair(not(single_multispace), anychar)),
             )),
-            |s| match *s.fragment() {
-                text if text.starts_with("www.") => {
-                    Url::parse(&["https://", text].join(""))
-                }
-                text if text.starts_with("//") => {
-                    Url::parse(&["file:/", text].join(""))
-                }
-                text => Url::parse(text),
+            |s| {
+                URI::try_from(
+                    match *s.fragment() {
+                        text if text.starts_with("www.") => {
+                            ["https://", text].join("")
+                        }
+                        text if text.starts_with("//") => {
+                            ["file:/", text].join("")
+                        }
+                        text => text.to_string(),
+                    }
+                    .as_str(),
+                )
+                .map(|uri| uri.into_owned())
             },
         ),
     )(input)
@@ -401,56 +408,56 @@ mod tests {
     }
 
     #[test]
-    fn url_should_fail_if_input_empty() {
+    fn uri_should_fail_if_input_empty() {
         let input = Span::new("");
-        assert!(url(input).is_err());
+        assert!(uri(input).is_err());
     }
 
     #[test]
-    fn url_should_fail_if_no_scheme_and_not_www_or_absolute_path() {
+    fn uri_should_fail_if_no_scheme_and_not_www_or_absolute_path() {
         let input = Span::new("example.com");
-        assert!(url(input).is_err());
+        assert!(uri(input).is_err());
     }
 
     #[test]
-    fn url_should_succeed_if_starts_with_www_and_will_add_https_as_scheme() {
+    fn uri_should_succeed_if_starts_with_www_and_will_add_https_as_scheme() {
         let input = Span::new("www.example.com");
-        let (input, u) = url(input).expect("Failed to parse url");
+        let (input, u) = uri(input).expect("Failed to parse uri");
         assert!(input.fragment().is_empty());
         assert_eq!(u.scheme(), "https");
-        assert_eq!(u.host_str(), Some("www.example.com"));
+        assert_eq!(u.host().unwrap().to_string(), "www.example.com");
     }
 
     #[test]
-    fn url_should_succeed_if_starts_with_absolute_path_and_will_add_file_as_scheme(
+    fn uri_should_succeed_if_starts_with_absolute_path_and_will_add_file_as_scheme(
     ) {
         let input = Span::new("//some/absolute/path");
-        let (input, u) = url(input).expect("Failed to parse url");
+        let (input, u) = uri(input).expect("Failed to parse uri");
         assert!(input.fragment().is_empty());
         assert_eq!(u.scheme(), "file");
         assert_eq!(u.path(), "/some/absolute/path");
     }
 
     #[test]
-    fn url_should_succeed_if_starts_with_scheme() {
+    fn uri_should_succeed_if_starts_with_scheme() {
         let input = Span::new("https://github.com/vimwiki/vimwiki.git");
-        let (input, u) = url(input).expect("Failed to parse url");
+        let (input, u) = uri(input).expect("Failed to parse uri");
         assert!(input.fragment().is_empty());
         assert_eq!(u.scheme(), "https");
-        assert_eq!(u.host_str(), Some("github.com"));
+        assert_eq!(u.host().unwrap().to_string(), "github.com");
         assert_eq!(u.path(), "/vimwiki/vimwiki.git");
 
         let input = Span::new("mailto:habamax@gmail.com");
-        let (input, u) = url(input).expect("Failed to parse url");
+        let (input, u) = uri(input).expect("Failed to parse uri");
         assert!(input.fragment().is_empty());
         assert_eq!(u.scheme(), "mailto");
         assert_eq!(u.path(), "habamax@gmail.com");
 
         let input = Span::new("ftp://vim.org");
-        let (input, u) = url(input).expect("Failed to parse url");
+        let (input, u) = uri(input).expect("Failed to parse uri");
         assert!(input.fragment().is_empty());
         assert_eq!(u.scheme(), "ftp");
-        assert_eq!(u.host_str(), Some("vim.org"));
+        assert_eq!(u.host().unwrap().to_string(), "vim.org");
     }
 
     #[test]

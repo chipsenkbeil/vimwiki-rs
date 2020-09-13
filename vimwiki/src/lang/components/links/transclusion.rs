@@ -4,12 +4,12 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::hash::{Hash, Hasher};
-use url::Url;
+use uriparse::URI;
 
 /// Represents a link that is used as a "Wiki Include" to pull in resources
 #[derive(Constructor, Clone, Debug, Eq, Serialize, Deserialize)]
 pub struct TransclusionLink {
-    pub url: Url,
+    pub uri: URI<'static>,
     pub description: Option<Description>,
     pub properties: HashMap<String, String>,
 }
@@ -17,7 +17,7 @@ pub struct TransclusionLink {
 impl TransclusionLink {
     /// Whether or not the associated URL is local to the current system
     pub fn is_local(&self) -> bool {
-        let scheme = self.url.scheme();
+        let scheme = self.uri.scheme().as_str();
         scheme == "file" || scheme == "local" || scheme.is_empty()
     }
 
@@ -29,7 +29,7 @@ impl TransclusionLink {
 
 impl PartialEq for TransclusionLink {
     fn eq(&self, other: &Self) -> bool {
-        self.url == other.url
+        self.uri == other.uri
             && self.description == other.description
             && self.properties == other.properties
     }
@@ -37,7 +37,7 @@ impl PartialEq for TransclusionLink {
 
 impl Hash for TransclusionLink {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.url.hash(state);
+        self.uri.hash(state);
         self.description.hash(state);
 
         // Grab all property keys and sort them so we get a reproducible
@@ -52,16 +52,16 @@ impl Hash for TransclusionLink {
     }
 }
 
-impl From<Url> for TransclusionLink {
-    fn from(url: Url) -> Self {
-        Self::new(url, None, HashMap::default())
+impl From<URI<'static>> for TransclusionLink {
+    fn from(uri: URI<'static>) -> Self {
+        Self::new(uri, None, HashMap::default())
     }
 }
 
 impl TryFrom<&str> for TransclusionLink {
-    type Error = url::ParseError;
+    type Error = uriparse::URIError;
 
-    fn try_from(str_url: &str) -> Result<Self, Self::Error> {
-        Ok(Self::from(Url::parse(str_url)?))
+    fn try_from(str_uri: &str) -> Result<Self, Self::Error> {
+        Ok(Self::from(URI::try_from(str_uri)?.into_owned()))
     }
 }

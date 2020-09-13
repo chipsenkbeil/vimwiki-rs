@@ -1,6 +1,6 @@
 use super::{
     components::{Anchor, Description, WikiLink},
-    utils::{new_nom_error, position, take_line_while1, url},
+    utils::{new_nom_error, position, take_line_while1, uri},
     Span, VimwikiIResult, LC,
 };
 use nom::{
@@ -62,7 +62,7 @@ pub(super) fn wiki_link_internal(input: Span) -> VimwikiIResult<WikiLink> {
         map_parser(
             take_line_while1(not(tag("]]"))),
             alt((
-                description_from_url,
+                description_from_uri,
                 map(rest, |s: Span| {
                     Description::from(s.fragment().to_string())
                 }),
@@ -90,11 +90,11 @@ pub(super) fn wiki_link_internal(input: Span) -> VimwikiIResult<WikiLink> {
 //       we've nested too many parsers without breaking them up into
 //       functions that do NOT take parsers at input
 #[inline]
-fn description_from_url(input: Span) -> VimwikiIResult<Description> {
+fn description_from_uri(input: Span) -> VimwikiIResult<Description> {
     map(
         delimited(
             tag("{{"),
-            map_parser(take_line_while1(not(tag("}}"))), url),
+            map_parser(take_line_while1(not(tag("}}"))), uri),
             tag("}}"),
         ),
         Description::from,
@@ -104,7 +104,8 @@ fn description_from_url(input: Span) -> VimwikiIResult<Description> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use url::Url;
+    use std::convert::TryFrom;
+    use uriparse::URI;
 
     #[test]
     fn wiki_link_should_fail_if_does_not_have_proper_prefix() {
@@ -174,7 +175,9 @@ mod tests {
         assert_eq!(
             link.description,
             Some(Description::from(
-                Url::parse("https://example.com/img.jpg").unwrap()
+                URI::try_from("https://example.com/img.jpg")
+                    .unwrap()
+                    .into_owned()
             ))
         );
         assert_eq!(link.anchor, None);

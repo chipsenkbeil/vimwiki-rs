@@ -67,6 +67,11 @@ impl DefinitionList {
         })
     }
 
+    /// Iterates through all term and definitions instances in list
+    pub fn iter(&self) -> impl Iterator<Item = &TermAndDefinitions> {
+        self.terms_and_definitions.iter()
+    }
+
     /// Iterates through all terms in the list
     pub fn terms(&self) -> impl Iterator<Item = &Term> {
         self.terms_and_definitions.iter().map(|td| &td.term)

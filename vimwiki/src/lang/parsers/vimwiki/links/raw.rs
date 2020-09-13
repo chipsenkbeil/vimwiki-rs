@@ -1,6 +1,6 @@
 use super::{
     components::RawLink,
-    utils::{position, url},
+    utils::{position, uri},
     Span, VimwikiIResult, LC,
 };
 use nom::combinator::verify;
@@ -11,106 +11,99 @@ pub fn raw_link(input: Span) -> VimwikiIResult<LC<RawLink>> {
 
     // This will match any URI, but we only want to allow a certain set
     // to ensure that we don't mistake some text preceding a tag
-    let (input, url) = verify(url, |url| {
+    let (input, uri) = verify(uri, |uri| {
         vec!["http", "https", "ftp", "file", "local", "mailto"]
-            .contains(&url.scheme())
+            .contains(&uri.scheme().as_str())
     })(input)?;
 
-    Ok((input, LC::from((RawLink::from(url), pos, input))))
+    Ok((input, LC::from((RawLink::from(uri), pos, input))))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
 
     #[test]
     fn raw_link_should_support_http_scheme() {
         let input = Span::new("http://example.com");
-        let (input, link) = raw_link(input).expect("Failed to parse url");
+        let (input, link) = raw_link(input).expect("Failed to parse uri");
 
         // Link should be consumed
         assert!(input.fragment().is_empty());
 
-        assert_eq!(link.url.scheme(), "http");
-        assert_eq!(link.url.host_str(), Some("example.com"));
+        assert_eq!(link.uri.scheme(), "http");
+        assert_eq!(link.uri.host().unwrap().to_string(), "example.com");
     }
 
     #[test]
     fn raw_link_should_support_https_scheme() {
         let input = Span::new("https://example.com");
-        let (input, link) = raw_link(input).expect("Failed to parse url");
+        let (input, link) = raw_link(input).expect("Failed to parse uri");
 
         // Link should be consumed
         assert!(input.fragment().is_empty());
 
-        assert_eq!(link.url.scheme(), "https");
-        assert_eq!(link.url.host_str(), Some("example.com"));
+        assert_eq!(link.uri.scheme(), "https");
+        assert_eq!(link.uri.host().unwrap().to_string(), "example.com");
     }
 
     #[test]
     fn raw_link_should_support_no_scheme_with_www() {
         let input = Span::new("www.example.com");
-        let (input, link) = raw_link(input).expect("Failed to parse url");
+        let (input, link) = raw_link(input).expect("Failed to parse uri");
 
         // Link should be consumed
         assert!(input.fragment().is_empty());
 
-        assert_eq!(link.url.scheme(), "https");
-        assert_eq!(link.url.host_str(), Some("www.example.com"));
+        assert_eq!(link.uri.scheme(), "https");
+        assert_eq!(link.uri.host().unwrap().to_string(), "www.example.com");
     }
 
     #[test]
     fn raw_link_should_support_ftp_scheme() {
         let input = Span::new("ftp://example.com");
-        let (input, link) = raw_link(input).expect("Failed to parse url");
+        let (input, link) = raw_link(input).expect("Failed to parse uri");
 
         // Link should be consumed
         assert!(input.fragment().is_empty());
 
-        assert_eq!(link.url.scheme(), "ftp");
-        assert_eq!(link.url.host_str(), Some("example.com"));
+        assert_eq!(link.uri.scheme(), "ftp");
+        assert_eq!(link.uri.host().unwrap().to_string(), "example.com");
     }
 
     #[test]
     fn raw_link_should_support_file_scheme() {
         let input = Span::new("file:///some/path");
-        let (input, link) = raw_link(input).expect("Failed to parse url");
+        let (input, link) = raw_link(input).expect("Failed to parse uri");
 
         // Link should be consumed
         assert!(input.fragment().is_empty());
 
-        assert_eq!(link.url.scheme(), "file");
-        assert_eq!(
-            link.url.to_file_path().unwrap(),
-            PathBuf::from("/some/path")
-        );
+        assert_eq!(link.uri.scheme(), "file");
+        assert_eq!(link.uri.path(), "/some/path");
     }
 
     #[test]
     fn raw_link_should_support_local_scheme() {
         let input = Span::new("local:///some/path");
-        let (input, link) = raw_link(input).expect("Failed to parse url");
+        let (input, link) = raw_link(input).expect("Failed to parse uri");
 
         // Link should be consumed
         assert!(input.fragment().is_empty());
 
-        assert_eq!(link.url.scheme(), "local");
-        assert_eq!(
-            link.url.to_file_path().unwrap(),
-            PathBuf::from("/some/path")
-        );
+        assert_eq!(link.uri.scheme(), "local");
+        assert_eq!(link.uri.path(), "/some/path");
     }
 
     #[test]
     fn raw_link_should_support_mailto_scheme() {
         let input = Span::new("mailto:person@example.com");
-        let (input, link) = raw_link(input).expect("Failed to parse url");
+        let (input, link) = raw_link(input).expect("Failed to parse uri");
 
         // Link should be consumed
         assert!(input.fragment().is_empty());
 
-        assert_eq!(link.url.scheme(), "mailto");
-        assert_eq!(link.url.path(), "person@example.com");
+        assert_eq!(link.uri.scheme(), "mailto");
+        assert_eq!(link.uri.path(), "person@example.com");
     }
 }

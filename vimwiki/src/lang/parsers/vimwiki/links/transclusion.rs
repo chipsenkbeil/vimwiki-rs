@@ -11,16 +11,17 @@ use nom::{
     sequence::{delimited, preceded, separated_pair},
 };
 use std::collections::HashMap;
-use url::Url;
+use std::convert::TryFrom;
+use uriparse::URI;
 
 #[inline]
 pub fn transclusion_link(input: Span) -> VimwikiIResult<LC<TransclusionLink>> {
     let (input, pos) = position(input)?;
 
     let (input, _) = tag("{{")(input)?;
-    let (input, link_url) = map_res(
+    let (input, link_uri) = map_res(
         take_line_while1(not(alt((tag("|"), tag("}}"))))),
-        |s: Span| Url::parse(s.fragment()),
+        |s: Span| URI::try_from(*s.fragment()).map(|uri| uri.into_owned()),
     )(input)?;
     let (input, maybe_description) = opt(map(
         preceded(tag("|"), take_line_while(not(alt((tag("|"), tag("}}")))))),
@@ -34,7 +35,7 @@ pub fn transclusion_link(input: Span) -> VimwikiIResult<LC<TransclusionLink>> {
         input,
         LC::from((
             TransclusionLink::new(
-                link_url,
+                link_uri,
                 maybe_description,
                 maybe_properties.unwrap_or_default(),
             ),
@@ -82,11 +83,11 @@ mod tests {
 
     #[test]
     #[ignore]
-    fn transclusion_link_should_support_local_relative_url() {
+    fn transclusion_link_should_support_local_relative_uri() {
         let input = Span::new("{{file:../../images/vimwiki_logo.png}}");
         let (input, link) = transclusion_link(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume link");
-        assert_eq!(link.url.scheme(), "file");
+        assert_eq!(link.uri.scheme().as_str(), "file");
 
         // Currently failing due to not handling relative URLs as expected:
         //
@@ -103,32 +104,35 @@ mod tests {
         //    the scheme on the front)
         // 3. Store a PathBuf for specific schemes like file: and local: and
         //    have different handling throughout
-        assert_eq!(link.url.as_str(), "../../images/vimwiki_logo.png");
+        assert_eq!(link.uri.path(), "../../images/vimwiki_logo.png");
         assert_eq!(link.description, None);
         assert!(link.properties.is_empty(), "Unexpectedly found property");
     }
 
     #[test]
-    fn transclusion_link_should_support_local_absolute_url() {
+    fn transclusion_link_should_support_local_absolute_uri() {
         let input = Span::new("{{file:/some/path/images/vimwiki_logo.png}}");
         let (input, link) = transclusion_link(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume link");
-        assert_eq!(link.url.scheme(), "file");
-        assert_eq!(link.url.path(), "/some/path/images/vimwiki_logo.png");
+        assert_eq!(link.uri.scheme().as_str(), "file");
+        assert_eq!(link.uri.path(), "/some/path/images/vimwiki_logo.png");
         assert_eq!(link.description, None);
         assert!(link.properties.is_empty(), "Unexpectedly found property");
     }
 
     #[test]
-    fn transclusion_link_should_support_universal_url() {
+    fn transclusion_link_should_support_universal_uri() {
         let input = Span::new(
             "{{http://vimwiki.googlecode.com/hg/images/vimwiki_logo.png}}",
         );
         let (input, link) = transclusion_link(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume link");
-        assert_eq!(link.url.scheme(), "http");
-        assert_eq!(link.url.host_str(), Some("vimwiki.googlecode.com"));
-        assert_eq!(link.url.path(), "/hg/images/vimwiki_logo.png");
+        assert_eq!(link.uri.scheme().as_str(), "http");
+        assert_eq!(
+            link.uri.host().unwrap().to_string(),
+            "vimwiki.googlecode.com"
+        );
+        assert_eq!(link.uri.path(), "/hg/images/vimwiki_logo.png");
         assert_eq!(link.description, None);
         assert!(link.properties.is_empty(), "Unexpectedly found property");
     }
@@ -143,9 +147,12 @@ mod tests {
         let input = Span::new("{{http://vimwiki.googlecode.com/hg/images/vimwiki_logo.png|Vimwiki}}");
         let (input, link) = transclusion_link(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume link");
-        assert_eq!(link.url.scheme(), "http");
-        assert_eq!(link.url.host_str(), Some("vimwiki.googlecode.com"));
-        assert_eq!(link.url.path(), "/hg/images/vimwiki_logo.png");
+        assert_eq!(link.uri.scheme().as_str(), "http");
+        assert_eq!(
+            link.uri.host().unwrap().to_string(),
+            "vimwiki.googlecode.com"
+        );
+        assert_eq!(link.uri.path(), "/hg/images/vimwiki_logo.png");
         assert_eq!(link.description, Some(Description::from("Vimwiki")));
         assert!(link.properties.is_empty(), "Unexpectedly found property");
     }
@@ -160,9 +167,12 @@ mod tests {
         let input = Span::new("{{http://vimwiki.googlecode.com/vimwiki_logo.png|cool stuff|style=\"width:150px;height:120px;\"}}");
         let (input, link) = transclusion_link(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume link");
-        assert_eq!(link.url.scheme(), "http");
-        assert_eq!(link.url.host_str(), Some("vimwiki.googlecode.com"));
-        assert_eq!(link.url.path(), "/vimwiki_logo.png");
+        assert_eq!(link.uri.scheme().as_str(), "http");
+        assert_eq!(
+            link.uri.host().unwrap().to_string(),
+            "vimwiki.googlecode.com"
+        );
+        assert_eq!(link.uri.path(), "/vimwiki_logo.png");
         assert_eq!(link.description, Some(Description::from("cool stuff")));
         assert_eq!(
             link.properties,
@@ -187,9 +197,12 @@ mod tests {
         );
         let (input, link) = transclusion_link(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume link");
-        assert_eq!(link.url.scheme(), "http");
-        assert_eq!(link.url.host_str(), Some("vimwiki.googlecode.com"));
-        assert_eq!(link.url.path(), "/vimwiki_logo.png");
+        assert_eq!(link.uri.scheme().as_str(), "http");
+        assert_eq!(
+            link.uri.host().unwrap().to_string(),
+            "vimwiki.googlecode.com"
+        );
+        assert_eq!(link.uri.path(), "/vimwiki_logo.png");
         assert_eq!(link.description, Some(Description::from("")));
         assert_eq!(
             link.properties,

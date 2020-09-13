@@ -3,7 +3,7 @@ use derive_more::{
     TryInto,
 };
 use serde::{Deserialize, Serialize};
-use url::Url;
+use uriparse::URI;
 
 mod diary;
 pub use diary::DiaryLink;
@@ -29,7 +29,7 @@ pub use wiki::WikiLink;
 )]
 pub enum Description {
     Text(String),
-    URL(Url),
+    URI(URI<'static>),
 }
 
 impl From<&str> for Description {
@@ -57,7 +57,7 @@ impl From<&str> for Description {
     Deserialize,
 )]
 pub struct Anchor {
-    components: Vec<String>,
+    pub components: Vec<String>,
 }
 
 impl From<String> for Anchor {

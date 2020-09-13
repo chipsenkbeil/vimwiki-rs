@@ -1,26 +1,26 @@
 use derive_more::Constructor;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
-use url::Url;
+use uriparse::URI;
 
 /// Represents a raw link in the form of http[s]://example.com
 #[derive(
     Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
 )]
 pub struct RawLink {
-    pub url: Url,
+    pub uri: URI<'static>,
 }
 
-impl From<Url> for RawLink {
-    fn from(url: Url) -> Self {
-        Self::new(url)
+impl From<URI<'static>> for RawLink {
+    fn from(uri: URI<'static>) -> Self {
+        Self::new(uri)
     }
 }
 
 impl TryFrom<&str> for RawLink {
-    type Error = url::ParseError;
+    type Error = uriparse::URIError;
 
-    fn try_from(str_url: &str) -> Result<Self, Self::Error> {
-        Ok(Self::from(Url::parse(str_url)?))
+    fn try_from(str_uri: &str) -> Result<Self, Self::Error> {
+        Ok(Self::from(URI::try_from(str_uri)?.into_owned()))
     }
 }
