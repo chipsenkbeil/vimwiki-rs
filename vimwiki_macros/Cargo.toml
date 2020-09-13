@@ -9,6 +9,7 @@ proc-macro = true
 name = "vimwiki_macros"
 
 [dependencies]
+paste = "1.0"
 proc-macro2 = { version = "1.0", features = [ "span-locations" ] }
 quote = "1.0"
 vimwiki = { version = "0.1.0", path = "../vimwiki" }

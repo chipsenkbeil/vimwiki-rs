@@ -1,5 +1,5 @@
 //! The [`Tokenize`] trait, turning [glsl](https://crates.io/crates/glsl) into [`TokenStream`]s.
-use proc_macro2::TokenStream;
+use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
 use std::collections::{HashMap, HashSet};
 use std::iter::once;
@@ -96,6 +96,7 @@ impl_tokenize!(Blockquote, tokenize_blockquote);
 
 // Comments
 impl_tokenize!(Comment, tokenize_comment);
+impl_tokenize!(LineComment, tokenize_line_comment);
 impl_tokenize!(MultiLineComment, tokenize_multi_line_comment);
 
 // Definitions (NOTE: Generic LocatedComponent def above handles term & def)
@@ -462,6 +463,8 @@ fn tokenize_transclusion_link(
         tokenize_option(&transclusion_link.description, tokenize_description);
     let properties = tokenize_hashmap(
         &transclusion_link.properties,
+        tokenize_string_type(),
+        tokenize_string_type(),
         tokenize_string,
         tokenize_string,
     );
@@ -554,7 +557,7 @@ fn tokenize_uri(uri: &URI) -> TokenStream {
     quote! {
         {
             use std::convert::TryFrom;
-            vimwiki::uri::URI::try_from(#uri_string)
+            vimwiki::vendor::uriparse::URI::try_from(#uri_string.as_str())
                 .expect("Failed to parse URI").into_owned()
         }
     }
@@ -580,6 +583,7 @@ fn tokenize_enhanced_list_item(
     let item = tokenize_list_item(&enhanced_list_item.item);
     let attributes = tokenize_hashset(
         &enhanced_list_item.attributes,
+        quote! { vimwiki::components::EnhancedListItemAttribute },
         tokenize_enhanced_list_item_attribute,
     );
     quote! {
@@ -786,6 +790,8 @@ fn tokenize_preformatted_text(
 ) -> TokenStream {
     let metadata = tokenize_hashmap(
         &preformatted_text.metadata,
+        tokenize_string_type(),
+        tokenize_string_type(),
         tokenize_string,
         tokenize_string,
     );
@@ -980,6 +986,8 @@ fn tokenize_position(position: &Position) -> TokenStream {
 
 fn tokenize_hashmap<K: Tokenize, V: Tokenize>(
     m: &HashMap<K, V>,
+    kty: TokenStream,
+    vty: TokenStream,
     fk: impl Fn(&K) -> TokenStream,
     fv: impl Fn(&V) -> TokenStream,
 ) -> TokenStream {
@@ -988,15 +996,16 @@ fn tokenize_hashmap<K: Tokenize, V: Tokenize>(
         let tv = fv(v);
         quote! { (#tk, #tv) }
     });
-    quote! { std::collections::HashMap::from(vec![#(#pairs),*]) }
+    quote! { vec![#(#pairs),*].drain(..).collect::<std::collections::HashMap<#kty,#vty>>() }
 }
 
 fn tokenize_hashset<T: Tokenize>(
     s: &HashSet<T>,
+    tty: TokenStream,
     f: impl Fn(&T) -> TokenStream,
 ) -> TokenStream {
     let items = s.iter().map(f);
-    quote! { std::collections::HashSet::from(vec![#(#items),*]) }
+    quote! { vec![#(#items),*].drain(..).collect::<std::collections::HashSet<#tty>>() }
 }
 
 fn tokenize_option<T: Tokenize>(
@@ -1032,9 +1041,15 @@ fn tokenize_path_buf(path_buf: &PathBuf) -> TokenStream {
 }
 
 fn tokenize_string(s: &String) -> TokenStream {
-    tokenize_str(s)
+    quote! { #s.to_owned() }
 }
 
 fn tokenize_str(s: &str) -> TokenStream {
-    quote! { #s.to_owned() }
+    quote! { #s }
+}
+
+#[inline]
+fn tokenize_string_type() -> TokenStream {
+    let t = Ident::new("String", Span::call_site());
+    quote! { #t }
 }

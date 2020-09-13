@@ -1,7 +1,7 @@
-use proc_macro2::{
-    token_stream::IntoIter as TokenIter, Span, TokenStream, TokenTree,
-};
-use vimwiki::{Parser, VimwikiParser};
+use paste::paste;
+use proc_macro2::{Span, TokenStream};
+use std::convert::TryInto;
+use vimwiki::{components, RawStr, LC};
 
 mod error;
 use error::{Error, Result};
@@ -9,85 +9,87 @@ use error::{Error, Result};
 mod tokens;
 use tokens::Tokenize;
 
-#[proc_macro]
-pub fn vimwiki(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let input = TokenStream::from(input);
-    let output = expand(input);
+mod utils;
 
-    proc_macro::TokenStream::from(output)
-}
+macro_rules! impl_macro {
+    ($name:ident, $raw_str:ident, $type:ty) => {
+        #[proc_macro]
+        pub fn $name(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+            let input = TokenStream::from(input);
 
-fn expand(input: TokenStream) -> TokenStream {
-    match try_expand(input) {
-        Ok(tokens) => tokens,
-        Err(err) => err.to_compile_error(),
-    }
-}
+            fn try_expand(input: TokenStream) -> Result<TokenStream> {
+                let mut input = input.into_iter();
 
-fn try_expand(input: TokenStream) -> Result<TokenStream> {
-    let mut input = input.into_iter();
+                let first = input.next().ok_or_else(|| {
+                    Error::new(
+                        Span::call_site(),
+                        "unexpected end of macro invocation, expected format string",
+                    )
+                })?;
 
-    let first = input.next().ok_or_else(|| {
-        Error::new(
-            Span::call_site(),
-            "unexpected end of macro invocation, expected format string",
-        )
-    })?;
+                let raw_source = utils::input_to_string(first)?;
+                let component: $type = RawStr::$raw_str(&raw_source)
+                    .try_into()
+                    .map_err(|x| Error::new(Span::call_site(), &format!("{}", x)))?;
 
-    let raw_source = input_to_string(first)?;
+                utils::require_empty_or_trailing_comma(&mut input)?;
 
-    // Options for reporting errors is nicely defined in this StackOverflow
-    // answer: https://stackoverflow.com/a/54394014
-    //
-    // TLDR; Diagnostic API will be the better way in the future, but it is
-    //       still a nightly-only feature. For now, we'll wrap a compile_error
-    //       within a quote_spanned
-    let located_page = VimwikiParser::parse_str(&raw_source)
-        .map_err(|x| Error::new(Span::call_site(), &format!("{}", x)))?;
-
-    require_empty_or_trailing_comma(&mut input)?;
-
-    let mut stream = TokenStream::new();
-    located_page.tokenize(&mut stream);
-    Ok(stream)
-}
-
-fn input_to_string(token: TokenTree) -> Result<String> {
-    let repr = token.to_string();
-    let repr = repr.trim();
-    let is_string = repr.starts_with('"') || repr.starts_with('r');
-    let is_byte_string = repr.starts_with("b\"") || repr.starts_with("br");
-
-    if !is_string && !is_byte_string {
-        return Err(Error::new(
-            token.span(),
-            "argument must be a single string literal",
-        ));
-    }
-
-    let begin = repr.find('"').unwrap() + 1;
-    let end = repr.rfind('"').unwrap();
-    Ok(repr[begin..end].to_string())
-}
-
-fn require_empty_or_trailing_comma(input: &mut TokenIter) -> Result<()> {
-    let first = match input.next() {
-        Some(TokenTree::Punct(punct)) if punct.as_char() == ',' => {
-            match input.next() {
-                Some(second) => second,
-                None => return Ok(()),
+                let mut stream = TokenStream::new();
+                component.tokenize(&mut stream);
+                Ok(stream)
             }
-        }
-        Some(first) => first,
-        None => return Ok(()),
-    };
-    let last = input.last();
 
-    let begin_span = first.span();
-    let end_span = last.as_ref().map_or(begin_span, TokenTree::span);
-    let msg = format!(
-        "unexpected {token} in macro invocation; vimwiki argument must be a single string literal",
-        token = if last.is_some() { "tokens" } else { "token" }
-    );
-    Err(Error::new2(begin_span, end_span, &msg))
+            let output = match try_expand(input) {
+                Ok(tokens) => tokens,
+                Err(err) => err.to_compile_error(),
+            };
+
+            proc_macro::TokenStream::from(output)
+        }
+    };
 }
+
+/// Macro that generates a macro in the form of vimwiki_$suffix to convert
+/// the given text to the specified vimwiki type at compile time
+macro_rules! impl_macro_vimwiki {
+    ($suffix:ident, $type:ty) => {
+        paste! {
+            impl_macro!([<vimwiki_ $suffix>], Vimwiki, $type);
+        }
+    };
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Implement macros for vimwiki
+///////////////////////////////////////////////////////////////////////////////
+impl_macro_vimwiki!(page, LC<components::Page>);
+impl_macro_vimwiki!(block_component, LC<components::BlockComponent>);
+impl_macro_vimwiki!(
+    inline_component_container,
+    LC<components::InlineComponentContainer>
+);
+impl_macro_vimwiki!(inline_component, LC<components::InlineComponent>);
+impl_macro_vimwiki!(blockquote, LC<components::Blockquote>);
+// impl_macro_vimwiki!(comment, LC<components::Comment>);
+// impl_macro_vimwiki!(line_comment, LC<components::LineComment>);
+// impl_macro_vimwiki!(multi_line_comment, LC<components::MultiLineComment>);
+impl_macro_vimwiki!(definition_list, LC<components::DefinitionList>);
+impl_macro_vimwiki!(divider, LC<components::Divider>);
+impl_macro_vimwiki!(header, LC<components::Header>);
+impl_macro_vimwiki!(link, LC<components::Link>);
+impl_macro_vimwiki!(diary_link, LC<components::DiaryLink>);
+impl_macro_vimwiki!(external_file_link, LC<components::ExternalFileLink>);
+impl_macro_vimwiki!(raw_link, LC<components::RawLink>);
+impl_macro_vimwiki!(transclusion_link, LC<components::TransclusionLink>);
+impl_macro_vimwiki!(wiki_link, LC<components::WikiLink>);
+impl_macro_vimwiki!(inter_wiki_link, LC<components::InterWikiLink>);
+impl_macro_vimwiki!(list, LC<components::List>);
+impl_macro_vimwiki!(math_inline, LC<components::MathInline>);
+impl_macro_vimwiki!(math_block, LC<components::MathBlock>);
+impl_macro_vimwiki!(paragraph, LC<components::Paragraph>);
+impl_macro_vimwiki!(preformatted_text, LC<components::PreformattedText>);
+impl_macro_vimwiki!(table, LC<components::Table>);
+impl_macro_vimwiki!(tags, LC<components::Tags>);
+impl_macro_vimwiki!(decorated_text, LC<components::DecoratedText>);
+impl_macro_vimwiki!(keyword, LC<components::Keyword>);
+impl_macro_vimwiki!(string, LC<String>);

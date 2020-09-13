@@ -8,7 +8,7 @@ use super::{
 };
 use nom::{
     bytes::complete::tag,
-    character::complete::char,
+    character::complete::{char, space0},
     combinator::{map, not},
     multi::{many1, separated_list},
     sequence::{delimited, preceded, separated_pair},
@@ -36,6 +36,7 @@ fn preformatted_text_start(
 ) -> VimwikiIResult<HashMap<String, String>> {
     // First, verify we have the start of a block and consume it
     let (input, _) = beginning_of_line(input)?;
+    let (input, _) = space0(input)?;
     let (input, _) = tag("{{{")(input)?;
 
     // Second, look for optional metadata and consume it
@@ -58,6 +59,7 @@ fn preformatted_text_start(
     )(input)?;
 
     // Third, consume end of line
+    let (input, _) = space0(input)?;
     let (input, _) = end_of_line_or_input(input)?;
 
     let mut metadata = HashMap::new();
@@ -71,7 +73,9 @@ fn preformatted_text_start(
 #[inline]
 fn preformatted_text_end(input: Span) -> VimwikiIResult<()> {
     let (input, _) = beginning_of_line(input)?;
+    let (input, _) = space0(input)?;
     let (input, _) = tag("}}}")(input)?;
+    let (input, _) = space0(input)?;
     let (input, _) = end_of_line_or_input(input)?;
 
     Ok((input, ()))
