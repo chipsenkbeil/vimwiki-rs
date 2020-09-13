@@ -77,6 +77,12 @@ impl<T: PartialEq> PartialEq for LocatedComponent<T> {
     }
 }
 
+impl<T: PartialEq> PartialEq<T> for LocatedComponent<T> {
+    fn eq(&self, other: &T) -> bool {
+        &self.component == other
+    }
+}
+
 impl<T: Hash> Hash for LocatedComponent<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.component.hash(state);
@@ -379,6 +385,15 @@ mod tests {
         let lc1 = LC::new(3, Region::from(((1, 2), (3, 4))));
         let lc2 = LC::new(3, Region::default());
         assert_eq!(lc1, lc2);
+    }
+
+    #[test]
+    fn located_component_equality_with_inner_type_should_only_use_inner_component(
+    ) {
+        let lc = LC::new(3, Region::from(((1, 2), (3, 4))));
+        let inner = 3;
+        assert_eq!(lc, inner);
+        assert!(lc != inner + 1);
     }
 
     #[test]
