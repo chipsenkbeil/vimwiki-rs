@@ -1,223 +1,207 @@
 use super::LC;
-use petgraph::{
-    graph::{Graph, NodeIndex},
-    Undirected,
-};
+use derive_more::Constructor;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
+use std::hash::{Hash, Hasher};
 
-/// Represents the type of terms stored in a definition list
+/// Represents the type used for a single term
 pub type Term = LC<String>;
 
-/// Represents the type of definitions stored in a definition list
+/// Represents the type used for a single definition
 pub type Definition = LC<String>;
 
-/// Represents a node in our graph used for definitions
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-enum GraphNode {
-    Term(Term),
-    Definition(Definition),
+/// Represents a term and associated definitions
+#[derive(Constructor, Clone, Debug, Serialize, Deserialize)]
+pub struct TermAndDefinitions {
+    pub term: LC<String>,
+    pub definitions: Vec<Definition>,
+}
+
+impl Eq for TermAndDefinitions {}
+
+impl PartialEq for TermAndDefinitions {
+    fn eq(&self, other: &Self) -> bool {
+        self.term == other.term
+    }
+}
+
+impl PartialEq<LC<String>> for TermAndDefinitions {
+    fn eq(&self, other: &LC<String>) -> bool {
+        &self.term == other
+    }
+}
+
+impl PartialEq<String> for TermAndDefinitions {
+    fn eq(&self, other: &String) -> bool {
+        &self.term.component == other
+    }
+}
+
+impl PartialEq<&str> for TermAndDefinitions {
+    fn eq(&self, other: &&str) -> bool {
+        &self.term.component == other
+    }
+}
+
+impl Hash for TermAndDefinitions {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.term.hash(state);
+    }
 }
 
 /// Represents a list of terms and definitions, where a term can have multiple
 /// definitions associated with it
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(
+    Constructor, Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize,
+)]
 pub struct DefinitionList {
-    graph: Graph<GraphNode, (), Undirected>,
+    terms_and_definitions: HashSet<TermAndDefinitions>,
 }
 
 impl DefinitionList {
-    pub fn new() -> Self {
-        Self::default()
+    /// Retrieves a term and its associated definitions
+    pub fn get(&self, term: &str) -> Option<&TermAndDefinitions> {
+        self.terms_and_definitions.get(&TermAndDefinitions {
+            term: LC::from(term.to_string()),
+            definitions: vec![],
+        })
     }
 
-    /// Adds a new, unconnected term to the list, returning an index that
-    /// is used when connecting a term with a definition
-    pub fn add_term(&mut self, term: Term) -> usize {
-        self.graph.add_node(GraphNode::Term(term)).index()
+    /// Iterates through all terms in the list
+    pub fn terms(&self) -> impl Iterator<Item = &Term> {
+        self.terms_and_definitions.iter().map(|td| &td.term)
     }
 
-    /// Whether or not the list has the specified term
-    pub fn has_term(&self, term: &Term) -> bool {
-        self.find_term_index(term).is_some()
-    }
-
-    /// Adds a new, unconnected definition to the list, returning an index that
-    /// is used when connecting a term with a definition
-    pub fn add_definition(&mut self, def: Definition) -> usize {
-        self.graph.add_node(GraphNode::Definition(def)).index()
-    }
-
-    /// Connects a term with a definition
-    pub fn connect_term_to_definition(
-        &mut self,
-        term_idx: usize,
-        def_idx: usize,
-    ) -> usize {
-        self.graph
-            .add_edge(NodeIndex::new(term_idx), NodeIndex::new(def_idx), ())
-            .index()
-    }
-
-    /// Searches for all definitions associated with term
-    pub fn find_definitions(&self, term: &Term) -> Vec<&Definition> {
-        let g = &self.graph;
-        self.find_term_index(term)
-            .map(|(_, idx)| {
-                g.neighbors(idx)
-                    .flat_map(|idx| match &g[idx] {
-                        GraphNode::Definition(x) => Some(x),
-                        _ => None,
-                    })
-                    .collect::<Vec<&Definition>>()
-            })
-            .unwrap_or_default()
-    }
-
-    /// Searches for all alternative terms to the specified term
-    pub fn find_alternative_terms(&self, term: &Term) -> Vec<&Term> {
-        let g = &self.graph;
-        self.find_term_index(term)
-            .map(|(term, idx)| {
-                g.neighbors(idx)
-                    .flat_map(|idx| match &g[idx] {
-                        GraphNode::Definition(_) => Some(idx),
-                        _ => None,
-                    })
-                    .flat_map(|idx| {
-                        g.neighbors(idx)
-                            .flat_map(|idx| match &g[idx] {
-                                GraphNode::Term(x) if x != term => Some(x),
-                                _ => None,
-                            })
-                            .collect::<Vec<&Term>>()
-                    })
-                    .collect::<Vec<&Term>>()
-            })
-            .unwrap_or_default()
-    }
-
-    /// Finds the index for a term through brute force
-    fn find_term_index<'a>(
-        &'a self,
-        term: &'a Term,
-    ) -> Option<(&'a Term, NodeIndex)> {
-        let g = &self.graph;
-
-        g.node_indices()
-            .find(|i| match &g[*i] {
-                GraphNode::Term(x) => x == term,
-                _ => false,
-            })
-            .map(|idx| (term, idx))
+    /// Retrieves the definitions for a term
+    pub fn defs_for_term(
+        &self,
+        term: &str,
+    ) -> Option<impl Iterator<Item = &Definition>> {
+        self.get(term).map(|td| td.definitions.iter())
     }
 }
 
-impl Eq for DefinitionList {}
+impl From<Vec<TermAndDefinitions>> for DefinitionList {
+    fn from(mut term_and_definitions: Vec<TermAndDefinitions>) -> Self {
+        let mut dl = Self::default();
 
-impl PartialEq for DefinitionList {
-    /// Compares two definition lists, ensuring that their terms and
-    /// definitions are equal as well as the Term <-> Definition associations
-    fn eq(&self, other: &Self) -> bool {
-        // Implementation from Github comment:
-        // https://github.com/petgraph/petgraph/issues/199#issuecomment-484077775
-        let s_ns = self.graph.raw_nodes().iter().map(|n| &n.weight);
-        let o_ns = other.graph.raw_nodes().iter().map(|n| &n.weight);
-        let s_es = self
-            .graph
-            .raw_edges()
-            .iter()
-            .map(|e| (e.source(), e.target(), &e.weight));
-        let o_es = other
-            .graph
-            .raw_edges()
-            .iter()
-            .map(|e| (e.source(), e.target(), &e.weight));
-        s_ns.eq(o_ns) && s_es.eq(o_es)
+        for td in term_and_definitions.drain(..) {
+            dl.terms_and_definitions.insert(td);
+        }
+
+        dl
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::super::LC;
     use super::*;
 
-    impl From<&str> for LC<String> {
-        fn from(text: &str) -> Self {
-            Self::from(text.to_string())
-        }
+    #[test]
+    fn term_and_definitions_should_equal_other_instance_if_names_are_same() {
+        let td1 =
+            TermAndDefinitions::new(LC::from(String::from("term")), vec![]);
+        let td2 = TermAndDefinitions::new(
+            LC::from(String::from("term")),
+            vec![LC::from(String::from("definition"))],
+        );
+        assert_eq!(td1, td2);
     }
 
     #[test]
-    fn find_definitions_should_list_all_definitions_for_term() {
-        let mut dl = DefinitionList::new();
-
-        let t1 = dl.add_term("term1".into());
-        let d0 = dl.add_definition("def text".into());
-        let d1 = dl.add_definition("def1".into());
-        dl.connect_term_to_definition(t1, d0);
-        dl.connect_term_to_definition(t1, d1);
-
-        let t2 = dl.add_term("term2".into());
-        let d2 = dl.add_definition("def2".into());
-        dl.connect_term_to_definition(t2, d2);
-
-        dl.add_term("term3".into());
-
-        // Test looking for defs of term with multiple defs
-        let defs = dl.find_definitions(&"term1".into());
-        assert_eq!(2, defs.len());
-
-        // Test looking for defs of term with one def
-        let defs = dl.find_definitions(&"term2".into());
-        assert_eq!(1, defs.len());
-
-        // Test looking for defs of term with no defs
-        let defs = dl.find_definitions(&"term3".into());
-        assert_eq!(0, defs.len());
-
-        // Test looking for defs of term that does not exist
-        let defs = dl.find_definitions(&"term4".into());
-        assert_eq!(0, defs.len());
+    fn term_and_definitions_should_equal_lc_string_if_name_equals_string() {
+        let td =
+            TermAndDefinitions::new(LC::from(String::from("term")), vec![]);
+        let other = LC::from(String::from("term"));
+        assert_eq!(td, other);
     }
 
     #[test]
-    fn find_alternative_terms_should_list_all_terms_with_same_definitions() {
-        let mut dl = DefinitionList::new();
+    fn term_and_definitions_should_equal_string_if_name_equals_string() {
+        let td =
+            TermAndDefinitions::new(LC::from(String::from("term")), vec![]);
+        let other = String::from("term");
+        assert_eq!(td, other);
+    }
 
-        let t0 = dl.add_term("term0".into());
-        let t1 = dl.add_term("term1".into());
-        let t2 = dl.add_term("term2".into());
-        let t3 = dl.add_term("term3".into());
-        let t4 = dl.add_term("term4".into());
-        dl.add_term("term5".into());
+    #[test]
+    fn term_and_definitions_should_equal_str_slice_if_name_equals_str_slice() {
+        let td =
+            TermAndDefinitions::new(LC::from(String::from("term")), vec![]);
+        let other = "term";
+        assert_eq!(td, other);
+    }
 
-        let d0 = dl.add_definition("def0".into());
-        let d1 = dl.add_definition("def1".into());
+    #[test]
+    fn term_and_definitions_should_hash_using_its_name() {
+        let td1 =
+            TermAndDefinitions::new(LC::from(String::from("term")), vec![]);
+        let td2 = TermAndDefinitions::new(
+            LC::from(String::from("term")),
+            vec![LC::from(String::from("definition"))],
+        );
 
-        dl.connect_term_to_definition(t0, d0);
-        dl.connect_term_to_definition(t1, d0);
-        dl.connect_term_to_definition(t2, d0);
+        // Insert first TermAndDefinitions and use second, which has definitions
+        // with the same name, to look up the first
+        let mut hs = HashSet::new();
+        hs.insert(td1);
+        assert_eq!(hs.len(), 1);
+        assert!(hs.get(&td2).is_some());
+    }
 
-        dl.connect_term_to_definition(t3, d1);
-        dl.connect_term_to_definition(t4, d1);
+    #[test]
+    fn definition_list_should_be_able_to_get_term_and_definitions_by_term_name()
+    {
+        let dl = DefinitionList::from(vec![TermAndDefinitions::new(
+            LC::from(String::from("term")),
+            vec![LC::from(String::from("definition"))],
+        )]);
+        assert!(dl.get("term").is_some());
+    }
 
-        // Test looking for alternate terms for term that has multiple
-        let terms = dl.find_alternative_terms(&"term1".into());
-        assert_eq!(terms.len(), 2);
-        assert!(terms.contains(&(&LC::from("term0"))));
-        assert!(terms.contains(&(&LC::from("term2"))));
+    #[test]
+    fn definition_list_should_be_able_to_iterate_through_terms() {
+        let dl = DefinitionList::from(vec![
+            TermAndDefinitions::new(
+                LC::from(String::from("term1")),
+                vec![LC::from(String::from("definition"))],
+            ),
+            TermAndDefinitions::new(LC::from(String::from("term2")), vec![]),
+        ]);
 
-        // Test looking for alternate terms for term that has one
-        let terms = dl.find_alternative_terms(&"term3".into());
-        assert_eq!(terms.len(), 1);
-        assert_eq!(terms, vec![&LC::from("term4")]);
+        let term_names =
+            dl.terms().map(|t| &t.component[..]).collect::<Vec<&str>>();
+        assert_eq!(term_names.len(), 2);
+        assert!(term_names.contains(&"term1"));
+        assert!(term_names.contains(&"term2"));
+    }
 
-        // Test looking for alternate terms for term that has no alternatives
-        let terms = dl.find_alternative_terms(&"term5".into());
-        assert_eq!(terms.len(), 0);
+    #[test]
+    fn definition_list_should_be_able_to_iterate_through_definitions_for_term()
+    {
+        let dl = DefinitionList::from(vec![
+            TermAndDefinitions::new(
+                LC::from(String::from("term1")),
+                vec![LC::from(String::from("definition"))],
+            ),
+            TermAndDefinitions::new(LC::from(String::from("term2")), vec![]),
+        ]);
 
-        // Test looking for alternate terms for term that does not exist
-        let terms = dl.find_alternative_terms(&"term999".into());
-        assert_eq!(terms.len(), 0);
+        let defs = dl
+            .defs_for_term("term1")
+            .expect("Failed to find term")
+            .map(|d| &d.component[..])
+            .collect::<Vec<&str>>();
+        assert_eq!(defs.len(), 1);
+        assert!(defs.contains(&"definition"));
+
+        let defs = dl
+            .defs_for_term("term2")
+            .expect("Failed to find term")
+            .map(|d| &d.component[..])
+            .collect::<Vec<&str>>();
+        assert!(defs.is_empty());
+
+        assert!(dl.defs_for_term("term-unknown").is_none());
     }
 }
