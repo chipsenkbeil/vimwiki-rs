@@ -64,6 +64,11 @@ impl<T> LocatedComponent<T> {
             Self::new(component, region)
         }
     }
+
+    /// Converts LocatedComponent to a strict variant
+    pub fn into_strict(self) -> StrictLocatedComponent<T> {
+        self.into()
+    }
 }
 
 impl<T: PartialEq> PartialEq for LocatedComponent<T> {
@@ -115,6 +120,44 @@ pub struct StrictLocatedComponent<T> {
     #[deref_mut]
     pub component: T,
     pub region: Region,
+}
+
+impl<T> StrictLocatedComponent<T> {
+    /// Maps a `StrictLocatedComponent<T>` to `StrictLocatedComponent<U>` by
+    /// applying a function to the underlying component. Useful when upleveling
+    /// the component (such as wrapping a Header) while the region remains
+    /// unchanged.
+    #[inline]
+    pub fn map<U>(self, f: impl FnOnce(T) -> U) -> StrictLocatedComponent<U> {
+        StrictLocatedComponent::new(f(self.component), self.region)
+    }
+
+    /// Wraps a function that would transform some input into a type `T` such
+    /// that the higher-order function will transform some input into a
+    /// `StrictLocatedComponent<T>` (with default region).
+    #[inline]
+    pub fn wrap<U>(f: impl Fn(U) -> T) -> impl Fn(U) -> Self {
+        Self::wrap_with_region(Default::default(), f)
+    }
+
+    /// Wraps a function that would transform some input into a type `T` such
+    /// that the higher-order function will transform some input into a
+    /// `StrictLocatedComponent<T>`.
+    #[inline]
+    pub fn wrap_with_region<U>(
+        region: Region,
+        f: impl Fn(U) -> T,
+    ) -> impl Fn(U) -> Self {
+        move |input| {
+            let component = f(input);
+            Self::new(component, region)
+        }
+    }
+
+    /// Converts StrictLocatedComponent to a loose variant
+    pub fn into_loose(self) -> LocatedComponent<T> {
+        self.into()
+    }
 }
 
 /// Shorthand alias for StrictLocatedComponent
@@ -365,6 +408,34 @@ mod tests {
         let lc = LC::new(3, Region::from(((1, 2), (3, 4))));
         let slc = SLC::new(3, Region::default());
         assert!(lc != slc, "{:?} unexpectedly equaled {:?}", lc, slc);
+    }
+
+    #[test]
+    fn strict_located_component_map_should_transform_inner_component_and_keep_region(
+    ) {
+        let slc = SLC::new(3, Region::from(((1, 2), (3, 4))));
+        let mapped_slc = slc.map(|c| c + 1);
+        assert_eq!(mapped_slc.component, 4);
+        assert_eq!(mapped_slc.region, Region::from(((1, 2), (3, 4))));
+    }
+
+    #[test]
+    fn strict_located_component_wrap_should_apply_function_and_wrap_in_default_region(
+    ) {
+        let slc = SLC::wrap(|x: usize| x.to_string())(3);
+        assert_eq!(slc.component, String::from("3"));
+        assert_eq!(slc.region, Region::default());
+    }
+
+    #[test]
+    fn strict_located_component_wrap_with_region_should_apply_function_and_wrap_in_provided_region(
+    ) {
+        let slc = SLC::wrap_with_region(
+            Region::from(((1, 2), (3, 4))),
+            |x: usize| x.to_string(),
+        )(3);
+        assert_eq!(slc.component, String::from("3"));
+        assert_eq!(slc.region, Region::from(((1, 2), (3, 4))));
     }
 
     #[test]

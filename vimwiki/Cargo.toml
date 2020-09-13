@@ -40,3 +40,4 @@ features = ["serde-1"]
 
 [dev-dependencies]
 indoc = "1.0.2"
+vimwiki_macros = { version = "0.1.0", path = "../vimwiki_macros" }

@@ -1,6 +1,7 @@
 use super::fixtures::VimwikiFile;
 use std::convert::TryInto;
 use vimwiki::{components::*, RawStr, LC};
+use vimwiki_macros::*;
 
 #[test]
 fn test() {
