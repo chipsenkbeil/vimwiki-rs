@@ -99,6 +99,9 @@ impl_try_from!(LC<MathBlock>, vimwiki::math::math_block);
 // Paragraphs
 impl_try_from!(LC<Paragraph>, vimwiki::paragraphs::paragraph);
 
+// Placeholders
+impl_try_from!(LC<Placeholder>, vimwiki::placeholders::placeholder);
+
 // Preformatted Text
 impl_try_from!(
     LC<PreformattedText>,
@@ -270,6 +273,13 @@ mod tests {
         fn try_from_raw_str_to_lc_paragraph() {
             let input = RawStr::Vimwiki("some text");
             let _result: LC<Paragraph> =
+                input.try_into().expect("Failed to parse");
+        }
+
+        #[test]
+        fn try_from_raw_str_to_lc_placeholder() {
+            let input = RawStr::Vimwiki("%title some text");
+            let _result: LC<Placeholder> =
                 input.try_into().expect("Failed to parse");
         }
 

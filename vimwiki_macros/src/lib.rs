@@ -96,6 +96,7 @@ impl_macro_vimwiki!(list, LC<components::List>);
 impl_macro_vimwiki!(math_inline, LC<components::MathInline>);
 impl_macro_vimwiki!(math_block, LC<components::MathBlock>);
 impl_macro_vimwiki!(paragraph, LC<components::Paragraph>);
+impl_macro_vimwiki!(placeholder, LC<components::Placeholder>);
 impl_macro_vimwiki!(preformatted_text, LC<components::PreformattedText>);
 impl_macro_vimwiki!(table, LC<components::Table>);
 impl_macro_vimwiki!(tags, LC<components::Tags>);

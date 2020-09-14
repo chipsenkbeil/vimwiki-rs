@@ -147,6 +147,9 @@ impl_tokenize!(MathBlock, tokenize_math_block);
 // Paragraphs
 impl_tokenize!(Paragraph, tokenize_paragraph);
 
+// Placeholders
+impl_tokenize!(Placeholder, tokenize_placeholder);
+
 // Preformatted Text
 impl_tokenize!(PreformattedText, tokenize_preformatted_text);
 
@@ -213,6 +216,10 @@ fn tokenize_block_component(block_component: &BlockComponent) -> TokenStream {
         BlockComponent::Paragraph(x) => {
             let t = tokenize_paragraph(&x);
             quote! { vimwiki::components::BlockComponent::Paragraph(#t) }
+        }
+        BlockComponent::Placeholder(x) => {
+            let t = tokenize_placeholder(&x);
+            quote! { vimwiki::components::BlockComponent::Placeholder(#t) }
         }
         BlockComponent::PreformattedText(x) => {
             let t = tokenize_preformatted_text(&x);
@@ -779,6 +786,38 @@ fn tokenize_paragraph(paragraph: &Paragraph) -> TokenStream {
     quote! {
         vimwiki::components::Paragraph {
             content: #content,
+        }
+    }
+}
+
+// Placeholders
+
+fn tokenize_placeholder(placeholder: &Placeholder) -> TokenStream {
+    match &placeholder {
+        Placeholder::Date(x) => {
+            let t = tokenize_naive_date(&x);
+            quote! { vimwiki::components::Placeholder::Date(#t) }
+        }
+        Placeholder::NoHtml => {
+            quote! { vimwiki::components::Placeholder::NoHtml }
+        }
+        Placeholder::Other { name, value } => {
+            let name_t = tokenize_string(&name);
+            let value_t = tokenize_string(&value);
+            quote! {
+                vimwiki::components::Placeholder::Other {
+                    name: #name_t,
+                    value: #value_t,
+                }
+            }
+        }
+        Placeholder::Template(x) => {
+            let t = tokenize_string(&x);
+            quote! { vimwiki::components::Placeholder::Template(#t) }
+        }
+        Placeholder::Title(x) => {
+            let t = tokenize_string(&x);
+            quote! { vimwiki::components::Placeholder::Title(#t) }
         }
     }
 }

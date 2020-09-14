@@ -29,6 +29,9 @@ pub use math::*;
 mod paragraphs;
 pub use paragraphs::*;
 
+mod placeholders;
+pub use placeholders::*;
+
 mod preformatted;
 pub use preformatted::*;
 
@@ -65,6 +68,7 @@ pub enum BlockComponent {
     Blockquote(Blockquote),
     Divider(Divider),
     Tags(Tags),
+    Placeholder(Placeholder),
     NonBlankLine(String),
     BlankLine,
 }
@@ -89,4 +93,5 @@ lc_mapping!(MathBlock);
 lc_mapping!(Blockquote);
 lc_mapping!(Divider);
 lc_mapping!(Tags);
+lc_mapping!(Placeholder);
 lc_mapping!(String);

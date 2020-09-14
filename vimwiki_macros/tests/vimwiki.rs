@@ -304,6 +304,33 @@ fn vimwiki_paragraph() {
 }
 
 #[test]
+fn vimwiki_placeholder() {
+    assert_eq!(
+        vimwiki_placeholder!("%date 2012-03-05").component,
+        Placeholder::Date(NaiveDate::from_ymd(2012, 3, 5)),
+    );
+    assert_eq!(
+        vimwiki_placeholder!("%nohtml").component,
+        Placeholder::NoHtml,
+    );
+    assert_eq!(
+        vimwiki_placeholder!("%other some text").component,
+        Placeholder::Other {
+            name: "other".to_string(),
+            value: "some text".to_string()
+        },
+    );
+    assert_eq!(
+        vimwiki_placeholder!("%template my_template").component,
+        Placeholder::Template("my_template".to_string()),
+    );
+    assert_eq!(
+        vimwiki_placeholder!("%title some text").component,
+        Placeholder::Title("some text".to_string()),
+    );
+}
+
+#[test]
 fn vimwiki_preformatted_text() {
     let x = vimwiki_preformatted_text! {r#"
     {{{
