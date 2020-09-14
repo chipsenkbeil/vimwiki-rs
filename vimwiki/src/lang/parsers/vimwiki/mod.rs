@@ -32,7 +32,7 @@ pub fn page(input: Span) -> VimwikiIResult<LC<Page>> {
     context(
         "Page",
         lc(map(
-            all_consuming(context("Page Component", many0(block_component))),
+            all_consuming(context("Page Components", many0(block_component))),
             Page::new,
         )),
     )(input)

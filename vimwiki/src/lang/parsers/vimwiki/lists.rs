@@ -5,7 +5,7 @@ use super::{
         ListItemType, OrderedListItemType, UnorderedListItemType,
     },
     inline_component_container,
-    utils::{beginning_of_line, end_of_line_or_input, position},
+    utils::{beginning_of_line, end_of_line_or_input, lc, position},
     Span, VimwikiIResult, LC,
 };
 use nom::{
@@ -13,82 +13,87 @@ use nom::{
     bytes::complete::{tag, take_while1},
     character::complete::{digit1, one_of, space0},
     combinator::{map, opt, peek, value, verify},
+    error::context,
     multi::{fold_many0, many0, many1},
     sequence::{pair, preceded, terminated},
 };
 
 #[inline]
 pub fn list(input: Span) -> VimwikiIResult<LC<List>> {
-    let (input, pos) = position(input)?;
+    fn inner(input: Span) -> VimwikiIResult<List> {
+        // A list must at least have one item, whose indentation level we will
+        // use to determine how far to go
+        let (input, (indentation, item)) = list_item(input)?;
 
-    // A list must at least have one item, whose indentation level we will
-    // use to determine how far to go
-    let (input, (indentation, item)) = list_item(input)?;
+        // TODO: Keep track of indentation level for a list based on its first
+        //       item
+        //
+        //       1. Any item with a greater indentation level is a sublist
+        //       2. Any item with equal indentation level MUST have matching
+        //          prefix type
+        //       3. Continuing a list's content must match indentation level to
+        //          point where list content starts (not prefix) and must not
+        //          start with any other list prefix
+        //       4. Any item with less indentation terminates a list
+        //       5. Non-blank line not starting with a list item terminates a list
+        //       6. Blank line terminates a list
+        let (input, (_, items)) = fold_many0(
+            preceded(
+                verify(indentation_level(false), |level| *level == indentation),
+                map(list_item, |x| x.1),
+            ),
+            (1, vec![item]),
+            |(index, mut items), mut item| {
+                // NOTE: The index information isn't available to the list_item
+                //       parser, so we have to assign it here
+                item.pos = index;
 
-    // TODO: Keep track of indentation level for a list based on its first
-    //       item
-    //
-    //       1. Any item with a greater indentation level is a sublist
-    //       2. Any item with equal indentation level MUST have matching
-    //          prefix type
-    //       3. Continuing a list's content must match indentation level to
-    //          point where list content starts (not prefix) and must not
-    //          start with any other list prefix
-    //       4. Any item with less indentation terminates a list
-    //       5. Non-blank line not starting with a list item terminates a list
-    //       6. Blank line terminates a list
-    let (input, (_, items)) = fold_many0(
-        preceded(
-            verify(indentation_level(false), |level| *level == indentation),
-            map(list_item, |x| x.1),
-        ),
-        (1, vec![item]),
-        |(index, mut items), mut item| {
-            // NOTE: The index information isn't available to the list_item
-            //       parser, so we have to assign it here
-            item.pos = index;
+                items.push(item);
+                (index + 1, items)
+            },
+        )(input)?;
 
-            items.push(item);
-            (index + 1, items)
-        },
-    )(input)?;
+        // NOTE: When parsing list item types, we aren't able to distinguish
+        //       alphabetic versus roman numerals as they both involve
+        //       alphabetic characters. We need to analyze the entire list after
+        //       it is created to see if all items resolved to roman numerals,
+        //       otherwise we will need to convert types to alphabetic instead
+        Ok((input, List::new(items).normalize().to_owned()))
+    }
 
-    // NOTE: When parsing list item types, we aren't able to distinguish
-    //       alphabetic versus roman numerals as they both involve
-    //       alphabetic characters. We need to analyze the entire list after
-    //       it is created to see if all items resolved to roman numerals,
-    //       otherwise we will need to convert types to alphabetic instead
-    let l = List::new(items).normalize().to_owned();
-
-    Ok((input, LC::from((l, pos, input))))
+    context("List", lc(inner))(input)
 }
 
 /// Parse space/tabs before a list item, followed by the list item
 #[inline]
 fn list_item(input: Span) -> VimwikiIResult<(usize, LC<EnhancedListItem>)> {
-    // 1. Start at the beginning of the line
-    let (input, _) = beginning_of_line(input)?;
+    fn inner(input: Span) -> VimwikiIResult<(usize, LC<EnhancedListItem>)> {
+        // 1. Start at the beginning of the line
+        let (input, _) = beginning_of_line(input)?;
 
-    // 2. Determine the indentation level of this list item
-    let (input, indentation) = indentation_level(true)(input)?;
+        // 2. Determine the indentation level of this list item
+        let (input, indentation) = indentation_level(true)(input)?;
 
-    // 3. Ensure that the item starts with a valid prefix
-    let (input, pos) = position(input)?;
-    let (input, item) = map(
-        pair(list_item_prefix, list_item_tail(indentation)),
-        |((item_type, item_suffix), (maybe_attr, contents))| {
-            // NOTE: To make things easier, we aren't assigning the index
-            //       within this parser; rather, we put a filler index and
-            //       will assign the actual index in the parent parser
-            let item = ListItem::new(item_type, item_suffix, 0, contents);
-            match maybe_attr {
-                Some(attr) => EnhancedListItem::new_with_attr(item, attr),
-                None => EnhancedListItem::from(item),
-            }
-        },
-    )(input)?;
+        // 3. Ensure that the item starts with a valid prefix
+        let (input, pos) = position(input)?;
+        let (input, item) = map(
+            pair(list_item_prefix, list_item_tail(indentation)),
+            |((item_type, item_suffix), (maybe_attr, contents))| {
+                // NOTE: To make things easier, we aren't assigning the index
+                //       within this parser; rather, we put a filler index and
+                //       will assign the actual index in the parent parser
+                let item = ListItem::new(item_type, item_suffix, 0, contents);
+                match maybe_attr {
+                    Some(attr) => EnhancedListItem::new_with_attr(item, attr),
+                    None => EnhancedListItem::from(item),
+                }
+            },
+        )(input)?;
 
-    Ok((input, (indentation, LC::from((item, pos, input)))))
+        Ok((input, (indentation, LC::from((item, pos, input)))))
+    }
+
+    context("List Item", inner)(input)
 }
 
 #[inline]
