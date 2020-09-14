@@ -44,7 +44,6 @@ pub fn block_component(input: Span) -> VimwikiIResult<LC<BlockComponent>> {
         "Block Component",
         alt((
             map(headers::header, |c| c.map(BlockComponent::from)),
-            map(paragraphs::paragraph, |c| c.map(BlockComponent::from)),
             map(definitions::definition_list, |c| {
                 c.map(BlockComponent::from)
             }),
@@ -56,6 +55,7 @@ pub fn block_component(input: Span) -> VimwikiIResult<LC<BlockComponent>> {
             map(math::math_block, |c| c.map(BlockComponent::from)),
             map(blockquotes::blockquote, |c| c.map(BlockComponent::from)),
             map(dividers::divider, |c| c.map(BlockComponent::from)),
+            map(paragraphs::paragraph, |c| c.map(BlockComponent::from)),
             map(tags::tags, |c| c.map(BlockComponent::from)),
             // NOTE: Parses a single line to end, failing if contains non-whitespace
             map(blank_line, |c| LC::new(BlockComponent::BlankLine, c.region)),
