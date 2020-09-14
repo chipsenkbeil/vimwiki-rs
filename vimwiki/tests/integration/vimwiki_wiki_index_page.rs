@@ -1,15 +1,27 @@
-use super::fixtures::VimwikiFile;
+use super::{fixtures::VimwikiFile, utils::blank_line};
 use std::convert::TryInto;
 use vimwiki::{components::*, RawStr, LC};
 use vimwiki_macros::*;
 
 #[test]
 fn test() {
-    let _page: LC<Page> =
+    let page: LC<Page> =
         RawStr::Vimwiki(&VimwikiFile::VimwikiWikiIndex.load().unwrap())
             .try_into()
             .unwrap();
-    todo!();
+
+    assert_eq!(
+        page.components,
+        vec![
+            vimwiki_header!("= Vimwiki Wiki =").map(BlockComponent::from),
+            blank_line(),
+            vimwiki_paragraph!("*Welcome to the Vimwiki wiki!*")
+                .map(BlockComponent::from),
+            blank_line(),
+            vimwiki_header!("== Official Repositories ==")
+                .map(BlockComponent::from),
+        ]
+    );
 
     // {
     //     let c = &page.components[0];

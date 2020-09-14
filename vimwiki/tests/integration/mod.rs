@@ -1,4 +1,4 @@
-use super::fixtures;
+use super::{fixtures, utils};
 
 mod pandoc_vimwiki_reader;
 mod vimwiki_wiki_index_page;

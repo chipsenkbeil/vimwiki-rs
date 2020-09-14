@@ -1,7 +1,5 @@
 use super::utils::LC;
-use derive_more::{
-    Constructor, Deref, DerefMut, From, Index, IndexMut, Into, IntoIterator,
-};
+use derive_more::{Constructor, From};
 use serde::{Deserialize, Serialize};
 
 mod blockquotes;
@@ -43,6 +41,9 @@ pub use tags::*;
 mod typefaces;
 pub use typefaces::*;
 
+mod inline;
+pub use inline::*;
+
 /// Represents a full page containing different components
 #[derive(
     Constructor, Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize,
@@ -68,89 +69,24 @@ pub enum BlockComponent {
     BlankLine,
 }
 
-/// Represents components that can be dropped into other components
-#[derive(Clone, Debug, From, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub enum InlineComponent {
-    Text(String),
-    DecoratedText(DecoratedText),
-    Keyword(Keyword),
-    Link(Link),
-    Tags(Tags),
-    Math(MathInline),
+macro_rules! lc_mapping {
+    ($type:ty) => {
+        impl From<LC<$type>> for LC<BlockComponent> {
+            fn from(component: LC<$type>) -> Self {
+                component.map(BlockComponent::from)
+            }
+        }
+    };
 }
 
-/// Represents a convenience wrapper around a series of inline components
-#[derive(
-    Constructor,
-    Clone,
-    Debug,
-    Deref,
-    DerefMut,
-    From,
-    Index,
-    IndexMut,
-    Into,
-    IntoIterator,
-    Eq,
-    PartialEq,
-    Hash,
-    Serialize,
-    Deserialize,
-)]
-pub struct InlineComponentContainer {
-    pub components: Vec<LC<InlineComponent>>,
-}
-
-impl From<Vec<InlineComponentContainer>> for InlineComponentContainer {
-    fn from(mut containers: Vec<Self>) -> Self {
-        Self::new(containers.drain(..).flat_map(|c| c.components).collect())
-    }
-}
-
-impl From<LC<InlineComponent>> for InlineComponentContainer {
-    fn from(component: LC<InlineComponent>) -> Self {
-        Self::new(vec![component])
-    }
-}
-
-impl From<LC<&str>> for InlineComponentContainer {
-    fn from(component: LC<&str>) -> Self {
-        Self::from(component.map(|x| x.to_string()))
-    }
-}
-
-impl From<LC<String>> for InlineComponentContainer {
-    fn from(component: LC<String>) -> Self {
-        Self::from(component.map(InlineComponent::from))
-    }
-}
-
-impl From<LC<DecoratedText>> for InlineComponentContainer {
-    fn from(component: LC<DecoratedText>) -> Self {
-        Self::from(component.map(InlineComponent::from))
-    }
-}
-
-impl From<LC<Keyword>> for InlineComponentContainer {
-    fn from(component: LC<Keyword>) -> Self {
-        Self::from(component.map(InlineComponent::from))
-    }
-}
-
-impl From<LC<Link>> for InlineComponentContainer {
-    fn from(component: LC<Link>) -> Self {
-        Self::from(component.map(InlineComponent::from))
-    }
-}
-
-impl From<LC<Tags>> for InlineComponentContainer {
-    fn from(component: LC<Tags>) -> Self {
-        Self::from(component.map(InlineComponent::from))
-    }
-}
-
-impl From<LC<MathInline>> for InlineComponentContainer {
-    fn from(component: LC<MathInline>) -> Self {
-        Self::from(component.map(InlineComponent::from))
-    }
-}
+lc_mapping!(Header);
+lc_mapping!(Paragraph);
+lc_mapping!(DefinitionList);
+lc_mapping!(List);
+lc_mapping!(Table);
+lc_mapping!(PreformattedText);
+lc_mapping!(MathBlock);
+lc_mapping!(Blockquote);
+lc_mapping!(Divider);
+lc_mapping!(Tags);
+lc_mapping!(String);
