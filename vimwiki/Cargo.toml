@@ -1,6 +1,6 @@
 [package]
 name = "vimwiki"
-version = "0.1.0"
+version = "0.1.0-alpha.1"
 authors = ["Chip Senkbeil <chip@senkbeil.org>"]
 edition = "2018"
 
@@ -40,4 +40,4 @@ features = ["serde-1"]
 
 [dev-dependencies]
 indoc = "1.0.2"
-vimwiki_macros = { version = "0.1.0", path = "../vimwiki_macros" }
+vimwiki_macros = { version = "0.1.0-alpha.1", path = "../vimwiki_macros" }

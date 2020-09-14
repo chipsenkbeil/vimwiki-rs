@@ -1,8 +1,11 @@
-use vimwiki_server::{Parser, VimwikiParser};
+use std::convert::TryInto;
+use vimwiki_server::{components::Page, RawStr, LC};
 
 #[tokio::main]
 async fn main() {
-    let input = "= Some Header =\n=Another Header=\n=Third Header=";
+    let input =
+        RawStr::Vimwiki("= Some Header =\n=Another Header=\n=Third Header=");
+    let page: LC<Page> = input.try_into().expect("Failed to parse input");
 
-    println!("{:?}", VimwikiParser::parse_str(input));
+    println!("{:?}", page);
 }
