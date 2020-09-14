@@ -65,6 +65,13 @@ impl<T> LocatedComponent<T> {
         }
     }
 
+    /// Takes a `LocatedComponent` and replaces its region, producing the
+    /// updated region. This is takes ownership of the existing component!
+    pub fn take_with_region(mut self, region: Region) -> Self {
+        self.region = region;
+        self
+    }
+
     /// Converts LocatedComponent to a strict variant
     pub fn into_strict(self) -> StrictLocatedComponent<T> {
         self.into()
@@ -158,6 +165,13 @@ impl<T> StrictLocatedComponent<T> {
             let component = f(input);
             Self::new(component, region)
         }
+    }
+
+    /// Takes a `StrictLocatedComponent` and replaces its region, producing the
+    /// updated region. This is takes ownership of the existing component!
+    pub fn take_with_region(mut self, region: Region) -> Self {
+        self.region = region;
+        self
     }
 
     /// Converts StrictLocatedComponent to a loose variant
