@@ -1,5 +1,5 @@
 [package]
-name = "vimwiki-server"
+name = "vimwiki_server"
 description = "Daemon that supports parsing and modifying vimwiki files."
 categories = ["web-programming::http-server"]
 version = "0.1.0-alpha.1"
