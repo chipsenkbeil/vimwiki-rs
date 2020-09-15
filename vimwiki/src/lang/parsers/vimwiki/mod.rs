@@ -2,7 +2,7 @@ use super::{
     components::{
         self, BlockComponent, InlineComponent, InlineComponentContainer, Page,
     },
-    utils::{self, lc, position, scan, VimwikiIResult},
+    utils::{self, lc, offset, position, scan, VimwikiIResult},
     Span, LC,
 };
 use nom::{
@@ -35,10 +35,12 @@ pub fn page(input: Span) -> VimwikiIResult<LC<Page>> {
 
         // First, parse the page for comments and remove all from input,
         // skipping over any character that is not a comment
-        let (_, comments) =
-            context("Page Comments", scan(comments::comment))(input)?;
+        let (_, mut offsets_and_comments) =
+            context("Page Comments", scan(offset(comments::comment)))(input)?;
 
         // Second, produce a new custom span that skips over commented regions
+        let offsets: Vec<(usize, usize)> =
+            offsets_and_comments.iter().map(|x| x.0).collect();
         // todo!();
 
         // Third, continuously parse input for new block components until we
@@ -50,6 +52,7 @@ pub fn page(input: Span) -> VimwikiIResult<LC<Page>> {
 
         // Fourth, return a page wrapped in a location that comprises the
         // entire input
+        let comments = offsets_and_comments.drain(..).map(|x| x.1).collect();
         let input = input.slice(input.input_len()..);
         Ok((
             input,

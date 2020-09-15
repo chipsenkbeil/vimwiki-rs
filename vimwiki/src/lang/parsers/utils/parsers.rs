@@ -32,6 +32,23 @@ pub fn lc<'a, T>(
     }
 }
 
+/// Parser that wraps another parser's output in a tuple that also echos out
+/// the offset range (starting offset and ending offset inclusive)
+#[inline]
+pub fn offset<'a, T>(
+    parser: impl Fn(Span<'a>) -> VimwikiIResult<T>,
+) -> impl Fn(Span<'a>) -> VimwikiIResult<((usize, usize), T)> {
+    move |input: Span<'a>| {
+        let start = input.location_offset();
+        let (input, x) = parser(input)?;
+        let mut end = input.location_offset();
+        if end > 0 {
+            end -= 1;
+        }
+        Ok((input, ((start, end), x)))
+    }
+}
+
 /// Parser that will consume an end of line (\n or \r\n) or do nothing if
 /// the input is empty
 #[inline]
@@ -648,5 +665,25 @@ mod tests {
             "scan did not consume all input"
         );
         assert_eq!(results, vec!['a', 'a']);
+    }
+
+    #[test]
+    fn offset_should_include_the_starting_and_ending_offset_of_consumed_parser()
+    {
+        let input = Span::new("aba");
+        let (input, ((start, end), results)) =
+            offset(take(2usize))(input).unwrap();
+        assert_eq!(
+            *input.fragment(),
+            "a",
+            "offset did not consume expected input"
+        );
+        assert_eq!(start, 0, "Start was wrong position");
+        assert_eq!(end, 1, "End was wrong position");
+        assert_eq!(
+            *results.fragment(),
+            "ab",
+            "Parser did not function properly"
+        );
     }
 }
