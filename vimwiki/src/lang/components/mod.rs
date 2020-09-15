@@ -52,7 +52,11 @@ pub use inline::*;
     Constructor, Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize,
 )]
 pub struct Page {
+    /// Comprised of the components within a page
     pub components: Vec<LC<BlockComponent>>,
+
+    /// Comprised of the comments within a page
+    pub comments: Vec<LC<Comment>>,
 }
 
 /// Represents components that are standalone (metaphorically a block element in CSS)

@@ -173,9 +173,14 @@ fn tokenize_page(page: &Page) -> TokenStream {
         .components
         .iter()
         .map(|c| tokenize_located_component(c, tokenize_block_component));
+    let comments = page
+        .comments
+        .iter()
+        .map(|c| tokenize_located_component(c, tokenize_comment));
     quote! {
         vimwiki::components::Page {
             components: vec![#(#components),*],
+            comments: vec![#(#comments),*],
         }
     }
 }

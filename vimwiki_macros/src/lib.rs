@@ -79,9 +79,9 @@ impl_macro_vimwiki!(
 );
 impl_macro_vimwiki!(inline_component, LC<components::InlineComponent>);
 impl_macro_vimwiki!(blockquote, LC<components::Blockquote>);
-// impl_macro_vimwiki!(comment, LC<components::Comment>);
-// impl_macro_vimwiki!(line_comment, LC<components::LineComment>);
-// impl_macro_vimwiki!(multi_line_comment, LC<components::MultiLineComment>);
+impl_macro_vimwiki!(comment, LC<components::Comment>);
+impl_macro_vimwiki!(line_comment, LC<components::LineComment>);
+impl_macro_vimwiki!(multi_line_comment, LC<components::MultiLineComment>);
 impl_macro_vimwiki!(definition_list, LC<components::DefinitionList>);
 impl_macro_vimwiki!(divider, LC<components::Divider>);
 impl_macro_vimwiki!(header, LC<components::Header>);

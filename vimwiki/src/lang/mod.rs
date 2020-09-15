@@ -56,9 +56,9 @@ impl_try_from!(LC<InlineComponent>, vimwiki::inline_component);
 impl_try_from!(LC<Blockquote>, vimwiki::blockquotes::blockquote);
 
 // Comments
-// impl_try_from!(LC<Comment>, vimwiki::comments::comment);
-// impl_try_from!(LC<LineComment>, vimwiki::comments::line_comment);
-// impl_try_from!(LC<MultiLineComment>, vimwiki::comments::multi_line_comment);
+impl_try_from!(LC<Comment>, vimwiki::comments::comment);
+impl_try_from!(LC<LineComment>, vimwiki::comments::line_comment);
+impl_try_from!(LC<MultiLineComment>, vimwiki::comments::multi_line_comment);
 
 // Definitions (NOTE: Generic LocatedComponent def above handles term & def)
 impl_try_from!(LC<DefinitionList>, vimwiki::definitions::definition_list);
@@ -163,21 +163,24 @@ mod tests {
         }
 
         #[test]
-        #[ignore]
         fn try_from_raw_str_to_lc_comment() {
-            todo!();
+            let input = RawStr::Vimwiki("%% some comment");
+            let _result: LC<Comment> =
+                input.try_into().expect("Failed to parse");
         }
 
         #[test]
-        #[ignore]
         fn try_from_raw_str_to_lc_line_comment() {
-            todo!();
+            let input = RawStr::Vimwiki("%% some comment");
+            let _result: LC<LineComment> =
+                input.try_into().expect("Failed to parse");
         }
 
         #[test]
-        #[ignore]
         fn try_from_raw_str_to_lc_multi_line_comment() {
-            todo!();
+            let input = RawStr::Vimwiki("%%+ some comment +%%");
+            let _result: LC<MultiLineComment> =
+                input.try_into().expect("Failed to parse");
         }
 
         #[test]

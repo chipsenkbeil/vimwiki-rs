@@ -1,7 +1,7 @@
-use super::{Position, Region, Span, VimwikiIResult, LC};
+use super::{new_nom_error, Position, Region, Span, VimwikiIResult, LC};
 use nom::{
     branch::alt,
-    bytes::complete::{tag, take_while},
+    bytes::complete::{tag, take, take_while},
     character::complete::{anychar, crlf, line_ending, space0, space1},
     combinator::{
         map, map_res, not, opt, peek, recognize, rest_len, value, verify,
@@ -158,6 +158,44 @@ pub fn pstring<'a>(
     parser: impl Fn(Span<'a>) -> VimwikiIResult<Span<'a>>,
 ) -> impl Fn(Span<'a>) -> VimwikiIResult<String> {
     map(parser, |s: Span<'a>| s.fragment().to_string())
+}
+
+/// Parser that scans through the entire input, applying the provided parser
+/// and returning a series of results whenever a parser succeeds
+#[inline]
+pub fn scan<'a, T>(
+    parser: impl Fn(Span<'a>) -> VimwikiIResult<T>,
+) -> impl Fn(Span<'a>) -> VimwikiIResult<Vec<T>> {
+    move |mut input: Span<'a>| {
+        fn advance(input: Span) -> VimwikiIResult<()> {
+            value((), take(1usize))(input)
+        }
+
+        let mut output = Vec::new();
+
+        loop {
+            if let Ok((i, item)) = parser(input) {
+                // No advancement happened, so error to prevent infinite loop
+                if i == input {
+                    return Err(nom::Err::Error(new_nom_error(
+                        i,
+                        "scan detected infinite loop",
+                    )));
+                }
+
+                output.push(item);
+                input = i;
+                continue;
+            }
+
+            match advance(input) {
+                Ok((i, _)) => input = i,
+                _ => break,
+            }
+        }
+
+        Ok((input, output))
+    }
 }
 
 /// Parser for a general purpose URI.
@@ -565,5 +603,50 @@ mod tests {
         let (input, taken) = take_line_while1(char('-'))(input).unwrap();
         assert_eq!(*input.fragment(), "");
         assert_eq!(*taken.fragment(), "-----");
+    }
+
+    #[test]
+    fn scan_should_fail_if_no_advancement_is_made_with_parser() {
+        let input = Span::new("aaa");
+        assert!(scan(not(char('b')))(input).is_err());
+    }
+
+    #[test]
+    fn scan_should_yield_an_empty_vec_if_input_empty() {
+        let input = Span::new("");
+        let (_, results) = scan(char('a'))(input).unwrap();
+        assert!(results.is_empty(), "Unexpectedly found parser results");
+    }
+
+    #[test]
+    fn scan_should_consume_all_input() {
+        let input = Span::new("abc");
+        let (input, _) = scan(char('a'))(input).unwrap();
+        assert!(
+            input.fragment().is_empty(),
+            "scan did not consume all input"
+        );
+    }
+
+    #[test]
+    fn scan_should_yield_an_empty_vec_if_parser_never_succeeds() {
+        let input = Span::new("bbb");
+        let (input, results) = scan(char('a'))(input).unwrap();
+        assert!(
+            input.fragment().is_empty(),
+            "scan did not consume all input"
+        );
+        assert!(results.is_empty(), "Unexpectedly found results");
+    }
+
+    #[test]
+    fn scan_should_yield_a_vec_containing_all_of_parser_successes() {
+        let input = Span::new("aba");
+        let (input, results) = scan(char('a'))(input).unwrap();
+        assert!(
+            input.fragment().is_empty(),
+            "scan did not consume all input"
+        );
+        assert_eq!(results, vec!['a', 'a']);
     }
 }

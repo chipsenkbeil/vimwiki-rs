@@ -2,7 +2,7 @@ use super::{
     components::{
         self, BlockComponent, InlineComponent, InlineComponentContainer, Page,
     },
-    utils::{self, lc, VimwikiIResult},
+    utils::{self, lc, position, scan, VimwikiIResult},
     Span, LC,
 };
 use nom::{
@@ -10,9 +10,11 @@ use nom::{
     combinator::{all_consuming, map, value},
     error::context,
     multi::{many0, many1},
+    InputLength, Slice,
 };
 
 pub mod blockquotes;
+pub mod comments;
 pub mod definitions;
 pub mod dividers;
 pub mod headers;
@@ -28,15 +30,34 @@ pub mod typefaces;
 
 /// Parses entire vimwiki page
 pub fn page(input: Span) -> VimwikiIResult<LC<Page>> {
-    // Continuously parse input for new block components until we have
-    // nothing left (or we fail)
-    context(
-        "Page",
-        lc(map(
-            all_consuming(context("Page Components", many0(block_component))),
-            Page::new,
-        )),
-    )(input)
+    fn inner(input: Span) -> VimwikiIResult<LC<Page>> {
+        let (input, pos) = position(input)?;
+
+        // First, parse the page for comments and remove all from input,
+        // skipping over any character that is not a comment
+        let (_, comments) =
+            context("Page Comments", scan(comments::comment))(input)?;
+
+        // Second, produce a new custom span that skips over commented regions
+        // todo!();
+
+        // Third, continuously parse input for new block components until we
+        // have nothing left (or we fail)
+        let (_, components) = context(
+            "Page Components",
+            all_consuming(many0(block_component)),
+        )(input)?;
+
+        // Fourth, return a page wrapped in a location that comprises the
+        // entire input
+        let input = input.slice(input.input_len()..);
+        Ok((
+            input,
+            LC::from((Page::new(components, comments), pos, input)),
+        ))
+    }
+
+    context("Page", inner)(input)
 }
 
 /// Parses a block component

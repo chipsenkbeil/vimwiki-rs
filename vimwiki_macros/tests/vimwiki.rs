@@ -11,11 +11,14 @@ fn vimwiki_page() {
     let x = vimwiki_page!("some text");
     assert_eq!(
         x.component,
-        Page::new(vec![LC::from(BlockComponent::Paragraph(Paragraph::new(
-            InlineComponentContainer::new(vec![LC::from(
-                InlineComponent::Text("some text".to_string())
-            )])
-        )))])
+        Page::new(
+            vec![LC::from(BlockComponent::Paragraph(Paragraph::new(
+                InlineComponentContainer::new(vec![LC::from(
+                    InlineComponent::Text("some text".to_string())
+                )])
+            )))],
+            vec![]
+        )
     );
 }
 
@@ -56,21 +59,27 @@ fn vimwiki_blockquote() {
 }
 
 #[test]
-#[ignore]
 fn vimwiki_comment() {
-    todo!();
+    let x = vimwiki_comment!("%% some comment");
+    assert_eq!(
+        x.component,
+        Comment::from(LineComment(" some comment".to_string()))
+    );
 }
 
 #[test]
-#[ignore]
 fn vimwiki_line_comment() {
-    todo!();
+    let x = vimwiki_line_comment!("%% some comment");
+    assert_eq!(x.component, LineComment(" some comment".to_string()));
 }
 
 #[test]
-#[ignore]
 fn vimwiki_multi_line_comment() {
-    todo!();
+    let x = vimwiki_multi_line_comment!("%%+ some comment +%%");
+    assert_eq!(
+        x.component,
+        MultiLineComment(vec![" some comment ".to_string()])
+    );
 }
 
 #[test]
