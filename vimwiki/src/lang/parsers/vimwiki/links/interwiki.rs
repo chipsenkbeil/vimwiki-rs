@@ -1,6 +1,6 @@
 use super::{
     components::{IndexedInterWikiLink, InterWikiLink, NamedInterWikiLink},
-    utils::{new_nom_error, take_line_while1},
+    utils::{take_line_while1, VimwikiNomError},
     wiki::wiki_link,
     Span, VimwikiIResult, LC,
 };
@@ -12,7 +12,7 @@ use std::path::PathBuf;
 pub fn inter_wiki_link(input: Span) -> VimwikiIResult<LC<InterWikiLink>> {
     let (input, mut link) = wiki_link(input)?;
     let path = link.path.to_str().ok_or_else(|| {
-        nom::Err::Error(new_nom_error(input, "Not interwiki link"))
+        nom::Err::Error(VimwikiNomError::from_ctx(input, "Not interwiki link"))
     })?;
 
     if let Some((path, index)) = parse_index_from_path(path) {
@@ -37,7 +37,10 @@ pub fn inter_wiki_link(input: Span) -> VimwikiIResult<LC<InterWikiLink>> {
         ));
     }
 
-    Err(nom::Err::Error(new_nom_error(input, "not interwiki link")))
+    Err(nom::Err::Error(VimwikiNomError::from_ctx(
+        input,
+        "not interwiki link",
+    )))
 }
 
 fn parse_index_from_path(path: &str) -> Option<(&str, u32)> {

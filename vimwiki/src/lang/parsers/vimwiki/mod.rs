@@ -63,8 +63,7 @@ pub fn page(input: Span) -> VimwikiIResult<LC<Page>> {
         let (_, components) = context(
             "Page Components",
             all_consuming(many0(block_component)),
-        )(no_comments_input)
-        .unwrap();
+        )(no_comments_input)?;
 
         // Fourth, return a page wrapped in a location that comprises the
         // entire input

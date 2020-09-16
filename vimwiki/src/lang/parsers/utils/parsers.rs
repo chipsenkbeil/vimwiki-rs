@@ -1,4 +1,4 @@
-use super::{new_nom_error, Position, Region, Span, VimwikiIResult, LC};
+use super::{Position, Region, Span, VimwikiIResult, VimwikiNomError, LC};
 use nom::{
     branch::alt,
     bytes::complete::{tag, take, take_while},
@@ -192,7 +192,7 @@ pub fn scan<'a, T>(
             if let Ok((i, item)) = parser(input) {
                 // No advancement happened, so error to prevent infinite loop
                 if i == input {
-                    return Err(nom::Err::Error(new_nom_error(
+                    return Err(nom::Err::Error(VimwikiNomError::from_ctx(
                         i,
                         "scan detected infinite loop",
                     )));

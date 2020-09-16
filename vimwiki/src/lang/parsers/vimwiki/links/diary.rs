@@ -1,6 +1,6 @@
 use super::{
     components::DiaryLink,
-    utils::{new_nom_error, take_line_while1},
+    utils::{take_line_while1, VimwikiNomError},
     wiki::wiki_link,
     Span, VimwikiIResult, LC,
 };
@@ -16,7 +16,7 @@ pub fn diary_link(input: Span) -> VimwikiIResult<LC<DiaryLink>> {
     // diary as the path
     let (input, link) = wiki_link(input)?;
     let path = link.path.to_str().ok_or_else(|| {
-        nom::Err::Error(new_nom_error(input, "Not diary link"))
+        nom::Err::Error(VimwikiNomError::from_ctx(input, "Not diary link"))
     })?;
 
     // Second, check if the link is a diary
@@ -25,7 +25,10 @@ pub fn diary_link(input: Span) -> VimwikiIResult<LC<DiaryLink>> {
             input,
             link.map(|c| DiaryLink::new(date, c.description, c.anchor)),
         )),
-        _ => Err(nom::Err::Error(new_nom_error(input, "Not diary link"))),
+        _ => Err(nom::Err::Error(VimwikiNomError::from_ctx(
+            input,
+            "Not diary link",
+        ))),
     }
 }
 

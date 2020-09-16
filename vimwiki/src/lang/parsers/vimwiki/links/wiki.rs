@@ -1,6 +1,6 @@
 use super::{
     components::{Anchor, Description, WikiLink},
-    utils::{new_nom_error, position, take_line_while1, uri},
+    utils::{position, take_line_while1, uri, VimwikiNomError},
     Span, VimwikiIResult, LC,
 };
 use nom::{
@@ -78,7 +78,7 @@ pub(super) fn wiki_link_internal(input: Span) -> VimwikiIResult<WikiLink> {
             input,
             WikiLink::new(PathBuf::new(), maybe_description, maybe_anchor),
         )),
-        None => Err(nom::Err::Error(new_nom_error(
+        None => Err(nom::Err::Error(VimwikiNomError::from_ctx(
             input,
             "Missing path and anchor",
         ))),

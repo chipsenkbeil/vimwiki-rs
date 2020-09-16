@@ -23,10 +23,14 @@ macro_rules! parse {
         match &$raw_str {
             RawStr::Vimwiki(s) => {
                 let input = new_span(*s);
-                Ok($f(input).map_err(|x| LangParserError::from((input, x)))?.1)
+                Ok($f(input)?.1)
             }
-            RawStr::Markdown(_) => Err(LangParserError::from("Unsupported!")),
-            RawStr::Mediawiki(_) => Err(LangParserError::from("Unsupported!")),
+            RawStr::Markdown(_) => {
+                Err(nom::Err::Failure(LangParserError::unsupported()))
+            }
+            RawStr::Mediawiki(_) => {
+                Err(nom::Err::Failure(LangParserError::unsupported()))
+            }
         }
     };
 }
@@ -34,7 +38,7 @@ macro_rules! parse {
 macro_rules! impl_try_from {
     ($t:ty, $f:expr) => {
         impl<'a> TryFrom<RawStr<'a>> for $t {
-            type Error = LangParserError;
+            type Error = nom::Err<LangParserError>;
 
             fn try_from(s: RawStr<'a>) -> Result<Self, Self::Error> {
                 parse!(s, $f)

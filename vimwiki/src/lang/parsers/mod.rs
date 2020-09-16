@@ -8,6 +8,5 @@ mod errors;
 pub use errors::LangParserError;
 
 mod utils;
-use utils::VimwikiNomError;
 
 pub mod vimwiki;
