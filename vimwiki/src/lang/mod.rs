@@ -7,7 +7,7 @@ use derive_more::Display;
 use parsers::vimwiki;
 pub use parsers::LangParserError;
 use std::convert::TryFrom;
-use utils::{Span, LC};
+use utils::{new_span, LC};
 
 /// Represents a raw string for a type of language
 /// (vimwiki, markdown, mediawiki)
@@ -22,7 +22,7 @@ macro_rules! parse {
     ($raw_str:ident, $f:expr) => {
         match &$raw_str {
             RawStr::Vimwiki(s) => {
-                let input = Span::new(s);
+                let input = new_span(*s);
                 Ok($f(input).map_err(|x| LangParserError::from((input, x)))?.1)
             }
             RawStr::Markdown(_) => Err(LangParserError::from("Unsupported!")),

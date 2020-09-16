@@ -68,32 +68,33 @@ fn take_segment(input: Span) -> VimwikiIResult<Span> {
 mod tests {
     use super::super::components::Description;
     use super::*;
+    use crate::lang::utils::new_span;
     use std::path::PathBuf;
 
     #[test]
     fn external_link_should_support_absolute_path_with_no_scheme() {
-        let input = Span::new("[[//absolute_path]]");
+        let input = new_span("[[//absolute_path]]");
         let (input, link) = external_file_link(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume link");
         assert_eq!(link.scheme, ExternalFileLinkScheme::Absolute);
         assert_eq!(link.path, PathBuf::from("absolute_path"));
         assert_eq!(link.description, None);
 
-        let input = Span::new("[[///tmp/in_root_tmp]]");
+        let input = new_span("[[///tmp/in_root_tmp]]");
         let (input, link) = external_file_link(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume link");
         assert_eq!(link.scheme, ExternalFileLinkScheme::Absolute);
         assert_eq!(link.path, PathBuf::from("/tmp/in_root_tmp"));
         assert_eq!(link.description, None);
 
-        let input = Span::new("[[//~/in_home_dir]]");
+        let input = new_span("[[//~/in_home_dir]]");
         let (input, link) = external_file_link(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume link");
         assert_eq!(link.scheme, ExternalFileLinkScheme::Absolute);
         assert_eq!(link.path, PathBuf::from("~/in_home_dir"));
         assert_eq!(link.description, None);
 
-        let input = Span::new("[[//$HOME/in_home_dir]]");
+        let input = new_span("[[//$HOME/in_home_dir]]");
         let (input, link) = external_file_link(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume link");
         assert_eq!(link.scheme, ExternalFileLinkScheme::Absolute);
@@ -103,14 +104,14 @@ mod tests {
 
     #[test]
     fn external_link_should_support_file_scheme() {
-        let input = Span::new("[[file:/home/somebody/a/b/c/music.mp3]]");
+        let input = new_span("[[file:/home/somebody/a/b/c/music.mp3]]");
         let (input, link) = external_file_link(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume link");
         assert_eq!(link.scheme, ExternalFileLinkScheme::File);
         assert_eq!(link.path, PathBuf::from("/home/somebody/a/b/c/music.mp3"));
         assert_eq!(link.description, None);
 
-        let input = Span::new("[[file:C:/Users/somebody/d/e/f/music.mp3]]");
+        let input = new_span("[[file:C:/Users/somebody/d/e/f/music.mp3]]");
         let (input, link) = external_file_link(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume link");
         assert_eq!(link.scheme, ExternalFileLinkScheme::File);
@@ -120,14 +121,14 @@ mod tests {
         );
         assert_eq!(link.description, None);
 
-        let input = Span::new("[[file:~/a/b/c/music.mp3]]");
+        let input = new_span("[[file:~/a/b/c/music.mp3]]");
         let (input, link) = external_file_link(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume link");
         assert_eq!(link.scheme, ExternalFileLinkScheme::File);
         assert_eq!(link.path, PathBuf::from("~/a/b/c/music.mp3"));
         assert_eq!(link.description, None);
 
-        let input = Span::new("[[file:../assets/data.csv|Important Data]]");
+        let input = new_span("[[file:../assets/data.csv|Important Data]]");
         let (input, link) = external_file_link(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume link");
         assert_eq!(link.scheme, ExternalFileLinkScheme::File);
@@ -135,7 +136,7 @@ mod tests {
         assert_eq!(link.description, Some(Description::from("Important Data")));
 
         let input =
-            Span::new("[[file:/home/user/documents/|Link to a directory]]");
+            new_span("[[file:/home/user/documents/|Link to a directory]]");
         let (input, link) = external_file_link(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume link");
         assert_eq!(link.scheme, ExternalFileLinkScheme::File);
@@ -148,7 +149,7 @@ mod tests {
 
     #[test]
     fn external_link_should_support_local_scheme() {
-        let input = Span::new("[[local:C:/Users/somebody/d/e/f/music.mp3]]");
+        let input = new_span("[[local:C:/Users/somebody/d/e/f/music.mp3]]");
         let (input, link) = external_file_link(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume link");
         assert_eq!(link.scheme, ExternalFileLinkScheme::Local);

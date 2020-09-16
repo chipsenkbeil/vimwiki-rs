@@ -87,6 +87,7 @@ fn definition_line(input: Span) -> VimwikiIResult<Definition> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::lang::utils::new_span;
     use indoc::indoc;
 
     /// Checks defs match those of a provided list in ANY order
@@ -107,37 +108,37 @@ mod tests {
 
     #[test]
     fn definition_list_should_fail_if_input_empty() {
-        let input = Span::new("");
+        let input = new_span("");
         assert!(definition_list(input).is_err());
     }
 
     #[test]
     fn definition_list_should_fail_if_not_starting_with_a_term() {
-        let input = Span::new("no term here");
+        let input = new_span("no term here");
         assert!(definition_list(input).is_err());
     }
 
     #[test]
     fn definition_list_should_fail_if_starting_with_a_definition() {
-        let input = Span::new(":: some definition");
+        let input = new_span(":: some definition");
         assert!(definition_list(input).is_err());
     }
 
     #[test]
     fn definition_list_should_fail_if_no_space_between_term_and_def_sep() {
-        let input = Span::new("term::some definition");
+        let input = new_span("term::some definition");
         assert!(definition_list(input).is_err());
     }
 
     #[test]
     fn definition_list_should_fail_if_one_term_and_no_defs() {
-        let input = Span::new("term::");
+        let input = new_span("term::");
         assert!(definition_list(input).is_err());
     }
 
     #[test]
     fn definition_list_should_fail_if_multiple_terms_and_no_defs() {
-        let input = Span::new(indoc! {r#"
+        let input = new_span(indoc! {r#"
             term 1::
             term 2::
         "#});
@@ -146,7 +147,7 @@ mod tests {
 
     #[test]
     fn definition_list_should_succeed_if_one_term_and_inline_def() {
-        let input = Span::new("term 1:: def 1");
+        let input = new_span("term 1:: def 1");
         let (input, l) = definition_list(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume def list");
 
@@ -156,7 +157,7 @@ mod tests {
 
     #[test]
     fn definition_list_should_succeed_if_one_term_and_def_on_next_line() {
-        let input = Span::new(indoc! {r#"
+        let input = new_span(indoc! {r#"
             term 1::
             :: def 1
         "#});
@@ -169,7 +170,7 @@ mod tests {
 
     #[test]
     fn definition_list_should_succeed_if_one_term_and_multiple_line_defs() {
-        let input = Span::new(indoc! {r#"
+        let input = new_span(indoc! {r#"
             term 1::
             :: def 1
             :: def 2
@@ -184,7 +185,7 @@ mod tests {
     #[test]
     fn definition_list_should_succeed_if_one_term_and_inline_def_and_line_def()
     {
-        let input = Span::new(indoc! {r#"
+        let input = new_span(indoc! {r#"
             term 1:: def 1
             :: def 2
         "#});
@@ -197,7 +198,7 @@ mod tests {
 
     #[test]
     fn definition_list_should_succeed_if_multiple_terms_and_inline_defs() {
-        let input = Span::new(indoc! {r#"
+        let input = new_span(indoc! {r#"
             term 1:: def 1
             term 2:: def 2
         "#});
@@ -213,7 +214,7 @@ mod tests {
 
     #[test]
     fn definition_list_should_succeed_if_multiple_terms_and_line_defs() {
-        let input = Span::new(indoc! {r#"
+        let input = new_span(indoc! {r#"
             term 1::
             :: def 1
             term 2::
@@ -231,7 +232,7 @@ mod tests {
 
     #[test]
     fn definition_list_should_succeed_if_multiple_terms_and_mixed_defs() {
-        let input = Span::new(indoc! {r#"
+        let input = new_span(indoc! {r#"
             term 1:: def 1
             :: def 2
             term 2:: def 3

@@ -11,6 +11,7 @@ use nom::{
     sequence::{delimited, pair, preceded, terminated},
 };
 use std::convert::TryFrom;
+use std::ops::Range;
 use uriparse::URI;
 
 /// Alternative to the `position` function of nom_locate that retains the fragment
@@ -33,19 +34,16 @@ pub fn lc<'a, T>(
 }
 
 /// Parser that wraps another parser's output in a tuple that also echos out
-/// the offset range (starting offset and ending offset inclusive)
+/// the offset range (starting offset and ending exclusive offset beyond consumed)
 #[inline]
-pub fn offset<'a, T>(
+pub fn range<'a, T>(
     parser: impl Fn(Span<'a>) -> VimwikiIResult<T>,
-) -> impl Fn(Span<'a>) -> VimwikiIResult<((usize, usize), T)> {
+) -> impl Fn(Span<'a>) -> VimwikiIResult<(Range<usize>, T)> {
     move |input: Span<'a>| {
         let start = input.location_offset();
         let (input, x) = parser(input)?;
-        let mut end = input.location_offset();
-        if end > 0 {
-            end -= 1;
-        }
-        Ok((input, ((start, end), x)))
+        let end = input.location_offset();
+        Ok((input, (start..end, x)))
     }
 }
 
@@ -276,6 +274,7 @@ pub fn uri(input: Span) -> VimwikiIResult<URI<'static>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::lang::utils::new_span;
     use nom::character::complete::char;
 
     #[inline]
@@ -287,22 +286,22 @@ mod tests {
 
     #[test]
     fn end_of_line_or_input_should_succeed_if_line_ending() {
-        assert!(end_of_line_or_input(Span::new("\n")).is_ok());
-        assert!(end_of_line_or_input(Span::new("\r\n")).is_ok());
+        assert!(end_of_line_or_input(new_span("\n")).is_ok());
+        assert!(end_of_line_or_input(new_span("\r\n")).is_ok());
     }
 
     #[test]
     fn end_of_line_or_input_should_succeed_if_input_empty() {
-        assert!(end_of_line_or_input(Span::new("")).is_ok());
+        assert!(end_of_line_or_input(new_span("")).is_ok());
     }
 
     #[test]
     fn count_from_beginning_of_line_should_yield_0_if_at_beginning_of_line() {
         let (_, count) =
-            count_from_beginning_of_line(Span::new("")).expect("Parser failed");
+            count_from_beginning_of_line(new_span("")).expect("Parser failed");
         assert_eq!(count, 0);
 
-        let (_, count) = count_from_beginning_of_line(Span::new("some text"))
+        let (_, count) = count_from_beginning_of_line(new_span("some text"))
             .expect("Parser failed");
         assert_eq!(count, 0);
     }
@@ -310,7 +309,7 @@ mod tests {
     #[test]
     fn count_from_beginning_of_line_should_yield_n_where_n_is_characters_from_beginning_of_line(
     ) {
-        let input = Span::new("some text");
+        let input = new_span("some text");
         let (input, _) =
             take_and_toss(4)(input).expect("Failed to take N characters");
         let (_, count) = count_from_beginning_of_line(input)
@@ -320,7 +319,7 @@ mod tests {
 
     #[test]
     fn count_from_beginning_of_line_should_use_only_current_line_progress() {
-        let input = Span::new("1234\n1234");
+        let input = new_span("1234\n1234");
         let (input, _) =
             take_and_toss(5)(input).expect("Failed to take first line");
         let (_, count) = count_from_beginning_of_line(input)
@@ -330,7 +329,7 @@ mod tests {
 
     #[test]
     fn beginning_of_line_should_fail_if_not_at_beginning_of_line() {
-        let input = Span::new("1234");
+        let input = new_span("1234");
         let (input, _) =
             take_and_toss(1)(input).expect("Failed to take a character");
         assert!(beginning_of_line(input).is_err());
@@ -338,7 +337,7 @@ mod tests {
 
     #[test]
     fn beginning_of_line_should_succeed_if_at_beginning_of_line() {
-        let input = Span::new("1234");
+        let input = new_span("1234");
         let (input, _) = beginning_of_line(input)
             .expect("Unexpectedly think not at beginning of line");
 
@@ -348,18 +347,18 @@ mod tests {
 
     #[test]
     fn blank_line_should_fail_if_line_contains_non_whitespace() {
-        let input = Span::new("1234");
+        let input = new_span("1234");
         assert!(blank_line(input).is_err());
     }
 
     #[test]
     fn blank_line_should_fail_if_input_empty_and_at_beginning_of_line() {
-        let input = Span::new("");
+        let input = new_span("");
         assert!(blank_line(input).is_err());
     }
     #[test]
     fn blank_line_should_succeed_if_has_whitespace_but_no_line_termination() {
-        let input = Span::new(" ");
+        let input = new_span(" ");
         let (input, s) = blank_line(input).expect("Failed to parse blank line");
         assert!(input.fragment().is_empty(), "Did not consume blank line");
         assert_eq!(s, " ");
@@ -367,7 +366,7 @@ mod tests {
 
     #[test]
     fn blank_line_should_succeed_if_line_empty() {
-        let input = Span::new("\nabcd");
+        let input = new_span("\nabcd");
         let (input, _) = blank_line(input).expect("Failed to parse blank line");
 
         // Line including termination should be consumed
@@ -376,7 +375,7 @@ mod tests {
 
     #[test]
     fn blank_line_should_succeed_if_line_only_has_whitespace() {
-        let input = Span::new(" \t\nabcd");
+        let input = new_span(" \t\nabcd");
         let (input, _) = blank_line(input).expect("Failed to parse blank line");
 
         // Line including termination should be consumed
@@ -385,7 +384,7 @@ mod tests {
 
     #[test]
     fn blank_line_should_succeed_if_on_last_line_and_only_whitespace() {
-        let input = Span::new(" \t");
+        let input = new_span(" \t");
         let (input, _) = blank_line(input).expect("Failed to parse blank line");
 
         // Line including termination should be consumed
@@ -394,19 +393,19 @@ mod tests {
 
     #[test]
     fn non_blank_line_should_fail_if_input_empty_and_at_beginning_of_line() {
-        let input = Span::new("");
+        let input = new_span("");
         assert!(non_blank_line(input).is_err());
     }
 
     #[test]
     fn non_blank_line_should_fail_if_line_is_empty() {
-        let input = Span::new("\nabcd");
+        let input = new_span("\nabcd");
         assert!(non_blank_line(input).is_err());
     }
 
     #[test]
     fn non_blank_line_should_succeed_if_line_has_more_than_whitespace() {
-        let input = Span::new("  a  \nabcd");
+        let input = new_span("  a  \nabcd");
         let (input, line) =
             non_blank_line(input).expect("Failed to parse non blank line");
         assert_eq!(*input.fragment(), "abcd");
@@ -415,7 +414,7 @@ mod tests {
 
     #[test]
     fn non_blank_line_should_succeed_if_on_last_line_and_not_only_whitespace() {
-        let input = Span::new("  a  ");
+        let input = new_span("  a  ");
         let (input, line) =
             non_blank_line(input).expect("Failed to parse non blank line");
         assert_eq!(*input.fragment(), "");
@@ -424,59 +423,59 @@ mod tests {
 
     #[test]
     fn single_multispace_should_fail_if_input_empty() {
-        let input = Span::new("");
+        let input = new_span("");
         assert!(single_multispace(input).is_err());
     }
 
     #[test]
     fn single_multispace_should_fail_if_not_multispace_character() {
-        let input = Span::new("a");
+        let input = new_span("a");
         assert!(single_multispace(input).is_err());
     }
 
     #[test]
     fn single_multispace_should_succeed_if_tab() {
-        let input = Span::new("\t abc");
+        let input = new_span("\t abc");
         let (input, _) = single_multispace(input).unwrap();
         assert_eq!(*input.fragment(), " abc");
     }
 
     #[test]
     fn single_multispace_should_succeed_if_space() {
-        let input = Span::new("  abc");
+        let input = new_span("  abc");
         let (input, _) = single_multispace(input).unwrap();
         assert_eq!(*input.fragment(), " abc");
     }
 
     #[test]
     fn single_multispace_should_succeed_if_crlf() {
-        let input = Span::new("\r\n abc");
+        let input = new_span("\r\n abc");
         let (input, _) = single_multispace(input).unwrap();
         assert_eq!(*input.fragment(), " abc");
     }
 
     #[test]
     fn single_multispace_should_succeed_if_newline() {
-        let input = Span::new("\n abc");
+        let input = new_span("\n abc");
         let (input, _) = single_multispace(input).unwrap();
         assert_eq!(*input.fragment(), " abc");
     }
 
     #[test]
     fn uri_should_fail_if_input_empty() {
-        let input = Span::new("");
+        let input = new_span("");
         assert!(uri(input).is_err());
     }
 
     #[test]
     fn uri_should_fail_if_no_scheme_and_not_www_or_absolute_path() {
-        let input = Span::new("example.com");
+        let input = new_span("example.com");
         assert!(uri(input).is_err());
     }
 
     #[test]
     fn uri_should_succeed_if_starts_with_www_and_will_add_https_as_scheme() {
-        let input = Span::new("www.example.com");
+        let input = new_span("www.example.com");
         let (input, u) = uri(input).expect("Failed to parse uri");
         assert!(input.fragment().is_empty());
         assert_eq!(u.scheme(), "https");
@@ -486,7 +485,7 @@ mod tests {
     #[test]
     fn uri_should_succeed_if_starts_with_absolute_path_and_will_add_file_as_scheme(
     ) {
-        let input = Span::new("//some/absolute/path");
+        let input = new_span("//some/absolute/path");
         let (input, u) = uri(input).expect("Failed to parse uri");
         assert!(input.fragment().is_empty());
         assert_eq!(u.scheme(), "file");
@@ -495,20 +494,20 @@ mod tests {
 
     #[test]
     fn uri_should_succeed_if_starts_with_scheme() {
-        let input = Span::new("https://github.com/vimwiki/vimwiki.git");
+        let input = new_span("https://github.com/vimwiki/vimwiki.git");
         let (input, u) = uri(input).expect("Failed to parse uri");
         assert!(input.fragment().is_empty());
         assert_eq!(u.scheme(), "https");
         assert_eq!(u.host().unwrap().to_string(), "github.com");
         assert_eq!(u.path(), "/vimwiki/vimwiki.git");
 
-        let input = Span::new("mailto:habamax@gmail.com");
+        let input = new_span("mailto:habamax@gmail.com");
         let (input, u) = uri(input).expect("Failed to parse uri");
         assert!(input.fragment().is_empty());
         assert_eq!(u.scheme(), "mailto");
         assert_eq!(u.path(), "habamax@gmail.com");
 
-        let input = Span::new("ftp://vim.org");
+        let input = new_span("ftp://vim.org");
         let (input, u) = uri(input).expect("Failed to parse uri");
         assert!(input.fragment().is_empty());
         assert_eq!(u.scheme(), "ftp");
@@ -517,19 +516,19 @@ mod tests {
 
     #[test]
     fn take_line_while_should_yield_empty_if_empty_input() {
-        let input = Span::new("");
+        let input = new_span("");
         let (_, taken) = take_line_while(anychar)(input).unwrap();
         assert_eq!(*taken.fragment(), "");
     }
 
     #[test]
     fn take_line_while_should_yield_empty_if_line_termination_next() {
-        let input = Span::new("\nabcd");
+        let input = new_span("\nabcd");
         let (input, taken) = take_line_while(anychar)(input).unwrap();
         assert_eq!(*input.fragment(), "\nabcd");
         assert_eq!(*taken.fragment(), "");
 
-        let input = Span::new("\r\nabcd");
+        let input = new_span("\r\nabcd");
         let (input, taken) = take_line_while(anychar)(input).unwrap();
         assert_eq!(*input.fragment(), "\r\nabcd");
         assert_eq!(*taken.fragment(), "");
@@ -537,7 +536,7 @@ mod tests {
 
     #[test]
     fn take_line_while_should_yield_empty_if_stops_without_ever_succeeding() {
-        let input = Span::new("aabb\nabcd");
+        let input = new_span("aabb\nabcd");
         let (input, taken) = take_line_while(char('c'))(input).unwrap();
         assert_eq!(*input.fragment(), "aabb\nabcd");
         assert_eq!(*taken.fragment(), "");
@@ -545,7 +544,7 @@ mod tests {
 
     #[test]
     fn take_line_while_should_take_until_provided_parser_fails() {
-        let input = Span::new("aabb\nabcd");
+        let input = new_span("aabb\nabcd");
         let (input, taken) = take_line_while(char('a'))(input).unwrap();
         assert_eq!(*input.fragment(), "bb\nabcd");
         assert_eq!(*taken.fragment(), "aa");
@@ -553,7 +552,7 @@ mod tests {
 
     #[test]
     fn take_line_while_should_take_until_line_termination_reached() {
-        let input = Span::new("aabb\nabcd");
+        let input = new_span("aabb\nabcd");
         let (input, taken) = take_line_while(anychar)(input).unwrap();
         assert_eq!(*input.fragment(), "\nabcd");
         assert_eq!(*taken.fragment(), "aabb");
@@ -566,7 +565,7 @@ mod tests {
         //       parser, char('-'), which would consume a character since it
         //       was not a not(...) and then try to use an anychar, so we
         //       would end up consuming TWO parsers instead of one
-        let input = Span::new("-----");
+        let input = new_span("-----");
         let (input, taken) = take_line_while(char('-'))(input).unwrap();
         assert_eq!(*input.fragment(), "");
         assert_eq!(*taken.fragment(), "-----");
@@ -574,28 +573,28 @@ mod tests {
 
     #[test]
     fn take_line_while1_should_fail_if_empty_input() {
-        let input = Span::new("");
+        let input = new_span("");
         assert!(take_line_while1(anychar)(input).is_err());
     }
 
     #[test]
     fn take_line_while1_should_fail_if_line_termination_next() {
-        let input = Span::new("\nabcd");
+        let input = new_span("\nabcd");
         assert!(take_line_while1(anychar)(input).is_err());
 
-        let input = Span::new("\r\nabcd");
+        let input = new_span("\r\nabcd");
         assert!(take_line_while1(anychar)(input).is_err());
     }
 
     #[test]
     fn take_line_while1_should_fail_if_stops_without_ever_succeeding() {
-        let input = Span::new("aabb\nabcd");
+        let input = new_span("aabb\nabcd");
         assert!(take_line_while1(char('c'))(input).is_err());
     }
 
     #[test]
     fn take_line_while1_should_take_until_provided_parser_fails() {
-        let input = Span::new("aabb\nabcd");
+        let input = new_span("aabb\nabcd");
         let (input, taken) = take_line_while1(char('a'))(input).unwrap();
         assert_eq!(*input.fragment(), "bb\nabcd");
         assert_eq!(*taken.fragment(), "aa");
@@ -603,7 +602,7 @@ mod tests {
 
     #[test]
     fn take_line_while1_should_take_until_line_termination_reached() {
-        let input = Span::new("aabb\nabcd");
+        let input = new_span("aabb\nabcd");
         let (input, taken) = take_line_while1(anychar)(input).unwrap();
         assert_eq!(*input.fragment(), "\nabcd");
         assert_eq!(*taken.fragment(), "aabb");
@@ -616,7 +615,7 @@ mod tests {
         //       parser, char('-'), which would consume a character since it
         //       was not a not(...) and then try to use an anychar, so we
         //       would end up consuming TWO parsers instead of one
-        let input = Span::new("-----");
+        let input = new_span("-----");
         let (input, taken) = take_line_while1(char('-'))(input).unwrap();
         assert_eq!(*input.fragment(), "");
         assert_eq!(*taken.fragment(), "-----");
@@ -624,20 +623,20 @@ mod tests {
 
     #[test]
     fn scan_should_fail_if_no_advancement_is_made_with_parser() {
-        let input = Span::new("aaa");
+        let input = new_span("aaa");
         assert!(scan(not(char('b')))(input).is_err());
     }
 
     #[test]
     fn scan_should_yield_an_empty_vec_if_input_empty() {
-        let input = Span::new("");
+        let input = new_span("");
         let (_, results) = scan(char('a'))(input).unwrap();
         assert!(results.is_empty(), "Unexpectedly found parser results");
     }
 
     #[test]
     fn scan_should_consume_all_input() {
-        let input = Span::new("abc");
+        let input = new_span("abc");
         let (input, _) = scan(char('a'))(input).unwrap();
         assert!(
             input.fragment().is_empty(),
@@ -647,7 +646,7 @@ mod tests {
 
     #[test]
     fn scan_should_yield_an_empty_vec_if_parser_never_succeeds() {
-        let input = Span::new("bbb");
+        let input = new_span("bbb");
         let (input, results) = scan(char('a'))(input).unwrap();
         assert!(
             input.fragment().is_empty(),
@@ -658,7 +657,7 @@ mod tests {
 
     #[test]
     fn scan_should_yield_a_vec_containing_all_of_parser_successes() {
-        let input = Span::new("aba");
+        let input = new_span("aba");
         let (input, results) = scan(char('a'))(input).unwrap();
         assert!(
             input.fragment().is_empty(),
@@ -668,18 +667,17 @@ mod tests {
     }
 
     #[test]
-    fn offset_should_include_the_starting_and_ending_offset_of_consumed_parser()
+    fn range_should_include_the_starting_and_ending_offset_of_consumed_parser()
     {
-        let input = Span::new("aba");
-        let (input, ((start, end), results)) =
-            offset(take(2usize))(input).unwrap();
+        let input = new_span("aba");
+        let (input, (r, results)) = range(take(2usize))(input).unwrap();
         assert_eq!(
             *input.fragment(),
             "a",
             "offset did not consume expected input"
         );
-        assert_eq!(start, 0, "Start was wrong position");
-        assert_eq!(end, 1, "End was wrong position");
+        assert_eq!(r.start, 0, "Start was wrong position");
+        assert_eq!(r.end, 2, "End was wrong position");
         assert_eq!(
             *results.fragment(),
             "ab",

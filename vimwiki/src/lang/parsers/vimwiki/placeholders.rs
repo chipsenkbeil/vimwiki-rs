@@ -90,22 +90,23 @@ fn placeholder_other(input: Span) -> VimwikiIResult<Placeholder> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::lang::utils::new_span;
 
     #[test]
     fn placeholder_should_fail_if_input_empty() {
-        let input = Span::new("");
+        let input = new_span("");
         assert!(placeholder(input).is_err());
     }
 
     #[test]
     fn placeholder_should_fail_title_with_no_text() {
-        let input = Span::new("%title");
+        let input = new_span("%title");
         assert!(placeholder(input).is_err());
     }
 
     #[test]
     fn placeholder_should_succeed_if_title_with_text_input() {
-        let input = Span::new("%title some title");
+        let input = new_span("%title some title");
         let (input, placeholder) = placeholder(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume placeholder");
         assert_eq!(placeholder, Placeholder::Title("some title".to_string()));
@@ -113,13 +114,13 @@ mod tests {
 
     #[test]
     fn placeholder_should_fail_if_nohtml_with_text() {
-        let input = Span::new("%nohtml something");
+        let input = new_span("%nohtml something");
         assert!(placeholder(input).is_err());
     }
 
     #[test]
     fn placeholder_should_succeed_if_nohtml_with_no_text_input() {
-        let input = Span::new("%nohtml");
+        let input = new_span("%nohtml");
         let (input, placeholder) = placeholder(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume placeholder");
         assert_eq!(placeholder, Placeholder::NoHtml);
@@ -127,13 +128,13 @@ mod tests {
 
     #[test]
     fn placeholder_should_fail_if_template_with_no_text() {
-        let input = Span::new("%template");
+        let input = new_span("%template");
         assert!(placeholder(input).is_err());
     }
 
     #[test]
     fn placeholder_should_succeed_if_template_with_text_input() {
-        let input = Span::new("%template my_template");
+        let input = new_span("%template my_template");
         let (input, placeholder) = placeholder(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume placeholder");
         assert_eq!(
@@ -144,19 +145,19 @@ mod tests {
 
     #[test]
     fn placeholder_should_fail_if_date_with_no_text() {
-        let input = Span::new("%date");
+        let input = new_span("%date");
         assert!(placeholder(input).is_err());
     }
 
     #[test]
     fn placeholder_should_fail_if_date_with_non_date_input() {
-        let input = Span::new("%date something");
+        let input = new_span("%date something");
         assert!(placeholder(input).is_err());
     }
 
     #[test]
     fn placeholder_should_succeed_if_date_with_date_input() {
-        let input = Span::new("%date 2012-03-05");
+        let input = new_span("%date 2012-03-05");
         let (input, placeholder) = placeholder(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume placeholder");
         assert_eq!(
@@ -167,44 +168,44 @@ mod tests {
 
     #[test]
     fn placeholder_fallback_should_fail_if_double_percent_at_start() {
-        let input = Span::new("%%other something else");
+        let input = new_span("%%other something else");
         assert!(placeholder(input).is_err());
     }
 
     #[test]
     fn placeholder_fallback_should_fail_if_no_space_between_name_and_value() {
-        let input = Span::new("%othervalue");
+        let input = new_span("%othervalue");
         assert!(placeholder(input).is_err());
     }
 
     #[test]
     fn placeholder_fallback_should_fail_if_no_name_provided() {
-        let input = Span::new("% value");
+        let input = new_span("% value");
         assert!(placeholder(input).is_err());
     }
 
     #[test]
     fn placeholder_fallback_should_fail_if_percent_found_in_name() {
-        let input = Span::new("%oth%er value");
+        let input = new_span("%oth%er value");
         assert!(placeholder(input).is_err());
     }
 
     #[test]
     fn placeholder_fallback_should_fail_if_percent_found_at_end_of_name() {
-        let input = Span::new("%other% value");
+        let input = new_span("%other% value");
         assert!(placeholder(input).is_err());
     }
 
     #[test]
     fn placeholder_fallback_should_fail_if_no_value_after_name() {
-        let input = Span::new("%other");
+        let input = new_span("%other");
         assert!(placeholder(input).is_err());
     }
 
     #[test]
     fn placeholder_fallback_should_succeed_if_percent_followed_by_name_space_and_value(
     ) {
-        let input = Span::new("%other something else");
+        let input = new_span("%other something else");
         let (input, placeholder) = placeholder(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume placeholder");
         assert_eq!(

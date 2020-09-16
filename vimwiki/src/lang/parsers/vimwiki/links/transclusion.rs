@@ -80,10 +80,11 @@ fn transclusion_properties(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::lang::utils::new_span;
 
     #[test]
     fn transclusion_link_should_support_local_relative_uri() {
-        let input = Span::new("{{file:../../images/vimwiki_logo.png}}");
+        let input = new_span("{{file:../../images/vimwiki_logo.png}}");
         let (input, link) = transclusion_link(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume link");
         assert_eq!(link.uri.scheme().as_str(), "file");
@@ -94,7 +95,7 @@ mod tests {
 
     #[test]
     fn transclusion_link_should_support_local_absolute_uri() {
-        let input = Span::new("{{file:/some/path/images/vimwiki_logo.png}}");
+        let input = new_span("{{file:/some/path/images/vimwiki_logo.png}}");
         let (input, link) = transclusion_link(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume link");
         assert_eq!(link.uri.scheme().as_str(), "file");
@@ -105,7 +106,7 @@ mod tests {
 
     #[test]
     fn transclusion_link_should_support_universal_uri() {
-        let input = Span::new(
+        let input = new_span(
             "{{http://vimwiki.googlecode.com/hg/images/vimwiki_logo.png}}",
         );
         let (input, link) = transclusion_link(input).unwrap();
@@ -127,7 +128,7 @@ mod tests {
         // <img src="http://vimwiki.googlecode.com/hg/images/vimwiki_logo.png"
         // alt="Vimwiki"/>
         //
-        let input = Span::new("{{http://vimwiki.googlecode.com/hg/images/vimwiki_logo.png|Vimwiki}}");
+        let input = new_span("{{http://vimwiki.googlecode.com/hg/images/vimwiki_logo.png|Vimwiki}}");
         let (input, link) = transclusion_link(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume link");
         assert_eq!(link.uri.scheme().as_str(), "http");
@@ -147,7 +148,7 @@ mod tests {
         // <img src="http://vimwiki.googlecode.com/hg/images/vimwiki_logo.png"
         // alt="cool stuff" style="width:150px; height:120px"/>
         //
-        let input = Span::new("{{http://vimwiki.googlecode.com/vimwiki_logo.png|cool stuff|style=\"width:150px;height:120px;\"}}");
+        let input = new_span("{{http://vimwiki.googlecode.com/vimwiki_logo.png|cool stuff|style=\"width:150px;height:120px;\"}}");
         let (input, link) = transclusion_link(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume link");
         assert_eq!(link.uri.scheme().as_str(), "http");
@@ -175,7 +176,7 @@ mod tests {
         // <img src="http://vimwiki.googlecode.com/hg/images/vimwiki_logo.png"
         // alt="" class="center flow blabla"/>
         //
-        let input = Span::new(
+        let input = new_span(
             "{{http://vimwiki.googlecode.com/vimwiki_logo.png||class=\"center flow blabla\"}}",
         );
         let (input, link) = transclusion_link(input).unwrap();

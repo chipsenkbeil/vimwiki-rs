@@ -2,8 +2,8 @@ use super::{
     components::{
         self, BlockComponent, InlineComponent, InlineComponentContainer, Page,
     },
-    utils::{self, lc, offset, position, scan, VimwikiIResult},
-    Span, LC,
+    utils::{self, lc, position, range, scan, VimwikiIResult},
+    Span, SpanFactory, LC,
 };
 use nom::{
     branch::alt,
@@ -12,6 +12,7 @@ use nom::{
     multi::{many0, many1},
     InputLength, Slice,
 };
+use std::ops::Range;
 
 pub mod blockquotes;
 pub mod comments;
@@ -35,24 +36,39 @@ pub fn page(input: Span) -> VimwikiIResult<LC<Page>> {
 
         // First, parse the page for comments and remove all from input,
         // skipping over any character that is not a comment
-        let (_, mut offsets_and_comments) =
-            context("Page Comments", scan(offset(comments::comment)))(input)?;
+        let (_, mut ranges_and_comments) =
+            context("Page Comments", scan(range(comments::comment)))(input)?;
 
         // Second, produce a new custom span that skips over commented regions
-        let offsets: Vec<(usize, usize)> =
-            offsets_and_comments.iter().map(|x| x.0).collect();
-        // todo!();
+        let skippable_ranges: Vec<Range<usize>> =
+            ranges_and_comments.iter().map(|x| x.0.to_owned()).collect();
+        let shortened_fragment =
+            SpanFactory::shorten_fragment(*input.fragment(), &skippable_ranges);
+        let factory = SpanFactory::new(
+            *input.fragment(),
+            &shortened_fragment,
+            &skippable_ranges,
+        );
+        let no_comments_input = factory.make_span();
 
         // Third, continuously parse input for new block components until we
         // have nothing left (or we fail)
+        //
+        // TODO: Cannot unwrap error as it returns the input, which has
+        //       local references. Need to change the error type to not
+        //       pass back the local input. Make it summarize at the point
+        //       of error instead? There is also pre-existing blank error
+        //       types like (). Maybe we make a custom error type or use
+        //       snafu to provide context
         let (_, components) = context(
             "Page Components",
             all_consuming(many0(block_component)),
-        )(input)?;
+        )(no_comments_input)
+        .unwrap();
 
         // Fourth, return a page wrapped in a location that comprises the
         // entire input
-        let comments = offsets_and_comments.drain(..).map(|x| x.1).collect();
+        let comments = ranges_and_comments.drain(..).map(|x| x.1).collect();
         let input = input.slice(input.input_len()..);
         Ok((
             input,
@@ -140,11 +156,12 @@ mod tests {
         Keyword, Link, MathInline, Tags, WikiLink,
     };
     use super::*;
+    use crate::lang::utils::new_span;
     use std::path::PathBuf;
 
     #[test]
     fn inline_component_container_should_correctly_identify_components() {
-        let input = Span::new(
+        let input = new_span(
             "*item 1* has a [[link]] with :tag: and $formula$ is DONE",
         );
         let (input, mut container) = inline_component_container(input).unwrap();

@@ -61,26 +61,27 @@ pub(crate) fn multi_line_comment(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::lang::utils::new_span;
     use nom::bytes::complete::take;
 
     #[test]
     fn comment_should_fail_if_no_input() {
-        let input = Span::new("");
+        let input = new_span("");
         assert!(comment(input).is_err());
     }
 
     #[test]
     fn comment_should_fail_if_only_one_percent_sign() {
-        let input = Span::new("% comment");
+        let input = new_span("% comment");
         assert!(comment(input).is_err());
 
-        let input = Span::new("%+ comment +%");
+        let input = new_span("%+ comment +%");
         assert!(comment(input).is_err());
     }
 
     #[test]
     fn comment_should_fail_if_line_comment_not_at_start_of_line() {
-        let input = Span::new("abc%% comment");
+        let input = new_span("abc%% comment");
         fn advance(input: Span) -> VimwikiIResult<()> {
             let (input, _) = take(3usize)(input)?;
             Ok((input, ()))
@@ -91,7 +92,7 @@ mod tests {
 
     #[test]
     fn comment_should_parse_line_comment() {
-        let input = Span::new("%% comment");
+        let input = new_span("%% comment");
         let (input, c) = comment(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume comment");
         assert_eq!(
@@ -99,7 +100,7 @@ mod tests {
             Comment::from(LineComment(" comment".to_string()))
         );
 
-        let input = Span::new("%% comment\nnext line");
+        let input = new_span("%% comment\nnext line");
         let (input, c) = comment(input).unwrap();
         assert_eq!(*input.fragment(), "next line", "Unexpected input consumed");
         assert_eq!(
@@ -110,7 +111,7 @@ mod tests {
 
     #[test]
     fn comment_should_parse_multi_line_comment() {
-        let input = Span::new("%%+ comment +%%");
+        let input = new_span("%%+ comment +%%");
         let (input, c) = comment(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume comment");
         assert_eq!(
@@ -118,7 +119,7 @@ mod tests {
             Comment::from(MultiLineComment(vec![" comment ".to_string()]))
         );
 
-        let input = Span::new("%%+ comment\nnext line +%%");
+        let input = new_span("%%+ comment\nnext line +%%");
         let (input, c) = comment(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume comment");
         assert_eq!(
@@ -129,7 +130,7 @@ mod tests {
             ]))
         );
 
-        let input = Span::new("%%+ comment\nnext line +%%after");
+        let input = new_span("%%+ comment\nnext line +%%after");
         let (input, c) = comment(input).unwrap();
         assert_eq!(*input.fragment(), "after", "Unexpected input consumed");
         assert_eq!(

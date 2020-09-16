@@ -4,6 +4,7 @@ use super::{
     wiki::wiki_link,
     Span, VimwikiIResult, LC,
 };
+use crate::lang::utils::new_span;
 use nom::{bytes::complete::tag, combinator::not, sequence::delimited};
 use std::path::PathBuf;
 
@@ -40,9 +41,9 @@ pub fn inter_wiki_link(input: Span) -> VimwikiIResult<LC<InterWikiLink>> {
 }
 
 fn parse_index_from_path(path: &str) -> Option<(&str, u32)> {
-    delimited(tag("wiki"), take_line_while1(not(tag(":"))), tag(":"))(
-        Span::new(path),
-    )
+    delimited(tag("wiki"), take_line_while1(not(tag(":"))), tag(":"))(new_span(
+        path,
+    ))
     .ok()
     .map(|x| {
         x.1.fragment()
@@ -54,7 +55,7 @@ fn parse_index_from_path(path: &str) -> Option<(&str, u32)> {
 }
 
 fn parse_name_from_path(path: &str) -> Option<(&str, String)> {
-    delimited(tag("wn."), take_line_while1(not(tag(":"))), tag(":"))(Span::new(
+    delimited(tag("wn."), take_line_while1(not(tag(":"))), tag(":"))(new_span(
         path,
     ))
     .ok()
@@ -68,7 +69,7 @@ mod tests {
 
     #[test]
     fn inter_wiki_link_with_index_should_support_numbered_prefix() {
-        let input = Span::new("[[wiki1:This is a link]]");
+        let input = new_span("[[wiki1:This is a link]]");
         let (input, link) = inter_wiki_link(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume link");
         assert_eq!(link.index(), Some(1), "Wrong index detected");
@@ -79,9 +80,8 @@ mod tests {
 
     #[test]
     fn inter_wiki_link_with_index_should_support_description() {
-        let input = Span::new(
-            "[[wiki1:This is a link source|Description of the link]]",
-        );
+        let input =
+            new_span("[[wiki1:This is a link source|Description of the link]]");
         let (input, link) = inter_wiki_link(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume link");
         assert_eq!(link.index(), Some(1), "Wrong index detected");
@@ -98,7 +98,7 @@ mod tests {
 
     #[test]
     fn inter_wiki_link_with_index_should_support_anchors() {
-        let input = Span::new("[[wiki1:This is a link source#anchor]]");
+        let input = new_span("[[wiki1:This is a link source#anchor]]");
         let (input, link) = inter_wiki_link(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume link");
         assert_eq!(link.index(), Some(1), "Wrong index detected");
@@ -112,7 +112,7 @@ mod tests {
 
     #[test]
     fn inter_wiki_link_with_index_should_support_description_and_anchors() {
-        let input = Span::new(
+        let input = new_span(
             "[[wiki1:This is a link source#anchor|Description of the link]]",
         );
         let (input, link) = inter_wiki_link(input).unwrap();
@@ -131,7 +131,7 @@ mod tests {
 
     #[test]
     fn inter_wiki_link_with_name_should_support_named_wikis() {
-        let input = Span::new("[[wn.My Name:This is a link]]");
+        let input = new_span("[[wn.My Name:This is a link]]");
         let (input, link) = inter_wiki_link(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume link");
         assert_eq!(link.name(), Some("My Name"), "Wrong name detected");
@@ -143,7 +143,7 @@ mod tests {
     #[test]
     fn inter_wiki_link_with_name_should_support_description() {
         let input =
-            Span::new("[[wn.My Name:This is a link|Description of the link]]");
+            new_span("[[wn.My Name:This is a link|Description of the link]]");
         let (input, link) = inter_wiki_link(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume link");
         assert_eq!(link.name(), Some("My Name"), "Wrong name detected");
@@ -157,7 +157,7 @@ mod tests {
 
     #[test]
     fn inter_wiki_link_with_name_should_support_anchors() {
-        let input = Span::new("[[wn.My Name:This is a link#anchor]]");
+        let input = new_span("[[wn.My Name:This is a link#anchor]]");
         let (input, link) = inter_wiki_link(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume link");
         assert_eq!(link.name(), Some("My Name"), "Wrong name detected");
@@ -168,7 +168,7 @@ mod tests {
 
     #[test]
     fn inter_wiki_link_with_name_should_support_description_and_anchors() {
-        let input = Span::new(
+        let input = new_span(
             "[[wn.My Name:This is a link#anchor|Description of the link]]",
         );
         let (input, link) = inter_wiki_link(input).unwrap();

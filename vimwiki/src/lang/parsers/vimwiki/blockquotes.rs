@@ -77,11 +77,12 @@ fn blockquote_line_2(input: Span) -> VimwikiIResult<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::lang::utils::new_span;
     use indoc::indoc;
 
     #[test]
     fn blockquote_should_fail_if_not_starting_with_correct_prefix() {
-        let input = Span::new(indoc! {"
+        let input = new_span(indoc! {"
             < Wrong prefix
             < on these lines
         "});
@@ -90,7 +91,7 @@ mod tests {
 
     #[test]
     fn blockquote_should_fail_if_not_enough_spaces_at_beginning() {
-        let input = Span::new(indoc! {"
+        let input = new_span(indoc! {"
            Only using
            three spaces
         regular line starts here and is needed for indoc to have a baseline
@@ -100,7 +101,7 @@ mod tests {
 
     #[test]
     fn blockquote_should_stop_if_using_indented_format_and_reach_blank_line() {
-        let input = Span::new(indoc! {"
+        let input = new_span(indoc! {"
             This is a blockquote
             that is using four spaces
 
@@ -130,7 +131,7 @@ mod tests {
     #[test]
     fn blockquote_should_stop_if_using_indented_format_and_reach_unindented_line(
     ) {
-        let input = Span::new(indoc! {"
+        let input = new_span(indoc! {"
             This is a blockquote
             that is using four spaces
         regular line starts here and is needed for indoc to have a baseline
@@ -157,7 +158,7 @@ mod tests {
 
     #[test]
     fn blockquote_should_consume_blank_lines_if_using_angle_prefix() {
-        let input = Span::new(indoc! {"
+        let input = new_span(indoc! {"
         > This is a blockquote
         > that is using prefixes
 

@@ -46,24 +46,25 @@ mod tests {
         MathInline, WikiLink,
     };
     use super::*;
+    use crate::lang::utils::new_span;
     use indoc::indoc;
     use std::path::PathBuf;
 
     #[test]
     fn paragraph_should_fail_if_on_blank_line() {
-        let input = Span::new(" ");
+        let input = new_span(" ");
         assert!(paragraph(input).is_err());
     }
 
     #[test]
     fn paragraph_should_fail_if_line_indented() {
-        let input = Span::new(" some text");
+        let input = new_span(" some text");
         assert!(paragraph(input).is_err());
     }
 
     #[test]
     fn paragraph_should_parse_single_line() {
-        let input = Span::new(indoc! {"
+        let input = new_span(indoc! {"
         Some paragraph with *decorations*, [[links]], $math$, and more
         "});
         let (input, mut p) = paragraph(input).unwrap();
@@ -96,7 +97,7 @@ mod tests {
 
     #[test]
     fn paragraph_should_parse_multiple_lines() {
-        let input = Span::new(indoc! {"
+        let input = new_span(indoc! {"
         Some paragraph with *decorations*,
         [[links]], $math$, and more
         "});
@@ -131,7 +132,7 @@ mod tests {
     #[test]
     fn paragraph_should_support_whitespace_at_beginning_of_all_following_lines()
     {
-        let input = Span::new(indoc! {"
+        let input = new_span(indoc! {"
         Some paragraph with *decorations*,
             [[links]], $math$, and more
         "});
@@ -166,7 +167,7 @@ mod tests {
 
     #[test]
     fn paragraph_should_stop_at_a_blank_line() {
-        let input = Span::new(indoc! {"
+        let input = new_span(indoc! {"
         Some paragraph with *decorations*,
         [[links]], $math$, and more
 

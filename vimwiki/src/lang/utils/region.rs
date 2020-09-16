@@ -78,6 +78,7 @@ impl<'a> From<(Span<'a>, usize)> for Region {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::lang::utils::new_span;
 
     #[test]
     fn region_contains_should_yield_true_if_between_start_and_end() {
@@ -99,7 +100,7 @@ mod tests {
     #[test]
     fn region_from_span_tuple_should_use_start_location_for_end_if_spans_equal()
     {
-        let input = Span::new("abc\n12345");
+        let input = new_span("abc\n12345");
 
         fn take1(input: Span) -> nom::IResult<Span, Span> {
             nom::bytes::complete::take(1usize)(input)
@@ -119,7 +120,7 @@ mod tests {
     #[test]
     fn region_from_span_tuple_should_assume_second_span_is_right_after_region_ends(
     ) {
-        let input = Span::new("abc\n12345");
+        let input = new_span("abc\n12345");
 
         fn take1(input: Span) -> nom::IResult<Span, Span> {
             nom::bytes::complete::take(1usize)(input)

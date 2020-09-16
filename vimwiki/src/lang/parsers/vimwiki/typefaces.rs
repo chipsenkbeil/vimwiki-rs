@@ -107,17 +107,18 @@ pub fn keyword(input: Span) -> VimwikiIResult<LC<Keyword>> {
 mod tests {
     use super::super::components::{Link, WikiLink};
     use super::*;
+    use crate::lang::utils::new_span;
     use std::path::PathBuf;
 
     #[test]
     fn text_should_fail_if_input_empty() {
-        let input = Span::new("");
+        let input = new_span("");
         assert!(text(input).is_err());
     }
 
     #[test]
     fn text_should_consume_until_encountering_inline_math() {
-        let input = Span::new("abc123$math$");
+        let input = new_span("abc123$math$");
         let (input, t) = text(input).unwrap();
         assert_eq!(*input.fragment(), "$math$", "Unexpected input consumption");
         assert_eq!(&t.component, "abc123");
@@ -125,7 +126,7 @@ mod tests {
 
     #[test]
     fn text_should_consume_until_encountering_a_tag() {
-        let input = Span::new("abc123:tag:");
+        let input = new_span("abc123:tag:");
         let (input, t) = text(input).unwrap();
         assert_eq!(*input.fragment(), ":tag:", "Unexpected input consumption");
         assert_eq!(&t.component, "abc123");
@@ -133,7 +134,7 @@ mod tests {
 
     #[test]
     fn text_should_consume_until_encountering_a_link() {
-        let input = Span::new("abc123[[some link]]");
+        let input = new_span("abc123[[some link]]");
         let (input, t) = text(input).unwrap();
         assert_eq!(
             *input.fragment(),
@@ -145,7 +146,7 @@ mod tests {
 
     #[test]
     fn text_should_consume_until_encountering_decorated_text() {
-        let input = Span::new("abc123*bold text*");
+        let input = new_span("abc123*bold text*");
         let (input, t) = text(input).unwrap();
         assert_eq!(
             *input.fragment(),
@@ -157,7 +158,7 @@ mod tests {
 
     #[test]
     fn text_should_consume_until_encountering_a_keyword() {
-        let input = Span::new("abc123 TODO");
+        let input = new_span("abc123 TODO");
         let (input, t) = text(input).unwrap();
         assert_eq!(*input.fragment(), "TODO", "Unexpected input consumption");
         assert_eq!(&t.component, "abc123 ");
@@ -165,7 +166,7 @@ mod tests {
 
     #[test]
     fn text_should_consume_until_reaching_end_of_line() {
-        let input = Span::new("abc123\nsome other text");
+        let input = new_span("abc123\nsome other text");
         let (input, t) = text(input).unwrap();
         assert_eq!(
             *input.fragment(),
@@ -177,7 +178,7 @@ mod tests {
 
     #[test]
     fn text_should_consume_until_reaching_end_of_input() {
-        let input = Span::new("abc123");
+        let input = new_span("abc123");
         let (input, t) = text(input).unwrap();
         assert_eq!(*input.fragment(), "", "Unexpected input consumption");
         assert_eq!(&t.component, "abc123");
@@ -185,19 +186,19 @@ mod tests {
 
     #[test]
     fn decorated_text_should_fail_if_input_empty() {
-        let input = Span::new("");
+        let input = new_span("");
         assert!(decorated_text(input).is_err());
     }
 
     #[test]
     fn decorated_text_should_fail_if_start_and_end_separated_by_newline() {
-        let input = Span::new("*bold text\n*");
+        let input = new_span("*bold text\n*");
         assert!(decorated_text(input).is_err());
     }
 
     #[test]
     fn decorated_text_should_support_bold() {
-        let input = Span::new("*bold text*");
+        let input = new_span("*bold text*");
         let (input, dt) = decorated_text(input).unwrap();
         assert!(
             input.fragment().is_empty(),
@@ -216,7 +217,7 @@ mod tests {
 
     #[test]
     fn decorated_text_should_support_italic() {
-        let input = Span::new("_italic text_");
+        let input = new_span("_italic text_");
         let (input, dt) = decorated_text(input).unwrap();
         assert!(
             input.fragment().is_empty(),
@@ -235,7 +236,7 @@ mod tests {
 
     #[test]
     fn decorated_text_should_support_bold_italic_1() {
-        let input = Span::new("_*bold italic text*_");
+        let input = new_span("_*bold italic text*_");
         let (input, dt) = decorated_text(input).unwrap();
         assert!(
             input.fragment().is_empty(),
@@ -254,7 +255,7 @@ mod tests {
 
     #[test]
     fn decorated_text_should_support_bold_italic_2() {
-        let input = Span::new("*_bold italic text_*");
+        let input = new_span("*_bold italic text_*");
         let (input, dt) = decorated_text(input).unwrap();
         assert!(
             input.fragment().is_empty(),
@@ -273,7 +274,7 @@ mod tests {
 
     #[test]
     fn decorated_text_should_support_strikeout() {
-        let input = Span::new("~~strikeout text~~");
+        let input = new_span("~~strikeout text~~");
         let (input, dt) = decorated_text(input).unwrap();
         assert!(
             input.fragment().is_empty(),
@@ -292,7 +293,7 @@ mod tests {
 
     #[test]
     fn decorated_text_should_support_code() {
-        let input = Span::new("`code text`");
+        let input = new_span("`code text`");
         let (input, dt) = decorated_text(input).unwrap();
         assert!(
             input.fragment().is_empty(),
@@ -311,7 +312,7 @@ mod tests {
 
     #[test]
     fn decorated_text_should_support_superscript() {
-        let input = Span::new("^superscript text^");
+        let input = new_span("^superscript text^");
         let (input, dt) = decorated_text(input).unwrap();
         assert!(
             input.fragment().is_empty(),
@@ -330,7 +331,7 @@ mod tests {
 
     #[test]
     fn decorated_text_should_support_subscript() {
-        let input = Span::new(",,subscript text,,");
+        let input = new_span(",,subscript text,,");
         let (input, dt) = decorated_text(input).unwrap();
         assert!(
             input.fragment().is_empty(),
@@ -349,7 +350,7 @@ mod tests {
 
     #[test]
     fn decorated_text_should_support_links() {
-        let input = Span::new("*[[some link]]*");
+        let input = new_span("*[[some link]]*");
         let (input, dt) = decorated_text(input).unwrap();
         assert!(
             input.fragment().is_empty(),
@@ -368,7 +369,7 @@ mod tests {
 
     #[test]
     fn decorated_text_should_support_keywords() {
-        let input = Span::new("*TODO*");
+        let input = new_span("*TODO*");
         let (input, dt) = decorated_text(input).unwrap();
         assert!(
             input.fragment().is_empty(),
@@ -385,7 +386,7 @@ mod tests {
 
     #[test]
     fn decorated_text_should_support_nested_decorations() {
-        let input = Span::new("*Bold Text ~~Bold Strikeout Text~~*");
+        let input = new_span("*Bold Text ~~Bold Strikeout Text~~*");
         let (input, dt) = decorated_text(input).unwrap();
         assert!(
             input.fragment().is_empty(),
@@ -414,39 +415,39 @@ mod tests {
 
     #[test]
     fn keyword_should_fail_if_input_empty() {
-        let input = Span::new("");
+        let input = new_span("");
         assert!(keyword(input).is_err());
     }
 
     #[test]
     fn keyword_should_fail_if_not_a_matching_identifier() {
-        let input = Span::new("NOTHING");
+        let input = new_span("NOTHING");
         assert!(keyword(input).is_err());
     }
 
     #[test]
     fn keyword_should_consume_specific_keywords() {
-        let input = Span::new("DONE");
+        let input = new_span("DONE");
         let (_, k) = keyword(input).unwrap();
         assert_eq!(k.component, Keyword::DONE);
 
-        let input = Span::new("FIXED");
+        let input = new_span("FIXED");
         let (_, k) = keyword(input).unwrap();
         assert_eq!(k.component, Keyword::FIXED);
 
-        let input = Span::new("FIXME");
+        let input = new_span("FIXME");
         let (_, k) = keyword(input).unwrap();
         assert_eq!(k.component, Keyword::FIXME);
 
-        let input = Span::new("STARTED");
+        let input = new_span("STARTED");
         let (_, k) = keyword(input).unwrap();
         assert_eq!(k.component, Keyword::STARTED);
 
-        let input = Span::new("TODO");
+        let input = new_span("TODO");
         let (_, k) = keyword(input).unwrap();
         assert_eq!(k.component, Keyword::TODO);
 
-        let input = Span::new("XXX");
+        let input = new_span("XXX");
         let (_, k) = keyword(input).unwrap();
         assert_eq!(k.component, Keyword::XXX);
     }

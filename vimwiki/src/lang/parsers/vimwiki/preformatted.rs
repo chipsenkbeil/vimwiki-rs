@@ -84,11 +84,12 @@ fn preformatted_text_end(input: Span) -> VimwikiIResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::lang::utils::new_span;
     use indoc::indoc;
 
     #[test]
     fn preformatted_text_should_fail_if_does_not_have_starting_line() {
-        let input = Span::new(indoc! {r"
+        let input = new_span(indoc! {r"
             some code
             }}}
         "});
@@ -97,7 +98,7 @@ mod tests {
 
     #[test]
     fn preformatted_text_should_fail_if_starting_block_not_on_own_line() {
-        let input = Span::new(indoc! {r"
+        let input = new_span(indoc! {r"
             {{{some code
             }}}
         "});
@@ -106,7 +107,7 @@ mod tests {
 
     #[test]
     fn preformatted_text_should_fail_if_does_not_have_ending_line() {
-        let input = Span::new(indoc! {r"
+        let input = new_span(indoc! {r"
             {{{
             some code
         "});
@@ -115,7 +116,7 @@ mod tests {
 
     #[test]
     fn preformatted_text_should_fail_if_ending_block_not_on_own_line() {
-        let input = Span::new(indoc! {r"
+        let input = new_span(indoc! {r"
             {{{
             some code}}}
         "});
@@ -124,7 +125,7 @@ mod tests {
 
     #[test]
     fn preformatted_text_should_fail_if_does_not_have_lines_inbetween() {
-        let input = Span::new(indoc! {r"
+        let input = new_span(indoc! {r"
             {{{
             }}}
         "});
@@ -133,7 +134,7 @@ mod tests {
 
     #[test]
     fn preformatted_text_should_parse_all_lines_between() {
-        let input = Span::new(indoc! {r"
+        let input = new_span(indoc! {r"
             {{{
             Tyger! Tyger! burning bright
              In the forests of the night,
@@ -168,7 +169,7 @@ mod tests {
 
     #[test]
     fn preformatted_text_should_support_single_metadata() {
-        let input = Span::new(indoc! {r#"
+        let input = new_span(indoc! {r#"
             {{{class="brush: python"
             def hello(world):
                 for x in range(10):
@@ -193,7 +194,7 @@ mod tests {
 
     #[test]
     fn preformatted_text_should_support_multiple_metadata() {
-        let input = Span::new(indoc! {r#"
+        let input = new_span(indoc! {r#"
             {{{class="brush: python";style="position: relative"
             def hello(world):
                 for x in range(10):

@@ -78,29 +78,30 @@ fn end_of_math_block(input: Span) -> VimwikiIResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::lang::utils::new_span;
     use indoc::indoc;
 
     #[test]
     fn math_inline_should_fail_if_input_empty() {
-        let input = Span::new("");
+        let input = new_span("");
         assert!(math_inline(input).is_err());
     }
 
     #[test]
     fn math_inline_should_fail_if_does_not_start_with_dollar_sign() {
-        let input = Span::new(r"\sum_i a_i^2 = 1$");
+        let input = new_span(r"\sum_i a_i^2 = 1$");
         assert!(math_inline(input).is_err());
     }
 
     #[test]
     fn math_inline_should_fail_if_does_not_end_with_dollar_sign() {
-        let input = Span::new(r"$\sum_i a_i^2 = 1");
+        let input = new_span(r"$\sum_i a_i^2 = 1");
         assert!(math_inline(input).is_err());
     }
 
     #[test]
     fn math_inline_should_fail_if_end_is_on_next_line() {
-        let input = Span::new(indoc! {r"
+        let input = new_span(indoc! {r"
             $\sum_i a_i^2 = 1
             $
         "});
@@ -109,7 +110,7 @@ mod tests {
 
     #[test]
     fn math_inline_should_consume_all_text_between_dollar_signs_as_formula() {
-        let input = Span::new(r"$\sum_i a_i^2 = 1$");
+        let input = new_span(r"$\sum_i a_i^2 = 1$");
         let (input, m) = math_inline(input).unwrap();
         assert!(input.fragment().is_empty(), "Math inline not consumed");
         assert_eq!(m.formula, r"\sum_i a_i^2 = 1");
@@ -117,13 +118,13 @@ mod tests {
 
     #[test]
     fn math_block_should_fail_if_input_empty() {
-        let input = Span::new("");
+        let input = new_span("");
         assert!(math_block(input).is_err());
     }
 
     #[test]
     fn math_block_should_fail_if_does_not_start_with_dedicated_line() {
-        let input = Span::new(indoc! {r"
+        let input = new_span(indoc! {r"
                 \sum_i a_i^2
             }}$
         "});
@@ -132,7 +133,7 @@ mod tests {
 
     #[test]
     fn math_block_should_fail_if_does_not_end_with_dedicated_line() {
-        let input = Span::new(indoc! {r"
+        let input = new_span(indoc! {r"
             {{$
                 \sum_i a_i^2
         "});
@@ -141,7 +142,7 @@ mod tests {
 
     #[test]
     fn math_block_should_consume_all_lines_between_as_formula() {
-        let input = Span::new(indoc! {r"
+        let input = new_span(indoc! {r"
             {{$
             \sum_i a_i^2
             =
@@ -156,7 +157,7 @@ mod tests {
 
     #[test]
     fn math_block_should_fail_if_environment_delimiters_not_used_correctly() {
-        let input = Span::new(indoc! {r"
+        let input = new_span(indoc! {r"
             {{$%align
             \sum_i a_i^2
             =
@@ -165,7 +166,7 @@ mod tests {
         "});
         assert!(math_block(input).is_err());
 
-        let input = Span::new(indoc! {r"
+        let input = new_span(indoc! {r"
             {{$align%
             \sum_i a_i^2
             =
@@ -174,7 +175,7 @@ mod tests {
         "});
         assert!(math_block(input).is_err());
 
-        let input = Span::new(indoc! {r"
+        let input = new_span(indoc! {r"
             {{$%%
             \sum_i a_i^2
             =
@@ -186,7 +187,7 @@ mod tests {
 
     #[test]
     fn math_block_should_accept_optional_environment_specifier() {
-        let input = Span::new(indoc! {r"
+        let input = new_span(indoc! {r"
              {{$%align%
              \sum_i a_i^2 &= 1 + 1 \\
              &= 2.
