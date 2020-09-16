@@ -34,12 +34,21 @@ pub fn page(input: Span) -> VimwikiIResult<LC<Page>> {
     fn inner(input: Span) -> VimwikiIResult<LC<Page>> {
         let (input, pos) = position(input)?;
 
+        let t_start = std::time::Instant::now();
         // First, parse the page for comments and remove all from input,
         // skipping over any character that is not a comment
         let (_, mut ranges_and_comments) =
             context("Page Comments", scan(range(comments::comment)))(input)?;
+        let t_end = std::time::Instant::now();
+        println!(
+            "Page Comments: {}s",
+            (t_end.duration_since(t_start).as_millis() as f64) / 1000.0,
+        );
 
+        let t_start = std::time::Instant::now();
         // Second, produce a new custom span that skips over commented regions
+        // TODO: Provide a cleaner way to filter our span so we can remove
+        //       this ugly and inefficient approach (including SpanFactory)
         let skippable_ranges: Vec<Range<usize>> =
             ranges_and_comments.iter().map(|x| x.0.to_owned()).collect();
         let shortened_fragment =
@@ -50,20 +59,25 @@ pub fn page(input: Span) -> VimwikiIResult<LC<Page>> {
             &skippable_ranges,
         );
         let no_comments_input = factory.make_span();
+        let t_end = std::time::Instant::now();
+        println!(
+            "Span Factory: {}s",
+            (t_end.duration_since(t_start).as_millis() as f64) / 1000.0,
+        );
 
+        let t_start = std::time::Instant::now();
         // Third, continuously parse input for new block components until we
         // have nothing left (or we fail)
-        //
-        // TODO: Cannot unwrap error as it returns the input, which has
-        //       local references. Need to change the error type to not
-        //       pass back the local input. Make it summarize at the point
-        //       of error instead? There is also pre-existing blank error
-        //       types like (). Maybe we make a custom error type or use
-        //       snafu to provide context
         let (_, components) = context(
             "Page Components",
+            // NOTE: all_consuming will yield an Eof error if input len != 0
             all_consuming(many0(block_component)),
         )(no_comments_input)?;
+        let t_end = std::time::Instant::now();
+        println!(
+            "Page Components: {}s",
+            (t_end.duration_since(t_start).as_millis() as f64) / 1000.0,
+        );
 
         // Fourth, return a page wrapped in a location that comprises the
         // entire input
@@ -150,13 +164,108 @@ fn non_blank_line(input: Span) -> VimwikiIResult<LC<String>> {
 
 #[cfg(test)]
 mod tests {
-    use super::super::components::{
-        DecoratedText, DecoratedTextContent, Decoration, InlineComponent,
-        Keyword, Link, MathInline, Tags, WikiLink,
+    use super::super::{
+        components::{
+            Comment, DecoratedText, DecoratedTextContent, Decoration,
+            InlineComponent, Keyword, LineComment, Link, MathInline,
+            MultiLineComment, Paragraph, Tags, WikiLink,
+        },
+        Region,
     };
     use super::*;
     use crate::lang::utils::new_span;
     use std::path::PathBuf;
+
+    #[test]
+    fn page_should_support_blank_lines() {
+        let input = new_span("\n\n");
+        let (input, page) = page(input).unwrap();
+        assert!(input.fragment().is_empty(), "Did not consume all of input");
+        assert!(page.comments.is_empty());
+        assert_eq!(
+            page.components,
+            vec![BlockComponent::BlankLine, BlockComponent::BlankLine]
+        );
+    }
+
+    #[test]
+    fn page_should_parse_comments() {
+        let input = new_span("%%comment\n%%+comment2+%%\n%%comment3");
+        let (input, page) = page(input).unwrap();
+        assert!(input.fragment().is_empty(), "Did not consume all of input");
+        assert_eq!(
+            page.comments,
+            vec![
+                Comment::from(LineComment("comment".to_string())),
+                Comment::from(MultiLineComment(vec!["comment2".to_string()])),
+                Comment::from(LineComment("comment3".to_string())),
+            ],
+        );
+        assert_eq!(
+            page.components,
+            vec![BlockComponent::BlankLine, BlockComponent::BlankLine]
+        );
+    }
+
+    #[test]
+    fn page_should_parse_block_components() {
+        let input = new_span("some text with % signs");
+        let (input, page) = page(input).unwrap();
+        assert!(input.fragment().is_empty(), "Did not consume all of input");
+        assert!(page.comments.is_empty(), "Unexpected parsed comment");
+        assert_eq!(
+            page.components,
+            vec![BlockComponent::from(Paragraph::from(vec![LC::from(
+                InlineComponent::Text("some text with % signs".to_string())
+            )]))]
+        );
+    }
+
+    #[test]
+    fn page_should_properly_translate_line_and_column_of_block_components_with_comments(
+    ) {
+        let input =
+            new_span("%%comment\nSome %%+comment+%%more%%+\ncomment+%% text");
+        let (input, page) = page(input).unwrap();
+        assert!(input.fragment().is_empty(), "Did not consume all of input");
+
+        let comment = &page.comments[0];
+        assert_eq!(
+            comment.component,
+            Comment::from(LineComment("comment".to_string()))
+        );
+        assert_eq!(comment.region, Region::from((0, 0, 0, 8)));
+
+        let comment = &page.comments[1];
+        assert_eq!(
+            comment.component,
+            Comment::from(MultiLineComment(vec!["comment".to_string()])),
+        );
+        assert_eq!(comment.region, Region::from((1, 5, 1, 17)));
+
+        let comment = &page.comments[2];
+        assert_eq!(
+            comment.component,
+            Comment::from(MultiLineComment(vec![
+                "".to_string(),
+                "comment".to_string(),
+            ])),
+        );
+        assert_eq!(comment.region, Region::from((1, 22, 2, 9)));
+
+        let component = &page.components[0];
+        assert_eq!(component.component, BlockComponent::BlankLine);
+        assert_eq!(component.region, Region::from((0, 9, 0, 9)));
+
+        let component = &page.components[1];
+        assert_eq!(
+            component.component,
+            BlockComponent::from(Paragraph::from(vec![LC::from(
+                InlineComponent::Text("Some more text".to_string())
+            )]))
+        );
+        assert_eq!(component.region, Region::from((1, 0, 2, 14)));
+    }
 
     #[test]
     fn inline_component_container_should_correctly_identify_components() {

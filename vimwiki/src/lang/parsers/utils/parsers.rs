@@ -1,4 +1,4 @@
-use super::{Position, Region, Span, VimwikiIResult, VimwikiNomError, LC};
+use super::{Region, Span, VimwikiIResult, VimwikiNomError, LC};
 use nom::{
     branch::alt,
     bytes::complete::{tag, take, take_while},
@@ -93,7 +93,10 @@ pub fn take_until_end_of_line_or_input(input: Span) -> VimwikiIResult<Span> {
 /// the line (0 being none); input will not be consumed
 #[inline]
 pub fn count_from_beginning_of_line(input: Span) -> VimwikiIResult<usize> {
-    Ok((input, Position::from(input).column))
+    // NOTE: We do NOT use Position::from(input).column as that would yield
+    //       the master column, which can be different if comments are parsed
+    let column = input.get_utf8_column() - 1;
+    Ok((input, column))
 }
 
 /// Parser that will succeed if input is at the beginning of a line; input

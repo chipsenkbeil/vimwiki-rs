@@ -1,9 +1,6 @@
 use super::{
     components::{Comment, LineComment, MultiLineComment},
-    utils::{
-        beginning_of_line, end_of_line_or_input, lc, pstring,
-        take_until_end_of_line_or_input,
-    },
+    utils::{beginning_of_line, lc, pstring, take_until_end_of_line_or_input},
     Span, VimwikiIResult, LC,
 };
 use nom::{
@@ -30,7 +27,6 @@ pub(crate) fn line_comment(input: Span) -> VimwikiIResult<LC<LineComment>> {
         let (input, _) = beginning_of_line(input)?;
         let (input, _) = tag("%%")(input)?;
         let (input, text) = pstring(take_until_end_of_line_or_input)(input)?;
-        let (input, _) = end_of_line_or_input(input)?;
 
         Ok((input, LineComment(text)))
     }
@@ -61,7 +57,7 @@ pub(crate) fn multi_line_comment(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lang::utils::new_span;
+    use crate::lang::utils::{new_span, Region};
     use nom::bytes::complete::take;
 
     #[test]
@@ -100,13 +96,19 @@ mod tests {
             Comment::from(LineComment(" comment".to_string()))
         );
 
+        // NOTE: Line comment doesn't consume the newline; it leaves a blank line
         let input = new_span("%% comment\nnext line");
         let (input, c) = comment(input).unwrap();
-        assert_eq!(*input.fragment(), "next line", "Unexpected input consumed");
+        assert_eq!(
+            *input.fragment(),
+            "\nnext line",
+            "Unexpected input consumed"
+        );
         assert_eq!(
             c.component,
             Comment::from(LineComment(" comment".to_string()))
         );
+        assert_eq!(c.region, Region::from((0, 0, 0, 9)));
     }
 
     #[test]
@@ -118,6 +120,7 @@ mod tests {
             c.component,
             Comment::from(MultiLineComment(vec![" comment ".to_string()]))
         );
+        assert_eq!(c.region, Region::from((0, 0, 0, 14)));
 
         let input = new_span("%%+ comment\nnext line +%%");
         let (input, c) = comment(input).unwrap();
@@ -129,6 +132,7 @@ mod tests {
                 "next line ".to_string(),
             ]))
         );
+        assert_eq!(c.region, Region::from((0, 0, 1, 12)));
 
         let input = new_span("%%+ comment\nnext line +%%after");
         let (input, c) = comment(input).unwrap();
@@ -140,5 +144,6 @@ mod tests {
                 "next line ".to_string(),
             ]))
         );
+        assert_eq!(c.region, Region::from((0, 0, 1, 12)));
     }
 }
