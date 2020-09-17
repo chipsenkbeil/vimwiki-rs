@@ -4,8 +4,8 @@ pub mod utils;
 
 use components::*;
 use derive_more::Display;
-use parsers::vimwiki;
 pub use parsers::LangParserError;
+use parsers::{print_timekeeper_report, vimwiki};
 use std::convert::TryFrom;
 use utils::{new_span, LC};
 
@@ -23,7 +23,13 @@ macro_rules! parse {
         match &$raw_str {
             RawStr::Vimwiki(s) => {
                 let input = new_span(*s);
-                Ok($f(input)?.1)
+                let result = $f(input)?.1;
+
+                // For debugging purposes, we will print out a report of what
+                // parts of our parsers took the longest
+                print_timekeeper_report();
+
+                Ok(result)
             }
             RawStr::Markdown(_) => {
                 Err(nom::Err::Failure(LangParserError::unsupported()))

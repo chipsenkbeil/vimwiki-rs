@@ -2,10 +2,7 @@ use super::{
     components::{
         self, BlockComponent, InlineComponent, InlineComponentContainer, Page,
     },
-    utils::{
-        self, context, lc, position, print_timekeeper_report, range, scan,
-        VimwikiIResult,
-    },
+    utils::{self, context, lc, position, range, scan, VimwikiIResult},
     Span, SpanFactory, LC,
 };
 use nom::{
@@ -62,10 +59,6 @@ pub fn page(input: Span) -> VimwikiIResult<LC<Page>> {
             // NOTE: all_consuming will yield an Eof error if input len != 0
             all_consuming(many0(block_component)),
         )(no_comments_input)?;
-
-        // For debugging purposes, we will print out a report of what parts
-        // of our parsers took the longest
-        print_timekeeper_report();
 
         // Fourth, return a page wrapped in a location that comprises the
         // entire input
