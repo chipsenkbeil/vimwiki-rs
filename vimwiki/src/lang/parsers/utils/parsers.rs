@@ -16,12 +16,12 @@ use uriparse::URI;
 
 use std::{collections::HashMap, sync::Mutex, time::Instant};
 lazy_static! {
-    static ref TIMEKEEPER: Mutex<HashMap<&'static str, u128>> =
+    static ref TIMEKEEPER: Mutex<HashMap<&'static str, (usize, u128)>> =
         Mutex::new(HashMap::new());
 }
 
 pub fn print_timekeeper_report() {
-    let mut results: Vec<(&'static str, u128)> = TIMEKEEPER
+    let mut results: Vec<(&'static str, (usize, u128))> = TIMEKEEPER
         .lock()
         .unwrap()
         .iter()
@@ -29,23 +29,33 @@ pub fn print_timekeeper_report() {
         .collect();
 
     // Sort with most expensive item first
-    results.sort_by_key(|k| k.1);
+    results.sort_by_key(|k| k.1.1);
     results.reverse();
 
-    println!("====== TIMEKEEPER REPORT ======");
-    println!("");
-    for (ctx, nanos) in results.drain(..) {
-        if nanos >= 10_u128.pow(9) {
-            println!("- {}: {}s", ctx, (nanos as f64) / 10_f64.powi(9));
-        } else if nanos >= 10_u128.pow(6) {
-            println!("- {}: {}ms", ctx, (nanos as f64) / 10_f64.powi(6));
-        } else if nanos >= 10_u128.pow(3) {
-            println!("- {}: {}μs", ctx, (nanos as f64) / 10_f64.powi(3));
+    fn time_to_str(x: u128) -> String {
+        if x >= 10_u128.pow(9) {
+            format!("{}s", (x as f64) / 10_f64.powi(9))
+        } else if x >= 10_u128.pow(6) {
+            format!("{}ms", (x as f64) / 10_f64.powi(6))
+        } else if x >= 10_u128.pow(3) {
+            format!("{}μs", (x as f64) / 10_f64.powi(3))
         } else {
-            println!("- {}: {}ns", ctx, nanos);
+            format!("{}ns", x)
         }
     }
-    println!("");
+
+    println!("====== TIMEKEEPER REPORT ======");
+    println!();
+    for (ctx, (cnt, nanos)) in results.drain(..) {
+        println!(
+            "- {}: ({} calls, total {}, average {})", 
+            ctx, 
+            cnt, 
+            time_to_str(nanos), 
+            time_to_str((nanos as f64 / cnt as f64) as u128),
+        );
+    }
+    println!();
     println!("===============================");
 }
 
@@ -71,8 +81,16 @@ pub fn context<'a, T>(
             )),
         };
 
-        *TIMEKEEPER.lock().unwrap().entry(ctx).or_insert(0) =
-            start.elapsed().as_nanos();
+        let x = start.elapsed().as_nanos();
+        TIMEKEEPER
+            .lock()
+            .unwrap()
+            .entry(ctx)
+            .and_modify(move |e| {
+                *e = (e.0 + 1, e.1 + x);
+            })
+            .or_insert((1, x));
+
         result
     }
 }
