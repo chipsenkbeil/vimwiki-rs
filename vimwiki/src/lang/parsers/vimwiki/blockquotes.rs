@@ -1,6 +1,8 @@
 use super::{
     components::Blockquote,
-    utils::{beginning_of_line, blank_line, end_of_line_or_input, position},
+    utils::{
+        beginning_of_line, blank_line, context, end_of_line_or_input, position,
+    },
     Span, VimwikiIResult, LC,
 };
 use nom::{
@@ -8,7 +10,6 @@ use nom::{
     bytes::complete::tag,
     character::complete::{not_line_ending, space0},
     combinator::{map, value, verify},
-    error::context,
     multi::{many0, many1},
     sequence::pair,
 };

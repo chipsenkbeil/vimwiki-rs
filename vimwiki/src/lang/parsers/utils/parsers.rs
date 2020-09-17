@@ -1,4 +1,5 @@
 use super::{Region, Span, VimwikiIResult, VimwikiNomError, LC};
+use lazy_static::lazy_static;
 use nom::{
     branch::alt,
     bytes::complete::{tag, take, take_while},
@@ -6,13 +7,75 @@ use nom::{
     combinator::{
         map, map_res, not, opt, peek, recognize, rest_len, value, verify,
     },
-    error::context,
     multi::{many0, many1},
     sequence::{delimited, pair, preceded, terminated},
 };
 use std::convert::TryFrom;
 use std::ops::Range;
 use uriparse::URI;
+
+use std::{collections::HashMap, sync::Mutex, time::Instant};
+lazy_static! {
+    static ref TIMEKEEPER: Mutex<HashMap<&'static str, u128>> =
+        Mutex::new(HashMap::new());
+}
+
+pub fn print_timekeeper_report() {
+    let mut results: Vec<(&'static str, u128)> = TIMEKEEPER
+        .lock()
+        .unwrap()
+        .iter()
+        .map(|(k, v)| (*k, *v))
+        .collect();
+
+    // Sort with most expensive item first
+    results.sort_by_key(|k| k.1);
+    results.reverse();
+
+    println!("====== TIMEKEEPER REPORT ======");
+    println!("");
+    for (ctx, nanos) in results.drain(..) {
+        if nanos >= 10_u128.pow(9) {
+            println!("- {}: {}s", ctx, (nanos as f64) / 10_f64.powi(9));
+        } else if nanos >= 10_u128.pow(6) {
+            println!("- {}: {}ms", ctx, (nanos as f64) / 10_f64.powi(6));
+        } else if nanos >= 10_u128.pow(3) {
+            println!("- {}: {}μs", ctx, (nanos as f64) / 10_f64.powi(3));
+        } else {
+            println!("- {}: {}ns", ctx, nanos);
+        }
+    }
+    println!("");
+    println!("===============================");
+}
+
+pub fn context<'a, T>(
+    ctx: &'static str,
+    f: impl Fn(Span<'a>) -> VimwikiIResult<T>,
+) -> impl Fn(Span<'a>) -> VimwikiIResult<T> {
+    use nom::error::ParseError;
+    move |input: Span<'a>| {
+        let start = Instant::now();
+
+        // NOTE: Following is the code found in nom's context parser, but due
+        //       to issues with wrapping a function like above in a parser,
+        //       we have to explicitly call the f parser on its own
+        let result = match f(input) {
+            Ok(o) => Ok(o),
+            Err(nom::Err::Incomplete(i)) => Err(nom::Err::Incomplete(i)),
+            Err(nom::Err::Error(e)) => Err(nom::Err::Error(
+                VimwikiNomError::add_context(input, ctx, e),
+            )),
+            Err(nom::Err::Failure(e)) => Err(nom::Err::Failure(
+                VimwikiNomError::add_context(input, ctx, e),
+            )),
+        };
+
+        *TIMEKEEPER.lock().unwrap().entry(ctx).or_insert(0) =
+            start.elapsed().as_nanos();
+        result
+    }
+}
 
 /// Alternative to the `position` function of nom_locate that retains the fragment
 #[inline]

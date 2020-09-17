@@ -1,6 +1,6 @@
 use super::{
     components::{Description, ExternalFileLink, ExternalFileLinkScheme},
-    utils::{position, take_line_while1},
+    utils::{context, lc, take_line_while1},
     Span, VimwikiIResult, LC,
 };
 use nom::{
@@ -13,25 +13,28 @@ use std::path::PathBuf;
 
 #[inline]
 pub fn external_file_link(input: Span) -> VimwikiIResult<LC<ExternalFileLink>> {
-    let (input, pos) = position(input)?;
-    let (input, _) = tag("[[")(input)?;
-    let (input, link) = alt((
-        preceded(
-            tag("local:"),
-            take_external_file_link(ExternalFileLinkScheme::Local),
-        ),
-        preceded(
-            tag("file:"),
-            take_external_file_link(ExternalFileLinkScheme::File),
-        ),
-        preceded(
-            tag("//"),
-            take_external_file_link(ExternalFileLinkScheme::Absolute),
-        ),
-    ))(input)?;
-    let (input, _) = tag("]]")(input)?;
+    fn inner(input: Span) -> VimwikiIResult<ExternalFileLink> {
+        let (input, _) = tag("[[")(input)?;
+        let (input, link) = alt((
+            preceded(
+                tag("local:"),
+                take_external_file_link(ExternalFileLinkScheme::Local),
+            ),
+            preceded(
+                tag("file:"),
+                take_external_file_link(ExternalFileLinkScheme::File),
+            ),
+            preceded(
+                tag("//"),
+                take_external_file_link(ExternalFileLinkScheme::Absolute),
+            ),
+        ))(input)?;
+        let (input, _) = tag("]]")(input)?;
 
-    Ok((input, LC::from((link, pos, input))))
+        Ok((input, link))
+    }
+
+    context("External File Link", lc(inner))(input)
 }
 
 #[inline]

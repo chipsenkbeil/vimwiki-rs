@@ -19,6 +19,7 @@ rstar = { version = "0.8.2", features = ["serde"] }
 serde = { version = "1.0.115", features = ["derive"] }
 shellexpand = "2.0.0"
 uriparse = { version = "0.6.3", features = ["serde"] }
+lazy_static = "1.4"
 
 [dependencies.derive_more]
 version = "0.99.0"

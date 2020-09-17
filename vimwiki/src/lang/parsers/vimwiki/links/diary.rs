@@ -1,6 +1,6 @@
 use super::{
     components::DiaryLink,
-    utils::{take_line_while1, VimwikiNomError},
+    utils::{context, take_line_while1, VimwikiNomError},
     wiki::wiki_link,
     Span, VimwikiIResult, LC,
 };
@@ -12,24 +12,28 @@ use nom::{
 
 #[inline]
 pub fn diary_link(input: Span) -> VimwikiIResult<LC<DiaryLink>> {
-    // First, parse as a standard wiki link, which should stash the potential
-    // diary as the path
-    let (input, link) = wiki_link(input)?;
-    let path = link.path.to_str().ok_or_else(|| {
-        nom::Err::Error(VimwikiNomError::from_ctx(input, "Not diary link"))
-    })?;
+    fn inner(input: Span) -> VimwikiIResult<LC<DiaryLink>> {
+        // First, parse as a standard wiki link, which should stash the potential
+        // diary as the path
+        let (input, link) = wiki_link(input)?;
+        let path = link.path.to_str().ok_or_else(|| {
+            nom::Err::Error(VimwikiNomError::from_ctx(input, "Not diary link"))
+        })?;
 
-    // Second, check if the link is a diary
-    match parse_date_from_path(path) {
-        Some((_, date)) => Ok((
-            input,
-            link.map(|c| DiaryLink::new(date, c.description, c.anchor)),
-        )),
-        _ => Err(nom::Err::Error(VimwikiNomError::from_ctx(
-            input,
-            "Not diary link",
-        ))),
+        // Second, check if the link is a diary
+        match parse_date_from_path(path) {
+            Some((_, date)) => Ok((
+                input,
+                link.map(|c| DiaryLink::new(date, c.description, c.anchor)),
+            )),
+            _ => Err(nom::Err::Error(VimwikiNomError::from_ctx(
+                input,
+                "Not diary link",
+            ))),
+        }
     }
+
+    context("Diary Link", inner)(input)
 }
 
 #[inline]

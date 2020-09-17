@@ -1,7 +1,7 @@
 use super::{
     components::PreformattedText,
     utils::{
-        any_line, beginning_of_line, end_of_line_or_input, position,
+        any_line, beginning_of_line, context, end_of_line_or_input, lc,
         take_line_while, take_line_while1,
     },
     Span, VimwikiIResult, LC,
@@ -17,17 +17,16 @@ use std::collections::HashMap;
 
 #[inline]
 pub fn preformatted_text(input: Span) -> VimwikiIResult<LC<PreformattedText>> {
-    let (input, pos) = position(input)?;
+    fn inner(input: Span) -> VimwikiIResult<PreformattedText> {
+        let (input, metadata) = preformatted_text_start(input)?;
+        let (input, lines) =
+            many1(preceded(not(preformatted_text_end), any_line))(input)?;
+        let (input, _) = preformatted_text_end(input)?;
 
-    let (input, metadata) = preformatted_text_start(input)?;
-    let (input, lines) =
-        many1(preceded(not(preformatted_text_end), any_line))(input)?;
-    let (input, _) = preformatted_text_end(input)?;
+        Ok((input, PreformattedText::new(metadata, lines)))
+    }
 
-    Ok((
-        input,
-        LC::from((PreformattedText::new(metadata, lines), pos, input)),
-    ))
+    context("Preformatted Text", lc(inner))(input)
 }
 
 #[inline]

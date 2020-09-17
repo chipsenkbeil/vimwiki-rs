@@ -3,7 +3,7 @@ use super::{
     links::link,
     math::math_inline,
     tags::tags,
-    utils::{lc, pstring, take_line_while1},
+    utils::{context, lc, pstring, take_line_while1},
     Span, VimwikiIResult, LC,
 };
 
@@ -11,7 +11,6 @@ use nom::{
     branch::alt,
     bytes::complete::tag,
     combinator::{map, not},
-    error::context,
     multi::many1,
 };
 

@@ -2,13 +2,15 @@ use super::{
     components::{
         self, BlockComponent, InlineComponent, InlineComponentContainer, Page,
     },
-    utils::{self, lc, position, range, scan, VimwikiIResult},
+    utils::{
+        self, context, lc, position, print_timekeeper_report, range, scan,
+        VimwikiIResult,
+    },
     Span, SpanFactory, LC,
 };
 use nom::{
     branch::alt,
     combinator::{all_consuming, map, value},
-    error::context,
     multi::{many0, many1},
     InputLength, Slice,
 };
@@ -34,18 +36,11 @@ pub fn page(input: Span) -> VimwikiIResult<LC<Page>> {
     fn inner(input: Span) -> VimwikiIResult<LC<Page>> {
         let (input, pos) = position(input)?;
 
-        let t_start = std::time::Instant::now();
         // First, parse the page for comments and remove all from input,
         // skipping over any character that is not a comment
         let (_, mut ranges_and_comments) =
             context("Page Comments", scan(range(comments::comment)))(input)?;
-        let t_end = std::time::Instant::now();
-        println!(
-            "Page Comments: {}s",
-            (t_end.duration_since(t_start).as_millis() as f64) / 1000.0,
-        );
 
-        let t_start = std::time::Instant::now();
         // Second, produce a new custom span that skips over commented regions
         // TODO: Provide a cleaner way to filter our span so we can remove
         //       this ugly and inefficient approach (including SpanFactory)
@@ -59,13 +54,7 @@ pub fn page(input: Span) -> VimwikiIResult<LC<Page>> {
             &skippable_ranges,
         );
         let no_comments_input = factory.make_span();
-        let t_end = std::time::Instant::now();
-        println!(
-            "Span Factory: {}s",
-            (t_end.duration_since(t_start).as_millis() as f64) / 1000.0,
-        );
 
-        let t_start = std::time::Instant::now();
         // Third, continuously parse input for new block components until we
         // have nothing left (or we fail)
         let (_, components) = context(
@@ -73,11 +62,10 @@ pub fn page(input: Span) -> VimwikiIResult<LC<Page>> {
             // NOTE: all_consuming will yield an Eof error if input len != 0
             all_consuming(many0(block_component)),
         )(no_comments_input)?;
-        let t_end = std::time::Instant::now();
-        println!(
-            "Page Components: {}s",
-            (t_end.duration_since(t_start).as_millis() as f64) / 1000.0,
-        );
+
+        // For debugging purposes, we will print out a report of what parts
+        // of our parsers took the longest
+        print_timekeeper_report();
 
         // Fourth, return a page wrapped in a location that comprises the
         // entire input

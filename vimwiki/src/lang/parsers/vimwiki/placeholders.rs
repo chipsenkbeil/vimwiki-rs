@@ -1,8 +1,8 @@
 use super::{
     components::Placeholder,
     utils::{
-        beginning_of_line, end_of_line_or_input, lc, pstring, take_line_while1,
-        take_until_end_of_line_or_input,
+        beginning_of_line, context, end_of_line_or_input, lc, pstring,
+        take_line_while1, take_until_end_of_line_or_input,
     },
     Span, VimwikiIResult, LC,
 };
@@ -12,7 +12,6 @@ use nom::{
     bytes::complete::tag,
     character::complete::{space0, space1},
     combinator::{map_res, not, verify},
-    error::context,
 };
 
 #[inline]
@@ -34,57 +33,79 @@ pub fn placeholder(input: Span) -> VimwikiIResult<LC<Placeholder>> {
 }
 
 fn placeholder_title(input: Span) -> VimwikiIResult<Placeholder> {
-    let (input, _) = tag("%title")(input)?;
-    let (input, _) = space1(input)?;
-    let (input, text) =
-        pstring(verify(take_until_end_of_line_or_input, |s: &Span| {
-            !s.fragment().trim().is_empty()
-        }))(input)?;
-    Ok((input, Placeholder::Title(text)))
+    fn inner(input: Span) -> VimwikiIResult<Placeholder> {
+        let (input, _) = tag("%title")(input)?;
+        let (input, _) = space1(input)?;
+        let (input, text) =
+            pstring(verify(take_until_end_of_line_or_input, |s: &Span| {
+                !s.fragment().trim().is_empty()
+            }))(input)?;
+        Ok((input, Placeholder::Title(text)))
+    }
+
+    context("Placeholder Title", inner)(input)
 }
 
 fn placeholder_nohtml(input: Span) -> VimwikiIResult<Placeholder> {
-    let (input, _) = tag("%nohtml")(input)?;
-    let (input, _) = space0(input)?;
-    Ok((input, Placeholder::NoHtml))
+    fn inner(input: Span) -> VimwikiIResult<Placeholder> {
+        let (input, _) = tag("%nohtml")(input)?;
+        let (input, _) = space0(input)?;
+        Ok((input, Placeholder::NoHtml))
+    }
+
+    context("Placeholder NoHtml", inner)(input)
 }
 
 fn placeholder_template(input: Span) -> VimwikiIResult<Placeholder> {
-    let (input, _) = tag("%template")(input)?;
-    let (input, _) = space1(input)?;
-    let (input, text) =
-        pstring(verify(take_until_end_of_line_or_input, |s: &Span| {
-            !s.fragment().trim().is_empty()
-        }))(input)?;
-    Ok((input, Placeholder::Template(text)))
+    fn inner(input: Span) -> VimwikiIResult<Placeholder> {
+        let (input, _) = tag("%template")(input)?;
+        let (input, _) = space1(input)?;
+        let (input, text) =
+            pstring(verify(take_until_end_of_line_or_input, |s: &Span| {
+                !s.fragment().trim().is_empty()
+            }))(input)?;
+        Ok((input, Placeholder::Template(text)))
+    }
+
+    context("Placeholder Template", inner)(input)
 }
 
 fn placeholder_date(input: Span) -> VimwikiIResult<Placeholder> {
-    let (input, _) = tag("%date")(input)?;
-    let (input, _) = space1(input)?;
-    let (input, date) = map_res(take_until_end_of_line_or_input, |s: Span| {
-        NaiveDate::parse_from_str(s.fragment(), "%Y-%m-%d")
-    })(input)?;
-    Ok((input, Placeholder::Date(date)))
+    fn inner(input: Span) -> VimwikiIResult<Placeholder> {
+        let (input, _) = tag("%date")(input)?;
+        let (input, _) = space1(input)?;
+        let (input, date) =
+            map_res(take_until_end_of_line_or_input, |s: Span| {
+                NaiveDate::parse_from_str(s.fragment(), "%Y-%m-%d")
+            })(input)?;
+        Ok((input, Placeholder::Date(date)))
+    }
+
+    context("Placeholder Date", inner)(input)
 }
 
 fn placeholder_other(input: Span) -> VimwikiIResult<Placeholder> {
-    let (input, _) = not(tag("%title"))(input)?;
-    let (input, _) = not(tag("%nohtml"))(input)?;
-    let (input, _) = not(tag("%template"))(input)?;
-    let (input, _) = not(tag("%date"))(input)?;
+    fn inner(input: Span) -> VimwikiIResult<Placeholder> {
+        let (input, _) = not(tag("%title"))(input)?;
+        let (input, _) = not(tag("%nohtml"))(input)?;
+        let (input, _) = not(tag("%template"))(input)?;
+        let (input, _) = not(tag("%date"))(input)?;
 
-    let (input, _) = tag("%")(input)?;
-    let (input, name) =
-        pstring(take_line_while1(not(alt((tag(" "), tag("\t"), tag("%"))))))(
-            input,
-        )?;
-    let (input, _) = space1(input)?;
-    let (input, value) =
-        pstring(verify(take_until_end_of_line_or_input, |s: &Span| {
-            !s.fragment().trim().is_empty()
-        }))(input)?;
-    Ok((input, Placeholder::Other { name, value }))
+        let (input, _) = tag("%")(input)?;
+        let (input, name) = pstring(take_line_while1(not(alt((
+            tag(" "),
+            tag("\t"),
+            tag("%"),
+        )))))(input)?;
+        let (input, _) = space1(input)?;
+        let (input, value) =
+            pstring(verify(take_until_end_of_line_or_input, |s: &Span| {
+                !s.fragment().trim().is_empty()
+            }))(input)?;
+        Ok((input, Placeholder::Other { name, value }))
+    }
+
+    context("Placeholder Other", inner)(input)
 }
 
 #[cfg(test)]

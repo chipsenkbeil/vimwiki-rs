@@ -1,6 +1,6 @@
 use super::{
     components::{Tag, Tags},
-    utils::{position, take_line_while1},
+    utils::{context, lc, take_line_while1},
     Span, VimwikiIResult, LC,
 };
 use nom::{
@@ -10,12 +10,15 @@ use nom::{
 
 #[inline]
 pub fn tags(input: Span) -> VimwikiIResult<LC<Tags>> {
-    let (input, pos) = position(input)?;
+    fn inner(input: Span) -> VimwikiIResult<Tags> {
+        let (input, _) = char(':')(input)?;
+        let (input, contents) =
+            many1(terminated(tag_content, char(':')))(input)?;
 
-    let (input, _) = char(':')(input)?;
-    let (input, contents) = many1(terminated(tag_content, char(':')))(input)?;
+        Ok((input, Tags::new(contents)))
+    }
 
-    Ok((input, LC::from((Tags::new(contents), pos, input))))
+    context("Tags", lc(inner))(input)
 }
 
 fn tag_content(input: Span) -> VimwikiIResult<Tag> {

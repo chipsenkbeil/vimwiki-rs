@@ -1,6 +1,6 @@
 use super::{
     components::{IndexedInterWikiLink, InterWikiLink, NamedInterWikiLink},
-    utils::{take_line_while1, VimwikiNomError},
+    utils::{context, take_line_while1, VimwikiNomError},
     wiki::wiki_link,
     Span, VimwikiIResult, LC,
 };
@@ -10,37 +10,46 @@ use std::path::PathBuf;
 
 #[inline]
 pub fn inter_wiki_link(input: Span) -> VimwikiIResult<LC<InterWikiLink>> {
-    let (input, mut link) = wiki_link(input)?;
-    let path = link.path.to_str().ok_or_else(|| {
-        nom::Err::Error(VimwikiNomError::from_ctx(input, "Not interwiki link"))
-    })?;
+    fn inner(input: Span) -> VimwikiIResult<LC<InterWikiLink>> {
+        let (input, mut link) = wiki_link(input)?;
+        let path = link.path.to_str().ok_or_else(|| {
+            nom::Err::Error(VimwikiNomError::from_ctx(
+                input,
+                "Not interwiki link",
+            ))
+        })?;
 
-    if let Some((path, index)) = parse_index_from_path(path) {
-        // Update path of link after removal of prefix
-        link.path = PathBuf::from(path);
+        if let Some((path, index)) = parse_index_from_path(path) {
+            // Update path of link after removal of prefix
+            link.path = PathBuf::from(path);
 
-        return Ok((
+            return Ok((
+                input,
+                link.map(|c| {
+                    InterWikiLink::from(IndexedInterWikiLink::new(index, c))
+                }),
+            ));
+        }
+
+        if let Some((path, name)) = parse_name_from_path(path) {
+            // Update path of link after removal of prefix
+            link.path = PathBuf::from(path);
+
+            return Ok((
+                input,
+                link.map(|c| {
+                    InterWikiLink::from(NamedInterWikiLink::new(name, c))
+                }),
+            ));
+        }
+
+        Err(nom::Err::Error(VimwikiNomError::from_ctx(
             input,
-            link.map(|c| {
-                InterWikiLink::from(IndexedInterWikiLink::new(index, c))
-            }),
-        ));
+            "not interwiki link",
+        )))
     }
 
-    if let Some((path, name)) = parse_name_from_path(path) {
-        // Update path of link after removal of prefix
-        link.path = PathBuf::from(path);
-
-        return Ok((
-            input,
-            link.map(|c| InterWikiLink::from(NamedInterWikiLink::new(name, c))),
-        ));
-    }
-
-    Err(nom::Err::Error(VimwikiNomError::from_ctx(
-        input,
-        "not interwiki link",
-    )))
+    context("Inter Wiki Link", inner)(input)
 }
 
 fn parse_index_from_path(path: &str) -> Option<(&str, u32)> {

@@ -1,13 +1,12 @@
 use super::{
     components::{Anchor, Description, WikiLink},
-    utils::{position, take_line_while1, uri, VimwikiNomError},
+    utils::{context, lc, take_line_while1, uri, VimwikiNomError},
     Span, VimwikiIResult, LC,
 };
 use nom::{
     branch::alt,
     bytes::complete::tag,
     combinator::{map, map_parser, not, opt, rest},
-    error::context,
     multi::separated_list,
     sequence::{delimited, preceded},
 };
@@ -15,13 +14,10 @@ use std::path::PathBuf;
 
 #[inline]
 pub fn wiki_link(input: Span) -> VimwikiIResult<LC<WikiLink>> {
-    let (input, pos) = position(input)?;
-    let (input, link) = context(
+    context(
         "WikiLink",
-        delimited(tag("[["), wiki_link_internal, tag("]]")),
-    )(input)?;
-
-    Ok((input, LC::from((link, pos, input))))
+        lc(delimited(tag("[["), wiki_link_internal, tag("]]"))),
+    )(input)
 }
 
 /// Parser for wiki link content within [[...]]

@@ -1,7 +1,7 @@
 // Import to make more easily accessible to submodules
 use super::{
     components,
-    utils::{Position, Region, Span, SpanFactory, LC},
+    utils::{Region, Span, SpanFactory, LC},
 };
 
 mod errors;

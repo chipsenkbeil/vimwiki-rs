@@ -1,7 +1,7 @@
 use super::{
     components::Divider,
     utils::{
-        beginning_of_line, end_of_line_or_input, position, take_line_while1,
+        beginning_of_line, context, end_of_line_or_input, lc, take_line_while1,
     },
     Span, VimwikiIResult, LC,
 };
@@ -9,15 +9,17 @@ use nom::{character::complete::char, combinator::verify};
 
 #[inline]
 pub fn divider(input: Span) -> VimwikiIResult<LC<Divider>> {
-    let (input, pos) = position(input)?;
+    fn inner(input: Span) -> VimwikiIResult<Divider> {
+        let (input, _) = beginning_of_line(input)?;
+        let (input, _) = verify(take_line_while1(char('-')), |s: &Span| {
+            s.fragment().len() >= 4
+        })(input)?;
+        let (input, _) = end_of_line_or_input(input)?;
 
-    let (input, _) = beginning_of_line(input)?;
-    let (input, _) = verify(take_line_while1(char('-')), |s: &Span| {
-        s.fragment().len() >= 4
-    })(input)?;
-    let (input, _) = end_of_line_or_input(input)?;
+        Ok((input, Divider))
+    }
 
-    Ok((input, LC::from((Divider, pos, input))))
+    context("Divider", lc(inner))(input)
 }
 
 #[cfg(test)]

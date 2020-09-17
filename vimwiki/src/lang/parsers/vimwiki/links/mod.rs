@@ -1,8 +1,9 @@
 use super::{
     components::{self, Link},
-    utils, Span, VimwikiIResult, LC,
+    utils::{self, context},
+    Span, VimwikiIResult, LC,
 };
-use nom::{branch::alt, combinator::map, error::context};
+use nom::{branch::alt, combinator::map};
 
 pub(crate) mod diary;
 pub(crate) mod external;

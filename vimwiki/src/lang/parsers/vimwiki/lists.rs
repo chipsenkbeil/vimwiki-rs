@@ -5,7 +5,7 @@ use super::{
         ListItemType, OrderedListItemType, UnorderedListItemType,
     },
     inline_component_container,
-    utils::{beginning_of_line, end_of_line_or_input, lc, position},
+    utils::{beginning_of_line, context, end_of_line_or_input, lc, position},
     Span, VimwikiIResult, LC,
 };
 use nom::{
@@ -13,7 +13,6 @@ use nom::{
     bytes::complete::{tag, take_while1},
     character::complete::{digit1, one_of, space0},
     combinator::{map, opt, peek, value, verify},
-    error::context,
     multi::{fold_many0, many0, many1},
     sequence::{pair, preceded, terminated},
 };

@@ -2438,6 +2438,7 @@ dependencies = [
  "chrono",
  "derive_more",
  "indoc",
+ "lazy_static",
  "nom",
  "nom_locate",
  "numerals",

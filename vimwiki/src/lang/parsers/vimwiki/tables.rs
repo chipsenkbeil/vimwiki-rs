@@ -1,7 +1,7 @@
 use super::{
     components::{Cell, Row, Table},
     inline_component_container,
-    utils::{end_of_line_or_input, lc, position, take_line_while1},
+    utils::{context, end_of_line_or_input, lc, position, take_line_while1},
     Span, VimwikiIResult, LC,
 };
 use nom::{
@@ -9,14 +9,13 @@ use nom::{
     bytes::complete::tag,
     character::complete::{char, space0},
     combinator::{map, map_parser, not, value, verify},
-    error::context,
     multi::{many0, separated_nonempty_list},
     sequence::{delimited, pair, preceded, terminated},
 };
 
 #[inline]
 pub fn table(input: Span) -> VimwikiIResult<LC<Table>> {
-    fn _table(input: Span) -> VimwikiIResult<Table> {
+    fn inner(input: Span) -> VimwikiIResult<Table> {
         // Assume a table is centered if the first row is indented
         let (input, (table_header, centered)) =
             map(pair(space0, row), |x| (x.1, !x.0.fragment().is_empty()))(
@@ -30,9 +29,12 @@ pub fn table(input: Span) -> VimwikiIResult<LC<Table>> {
     }
 
     // Parse the table and make sure it isn't comprised entirely of divider rows
-    lc(verify(_table, |t| {
-        !t.rows.iter().all(|r| matches!(r.component, Row::Divider))
-    }))(input)
+    context(
+        "Table",
+        lc(verify(inner, |t| {
+            !t.rows.iter().all(|r| matches!(r.component, Row::Divider))
+        })),
+    )(input)
 }
 
 #[inline]

@@ -1,13 +1,15 @@
 use super::{
     components::{Comment, LineComment, MultiLineComment},
-    utils::{beginning_of_line, lc, pstring, take_until_end_of_line_or_input},
+    utils::{
+        beginning_of_line, context, lc, pstring,
+        take_until_end_of_line_or_input,
+    },
     Span, VimwikiIResult, LC,
 };
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_until},
     combinator::map,
-    error::context,
 };
 
 #[inline]

@@ -1,13 +1,12 @@
 use super::{
     components::Paragraph,
     inline_component_container,
-    utils::{beginning_of_line, blank_line, end_of_line_or_input, position},
+    utils::{beginning_of_line, blank_line, context, end_of_line_or_input, lc},
     Span, VimwikiIResult, LC,
 };
 use nom::{
     character::complete::space1,
     combinator::{map, not},
-    error::context,
     multi::many1,
     sequence::delimited,
 };
@@ -15,28 +14,30 @@ use nom::{
 /// Parses a vimwiki paragraph, returning the associated paragraph is successful
 #[inline]
 pub fn paragraph(input: Span) -> VimwikiIResult<LC<Paragraph>> {
-    let (input, pos) = position(input)?;
+    fn inner(input: Span) -> VimwikiIResult<Paragraph> {
+        // Ensure that we are starting at the beginning of a line
+        let (input, _) = beginning_of_line(input)?;
 
-    // Ensure that we are starting at the beginning of a line
-    let (input, _) = beginning_of_line(input)?;
+        // Paragraph has NO indentation
+        let (input, _) = not(space1)(input)?;
 
-    // Paragraph has NO indentation
-    let (input, _) = not(space1)(input)?;
+        // Continuously take content until we reach a blank line
+        let (input, components) = context(
+            "Paragraph",
+            many1(delimited(
+                not(blank_line),
+                map(inline_component_container, |c| c.component),
+                end_of_line_or_input,
+            )),
+        )(input)?;
 
-    // Continuously take content until we reach a blank line
-    let (input, components) = context(
-        "Paragraph",
-        many1(delimited(
-            not(blank_line),
-            map(inline_component_container, |c| c.component),
-            end_of_line_or_input,
-        )),
-    )(input)?;
+        // Transform contents into the paragraph itself
+        let paragraph = Paragraph::new(From::from(components));
 
-    // Transform contents into the paragraph itself
-    let paragraph = Paragraph::new(From::from(components));
+        Ok((input, paragraph))
+    }
 
-    Ok((input, LC::from((paragraph, pos, input))))
+    context("Paragraph", lc(inner))(input)
 }
 
 #[cfg(test)]

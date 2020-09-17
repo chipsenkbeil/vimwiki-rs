@@ -1,6 +1,6 @@
 use super::{
     components::{Description, TransclusionLink},
-    utils::{position, take_line_while, take_line_while1},
+    utils::{context, lc, take_line_while, take_line_while1},
     Span, VimwikiIResult, LC,
 };
 use nom::{
@@ -16,33 +16,34 @@ use uriparse::URI;
 
 #[inline]
 pub fn transclusion_link(input: Span) -> VimwikiIResult<LC<TransclusionLink>> {
-    let (input, pos) = position(input)?;
+    fn inner(input: Span) -> VimwikiIResult<TransclusionLink> {
+        let (input, _) = tag("{{")(input)?;
+        let (input, link_uri) = map_res(
+            take_line_while1(not(alt((tag("|"), tag("}}"))))),
+            |s: Span| URI::try_from(*s.fragment()).map(|uri| uri.into_owned()),
+        )(input)?;
+        let (input, maybe_description) = opt(map(
+            preceded(
+                tag("|"),
+                take_line_while(not(alt((tag("|"), tag("}}"))))),
+            ),
+            |s: Span| Description::from(s.fragment().to_string()),
+        ))(input)?;
+        let (input, maybe_properties) =
+            opt(preceded(tag("|"), transclusion_properties))(input)?;
+        let (input, _) = tag("}}")(input)?;
 
-    let (input, _) = tag("{{")(input)?;
-    let (input, link_uri) = map_res(
-        take_line_while1(not(alt((tag("|"), tag("}}"))))),
-        |s: Span| URI::try_from(*s.fragment()).map(|uri| uri.into_owned()),
-    )(input)?;
-    let (input, maybe_description) = opt(map(
-        preceded(tag("|"), take_line_while(not(alt((tag("|"), tag("}}")))))),
-        |s: Span| Description::from(s.fragment().to_string()),
-    ))(input)?;
-    let (input, maybe_properties) =
-        opt(preceded(tag("|"), transclusion_properties))(input)?;
-    let (input, _) = tag("}}")(input)?;
-
-    Ok((
-        input,
-        LC::from((
+        Ok((
+            input,
             TransclusionLink::new(
                 link_uri,
                 maybe_description,
                 maybe_properties.unwrap_or_default(),
             ),
-            pos,
-            input,
-        )),
-    ))
+        ))
+    }
+
+    context("Transclusion Link", lc(inner))(input)
 }
 
 /// Parser for property pairs separated by | in the form of

@@ -1,22 +1,24 @@
 use super::{
     components::RawLink,
-    utils::{position, uri},
+    utils::{context, lc, uri},
     Span, VimwikiIResult, LC,
 };
 use nom::combinator::verify;
 
 #[inline]
 pub fn raw_link(input: Span) -> VimwikiIResult<LC<RawLink>> {
-    let (input, pos) = position(input)?;
+    fn inner(input: Span) -> VimwikiIResult<RawLink> {
+        // This will match any URI, but we only want to allow a certain set
+        // to ensure that we don't mistake some text preceding a tag
+        let (input, uri) = verify(uri, |uri| {
+            vec!["http", "https", "ftp", "file", "local", "mailto"]
+                .contains(&uri.scheme().as_str())
+        })(input)?;
 
-    // This will match any URI, but we only want to allow a certain set
-    // to ensure that we don't mistake some text preceding a tag
-    let (input, uri) = verify(uri, |uri| {
-        vec!["http", "https", "ftp", "file", "local", "mailto"]
-            .contains(&uri.scheme().as_str())
-    })(input)?;
+        Ok((input, RawLink::from(uri)))
+    }
 
-    Ok((input, LC::from((RawLink::from(uri), pos, input))))
+    context("Raw Link", lc(inner))(input)
 }
 
 #[cfg(test)]

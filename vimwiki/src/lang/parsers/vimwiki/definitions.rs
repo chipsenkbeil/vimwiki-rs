@@ -1,8 +1,8 @@
 use super::{
     components::{Definition, DefinitionList, Term, TermAndDefinitions},
     utils::{
-        beginning_of_line, end_of_line_or_input, lc, position, pstring,
-        take_line_while1, take_until_end_of_line_or_input,
+        beginning_of_line, context, end_of_line_or_input, lc, position,
+        pstring, take_line_while1, take_until_end_of_line_or_input,
     },
     Span, VimwikiIResult, LC,
 };
@@ -10,7 +10,6 @@ use nom::{
     bytes::complete::tag,
     character::complete::{space0, space1},
     combinator::{map, not, opt, verify},
-    error::context,
     multi::{many0, many1},
     sequence::{pair, preceded, terminated},
 };
