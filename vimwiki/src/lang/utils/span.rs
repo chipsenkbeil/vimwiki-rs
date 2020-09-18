@@ -7,6 +7,7 @@ use nom::{
     ParseTo, Slice,
 };
 use std::{
+    cmp::Ordering,
     fmt::{Display, Formatter, Result as FmtResult},
     iter::{Enumerate, FromIterator},
     ops::{Range, RangeFrom, RangeFull, RangeTo},
@@ -20,7 +21,23 @@ struct SpanSegments {
 }
 
 impl SpanSegments {
-    pub fn new(segments: Vec<Range<usize>>) -> Self {
+    pub fn new(mut segments: Vec<Range<usize>>) -> Self {
+        // Ensures that our segments are in order by start and then by end
+        // TODO: Is this needed, or can we assume it's sorted?
+        segments.sort_unstable_by(|a, b| {
+            if a.start < b.start {
+                Ordering::Less
+            } else if a.start > b.start {
+                Ordering::Greater
+            } else if a.end < b.end {
+                Ordering::Less
+            } else if a.end > b.end {
+                Ordering::Greater
+            } else {
+                Ordering::Equal
+            }
+        });
+
         Self {
             segments: Arc::new(segments),
         }
