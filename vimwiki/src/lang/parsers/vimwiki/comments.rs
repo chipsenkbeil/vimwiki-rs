@@ -102,7 +102,7 @@ mod tests {
         let input = Span::from("%% comment\nnext line");
         let (input, c) = comment(input).unwrap();
         assert_eq!(
-            *input.fragment(),
+            input.fragment_str(),
             "\nnext line",
             "Unexpected input consumed"
         );
@@ -138,7 +138,7 @@ mod tests {
 
         let input = Span::from("%%+ comment\nnext line +%%after");
         let (input, c) = comment(input).unwrap();
-        assert_eq!(*input.fragment(), "after", "Unexpected input consumed");
+        assert_eq!(input.fragment_str(), "after", "Unexpected input consumed");
         assert_eq!(
             c.component,
             Comment::from(MultiLineComment(vec![

@@ -96,7 +96,7 @@ mod tests {
     #[test]
     fn position_from_span_should_offset_line_and_column_by_1() {
         let input = Span::from("abc\n123");
-        let p = Position::from(input);
+        let p = Position::from(input.clone());
         assert_eq!(p.line, 0);
         assert_eq!(p.column, 0);
 

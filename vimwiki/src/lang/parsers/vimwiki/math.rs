@@ -25,7 +25,7 @@ pub fn math_inline(input: Span) -> VimwikiIResult<LC<MathInline>> {
                 take_line_while1(not(char('$'))),
                 char('$'),
             )),
-            |s: String| MathInline::new(s),
+            MathInline::new,
         )(input)
     }
 

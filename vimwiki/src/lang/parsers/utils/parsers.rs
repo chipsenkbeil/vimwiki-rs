@@ -432,7 +432,7 @@ mod tests {
             .expect("Unexpectedly think not at beginning of line");
 
         // Input shouldn't be consumed
-        assert_eq!(*input.fragment(), "1234");
+        assert_eq!(input.fragment_str(), "1234");
     }
 
     #[test]
@@ -460,7 +460,7 @@ mod tests {
         let (input, _) = blank_line(input).expect("Failed to parse blank line");
 
         // Line including termination should be consumed
-        assert_eq!(*input.fragment(), "abcd");
+        assert_eq!(input.fragment_str(), "abcd");
     }
 
     #[test]
@@ -469,7 +469,7 @@ mod tests {
         let (input, _) = blank_line(input).expect("Failed to parse blank line");
 
         // Line including termination should be consumed
-        assert_eq!(*input.fragment(), "abcd");
+        assert_eq!(input.fragment_str(), "abcd");
     }
 
     #[test]
@@ -478,7 +478,7 @@ mod tests {
         let (input, _) = blank_line(input).expect("Failed to parse blank line");
 
         // Line including termination should be consumed
-        assert_eq!(*input.fragment(), "");
+        assert_eq!(input.fragment_str(), "");
     }
 
     #[test]
@@ -498,7 +498,7 @@ mod tests {
         let input = Span::from("  a  \nabcd");
         let (input, line) =
             non_blank_line(input).expect("Failed to parse non blank line");
-        assert_eq!(*input.fragment(), "abcd");
+        assert_eq!(input.fragment_str(), "abcd");
         assert_eq!(line, "  a  ");
     }
 
@@ -507,7 +507,7 @@ mod tests {
         let input = Span::from("  a  ");
         let (input, line) =
             non_blank_line(input).expect("Failed to parse non blank line");
-        assert_eq!(*input.fragment(), "");
+        assert_eq!(input.fragment_str(), "");
         assert_eq!(line, "  a  ");
     }
 
@@ -527,28 +527,28 @@ mod tests {
     fn single_multispace_should_succeed_if_tab() {
         let input = Span::from("\t abc");
         let (input, _) = single_multispace(input).unwrap();
-        assert_eq!(*input.fragment(), " abc");
+        assert_eq!(input.fragment_str(), " abc");
     }
 
     #[test]
     fn single_multispace_should_succeed_if_space() {
         let input = Span::from("  abc");
         let (input, _) = single_multispace(input).unwrap();
-        assert_eq!(*input.fragment(), " abc");
+        assert_eq!(input.fragment_str(), " abc");
     }
 
     #[test]
     fn single_multispace_should_succeed_if_crlf() {
         let input = Span::from("\r\n abc");
         let (input, _) = single_multispace(input).unwrap();
-        assert_eq!(*input.fragment(), " abc");
+        assert_eq!(input.fragment_str(), " abc");
     }
 
     #[test]
     fn single_multispace_should_succeed_if_newline() {
         let input = Span::from("\n abc");
         let (input, _) = single_multispace(input).unwrap();
-        assert_eq!(*input.fragment(), " abc");
+        assert_eq!(input.fragment_str(), " abc");
     }
 
     #[test]
@@ -608,44 +608,44 @@ mod tests {
     fn take_line_while_should_yield_empty_if_empty_input() {
         let input = Span::from("");
         let (_, taken) = take_line_while(anychar)(input).unwrap();
-        assert_eq!(*taken.fragment(), "");
+        assert_eq!(taken.fragment_str(), "");
     }
 
     #[test]
     fn take_line_while_should_yield_empty_if_line_termination_next() {
         let input = Span::from("\nabcd");
         let (input, taken) = take_line_while(anychar)(input).unwrap();
-        assert_eq!(*input.fragment(), "\nabcd");
-        assert_eq!(*taken.fragment(), "");
+        assert_eq!(input.fragment_str(), "\nabcd");
+        assert_eq!(taken.fragment_str(), "");
 
         let input = Span::from("\r\nabcd");
         let (input, taken) = take_line_while(anychar)(input).unwrap();
-        assert_eq!(*input.fragment(), "\r\nabcd");
-        assert_eq!(*taken.fragment(), "");
+        assert_eq!(input.fragment_str(), "\r\nabcd");
+        assert_eq!(taken.fragment_str(), "");
     }
 
     #[test]
     fn take_line_while_should_yield_empty_if_stops_without_ever_succeeding() {
         let input = Span::from("aabb\nabcd");
         let (input, taken) = take_line_while(char('c'))(input).unwrap();
-        assert_eq!(*input.fragment(), "aabb\nabcd");
-        assert_eq!(*taken.fragment(), "");
+        assert_eq!(input.fragment_str(), "aabb\nabcd");
+        assert_eq!(taken.fragment_str(), "");
     }
 
     #[test]
     fn take_line_while_should_take_until_provided_parser_fails() {
         let input = Span::from("aabb\nabcd");
         let (input, taken) = take_line_while(char('a'))(input).unwrap();
-        assert_eq!(*input.fragment(), "bb\nabcd");
-        assert_eq!(*taken.fragment(), "aa");
+        assert_eq!(input.fragment_str(), "bb\nabcd");
+        assert_eq!(taken.fragment_str(), "aa");
     }
 
     #[test]
     fn take_line_while_should_take_until_line_termination_reached() {
         let input = Span::from("aabb\nabcd");
         let (input, taken) = take_line_while(anychar)(input).unwrap();
-        assert_eq!(*input.fragment(), "\nabcd");
-        assert_eq!(*taken.fragment(), "aabb");
+        assert_eq!(input.fragment_str(), "\nabcd");
+        assert_eq!(taken.fragment_str(), "aabb");
     }
 
     #[test]
@@ -657,8 +657,8 @@ mod tests {
         //       would end up consuming TWO parsers instead of one
         let input = Span::from("-----");
         let (input, taken) = take_line_while(char('-'))(input).unwrap();
-        assert_eq!(*input.fragment(), "");
-        assert_eq!(*taken.fragment(), "-----");
+        assert_eq!(input.fragment_str(), "");
+        assert_eq!(taken.fragment_str(), "-----");
     }
 
     #[test]
@@ -686,16 +686,16 @@ mod tests {
     fn take_line_while1_should_take_until_provided_parser_fails() {
         let input = Span::from("aabb\nabcd");
         let (input, taken) = take_line_while1(char('a'))(input).unwrap();
-        assert_eq!(*input.fragment(), "bb\nabcd");
-        assert_eq!(*taken.fragment(), "aa");
+        assert_eq!(input.fragment_str(), "bb\nabcd");
+        assert_eq!(taken.fragment_str(), "aa");
     }
 
     #[test]
     fn take_line_while1_should_take_until_line_termination_reached() {
         let input = Span::from("aabb\nabcd");
         let (input, taken) = take_line_while1(anychar)(input).unwrap();
-        assert_eq!(*input.fragment(), "\nabcd");
-        assert_eq!(*taken.fragment(), "aabb");
+        assert_eq!(input.fragment_str(), "\nabcd");
+        assert_eq!(taken.fragment_str(), "aabb");
     }
 
     #[test]
@@ -707,8 +707,8 @@ mod tests {
         //       would end up consuming TWO parsers instead of one
         let input = Span::from("-----");
         let (input, taken) = take_line_while1(char('-'))(input).unwrap();
-        assert_eq!(*input.fragment(), "");
-        assert_eq!(*taken.fragment(), "-----");
+        assert_eq!(input.fragment_str(), "");
+        assert_eq!(taken.fragment_str(), "-----");
     }
 
     #[test]
@@ -762,14 +762,14 @@ mod tests {
         let input = Span::from("aba");
         let (input, (r, results)) = range(take(2usize))(input).unwrap();
         assert_eq!(
-            *input.fragment(),
+            input.fragment_str(),
             "a",
             "offset did not consume expected input"
         );
         assert_eq!(r.start, 0, "Start was wrong position");
         assert_eq!(r.end, 2, "End was wrong position");
         assert_eq!(
-            *results.fragment(),
+            results.fragment_str(),
             "ab",
             "Parser did not function properly"
         );

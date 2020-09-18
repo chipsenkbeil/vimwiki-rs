@@ -176,7 +176,7 @@ mod tests {
         "});
         let (input, mut p) = paragraph(input).unwrap();
         assert_eq!(
-            *input.fragment(),
+            input.fragment_str(),
             "\nAnd this would be a second paragraph\n",
             "Unexpected consumption of input"
         );

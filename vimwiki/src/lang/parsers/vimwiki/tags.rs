@@ -75,7 +75,7 @@ mod tests {
         let input = Span::from(":tag-example:and other text");
         let (input, tags) = tags(input).unwrap();
         assert_eq!(
-            *input.fragment(),
+            input.fragment_str(),
             "and other text",
             "Unexpected input consumed"
         );

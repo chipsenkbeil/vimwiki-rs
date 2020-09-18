@@ -143,9 +143,9 @@ fn list_item_tail(
 fn indentation_level(consume: bool) -> impl Fn(Span) -> VimwikiIResult<usize> {
     move |input: Span| {
         if consume {
-            map(space0, |s: Span| s.fragment().len())(input)
+            map(space0, |s: Span| s.fragment_len())(input)
         } else {
-            map(peek(space0), |s: Span| s.fragment().len())(input)
+            map(peek(space0), |s: Span| s.fragment_len())(input)
         }
     }
 }
@@ -561,7 +561,7 @@ mod tests {
             not a list item
         "});
         let (input, l) = list(input).unwrap();
-        assert_eq!(*input.fragment(), "not a list item\n");
+        assert_eq!(input.fragment_str(), "not a list item\n");
         assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         assert_eq!(
@@ -589,7 +589,7 @@ mod tests {
             not a list item
         "});
         let (input, l) = list(input).unwrap();
-        assert_eq!(*input.fragment(), "not a list item\n");
+        assert_eq!(input.fragment_str(), "not a list item\n");
         assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         // Should only have three lines of inline content

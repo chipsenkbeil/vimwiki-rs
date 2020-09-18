@@ -113,7 +113,7 @@ mod tests {
         assert_eq!(start.local_line(), 1);
         assert_eq!(start.local_utf8_column(), 2);
 
-        let region = Region::from((start, start));
+        let region = Region::from((start.clone(), start));
         assert_eq!(region, Region::from((0, 1, 0, 1)));
     }
 
@@ -134,7 +134,7 @@ mod tests {
         assert_eq!(start.local_utf8_column(), 2);
 
         // End at line 1, column 3
-        let (end, _) = take1(start).unwrap();
+        let (end, _) = take1(start.clone()).unwrap();
         let (end, _) = take1(end).unwrap();
         let (end, _) = take1(end).unwrap();
         let (end, _) = take1(end).unwrap();

@@ -110,7 +110,7 @@ mod tests {
 
         // Verify that only the first blockquote was consumed
         assert_eq!(
-            *input.fragment(),
+            input.fragment_str(),
             indoc! {"
 
                 This is another blockquote
@@ -139,7 +139,7 @@ mod tests {
 
         // Verify that only the first blockquote was consumed
         assert_eq!(
-            *input.fragment(),
+            input.fragment_str(),
             indoc! {"
             regular line starts here and is needed for indoc to have a baseline
                 This is another blockquote
@@ -171,7 +171,7 @@ mod tests {
         // Verify blank lines BETWEEN block quotes are consumed, but not those
         // after no more block quotes
         assert_eq!(
-            *input.fragment(),
+            input.fragment_str(),
             indoc! {"
 
             this is a regular line

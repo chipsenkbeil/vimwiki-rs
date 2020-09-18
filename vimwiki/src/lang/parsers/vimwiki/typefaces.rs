@@ -119,7 +119,11 @@ mod tests {
     fn text_should_consume_until_encountering_inline_math() {
         let input = Span::from("abc123$math$");
         let (input, t) = text(input).unwrap();
-        assert_eq!(*input.fragment(), "$math$", "Unexpected input consumption");
+        assert_eq!(
+            input.fragment_str(),
+            "$math$",
+            "Unexpected input consumption"
+        );
         assert_eq!(&t.component, "abc123");
     }
 
@@ -127,7 +131,11 @@ mod tests {
     fn text_should_consume_until_encountering_a_tag() {
         let input = Span::from("abc123:tag:");
         let (input, t) = text(input).unwrap();
-        assert_eq!(*input.fragment(), ":tag:", "Unexpected input consumption");
+        assert_eq!(
+            input.fragment_str(),
+            ":tag:",
+            "Unexpected input consumption"
+        );
         assert_eq!(&t.component, "abc123");
     }
 
@@ -136,7 +144,7 @@ mod tests {
         let input = Span::from("abc123[[some link]]");
         let (input, t) = text(input).unwrap();
         assert_eq!(
-            *input.fragment(),
+            input.fragment_str(),
             "[[some link]]",
             "Unexpected input consumption"
         );
@@ -148,7 +156,7 @@ mod tests {
         let input = Span::from("abc123*bold text*");
         let (input, t) = text(input).unwrap();
         assert_eq!(
-            *input.fragment(),
+            input.fragment_str(),
             "*bold text*",
             "Unexpected input consumption"
         );
@@ -159,7 +167,11 @@ mod tests {
     fn text_should_consume_until_encountering_a_keyword() {
         let input = Span::from("abc123 TODO");
         let (input, t) = text(input).unwrap();
-        assert_eq!(*input.fragment(), "TODO", "Unexpected input consumption");
+        assert_eq!(
+            input.fragment_str(),
+            "TODO",
+            "Unexpected input consumption"
+        );
         assert_eq!(&t.component, "abc123 ");
     }
 
@@ -168,7 +180,7 @@ mod tests {
         let input = Span::from("abc123\nsome other text");
         let (input, t) = text(input).unwrap();
         assert_eq!(
-            *input.fragment(),
+            input.fragment_str(),
             "\nsome other text",
             "Unexpected input consumption"
         );
@@ -179,7 +191,7 @@ mod tests {
     fn text_should_consume_until_reaching_end_of_input() {
         let input = Span::from("abc123");
         let (input, t) = text(input).unwrap();
-        assert_eq!(*input.fragment(), "", "Unexpected input consumption");
+        assert_eq!(input.fragment_str(), "", "Unexpected input consumption");
         assert_eq!(&t.component, "abc123");
     }
 

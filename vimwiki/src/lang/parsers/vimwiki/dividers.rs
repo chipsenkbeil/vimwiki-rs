@@ -71,7 +71,7 @@ mod tests {
     fn divider_should_consume_end_of_line() {
         let input = Span::from("----\nabcd");
         let (input, d) = divider(input).unwrap();
-        assert_eq!(*input.fragment(), "abcd");
+        assert_eq!(input.fragment_str(), "abcd");
         assert_eq!(d.region.start.line, 0);
         assert_eq!(d.region.start.column, 0);
         assert_eq!(d.region.end.line, 0);

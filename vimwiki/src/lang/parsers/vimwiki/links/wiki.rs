@@ -40,16 +40,7 @@ pub(super) fn wiki_link_internal(input: Span) -> VimwikiIResult<WikiLink> {
 
     // Finally, check if there is a description (preceding with |), where
     // a special case is wrapped in {{...}} as a URL
-    let (input, maybe_description) = opt(preceded(
-        tag("|"),
-        map_parser(
-            take_line_while1(not(tag("]]"))),
-            alt((
-                description_from_uri,
-                map(rest, |s: Span| Description::from(s.fragment_str())),
-            )),
-        ),
-    ))(input)?;
+    let (input, maybe_description) = opt(description)(input)?;
 
     match maybe_path {
         Some(path) => {
@@ -91,7 +82,23 @@ fn anchor(input: Span) -> VimwikiIResult<Anchor> {
 //       error about type-length limit being reached and that means that
 //       we've nested too many parsers without breaking them up into
 //       functions that do NOT take parsers at input
-#[inline]
+fn description(input: Span) -> VimwikiIResult<Description> {
+    preceded(
+        tag("|"),
+        map_parser(
+            take_line_while1(not(tag("]]"))),
+            alt((
+                description_from_uri,
+                map(rest, |s: Span| Description::from(s.fragment_str())),
+            )),
+        ),
+    )(input)
+}
+
+// NOTE: This function exists purely because we were hitting some nom
+//       error about type-length limit being reached and that means that
+//       we've nested too many parsers without breaking them up into
+//       functions that do NOT take parsers at input
 fn description_from_uri(input: Span) -> VimwikiIResult<Description> {
     map(
         delimited(
