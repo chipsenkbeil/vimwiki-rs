@@ -7,7 +7,7 @@ use derive_more::Display;
 pub use parsers::LangParserError;
 use parsers::{print_timekeeper_report, vimwiki};
 use std::convert::TryFrom;
-use utils::{new_span, LC};
+use utils::{Span, LC};
 
 /// Represents a raw string for a type of language
 /// (vimwiki, markdown, mediawiki)
@@ -22,7 +22,7 @@ macro_rules! parse {
     ($raw_str:ident, $f:expr) => {
         match &$raw_str {
             RawStr::Vimwiki(s) => {
-                let input = new_span(*s);
+                let input = Span::from(*s);
                 let result = $f(input)?.1;
 
                 // For debugging purposes, we will print out a report of what

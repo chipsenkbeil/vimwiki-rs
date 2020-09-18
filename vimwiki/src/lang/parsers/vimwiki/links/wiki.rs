@@ -1,6 +1,6 @@
 use super::{
     components::{Anchor, Description, WikiLink},
-    utils::{context, lc, take_line_while1, uri, VimwikiNomError},
+    utils::{context, lc, pstring, take_line_while1, uri, VimwikiNomError},
     Span, VimwikiIResult, LC,
 };
 use nom::{
@@ -31,25 +31,12 @@ pub(super) fn wiki_link_internal(input: Span) -> VimwikiIResult<WikiLink> {
         not(tag("#")),
         map(
             take_line_while1(not(alt((tag("|"), tag("#"), tag("]]"))))),
-            |s| PathBuf::from(s.fragment()),
+            |s: Span| PathBuf::from(s.fragment_str()),
         ),
     ))(input)?;
 
     // Next, check if there are any anchors
-    let (input, maybe_anchor) = opt(preceded(
-        tag("#"),
-        map(
-            separated_list(
-                tag("#"),
-                take_line_while1(not(alt((tag("|"), tag("#"), tag("]]"))))),
-            ),
-            |mut x| {
-                Anchor::new(
-                    x.drain(..).map(|a| a.fragment().to_string()).collect(),
-                )
-            },
-        ),
-    ))(input)?;
+    let (input, maybe_anchor) = opt(anchor)(input)?;
 
     // Finally, check if there is a description (preceding with |), where
     // a special case is wrapped in {{...}} as a URL
@@ -59,9 +46,7 @@ pub(super) fn wiki_link_internal(input: Span) -> VimwikiIResult<WikiLink> {
             take_line_while1(not(tag("]]"))),
             alt((
                 description_from_uri,
-                map(rest, |s: Span| {
-                    Description::from(s.fragment().to_string())
-                }),
+                map(rest, |s: Span| Description::from(s.fragment_str())),
             )),
         ),
     ))(input)?;
@@ -75,10 +60,31 @@ pub(super) fn wiki_link_internal(input: Span) -> VimwikiIResult<WikiLink> {
             WikiLink::new(PathBuf::new(), maybe_description, maybe_anchor),
         )),
         None => Err(nom::Err::Error(VimwikiNomError::from_ctx(
-            input,
+            &input,
             "Missing path and anchor",
         ))),
     }
+}
+
+// NOTE: This function exists purely because we were hitting some nom
+//       error about type-length limit being reached and that means that
+//       we've nested too many parsers without breaking them up into
+//       functions that do NOT take parsers at input
+fn anchor(input: Span) -> VimwikiIResult<Anchor> {
+    preceded(
+        tag("#"),
+        map(
+            separated_list(
+                tag("#"),
+                pstring(take_line_while1(not(alt((
+                    tag("|"),
+                    tag("#"),
+                    tag("]]"),
+                ))))),
+            ),
+            Anchor::new,
+        ),
+    )(input)
 }
 
 // NOTE: This function exists purely because we were hitting some nom
@@ -100,31 +106,31 @@ fn description_from_uri(input: Span) -> VimwikiIResult<Description> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lang::utils::new_span;
+    use crate::lang::utils::Span;
     use std::convert::TryFrom;
     use uriparse::URI;
 
     #[test]
     fn wiki_link_should_fail_if_does_not_have_proper_prefix() {
-        let input = new_span("link]]");
+        let input = Span::from("link]]");
         assert!(wiki_link(input).is_err());
     }
 
     #[test]
     fn wiki_link_should_fail_if_does_not_have_proper_suffix() {
-        let input = new_span("[[link");
+        let input = Span::from("[[link");
         assert!(wiki_link(input).is_err());
     }
 
     #[test]
     fn wiki_link_should_not_consume_across_lines() {
-        let input = new_span("[[link\n]]");
+        let input = Span::from("[[link\n]]");
         assert!(wiki_link(input).is_err());
     }
 
     #[test]
     fn wiki_link_should_support_plain_link() {
-        let input = new_span("[[This is a link]]");
+        let input = Span::from("[[This is a link]]");
         let (input, link) =
             wiki_link(input).expect("Parser unexpectedly failed");
 
@@ -140,7 +146,7 @@ mod tests {
     #[test]
     fn wiki_link_should_support_description() {
         let input =
-            new_span("[[This is a link source|Description of the link]]");
+            Span::from("[[This is a link source|Description of the link]]");
         let (input, link) =
             wiki_link(input).expect("Parser unexpectedly failed");
 
@@ -158,7 +164,7 @@ mod tests {
 
     #[test]
     fn wiki_link_should_support_thumbnail_description() {
-        let input = new_span(
+        let input = Span::from(
             "[[This is a link source|{{https://example.com/img.jpg}}]]",
         );
         let (input, link) =
@@ -182,7 +188,7 @@ mod tests {
 
     #[test]
     fn wiki_link_should_support_sources_in_subdirectories() {
-        let input = new_span("[[projects/Important Project 1]]");
+        let input = Span::from("[[projects/Important Project 1]]");
         let (input, link) =
             wiki_link(input).expect("Parser unexpectedly failed");
 
@@ -197,7 +203,7 @@ mod tests {
 
     #[test]
     fn wiki_link_should_support_relative_sources() {
-        let input = new_span("[[../index]]");
+        let input = Span::from("[[../index]]");
         let (input, link) =
             wiki_link(input).expect("Parser unexpectedly failed");
 
@@ -212,7 +218,7 @@ mod tests {
 
     #[test]
     fn wiki_link_should_support_absolute_source_for_wiki_root() {
-        let input = new_span("[[/index]]");
+        let input = Span::from("[[/index]]");
         let (input, link) =
             wiki_link(input).expect("Parser unexpectedly failed");
 
@@ -227,7 +233,7 @@ mod tests {
 
     #[test]
     fn wiki_link_should_support_source_being_subdirectory() {
-        let input = new_span("[[a subdirectory/|Other files]]");
+        let input = Span::from("[[a subdirectory/|Other files]]");
         let (input, link) =
             wiki_link(input).expect("Parser unexpectedly failed");
 
@@ -245,7 +251,7 @@ mod tests {
 
     #[test]
     fn wiki_link_should_support_an_anchor() {
-        let input = new_span("[[Todo List#Tomorrow]]");
+        let input = Span::from("[[Todo List#Tomorrow]]");
         let (input, link) =
             wiki_link(input).expect("Parser unexpectedly failed");
 
@@ -262,7 +268,7 @@ mod tests {
 
     #[test]
     fn wiki_link_should_support_multiple_anchors() {
-        let input = new_span("[[Todo List#Tomorrow#Later]]");
+        let input = Span::from("[[Todo List#Tomorrow#Later]]");
         let (input, link) =
             wiki_link(input).expect("Parser unexpectedly failed");
 
@@ -282,7 +288,7 @@ mod tests {
 
     #[test]
     fn wiki_link_should_support_an_anchor_and_a_description() {
-        let input = new_span("[[Todo List#Tomorrow|Tasks for tomorrow]]");
+        let input = Span::from("[[Todo List#Tomorrow|Tasks for tomorrow]]");
         let (input, link) =
             wiki_link(input).expect("Parser unexpectedly failed");
 
@@ -302,7 +308,8 @@ mod tests {
 
     #[test]
     fn wiki_link_should_support_multiple_anchors_and_a_description() {
-        let input = new_span("[[Todo List#Tomorrow#Later|Tasks for tomorrow]]");
+        let input =
+            Span::from("[[Todo List#Tomorrow#Later|Tasks for tomorrow]]");
         let (input, link) =
             wiki_link(input).expect("Parser unexpectedly failed");
 
@@ -325,7 +332,7 @@ mod tests {
 
     #[test]
     fn wiki_link_should_support_anchor_only() {
-        let input = new_span("[[#Tomorrow]]");
+        let input = Span::from("[[#Tomorrow]]");
         let (input, link) =
             wiki_link(input).expect("Parser unexpectedly failed");
 

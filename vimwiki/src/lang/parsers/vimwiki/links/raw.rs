@@ -24,11 +24,11 @@ pub fn raw_link(input: Span) -> VimwikiIResult<LC<RawLink>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lang::utils::new_span;
+    use crate::lang::utils::Span;
 
     #[test]
     fn raw_link_should_support_http_scheme() {
-        let input = new_span("http://example.com");
+        let input = Span::from("http://example.com");
         let (input, link) = raw_link(input).expect("Failed to parse uri");
 
         // Link should be consumed
@@ -40,7 +40,7 @@ mod tests {
 
     #[test]
     fn raw_link_should_support_https_scheme() {
-        let input = new_span("https://example.com");
+        let input = Span::from("https://example.com");
         let (input, link) = raw_link(input).expect("Failed to parse uri");
 
         // Link should be consumed
@@ -52,7 +52,7 @@ mod tests {
 
     #[test]
     fn raw_link_should_support_no_scheme_with_www() {
-        let input = new_span("www.example.com");
+        let input = Span::from("www.example.com");
         let (input, link) = raw_link(input).expect("Failed to parse uri");
 
         // Link should be consumed
@@ -64,7 +64,7 @@ mod tests {
 
     #[test]
     fn raw_link_should_support_ftp_scheme() {
-        let input = new_span("ftp://example.com");
+        let input = Span::from("ftp://example.com");
         let (input, link) = raw_link(input).expect("Failed to parse uri");
 
         // Link should be consumed
@@ -76,7 +76,7 @@ mod tests {
 
     #[test]
     fn raw_link_should_support_file_scheme() {
-        let input = new_span("file:///some/path");
+        let input = Span::from("file:///some/path");
         let (input, link) = raw_link(input).expect("Failed to parse uri");
 
         // Link should be consumed
@@ -88,7 +88,7 @@ mod tests {
 
     #[test]
     fn raw_link_should_support_local_scheme() {
-        let input = new_span("local:///some/path");
+        let input = Span::from("local:///some/path");
         let (input, link) = raw_link(input).expect("Failed to parse uri");
 
         // Link should be consumed
@@ -100,7 +100,7 @@ mod tests {
 
     #[test]
     fn raw_link_should_support_mailto_scheme() {
-        let input = new_span("mailto:person@example.com");
+        let input = Span::from("mailto:person@example.com");
         let (input, link) = raw_link(input).expect("Failed to parse uri");
 
         // Link should be consumed

@@ -52,7 +52,7 @@ fn preformatted_text_start(
                 ),
             ),
             |(k, v): (Span, Span)| {
-                (k.fragment().to_string(), v.fragment().to_string())
+                (k.fragment_str().to_string(), v.fragment_str().to_string())
             },
         ),
     )(input)?;
@@ -83,12 +83,12 @@ fn preformatted_text_end(input: Span) -> VimwikiIResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lang::utils::new_span;
+    use crate::lang::utils::Span;
     use indoc::indoc;
 
     #[test]
     fn preformatted_text_should_fail_if_does_not_have_starting_line() {
-        let input = new_span(indoc! {r"
+        let input = Span::from(indoc! {r"
             some code
             }}}
         "});
@@ -97,7 +97,7 @@ mod tests {
 
     #[test]
     fn preformatted_text_should_fail_if_starting_block_not_on_own_line() {
-        let input = new_span(indoc! {r"
+        let input = Span::from(indoc! {r"
             {{{some code
             }}}
         "});
@@ -106,7 +106,7 @@ mod tests {
 
     #[test]
     fn preformatted_text_should_fail_if_does_not_have_ending_line() {
-        let input = new_span(indoc! {r"
+        let input = Span::from(indoc! {r"
             {{{
             some code
         "});
@@ -115,7 +115,7 @@ mod tests {
 
     #[test]
     fn preformatted_text_should_fail_if_ending_block_not_on_own_line() {
-        let input = new_span(indoc! {r"
+        let input = Span::from(indoc! {r"
             {{{
             some code}}}
         "});
@@ -124,7 +124,7 @@ mod tests {
 
     #[test]
     fn preformatted_text_should_fail_if_does_not_have_lines_inbetween() {
-        let input = new_span(indoc! {r"
+        let input = Span::from(indoc! {r"
             {{{
             }}}
         "});
@@ -133,7 +133,7 @@ mod tests {
 
     #[test]
     fn preformatted_text_should_parse_all_lines_between() {
-        let input = new_span(indoc! {r"
+        let input = Span::from(indoc! {r"
             {{{
             Tyger! Tyger! burning bright
              In the forests of the night,
@@ -168,7 +168,7 @@ mod tests {
 
     #[test]
     fn preformatted_text_should_support_single_metadata() {
-        let input = new_span(indoc! {r#"
+        let input = Span::from(indoc! {r#"
             {{{class="brush: python"
             def hello(world):
                 for x in range(10):
@@ -193,7 +193,7 @@ mod tests {
 
     #[test]
     fn preformatted_text_should_support_multiple_metadata() {
-        let input = new_span(indoc! {r#"
+        let input = Span::from(indoc! {r#"
             {{{class="brush: python";style="position: relative"
             def hello(world):
                 for x in range(10):

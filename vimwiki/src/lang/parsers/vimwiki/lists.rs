@@ -5,7 +5,7 @@ use super::{
         ListItemType, OrderedListItemType, UnorderedListItemType,
     },
     inline_component_container,
-    utils::{beginning_of_line, context, end_of_line_or_input, lc, position},
+    utils::{beginning_of_line, context, end_of_line_or_input, lc},
     Span, VimwikiIResult, LC,
 };
 use nom::{
@@ -74,8 +74,7 @@ fn list_item(input: Span) -> VimwikiIResult<(usize, LC<EnhancedListItem>)> {
         let (input, indentation) = indentation_level(true)(input)?;
 
         // 3. Ensure that the item starts with a valid prefix
-        let (input, pos) = position(input)?;
-        let (input, item) = map(
+        let (input, item) = lc(map(
             pair(list_item_prefix, list_item_tail(indentation)),
             |((item_type, item_suffix), (maybe_attr, contents))| {
                 // NOTE: To make things easier, we aren't assigning the index
@@ -87,9 +86,9 @@ fn list_item(input: Span) -> VimwikiIResult<(usize, LC<EnhancedListItem>)> {
                     None => EnhancedListItem::from(item),
                 }
             },
-        )(input)?;
+        ))(input)?;
 
-        Ok((input, (indentation, LC::from((item, pos, input)))))
+        Ok((input, (indentation, item)))
     }
 
     context("List Item", inner)(input)
@@ -279,7 +278,8 @@ fn ordered_list_item_type_lower_alphabet(
 ) -> VimwikiIResult<OrderedListItemType> {
     value(
         OrderedListItemType::LowercaseAlphabet,
-        take_while1(|c: char| {
+        take_while1(|b: u8| {
+            let c = char::from(b);
             c.is_ascii_alphabetic() && c.is_ascii_lowercase()
         }),
     )(input)
@@ -291,7 +291,8 @@ fn ordered_list_item_type_upper_alphabet(
 ) -> VimwikiIResult<OrderedListItemType> {
     value(
         OrderedListItemType::UppercaseAlphabet,
-        take_while1(|c: char| {
+        take_while1(|b: u8| {
+            let c = char::from(b);
             c.is_ascii_alphabetic() && c.is_ascii_uppercase()
         }),
     )(input)
@@ -339,7 +340,7 @@ mod tests {
         Keyword, Link, MathInline, Tags, WikiLink,
     };
     use super::*;
-    use crate::lang::utils::new_span;
+    use crate::lang::utils::Span;
     use indoc::indoc;
     use std::path::PathBuf;
 
@@ -363,26 +364,26 @@ mod tests {
 
     #[test]
     fn list_should_fail_if_no_proper_start_to_single_list_item() {
-        let input = new_span("| some item with bad prefix");
+        let input = Span::from("| some item with bad prefix");
         assert!(list(input).is_err());
     }
 
     #[test]
     fn list_should_fail_if_no_space_after_single_list_item_prefix() {
-        assert!(list(new_span("-some item with no space")).is_err());
-        assert!(list(new_span("*some item with no space")).is_err());
-        assert!(list(new_span("1.some item with no space")).is_err());
-        assert!(list(new_span("1)some item with no space")).is_err());
-        assert!(list(new_span("a)some item with no space")).is_err());
-        assert!(list(new_span("A)some item with no space")).is_err());
-        assert!(list(new_span("i)some item with no space")).is_err());
-        assert!(list(new_span("I)some item with no space")).is_err());
-        assert!(list(new_span("#some item with no space")).is_err());
+        assert!(list(Span::from("-some item with no space")).is_err());
+        assert!(list(Span::from("*some item with no space")).is_err());
+        assert!(list(Span::from("1.some item with no space")).is_err());
+        assert!(list(Span::from("1)some item with no space")).is_err());
+        assert!(list(Span::from("a)some item with no space")).is_err());
+        assert!(list(Span::from("A)some item with no space")).is_err());
+        assert!(list(Span::from("i)some item with no space")).is_err());
+        assert!(list(Span::from("I)some item with no space")).is_err());
+        assert!(list(Span::from("#some item with no space")).is_err());
     }
 
     #[test]
     fn list_should_succeed_for_single_unordered_hyphen_item() {
-        let input = new_span("- list item 1");
+        let input = Span::from("- list item 1");
         let (input, l) = list(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume list");
         assert_eq!(l.items.len(), 1, "Unexpected number of list items");
@@ -397,7 +398,7 @@ mod tests {
 
     #[test]
     fn list_should_succeed_for_single_unordered_asterisk_item() {
-        let input = new_span("* list item 1");
+        let input = Span::from("* list item 1");
         let (input, l) = list(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume list");
         assert_eq!(l.items.len(), 1, "Unexpected number of list items");
@@ -412,7 +413,7 @@ mod tests {
 
     #[test]
     fn list_should_succeed_for_single_ordered_pound_item() {
-        let input = new_span("# list item 1");
+        let input = Span::from("# list item 1");
         let (input, l) = list(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume list");
         assert_eq!(l.items.len(), 1, "Unexpected number of list items");
@@ -427,7 +428,7 @@ mod tests {
 
     #[test]
     fn list_should_succeed_for_single_ordered_number_period_item() {
-        let input = new_span("1. list item 1");
+        let input = Span::from("1. list item 1");
         let (input, l) = list(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume list");
         assert_eq!(l.items.len(), 1, "Unexpected number of list items");
@@ -442,7 +443,7 @@ mod tests {
 
     #[test]
     fn list_should_succeed_for_single_ordered_number_paren_item() {
-        let input = new_span("1) list item 1");
+        let input = Span::from("1) list item 1");
         let (input, l) = list(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume list");
         assert_eq!(l.items.len(), 1, "Unexpected number of list items");
@@ -457,7 +458,7 @@ mod tests {
 
     #[test]
     fn list_should_succeed_for_single_ordered_lowercase_alphabet_paren_item() {
-        let input = new_span("a) list item 1");
+        let input = Span::from("a) list item 1");
         let (input, l) = list(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume list");
         assert_eq!(l.items.len(), 1, "Unexpected number of list items");
@@ -472,7 +473,7 @@ mod tests {
 
     #[test]
     fn list_should_succeed_for_single_ordered_uppercase_alphabet_paren_item() {
-        let input = new_span("A) list item 1");
+        let input = Span::from("A) list item 1");
         let (input, l) = list(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume list");
         assert_eq!(l.items.len(), 1, "Unexpected number of list items");
@@ -487,7 +488,7 @@ mod tests {
 
     #[test]
     fn list_should_succeed_for_single_ordered_lowercase_roman_paren_item() {
-        let input = new_span("i) list item 1");
+        let input = Span::from("i) list item 1");
         let (input, l) = list(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume list");
         assert_eq!(l.items.len(), 1, "Unexpected number of list items");
@@ -502,7 +503,7 @@ mod tests {
 
     #[test]
     fn list_should_succeed_for_single_ordered_uppercase_roman_paren_item() {
-        let input = new_span("I) list item 1");
+        let input = Span::from("I) list item 1");
         let (input, l) = list(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume list");
         assert_eq!(l.items.len(), 1, "Unexpected number of list items");
@@ -517,7 +518,7 @@ mod tests {
 
     #[test]
     fn list_should_support_list_item_with_inline_content() {
-        let input = new_span(indoc! {r#"
+        let input = Span::from(indoc! {r#"
             - list *item 1* has a [[link]] with :tag: and $formula$ is DONE
         "#});
         let (input, l) = list(input).unwrap();
@@ -553,7 +554,7 @@ mod tests {
 
     #[test]
     fn list_should_support_list_item_with_multiple_lines_of_content() {
-        let input = new_span(indoc! {"
+        let input = Span::from(indoc! {"
             - list item 1
               has extra content
               on multiple lines
@@ -578,7 +579,7 @@ mod tests {
 
     #[test]
     fn list_should_support_list_item_with_content_separated_by_sublist() {
-        let input = new_span(indoc! {"
+        let input = Span::from(indoc! {"
             - list item 1
               has extra content
               - sublist item 1
@@ -630,7 +631,7 @@ mod tests {
 
     #[test]
     fn list_should_support_todo_list_items() {
-        let input = new_span(indoc! {"
+        let input = Span::from(indoc! {"
             - [ ] list item 1
             - [.] list item 2
             - [o] list item 3

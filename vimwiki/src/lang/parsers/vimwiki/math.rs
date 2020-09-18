@@ -2,7 +2,7 @@ use super::{
     components::{MathBlock, MathInline},
     utils::{
         any_line, beginning_of_line, context, end_of_line_or_input, lc,
-        position, take_line_while1,
+        pstring, take_line_while1,
     },
     Span, VimwikiIResult, LC,
 };
@@ -16,19 +16,20 @@ use nom::{
 
 #[inline]
 pub fn math_inline(input: Span) -> VimwikiIResult<LC<MathInline>> {
-    let (input, pos) = position(input)?;
-
-    // TODO: Is there any way to escape a $ inside a formula? If so, we will
-    //       need to support detecting that rather than using take_till1
-    let (input, math) = context(
-        "Math Inline",
+    fn inner(input: Span) -> VimwikiIResult<MathInline> {
+        // TODO: Is there any way to escape a $ inside a formula? If so, we will
+        //       need to support detecting that rather than using take_till1
         map(
-            delimited(char('$'), take_line_while1(not(char('$'))), char('$')),
-            |s: Span| MathInline::new(s.fragment().to_string()),
-        ),
-    )(input)?;
+            pstring(delimited(
+                char('$'),
+                take_line_while1(not(char('$'))),
+                char('$'),
+            )),
+            |s: String| MathInline::new(s),
+        )(input)
+    }
 
-    Ok((input, LC::from((math, pos, input))))
+    context("Math Inline", lc(inner))(input)
 }
 
 #[inline]
@@ -52,10 +53,11 @@ pub fn math_block(input: Span) -> VimwikiIResult<LC<MathBlock>> {
 }
 
 fn beginning_of_math_block(input: Span) -> VimwikiIResult<Option<String>> {
-    let environment_parser = map(
-        delimited(char('%'), take_line_while1(not(char('%'))), char('%')),
-        |s: Span| s.fragment().to_string(),
-    );
+    let environment_parser = pstring(delimited(
+        char('%'),
+        take_line_while1(not(char('%'))),
+        char('%'),
+    ));
 
     let (input, _) = beginning_of_line(input)?;
     let (input, _) = space0(input)?;
@@ -79,30 +81,30 @@ fn end_of_math_block(input: Span) -> VimwikiIResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lang::utils::new_span;
+    use crate::lang::utils::Span;
     use indoc::indoc;
 
     #[test]
     fn math_inline_should_fail_if_input_empty() {
-        let input = new_span("");
+        let input = Span::from("");
         assert!(math_inline(input).is_err());
     }
 
     #[test]
     fn math_inline_should_fail_if_does_not_start_with_dollar_sign() {
-        let input = new_span(r"\sum_i a_i^2 = 1$");
+        let input = Span::from(r"\sum_i a_i^2 = 1$");
         assert!(math_inline(input).is_err());
     }
 
     #[test]
     fn math_inline_should_fail_if_does_not_end_with_dollar_sign() {
-        let input = new_span(r"$\sum_i a_i^2 = 1");
+        let input = Span::from(r"$\sum_i a_i^2 = 1");
         assert!(math_inline(input).is_err());
     }
 
     #[test]
     fn math_inline_should_fail_if_end_is_on_next_line() {
-        let input = new_span(indoc! {r"
+        let input = Span::from(indoc! {r"
             $\sum_i a_i^2 = 1
             $
         "});
@@ -111,7 +113,7 @@ mod tests {
 
     #[test]
     fn math_inline_should_consume_all_text_between_dollar_signs_as_formula() {
-        let input = new_span(r"$\sum_i a_i^2 = 1$");
+        let input = Span::from(r"$\sum_i a_i^2 = 1$");
         let (input, m) = math_inline(input).unwrap();
         assert!(input.fragment().is_empty(), "Math inline not consumed");
         assert_eq!(m.formula, r"\sum_i a_i^2 = 1");
@@ -119,13 +121,13 @@ mod tests {
 
     #[test]
     fn math_block_should_fail_if_input_empty() {
-        let input = new_span("");
+        let input = Span::from("");
         assert!(math_block(input).is_err());
     }
 
     #[test]
     fn math_block_should_fail_if_does_not_start_with_dedicated_line() {
-        let input = new_span(indoc! {r"
+        let input = Span::from(indoc! {r"
                 \sum_i a_i^2
             }}$
         "});
@@ -134,7 +136,7 @@ mod tests {
 
     #[test]
     fn math_block_should_fail_if_does_not_end_with_dedicated_line() {
-        let input = new_span(indoc! {r"
+        let input = Span::from(indoc! {r"
             {{$
                 \sum_i a_i^2
         "});
@@ -143,7 +145,7 @@ mod tests {
 
     #[test]
     fn math_block_should_consume_all_lines_between_as_formula() {
-        let input = new_span(indoc! {r"
+        let input = Span::from(indoc! {r"
             {{$
             \sum_i a_i^2
             =
@@ -158,7 +160,7 @@ mod tests {
 
     #[test]
     fn math_block_should_fail_if_environment_delimiters_not_used_correctly() {
-        let input = new_span(indoc! {r"
+        let input = Span::from(indoc! {r"
             {{$%align
             \sum_i a_i^2
             =
@@ -167,7 +169,7 @@ mod tests {
         "});
         assert!(math_block(input).is_err());
 
-        let input = new_span(indoc! {r"
+        let input = Span::from(indoc! {r"
             {{$align%
             \sum_i a_i^2
             =
@@ -176,7 +178,7 @@ mod tests {
         "});
         assert!(math_block(input).is_err());
 
-        let input = new_span(indoc! {r"
+        let input = Span::from(indoc! {r"
             {{$%%
             \sum_i a_i^2
             =
@@ -188,7 +190,7 @@ mod tests {
 
     #[test]
     fn math_block_should_accept_optional_environment_specifier() {
-        let input = new_span(indoc! {r"
+        let input = Span::from(indoc! {r"
              {{$%align%
              \sum_i a_i^2 &= 1 + 1 \\
              &= 2.

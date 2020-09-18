@@ -4,7 +4,6 @@ use super::{
     wiki::wiki_link,
     Span, VimwikiIResult, LC,
 };
-use crate::lang::utils::new_span;
 use nom::{bytes::complete::tag, combinator::not, sequence::delimited};
 use std::path::PathBuf;
 
@@ -14,14 +13,14 @@ pub fn inter_wiki_link(input: Span) -> VimwikiIResult<LC<InterWikiLink>> {
         let (input, mut link) = wiki_link(input)?;
         let path = link.path.to_str().ok_or_else(|| {
             nom::Err::Error(VimwikiNomError::from_ctx(
-                input,
+                &input,
                 "Not interwiki link",
             ))
         })?;
 
         if let Some((path, index)) = parse_index_from_path(path) {
             // Update path of link after removal of prefix
-            link.path = PathBuf::from(path);
+            link.path = PathBuf::from(path.fragment_str());
 
             return Ok((
                 input,
@@ -33,7 +32,7 @@ pub fn inter_wiki_link(input: Span) -> VimwikiIResult<LC<InterWikiLink>> {
 
         if let Some((path, name)) = parse_name_from_path(path) {
             // Update path of link after removal of prefix
-            link.path = PathBuf::from(path);
+            link.path = PathBuf::from(path.fragment_str());
 
             return Ok((
                 input,
@@ -44,7 +43,7 @@ pub fn inter_wiki_link(input: Span) -> VimwikiIResult<LC<InterWikiLink>> {
         }
 
         Err(nom::Err::Error(VimwikiNomError::from_ctx(
-            input,
+            &input,
             "not interwiki link",
         )))
     }
@@ -52,26 +51,27 @@ pub fn inter_wiki_link(input: Span) -> VimwikiIResult<LC<InterWikiLink>> {
     context("Inter Wiki Link", inner)(input)
 }
 
-fn parse_index_from_path(path: &str) -> Option<(&str, u32)> {
-    delimited(tag("wiki"), take_line_while1(not(tag(":"))), tag(":"))(new_span(
-        path,
-    ))
+fn parse_index_from_path(path: &str) -> Option<(Span, u32)> {
+    delimited(tag("wiki"), take_line_while1(not(tag(":"))), tag(":"))(
+        Span::from(path),
+    )
     .ok()
-    .map(|x| {
-        x.1.fragment()
+    .map(|(path, index)| {
+        index
+            .fragment_str()
             .parse::<u32>()
             .ok()
-            .map(|n| (*x.0.fragment(), n))
+            .map(move |n| (path, n))
     })
     .flatten()
 }
 
-fn parse_name_from_path(path: &str) -> Option<(&str, String)> {
-    delimited(tag("wn."), take_line_while1(not(tag(":"))), tag(":"))(new_span(
-        path,
-    ))
+fn parse_name_from_path(path: &str) -> Option<(Span, String)> {
+    delimited(tag("wn."), take_line_while1(not(tag(":"))), tag(":"))(
+        Span::from(path),
+    )
     .ok()
-    .map(|x| (*x.0.fragment(), x.1.fragment().to_string()))
+    .map(|(path, name)| (path, name.fragment_str().to_string()))
 }
 
 #[cfg(test)]
@@ -81,7 +81,7 @@ mod tests {
 
     #[test]
     fn inter_wiki_link_with_index_should_support_numbered_prefix() {
-        let input = new_span("[[wiki1:This is a link]]");
+        let input = Span::from("[[wiki1:This is a link]]");
         let (input, link) = inter_wiki_link(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume link");
         assert_eq!(link.index(), Some(1), "Wrong index detected");
@@ -92,8 +92,9 @@ mod tests {
 
     #[test]
     fn inter_wiki_link_with_index_should_support_description() {
-        let input =
-            new_span("[[wiki1:This is a link source|Description of the link]]");
+        let input = Span::from(
+            "[[wiki1:This is a link source|Description of the link]]",
+        );
         let (input, link) = inter_wiki_link(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume link");
         assert_eq!(link.index(), Some(1), "Wrong index detected");
@@ -110,7 +111,7 @@ mod tests {
 
     #[test]
     fn inter_wiki_link_with_index_should_support_anchors() {
-        let input = new_span("[[wiki1:This is a link source#anchor]]");
+        let input = Span::from("[[wiki1:This is a link source#anchor]]");
         let (input, link) = inter_wiki_link(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume link");
         assert_eq!(link.index(), Some(1), "Wrong index detected");
@@ -124,7 +125,7 @@ mod tests {
 
     #[test]
     fn inter_wiki_link_with_index_should_support_description_and_anchors() {
-        let input = new_span(
+        let input = Span::from(
             "[[wiki1:This is a link source#anchor|Description of the link]]",
         );
         let (input, link) = inter_wiki_link(input).unwrap();
@@ -143,7 +144,7 @@ mod tests {
 
     #[test]
     fn inter_wiki_link_with_name_should_support_named_wikis() {
-        let input = new_span("[[wn.My Name:This is a link]]");
+        let input = Span::from("[[wn.My Name:This is a link]]");
         let (input, link) = inter_wiki_link(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume link");
         assert_eq!(link.name(), Some("My Name"), "Wrong name detected");
@@ -155,7 +156,7 @@ mod tests {
     #[test]
     fn inter_wiki_link_with_name_should_support_description() {
         let input =
-            new_span("[[wn.My Name:This is a link|Description of the link]]");
+            Span::from("[[wn.My Name:This is a link|Description of the link]]");
         let (input, link) = inter_wiki_link(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume link");
         assert_eq!(link.name(), Some("My Name"), "Wrong name detected");
@@ -169,7 +170,7 @@ mod tests {
 
     #[test]
     fn inter_wiki_link_with_name_should_support_anchors() {
-        let input = new_span("[[wn.My Name:This is a link#anchor]]");
+        let input = Span::from("[[wn.My Name:This is a link#anchor]]");
         let (input, link) = inter_wiki_link(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume link");
         assert_eq!(link.name(), Some("My Name"), "Wrong name detected");
@@ -180,7 +181,7 @@ mod tests {
 
     #[test]
     fn inter_wiki_link_with_name_should_support_description_and_anchors() {
-        let input = new_span(
+        let input = Span::from(
             "[[wn.My Name:This is a link#anchor|Description of the link]]",
         );
         let (input, link) = inter_wiki_link(input).unwrap();

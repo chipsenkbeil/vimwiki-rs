@@ -7,4 +7,4 @@ pub use region::Region;
 mod slc;
 pub use slc::{StrictLocatedComponent, SLC};
 mod span;
-pub use span::{new_span, MasterSpan, Span, SpanFactory};
+pub use span::Span;

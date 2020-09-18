@@ -54,14 +54,14 @@ impl Position {
     }
 }
 
-impl<'a> From<Span<'a>> for Position {
+impl From<Span> for Position {
     /// Constructs a position based on the start of a span
-    fn from(span: Span<'a>) -> Self {
+    fn from(span: Span) -> Self {
         // NOTE: Span from nom_locate has base 1 for line/col
         // TODO: Compare performance of naive_get_utf8_column, which is
         //       supposedly better for shorter lines (100 or less), which
         //       I imagine is more common for vimwiki
-        let (line, column) = span.extra.master_line_and_utf8_column(span);
+        let (line, column) = (span.global_line(), span.global_utf8_column());
 
         Self::new(line - 1, column - 1)
     }
@@ -70,7 +70,7 @@ impl<'a> From<Span<'a>> for Position {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lang::utils::new_span;
+    use crate::lang::utils::Span;
 
     #[test]
     fn position_ordering_should_have_position_with_earliest_line_first() {
@@ -95,7 +95,7 @@ mod tests {
 
     #[test]
     fn position_from_span_should_offset_line_and_column_by_1() {
-        let input = new_span("abc\n123");
+        let input = Span::from("abc\n123");
         let p = Position::from(input);
         assert_eq!(p.line, 0);
         assert_eq!(p.column, 0);

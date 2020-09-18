@@ -1,8 +1,6 @@
 use super::{
     components::Blockquote,
-    utils::{
-        beginning_of_line, blank_line, context, end_of_line_or_input, position,
-    },
+    utils::{beginning_of_line, blank_line, context, end_of_line_or_input, lc},
     Span, VimwikiIResult, LC,
 };
 use nom::{
@@ -16,11 +14,8 @@ use nom::{
 
 #[inline]
 pub fn blockquote(input: Span) -> VimwikiIResult<LC<Blockquote>> {
-    let (input, pos) = position(input)?;
-
-    let (input, lines) = context(
-        "Blockquote",
-        alt((
+    fn inner(input: Span) -> VimwikiIResult<Blockquote> {
+        let (input, lines) = alt((
             // NOTE: Indented blockquotes do not allow blank lines
             many1(blockquote_line_1),
             // NOTE: > blockquotes allow blank lines inbetween
@@ -45,19 +40,20 @@ pub fn blockquote(input: Span) -> VimwikiIResult<LC<Blockquote>> {
                 ),
                 |(head, rest)| vec![head, rest].concat(),
             ),
-        )),
-    )(input)?;
+        ))(input)?;
+        Ok((input, Blockquote::new(lines)))
+    }
 
-    Ok((input, LC::from((Blockquote::new(lines), pos, input))))
+    context("Blockquote", lc(inner))(input)
 }
 
 /// Parses a blockquote line that begins with four or more spaces
 #[inline]
 fn blockquote_line_1(input: Span) -> VimwikiIResult<String> {
     let (input, _) = beginning_of_line(input)?;
-    let (input, _) = verify(space0, |s: &Span| s.fragment().len() >= 4)(input)?;
+    let (input, _) = verify(space0, |s: &Span| s.fragment_len() >= 4)(input)?;
     let (input, text) =
-        map(not_line_ending, |s: Span| s.fragment().to_string())(input)?;
+        map(not_line_ending, |s: Span| s.fragment_str().to_string())(input)?;
     let (input, _) = end_of_line_or_input(input)?;
 
     Ok((input, text))
@@ -69,7 +65,7 @@ fn blockquote_line_2(input: Span) -> VimwikiIResult<String> {
     let (input, _) = beginning_of_line(input)?;
     let (input, _) = tag("> ")(input)?;
     let (input, text) =
-        map(not_line_ending, |s: Span| s.fragment().to_string())(input)?;
+        map(not_line_ending, |s: Span| s.fragment_str().to_string())(input)?;
     let (input, _) = end_of_line_or_input(input)?;
 
     Ok((input, text))
@@ -78,12 +74,12 @@ fn blockquote_line_2(input: Span) -> VimwikiIResult<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lang::utils::new_span;
+    use crate::lang::utils::Span;
     use indoc::indoc;
 
     #[test]
     fn blockquote_should_fail_if_not_starting_with_correct_prefix() {
-        let input = new_span(indoc! {"
+        let input = Span::from(indoc! {"
             < Wrong prefix
             < on these lines
         "});
@@ -92,7 +88,7 @@ mod tests {
 
     #[test]
     fn blockquote_should_fail_if_not_enough_spaces_at_beginning() {
-        let input = new_span(indoc! {"
+        let input = Span::from(indoc! {"
            Only using
            three spaces
         regular line starts here and is needed for indoc to have a baseline
@@ -102,7 +98,7 @@ mod tests {
 
     #[test]
     fn blockquote_should_stop_if_using_indented_format_and_reach_blank_line() {
-        let input = new_span(indoc! {"
+        let input = Span::from(indoc! {"
             This is a blockquote
             that is using four spaces
 
@@ -132,7 +128,7 @@ mod tests {
     #[test]
     fn blockquote_should_stop_if_using_indented_format_and_reach_unindented_line(
     ) {
-        let input = new_span(indoc! {"
+        let input = Span::from(indoc! {"
             This is a blockquote
             that is using four spaces
         regular line starts here and is needed for indoc to have a baseline
@@ -159,7 +155,7 @@ mod tests {
 
     #[test]
     fn blockquote_should_consume_blank_lines_if_using_angle_prefix() {
-        let input = new_span(indoc! {"
+        let input = Span::from(indoc! {"
         > This is a blockquote
         > that is using prefixes
 

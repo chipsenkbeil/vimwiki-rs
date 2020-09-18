@@ -64,50 +64,50 @@ pub fn link(input: Span) -> VimwikiIResult<LC<Link>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lang::utils::new_span;
+    use crate::lang::utils::Span;
 
     #[test]
     fn link_should_return_external_link_where_appropriate() {
-        let input = new_span("[[file:/home/somebody/a/b/c/music.mp3]]");
+        let input = Span::from("[[file:/home/somebody/a/b/c/music.mp3]]");
         let (_, l) = link(input).unwrap();
         assert!(matches!(l.component, Link::ExternalFile(_)));
     }
 
     #[test]
     fn link_should_return_diary_link_where_appropriate() {
-        let input = new_span("[[diary:2012-03-05]]");
+        let input = Span::from("[[diary:2012-03-05]]");
         let (_, l) = link(input).unwrap();
         assert!(matches!(l.component, Link::Diary(_)));
     }
 
     #[test]
     fn link_should_return_interwiki_link_where_appropriate() {
-        let input = new_span("[[wiki1:Some Link]]");
+        let input = Span::from("[[wiki1:Some Link]]");
         let (_, l) = link(input).unwrap();
         assert!(matches!(l.component, Link::InterWiki(_)));
 
-        let input = new_span("[[wn.My Name:Some Link]]");
+        let input = Span::from("[[wn.My Name:Some Link]]");
         let (_, l) = link(input).unwrap();
         assert!(matches!(l.component, Link::InterWiki(_)));
     }
 
     #[test]
     fn link_should_return_wiki_link_where_appropriate() {
-        let input = new_span("[[Some Link]]");
+        let input = Span::from("[[Some Link]]");
         let (_, l) = link(input).unwrap();
         assert!(matches!(l.component, Link::Wiki(_)));
     }
 
     #[test]
     fn link_should_return_raw_link_where_appropriate() {
-        let input = new_span("https://example.com");
+        let input = Span::from("https://example.com");
         let (_, l) = link(input).unwrap();
         assert!(matches!(l.component, Link::Raw(_)));
     }
 
     #[test]
     fn link_should_return_transclusion_link_where_appropriate() {
-        let input = new_span("{{https://example.com/img.jpg}}");
+        let input = Span::from("{{https://example.com/img.jpg}}");
         let (_, l) = link(input).unwrap();
         assert!(matches!(l.component, Link::Transclusion(_)));
     }

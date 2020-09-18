@@ -44,16 +44,17 @@ impl LangParserError {
         }
     }
 
-    pub fn from_ctx<'a>(input: Span<'a>, ctx: &'static str) -> Self {
-        let (line, column) = input.extra.master_line_and_utf8_column(input);
+    pub fn from_ctx(input: &Span, ctx: &'static str) -> Self {
+        let line = input.global_line();
+        let column = input.global_utf8_column();
         Self {
             ctx: ctx.to_string(),
             sample: input
-                .fragment()
+                .fragment_str()
                 .get(..16)
                 .map(|x| x.to_string())
                 .unwrap_or_default(),
-            offset: input.location_offset(),
+            offset: input.global_offset(),
             line,
             column,
             next: None,
@@ -61,39 +62,41 @@ impl LangParserError {
     }
 }
 
-impl<'a> ParseError<Span<'a>> for LangParserError {
-    fn from_error_kind(input: Span<'a>, kind: ErrorKind) -> Self {
-        let (line, column) = input.extra.master_line_and_utf8_column(input);
+impl ParseError<Span> for LangParserError {
+    fn from_error_kind(input: Span, kind: ErrorKind) -> Self {
+        let line = input.global_line();
+        let column = input.global_utf8_column();
         Self {
             ctx: kind.description().to_string(),
             sample: input
-                .fragment()
+                .fragment_str()
                 .get(..16)
                 .map(|x| x.to_string())
                 .unwrap_or_default(),
-            offset: input.location_offset(),
+            offset: input.global_offset(),
             line,
             column,
             next: None,
         }
     }
 
-    fn append(input: Span<'a>, kind: ErrorKind, other: Self) -> Self {
+    fn append(input: Span, kind: ErrorKind, other: Self) -> Self {
         let mut e = Self::from_error_kind(input, kind);
         e.next = Some(Box::new(other));
         e
     }
 
-    fn from_char(input: Span<'a>, c: char) -> Self {
-        let (line, column) = input.extra.master_line_and_utf8_column(input);
+    fn from_char(input: Span, c: char) -> Self {
+        let line = input.global_line();
+        let column = input.global_utf8_column();
         Self {
             ctx: format!("Char {}", c),
             sample: input
-                .fragment()
+                .fragment_str()
                 .get(..16)
                 .map(|x| x.to_string())
                 .unwrap_or_default(),
-            offset: input.location_offset(),
+            offset: input.global_offset(),
             line,
             column,
             next: None,
@@ -109,16 +112,17 @@ impl<'a> ParseError<Span<'a>> for LangParserError {
         }
     }
 
-    fn add_context(input: Span<'a>, ctx: &'static str, other: Self) -> Self {
-        let (line, column) = input.extra.master_line_and_utf8_column(input);
+    fn add_context(input: Span, ctx: &'static str, other: Self) -> Self {
+        let line = input.global_line();
+        let column = input.global_utf8_column();
         Self {
             ctx: ctx.to_string(),
             sample: input
-                .fragment()
+                .fragment_str()
                 .get(..16)
                 .map(|x| x.to_string())
                 .unwrap_or_default(),
-            offset: input.location_offset(),
+            offset: input.global_offset(),
             line,
             column,
             next: Some(Box::new(other)),

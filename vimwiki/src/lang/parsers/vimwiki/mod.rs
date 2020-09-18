@@ -2,8 +2,8 @@ use super::{
     components::{
         self, BlockComponent, InlineComponent, InlineComponentContainer, Page,
     },
-    utils::{self, context, lc, position, range, scan, VimwikiIResult},
-    Span, SpanFactory, LC,
+    utils::{self, context, lc, range, scan, VimwikiIResult},
+    Span, LC,
 };
 use nom::{
     branch::alt,
@@ -11,7 +11,6 @@ use nom::{
     multi::{many0, many1},
     InputLength, Slice,
 };
-use std::ops::Range;
 
 pub mod blockquotes;
 pub mod comments;
@@ -30,27 +29,16 @@ pub mod typefaces;
 
 /// Parses entire vimwiki page
 pub fn page(input: Span) -> VimwikiIResult<LC<Page>> {
-    fn inner(input: Span) -> VimwikiIResult<LC<Page>> {
-        let (input, pos) = position(input)?;
-
+    fn inner(input: Span) -> VimwikiIResult<Page> {
         // First, parse the page for comments and remove all from input,
         // skipping over any character that is not a comment
-        let (_, mut ranges_and_comments) =
+        let (input, mut ranges_and_comments) =
             context("Page Comments", scan(range(comments::comment)))(input)?;
 
         // Second, produce a new custom span that skips over commented regions
-        // TODO: Provide a cleaner way to filter our span so we can remove
-        //       this ugly and inefficient approach (including SpanFactory)
-        let skippable_ranges: Vec<Range<usize>> =
+        let segments =
             ranges_and_comments.iter().map(|x| x.0.to_owned()).collect();
-        let shortened_fragment =
-            SpanFactory::shorten_fragment(*input.fragment(), &skippable_ranges);
-        let factory = SpanFactory::new(
-            *input.fragment(),
-            &shortened_fragment,
-            &skippable_ranges,
-        );
-        let no_comments_input = factory.make_span();
+        let no_comments_input = input.clone().without_segments(segments);
 
         // Third, continuously parse input for new block components until we
         // have nothing left (or we fail)
@@ -64,13 +52,10 @@ pub fn page(input: Span) -> VimwikiIResult<LC<Page>> {
         // entire input
         let comments = ranges_and_comments.drain(..).map(|x| x.1).collect();
         let input = input.slice(input.input_len()..);
-        Ok((
-            input,
-            LC::from((Page::new(components, comments), pos, input)),
-        ))
+        Ok((input, Page::new(components, comments)))
     }
 
-    context("Page", inner)(input)
+    context("Page", lc(inner))(input)
 }
 
 /// Parses a block component
@@ -154,12 +139,12 @@ mod tests {
         Region,
     };
     use super::*;
-    use crate::lang::utils::new_span;
+    use crate::lang::utils::Span;
     use std::path::PathBuf;
 
     #[test]
     fn page_should_support_blank_lines() {
-        let input = new_span("\n\n");
+        let input = Span::from("\n\n");
         let (input, page) = page(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume all of input");
         assert!(page.comments.is_empty());
@@ -171,7 +156,7 @@ mod tests {
 
     #[test]
     fn page_should_parse_comments() {
-        let input = new_span("%%comment\n%%+comment2+%%\n%%comment3");
+        let input = Span::from("%%comment\n%%+comment2+%%\n%%comment3");
         let (input, page) = page(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume all of input");
         assert_eq!(
@@ -190,7 +175,7 @@ mod tests {
 
     #[test]
     fn page_should_parse_block_components() {
-        let input = new_span("some text with % signs");
+        let input = Span::from("some text with % signs");
         let (input, page) = page(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume all of input");
         assert!(page.comments.is_empty(), "Unexpected parsed comment");
@@ -206,7 +191,7 @@ mod tests {
     fn page_should_properly_translate_line_and_column_of_block_components_with_comments(
     ) {
         let input =
-            new_span("%%comment\nSome %%+comment+%%more%%+\ncomment+%% text");
+            Span::from("%%comment\nSome %%+comment+%%more%%+\ncomment+%% text");
         let (input, page) = page(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume all of input");
 
@@ -250,7 +235,7 @@ mod tests {
 
     #[test]
     fn inline_component_container_should_correctly_identify_components() {
-        let input = new_span(
+        let input = Span::from(
             "*item 1* has a [[link]] with :tag: and $formula$ is DONE",
         );
         let (input, mut container) = inline_component_container(input).unwrap();

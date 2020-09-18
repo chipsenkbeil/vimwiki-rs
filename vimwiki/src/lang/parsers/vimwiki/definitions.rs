@@ -1,8 +1,8 @@
 use super::{
     components::{Definition, DefinitionList, Term, TermAndDefinitions},
     utils::{
-        beginning_of_line, context, end_of_line_or_input, lc, position,
-        pstring, take_line_while1, take_until_end_of_line_or_input,
+        beginning_of_line, context, end_of_line_or_input, lc, pstring,
+        take_line_while1, take_until_end_of_line_or_input,
     },
     Span, VimwikiIResult, LC,
 };
@@ -49,13 +49,10 @@ fn term_and_definitions(input: Span) -> VimwikiIResult<TermAndDefinitions> {
 #[inline]
 fn term_line(input: Span) -> VimwikiIResult<(Term, Option<Definition>)> {
     let (input, _) = beginning_of_line(input)?;
-    let (input, pos) = position(input)?;
 
     // Parse our term and provide location information for it
     let (input, term) = terminated(
-        map(take_line_while1(not(tag("::"))), |s: Span| {
-            LC::from((s.fragment().to_string(), pos, input))
-        }),
+        lc(pstring(take_line_while1(not(tag("::"))))),
         tag("::"),
     )(input)?;
 
@@ -86,7 +83,7 @@ fn definition_line(input: Span) -> VimwikiIResult<Definition> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lang::utils::new_span;
+    use crate::lang::utils::Span;
     use indoc::indoc;
 
     /// Checks defs match those of a provided list in ANY order
@@ -107,37 +104,37 @@ mod tests {
 
     #[test]
     fn definition_list_should_fail_if_input_empty() {
-        let input = new_span("");
+        let input = Span::from("");
         assert!(definition_list(input).is_err());
     }
 
     #[test]
     fn definition_list_should_fail_if_not_starting_with_a_term() {
-        let input = new_span("no term here");
+        let input = Span::from("no term here");
         assert!(definition_list(input).is_err());
     }
 
     #[test]
     fn definition_list_should_fail_if_starting_with_a_definition() {
-        let input = new_span(":: some definition");
+        let input = Span::from(":: some definition");
         assert!(definition_list(input).is_err());
     }
 
     #[test]
     fn definition_list_should_fail_if_no_space_between_term_and_def_sep() {
-        let input = new_span("term::some definition");
+        let input = Span::from("term::some definition");
         assert!(definition_list(input).is_err());
     }
 
     #[test]
     fn definition_list_should_fail_if_one_term_and_no_defs() {
-        let input = new_span("term::");
+        let input = Span::from("term::");
         assert!(definition_list(input).is_err());
     }
 
     #[test]
     fn definition_list_should_fail_if_multiple_terms_and_no_defs() {
-        let input = new_span(indoc! {r#"
+        let input = Span::from(indoc! {r#"
             term 1::
             term 2::
         "#});
@@ -146,7 +143,7 @@ mod tests {
 
     #[test]
     fn definition_list_should_succeed_if_one_term_and_inline_def() {
-        let input = new_span("term 1:: def 1");
+        let input = Span::from("term 1:: def 1");
         let (input, l) = definition_list(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume def list");
 
@@ -156,7 +153,7 @@ mod tests {
 
     #[test]
     fn definition_list_should_succeed_if_one_term_and_def_on_next_line() {
-        let input = new_span(indoc! {r#"
+        let input = Span::from(indoc! {r#"
             term 1::
             :: def 1
         "#});
@@ -169,7 +166,7 @@ mod tests {
 
     #[test]
     fn definition_list_should_succeed_if_one_term_and_multiple_line_defs() {
-        let input = new_span(indoc! {r#"
+        let input = Span::from(indoc! {r#"
             term 1::
             :: def 1
             :: def 2
@@ -184,7 +181,7 @@ mod tests {
     #[test]
     fn definition_list_should_succeed_if_one_term_and_inline_def_and_line_def()
     {
-        let input = new_span(indoc! {r#"
+        let input = Span::from(indoc! {r#"
             term 1:: def 1
             :: def 2
         "#});
@@ -197,7 +194,7 @@ mod tests {
 
     #[test]
     fn definition_list_should_succeed_if_multiple_terms_and_inline_defs() {
-        let input = new_span(indoc! {r#"
+        let input = Span::from(indoc! {r#"
             term 1:: def 1
             term 2:: def 2
         "#});
@@ -213,7 +210,7 @@ mod tests {
 
     #[test]
     fn definition_list_should_succeed_if_multiple_terms_and_line_defs() {
-        let input = new_span(indoc! {r#"
+        let input = Span::from(indoc! {r#"
             term 1::
             :: def 1
             term 2::
@@ -231,7 +228,7 @@ mod tests {
 
     #[test]
     fn definition_list_should_succeed_if_multiple_terms_and_mixed_defs() {
-        let input = new_span(indoc! {r#"
+        let input = Span::from(indoc! {r#"
             term 1:: def 1
             :: def 2
             term 2:: def 3

@@ -99,9 +99,9 @@ impl<T> From<T> for LocatedComponent<T> {
     }
 }
 
-impl<'a, T> From<(T, Span<'a>, Span<'a>)> for LocatedComponent<T> {
+impl<T> From<(T, Span, Span)> for LocatedComponent<T> {
     /// Creates a new located component around `T`, using a default location
-    fn from((component, start, end): (T, Span<'a>, Span<'a>)) -> Self {
+    fn from((component, start, end): (T, Span, Span)) -> Self {
         Self::new(component, Region::from((start, end)))
     }
 }

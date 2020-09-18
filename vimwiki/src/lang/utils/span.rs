@@ -1,255 +1,700 @@
-use nom::Slice;
-use nom_locate::LocatedSpan;
-use std::ops::Range;
+use bytes::Bytes;
+use memchr::Memchr;
+use nom::{
+    error::{ErrorKind, ParseError},
+    AsBytes, Compare, CompareResult, Err, ExtendInto, FindSubstring, FindToken,
+    IResult, InputIter, InputLength, InputTake, InputTakeAtPosition, Offset,
+    ParseTo, Slice,
+};
+use std::{
+    fmt::{Display, Formatter, Result as FmtResult},
+    iter::{Enumerate, FromIterator},
+    ops::{Range, RangeFrom, RangeFull, RangeTo},
+    str::FromStr,
+    sync::{Arc, Mutex},
+};
 
-/// Represents a span that has not been altered with skippable regions
-pub type MasterSpan<'a> = LocatedSpan<&'a str>;
-
-/// Represents a span that is spawned from a master span (removing skippable regions)
-pub type Span<'a> = LocatedSpan<&'a str, SpanFactory<'a>>;
-
-/// Convenience function to produce a new span that has a span factory with
-/// an master span whose fragment is identical to that of the span
-pub fn new_span(input: &str) -> Span {
-    Span::new_extra(input, SpanFactory::from(input))
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct SpanSegments {
+    segments: Arc<Vec<Range<usize>>>,
 }
 
-/// Represents a producer of spans based on a non-altered span (master) and
-/// a collection of ranges that are skippable (to be removed in produced spans)
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub struct SpanFactory<'a> {
-    /// Represents the master span to compare against sub-spans where
-    /// skippable regions have been removed
-    ///
-    /// This span should be at line 1, offset 0
-    master: MasterSpan<'a>,
+impl SpanSegments {
+    pub fn new(segments: Vec<Range<usize>>) -> Self {
+        Self {
+            segments: Arc::new(segments),
+        }
+    }
 
-    /// Calculated shortened fragment; as this requires a new allocation, we
-    /// store the fragment on the heap and use a reference counter s
-    pub shortened_fragment: &'a str,
+    /// Converts a collection of bytes into a collection using only the
+    /// segments contained by this `SpanSegments`
+    pub fn convert_bytes_to_segments(&self, bytes: &Bytes) -> Bytes {
+        Bytes::from_iter(
+            self.segments
+                .iter()
+                .map(|seg| bytes.slice(seg.start..seg.end).into_iter())
+                .flatten(),
+        )
+    }
 
-    /// Represents the offset ranges within the destination span that should
-    /// be missing from other spans (skippable)
-    ///
-    /// NOTE: Assumes that ranges are sorted by starting position and are not
-    ///       overlapping
-    pub skippable_ranges: &'a [Range<usize>],
+    /// Converts a local offset to a global offset
+    pub fn map_local_to_global_offset(&self, offset: usize) -> usize {
+        // |xxx|ooo|xxx|
+        //  012 345 678
+        //      012
+        //
+        //  Segments: 3..6
+        //
+        //  |x|oooo|x|oo|x|
+        //   0 1234 5 67 8
+        //     0123   45
+        //
+        //  Segments: 1..5, 6..8
+
+        // While we are not in a segment, keep shifting towards the next
+        // segment's starting point until we find ourselves inside a segment
+        let mut last_end = 0;
+        let mut global_offset = offset;
+        for seg in self.segments.iter() {
+            // Check if our baseline global offset, shifted over by the last
+            // gap, is within the current segment
+            let gap = seg.start - last_end;
+            global_offset += gap;
+            if seg.contains(&global_offset) {
+                break;
+            }
+
+            // Otherwise, continue and flag the end of the last segment so
+            // we can determine the next gap size
+            last_end = seg.end;
+        }
+
+        global_offset
+    }
 }
 
-impl<'a> SpanFactory<'a> {
-    pub fn new(
-        input: &'a str,
-        shortened_fragment: &'a str,
-        skippable_ranges: &'a [Range<usize>],
+/// Represents an input into our parsing constructs that keeps track of both
+/// a global byte sequence and a local byte sequence. These can be the same,
+/// but it's also possible to segment the global byte sequence into a local
+/// one where only specific segments are included.
+#[derive(Clone, Debug)]
+pub struct Span {
+    /// Represents a pointer to the global byte input (non-altered)
+    global: Bytes,
+
+    /// Represents a pointer to the local byte input (altered subset of global)
+    local: Bytes,
+
+    /// Represents segments from master that were kept in the fragment
+    segments: SpanSegments,
+
+    /// Offset and line location for fragment
+    offset: usize,
+    line: u32,
+
+    /// Cached local utf8 column
+    cached_local_utf8_column: Arc<Mutex<Option<usize>>>,
+
+    /// Cached global offset
+    cached_global_offset: Arc<Mutex<Option<usize>>>,
+
+    /// Cached global line
+    cached_global_line: Arc<Mutex<Option<u32>>>,
+
+    /// Cached global utf8 column
+    cached_global_utf8_column: Arc<Mutex<Option<usize>>>,
+}
+
+impl Span {
+    fn new(global: Bytes, local: Bytes, segments: SpanSegments) -> Self {
+        Self::new_at_pos(global, local, segments, 0, 1)
+    }
+
+    fn new_at_pos(
+        global: Bytes,
+        local: Bytes,
+        segments: SpanSegments,
+        offset: usize,
+        line: u32,
     ) -> Self {
         Self {
-            master: MasterSpan::new(input),
-            shortened_fragment,
-            skippable_ranges,
+            global,
+            local,
+            segments,
+            offset,
+            line,
+            cached_local_utf8_column: Arc::new(Mutex::new(None)),
+            cached_global_offset: Arc::new(Mutex::new(None)),
+            cached_global_line: Arc::new(Mutex::new(None)),
+            cached_global_utf8_column: Arc::new(Mutex::new(None)),
         }
     }
 
-    /// Produces a new span where skippable ranges have been removed
+    /// Creates a new span from a static string; no new allocation is made
+    /// to represent the string internally
+    pub fn from_static(s: &'static str) -> Self {
+        let global = Bytes::from_static(s.as_bytes());
+        let local = global.clone();
+        Self::new(global, local, Default::default())
+    }
+
+    /// Converts span into global span, translating the span's local offset
+    /// into the global span's offset
+    pub fn into_global(self) -> Self {
+        let offset = self.global_offset();
+        let line = self.global_line();
+        let global = self.global;
+        let local = global.slice(offset..);
+        Self::new_at_pos(global, local, Default::default(), offset, line)
+    }
+
+    /// Retrieves the local offset number (base 0)
+    pub fn local_offset(&self) -> usize {
+        self.offset
+    }
+
+    /// Retrieves the local line number (base 1)
+    pub fn local_line(&self) -> u32 {
+        self.line
+    }
+
+    /// Retrieves the local column number using code pointers since a UTF8
+    /// character may span multiple bytes (base 1)
+    pub fn local_utf8_column(&self) -> usize {
+        *self
+            .cached_local_utf8_column
+            .lock()
+            .unwrap()
+            .get_or_insert_with(|| {
+                let before_local = Self::get_columns_and_bytes_before_offset(
+                    self.local.as_ref(),
+                    self.local_offset(),
+                )
+                .1;
+                bytecount::num_chars(before_local) + 1
+            })
+    }
+
+    /// Retrieves the global offset number (base 0)
+    pub fn global_offset(&self) -> usize {
+        self.segments
+            .map_local_to_global_offset(self.local_offset())
+    }
+
+    /// Retrieves the global line number (base 1)
+    pub fn global_line(&self) -> u32 {
+        *self
+            .cached_global_line
+            .lock()
+            .unwrap()
+            .get_or_insert_with(|| {
+                let offset = self.global_offset();
+                self.slice(offset..).local_line()
+            })
+    }
+
+    /// Retrieves the global column number using code pointers since a UTF8
+    /// character may span multiple bytes (base 1)
+    pub fn global_utf8_column(&self) -> usize {
+        *self
+            .cached_global_utf8_column
+            .lock()
+            .unwrap()
+            .get_or_insert_with(|| {
+                let before_global = Self::get_columns_and_bytes_before_offset(
+                    self.global.as_ref(),
+                    self.global_offset(),
+                )
+                .1;
+                bytecount::num_chars(before_global) + 1
+            })
+    }
+
+    /// Retrieves a reference to the current, local fragment
+    pub fn fragment(&self) -> &[u8] {
+        self.local.as_ref()
+    }
+
+    /// Assumes that the span has UTF-8 compliant bytes and converts to a str
+    pub fn fragment_str(&self) -> &str {
+        unsafe { std::str::from_utf8_unchecked(self.fragment()) }
+    }
+
+    /// Returns the length (in bytes) of the internal fragment contained by
+    /// the span, which can be less than the original input if the fragment
+    /// has been reduced to specific segments
+    pub fn fragment_len(&self) -> usize {
+        self.local.len()
+    }
+
+    /// Produces a new span comprised only of the provided segments, which
+    /// will keep track of line/column positioning based on its
+    /// original sequence
     ///
-    /// NOTE: This will allocate an entirely new internal slice for the span
-    pub fn make_span(&'a self) -> Span<'a> {
-        Span::new_extra(&self.shortened_fragment, *self)
+    /// NOTE: This will copy all segments into a new byte sequence, so this
+    ///       is an expensive operation
+    pub fn into_segments(self, segments: Vec<Range<usize>>) -> Self {
+        let global = self.local;
+        let segments = SpanSegments::new(segments);
+
+        // Chain segments provided together, which will result in copying
+        // the byte sequence into a new collection
+        let local = segments.convert_bytes_to_segments(&global);
+
+        Self::new(global, local, segments)
     }
 
-    /// Produces a copy of the underlying master span
-    pub fn as_master(&self) -> &MasterSpan<'a> {
-        &self.master
-    }
-
-    /// Retrieves the line and column (assuming 1 byte = 1 column) of the
-    /// master span based on the given input span
-    pub fn master_line_and_column(&self, input: Span) -> (u32, usize) {
-        let master = self.to_master_at_input(input);
-        (master.location_line(), master.get_column())
-    }
-
-    /// Retrieves the line and utf8 column based on the given input span
-    pub fn master_line_and_utf8_column(&self, input: Span) -> (u32, usize) {
-        let master = self.to_master_at_input(input);
-        (master.location_line(), master.get_utf8_column())
-    }
-
-    /// Retrieves the line and utf8 column (using naive method that may be
-    /// better for sub-100 column lines) based on the given input span
-    pub fn master_line_and_naive_utf8_column(
-        &self,
-        input: Span,
-    ) -> (u32, usize) {
-        let master = self.to_master_at_input(input);
-        (master.location_line(), master.naive_get_utf8_column())
-    }
-
-    /// Produces a copy of the underlying master span starting at the same
-    /// associated position as the input span (relative to skippable ranges)
-    fn to_master_at_input(&self, input: Span) -> MasterSpan {
-        let offset = self.master_offset(input);
-        self.master.slice(offset..)
-    }
-
-    /// Determines the offset of the master span based on the input span
-    fn master_offset(&self, input: Span) -> usize {
-        let mut offset = input.location_offset();
-
-        // Assuming that our origin had all skippable regions removed, we can
-        // just increment the offset by all of the leading range lengths
-        for r in self.skippable_ranges {
-            if r.start <= offset {
-                // Range is not inclusive at end, so [2, 3) == len(1)
-                offset += r.end - r.start;
-            } else {
-                break;
-            }
-        }
-
-        offset
-    }
-
-    /// Produces a new fragment with skippable ranges removed
+    /// Produces a new span comprised of all bytes except those in the
+    /// provided segments, which will keep track of line/column positioning
+    /// based on its original sequence
     ///
-    /// TODO: Figure out if there is a way to do this without a new allocation
-    pub fn shorten_fragment(
-        fragment: &'a str,
-        skippable_ranges: &'a [Range<usize>],
-    ) -> String {
-        // Gather all pieces of a fragment that are not skippable
-        let mut fragment_pieces: Vec<&str> = Vec::new();
+    /// NOTE: This will copy all segments into a new byte sequence, so this
+    ///       is an expensive operation
+    pub fn without_segments(self, segments: Vec<Range<usize>>) -> Self {
+        let mut segments_to_keep = Vec::new();
 
+        // Build up segments to keep by identifying the range in front of
+        // each segment to remove
         let mut start = 0;
-        for r in skippable_ranges {
-            // Ensure the next skippable region is not out of bounds
-            if r.start >= fragment.len() {
-                break;
+        for segment in segments.iter() {
+            if start < segment.start {
+                segments_to_keep.push(start..segment.start);
             }
-
-            // Check if our start position of a non-skippable fragment
-            // is before a skippable section, if so, grab our start to
-            // just before the start of a skippable fragment
-            if start < r.start && r.start < fragment.len() {
-                fragment_pieces.push(&fragment[start..r.start]);
-            }
-
-            // Update our new start to the end of the skippable range, which
-            // should be the start of the next non-skippable range as our
-            // ranges are non-inclusive of the end
-            start = r.end;
-
-            // If our start is now beyond our master fragment, exit early
-            if start >= fragment.len() {
-                break;
-            }
+            start = segment.end;
         }
 
-        // Add remaining fragment
-        if start < fragment.len() {
-            fragment_pieces.push(&fragment[start..]);
+        // Finally, add one last segment at the end of the final segment to
+        // remove, as long as we didn't remove the end of the byte sequence
+        if start < self.global.len() {
+            segments_to_keep.push(start..self.global.len());
         }
 
-        fragment_pieces.concat()
+        self.into_segments(segments_to_keep)
+    }
+
+    /// Retrieves the byte column location (index 1) and series of bytes
+    /// prior to the current position within a byte slice
+    fn get_columns_and_bytes_before_offset(
+        bytes: &[u8],
+        offset: usize,
+    ) -> (usize, &[u8]) {
+        let column = match memchr::memrchr(b'\n', bytes) {
+            None => offset + 1,
+            Some(pos) => offset - pos,
+        };
+
+        (column, &bytes[offset - (column - 1)..])
     }
 }
 
-impl<'a> From<&'a str> for SpanFactory<'a> {
-    fn from(input: &'a str) -> Self {
-        Self::new(input, input, Default::default())
+impl From<String> for Span {
+    /// Converts to a Vec<u8> that gets translated into Bytes internally
+    fn from(s: String) -> Self {
+        let global = Bytes::from(s);
+        let local = global.clone();
+        Self::new(global, local, Default::default())
     }
 }
+
+impl From<&str> for Span {
+    /// Allocates a new string based on the provided slice and stores it
+    /// internally for usage with combinators
+    fn from(s: &str) -> Self {
+        Self::from(s.to_string())
+    }
+}
+
+impl PartialEq for Span {
+    /// Checks equality by comparing lines, offsets, and local fragments
+    fn eq(&self, other: &Self) -> bool {
+        self.line == other.line
+            && self.offset == other.offset
+            && self.local == other.local
+    }
+}
+
+impl Eq for Span {}
+
+impl AsBytes for Span {
+    fn as_bytes(&self) -> &[u8] {
+        self.local.as_ref()
+    }
+}
+
+impl Compare<Span> for Span {
+    fn compare(&self, other: Span) -> CompareResult {
+        self.fragment().compare(other.fragment())
+    }
+
+    fn compare_no_case(&self, other: Span) -> CompareResult {
+        self.fragment().compare_no_case(other.fragment())
+    }
+}
+
+impl Compare<&str> for Span {
+    fn compare(&self, other: &str) -> CompareResult {
+        self.fragment().compare(other)
+    }
+
+    fn compare_no_case(&self, other: &str) -> CompareResult {
+        self.fragment().compare_no_case(other)
+    }
+}
+
+impl Compare<&[u8]> for Span {
+    fn compare(&self, other: &[u8]) -> CompareResult {
+        self.fragment().compare(other)
+    }
+
+    fn compare_no_case(&self, other: &[u8]) -> CompareResult {
+        self.fragment().compare_no_case(other)
+    }
+}
+
+impl ExtendInto for Span {
+    type Item = u8;
+    type Extender = Vec<u8>;
+
+    #[inline]
+    fn new_builder(&self) -> Self::Extender {
+        self.fragment().new_builder()
+    }
+
+    #[inline]
+    fn extend_into(&self, acc: &mut Self::Extender) {
+        self.fragment().extend_into(acc)
+    }
+}
+
+impl<'a> FindSubstring<&'a str> for Span {
+    #[inline]
+    fn find_substring(&self, substr: &'a str) -> Option<usize> {
+        self.fragment().find_substring(substr)
+    }
+}
+
+impl FindToken<u8> for Span {
+    fn find_token(&self, token: u8) -> bool {
+        self.fragment().find_token(token)
+    }
+}
+
+impl<'a> FindToken<&'a u8> for Span {
+    fn find_token(&self, token: &'a u8) -> bool {
+        self.fragment().find_token(token)
+    }
+}
+
+impl FindToken<char> for Span {
+    fn find_token(&self, token: char) -> bool {
+        self.fragment().find_token(token)
+    }
+}
+
+impl InputIter for Span {
+    type Item = u8;
+    type Iter = Enumerate<Self::IterElem>;
+    type IterElem = bytes::buf::IntoIter<Bytes>;
+
+    #[inline]
+    fn iter_indices(&self) -> Self::Iter {
+        self.iter_elements().enumerate()
+    }
+
+    #[inline]
+    fn iter_elements(&self) -> Self::IterElem {
+        self.local.clone().into_iter()
+    }
+
+    #[inline]
+    fn position<P>(&self, predicate: P) -> Option<usize>
+    where
+        P: Fn(Self::Item) -> bool,
+    {
+        self.fragment().position(predicate)
+    }
+
+    #[inline]
+    fn slice_index(&self, count: usize) -> Option<usize> {
+        self.fragment().slice_index(count)
+    }
+}
+
+impl InputLength for Span {
+    fn input_len(&self) -> usize {
+        self.fragment().input_len()
+    }
+}
+
+impl InputTake for Span
+where
+    Self: Slice<RangeFrom<usize>> + Slice<RangeTo<usize>>,
+{
+    fn take(&self, count: usize) -> Self {
+        self.slice(..count)
+    }
+
+    fn take_split(&self, count: usize) -> (Self, Self) {
+        (self.slice(count..), self.slice(..count))
+    }
+}
+
+impl InputTakeAtPosition for Span
+where
+    Self: Slice<RangeFrom<usize>> + Slice<RangeTo<usize>> + Clone,
+{
+    type Item = <Self as InputIter>::Item;
+
+    fn split_at_position_complete<P, E: ParseError<Self>>(
+        &self,
+        predicate: P,
+    ) -> IResult<Self, Self, E>
+    where
+        P: Fn(Self::Item) -> bool,
+    {
+        match self.split_at_position(predicate) {
+            Err(Err::Incomplete(_)) => Ok(self.take_split(self.input_len())),
+            res => res,
+        }
+    }
+
+    fn split_at_position<P, E: ParseError<Self>>(
+        &self,
+        predicate: P,
+    ) -> IResult<Self, Self, E>
+    where
+        P: Fn(Self::Item) -> bool,
+    {
+        match self.fragment().position(predicate) {
+            Some(n) => Ok(self.take_split(n)),
+            None => Err(Err::Incomplete(nom::Needed::Size(1))),
+        }
+    }
+
+    fn split_at_position1<P, E: ParseError<Self>>(
+        &self,
+        predicate: P,
+        e: ErrorKind,
+    ) -> IResult<Self, Self, E>
+    where
+        P: Fn(Self::Item) -> bool,
+    {
+        match self.fragment().position(predicate) {
+            Some(0) => Err(Err::Error(E::from_error_kind(self.clone(), e))),
+            Some(n) => Ok(self.take_split(n)),
+            None => Err(Err::Incomplete(nom::Needed::Size(1))),
+        }
+    }
+
+    fn split_at_position1_complete<P, E: ParseError<Self>>(
+        &self,
+        predicate: P,
+        e: ErrorKind,
+    ) -> IResult<Self, Self, E>
+    where
+        P: Fn(Self::Item) -> bool,
+    {
+        match self.fragment().position(predicate) {
+            Some(0) => Err(Err::Error(E::from_error_kind(self.clone(), e))),
+            Some(n) => Ok(self.take_split(n)),
+            None => {
+                if self.fragment().input_len() == 0 {
+                    Err(Err::Error(E::from_error_kind(self.clone(), e)))
+                } else {
+                    Ok(self.take_split(self.input_len()))
+                }
+            }
+        }
+    }
+}
+
+impl<R> ParseTo<R> for Span
+where
+    R: FromStr,
+{
+    #[inline]
+    fn parse_to(&self) -> Option<R> {
+        self.fragment().parse_to()
+    }
+}
+
+impl Offset for Span {
+    fn offset(&self, second: &Self) -> usize {
+        let fst = self.offset;
+        let snd = second.offset;
+
+        snd - fst
+    }
+}
+
+impl Display for Span {
+    fn fmt(&self, fmt: &mut Formatter) -> FmtResult {
+        fmt.write_str(unsafe { std::str::from_utf8_unchecked(self.fragment()) })
+    }
+}
+
+macro_rules! impl_slice_range {
+    ( $fragment_type:ty, $range_type:ty, $can_return_self:expr ) => {
+        impl Slice<$range_type> for Span {
+            fn slice(&self, range: $range_type) -> Self {
+                if $can_return_self(&range) {
+                    return self.clone();
+                }
+                let next_local = self.local.slice(range);
+                let consumed_len = self.local.offset(&next_local);
+                if consumed_len == 0 {
+                    return Span::new_at_pos(
+                        self.global.clone(),
+                        next_local,
+                        self.segments.clone(),
+                        self.offset,
+                        self.line,
+                    );
+                }
+
+                let consumed = self.local.slice(..consumed_len);
+                let next_offset = self.offset + consumed_len;
+
+                let consumed_as_bytes = consumed.as_bytes();
+                let iter = Memchr::new(b'\n', consumed_as_bytes);
+                let number_of_lines = iter.count() as u32;
+                let next_line = self.line + number_of_lines;
+
+                Span::new_at_pos(
+                    self.global.clone(),
+                    next_local,
+                    self.segments.clone(),
+                    next_offset,
+                    next_line,
+                )
+            }
+        }
+    };
+}
+
+impl_slice_range! {&[u8], Range<usize>, |_| false}
+impl_slice_range! {&[u8], RangeTo<usize>, |_| false}
+impl_slice_range! {&[u8], RangeFrom<usize>, |range:&RangeFrom<usize>| range.start == 0}
+impl_slice_range! {&[u8], RangeFull, |_| true}
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn shorten_fragment_should_return_input_fragment_if_no_ranges_provided() {
-        let fragment = "some fragment";
-        let shortened_fragment = SpanFactory::shorten_fragment(fragment, &[]);
-        assert_eq!(fragment, shortened_fragment);
-    }
+    mod span_segments {
+        use super::*;
 
-    #[test]
-    fn shorten_fragment_should_remove_segments_within_input_fragment() {
-        let fragment = "some fragment";
-        let shortened_fragment =
-            SpanFactory::shorten_fragment(fragment, &[0..5]);
-        assert_eq!(shortened_fragment, "fragment");
+        #[test]
+        fn convert_bytes_to_segments_should_empty_if_no_segments_provided() {
+            let bytes = Bytes::from_static(b"some fragment");
 
-        let fragment = "some fragment";
-        let shortened_fragment =
-            SpanFactory::shorten_fragment(fragment, &[4..5]);
-        assert_eq!(shortened_fragment, "somefragment");
-
-        let fragment = "some fragment";
-        let shortened_fragment =
-            SpanFactory::shorten_fragment(fragment, &[4..13]);
-        assert_eq!(shortened_fragment, "some");
-
-        let fragment = "some fragment";
-        let shortened_fragment =
-            SpanFactory::shorten_fragment(fragment, &[1..2, 2..3, 3..4]);
-        assert_eq!(shortened_fragment, "s fragment");
-
-        let fragment = "some fragment";
-        let shortened_fragment =
-            SpanFactory::shorten_fragment(fragment, &[0..2, 4..5, 8..11]);
-        assert_eq!(shortened_fragment, "mefrant");
-    }
-
-    #[test]
-    fn shorten_fragment_should_be_okay_if_a_range_exceeds_length_of_input_fragment(
-    ) {
-        let fragment = "some fragment";
-        let shortened_fragment =
-            SpanFactory::shorten_fragment(fragment, &[4..999]);
-        assert_eq!(shortened_fragment, "some");
-
-        let fragment = "some fragment";
-        let shortened_fragment =
-            SpanFactory::shorten_fragment(fragment, &[999..1000]);
-        assert_eq!(shortened_fragment, "some fragment");
-    }
-
-    #[test]
-    fn master_line_and_column_should_properly_translate_across_skippable_regions(
-    ) {
-        let fragment = "line1\nline2\nline3";
-        let skippable_regions = &[0..2, 4..8, 13..15, 16..17];
-
-        // line1|line2|line3
-        // xxooxxxxoooooxxox
-        // 0 2 4   8    13
-        //                15
-        //                 16
-        let shortened_fragment =
-            SpanFactory::shorten_fragment(fragment, skippable_regions);
-        assert_eq!(&shortened_fragment, "nene2\nle");
-
-        let f =
-            SpanFactory::new(fragment, &shortened_fragment, skippable_regions);
-        let input = f.make_span();
-
-        let mut lines_and_columns = Vec::new();
-        for i in 0..shortened_fragment.len() {
-            let pos = input.slice(i..);
-            lines_and_columns.push(pos.extra.master_line_and_column(pos));
+            assert_eq!(
+                SpanSegments::new(vec![])
+                    .convert_bytes_to_segments(&bytes)
+                    .as_ref(),
+                b"some"
+            );
         }
 
-        // Lines & columns are using base of 1 and 1
-        assert_eq!(
-            lines_and_columns,
-            vec![
-                (1, 3), // n    master offset: 2
-                (1, 4), // e    master offset: 2
-                (2, 3), // n    master offset: 6
-                (2, 4), // e    master offset: 6
-                (2, 5), // 2    master offset: 6
-                (2, 6), // \n   master offset: 6
-                (3, 1), // l    master offset: 6
-                (3, 4), // e    master offset: 8
-            ]
-        );
+        #[test]
+        fn convert_bytes_to_segments_should_only_keep_bytes_in_segments() {
+            let bytes = Bytes::from_static(b"some fragment");
+
+            assert_eq!(
+                SpanSegments::new(vec![0..5])
+                    .convert_bytes_to_segments(&bytes)
+                    .as_ref(),
+                b"some"
+            );
+
+            assert_eq!(
+                SpanSegments::new(vec![4..5])
+                    .convert_bytes_to_segments(&bytes)
+                    .as_ref(),
+                b" "
+            );
+
+            assert_eq!(
+                SpanSegments::new(vec![4..13])
+                    .convert_bytes_to_segments(&bytes)
+                    .as_ref(),
+                b"fragment"
+            );
+
+            assert_eq!(
+                SpanSegments::new(vec![1..2, 2..3, 3..4])
+                    .convert_bytes_to_segments(&bytes)
+                    .as_ref(),
+                b"ome"
+            );
+
+            assert_eq!(
+                SpanSegments::new(vec![0..2, 4..5, 8..11,])
+                    .convert_bytes_to_segments(&bytes)
+                    .as_ref(),
+                b"so gme"
+            );
+        }
+
+        #[test]
+        fn convert_bytes_to_segments_should_be_okay_if_a_range_exceeds_length_of_input_fragment(
+        ) {
+            let bytes = Bytes::from_static(b"some fragment");
+
+            assert_eq!(
+                SpanSegments::new(vec![0..999])
+                    .convert_bytes_to_segments(&bytes)
+                    .as_ref(),
+                b"some fragment"
+            );
+
+            assert_eq!(
+                SpanSegments::new(vec![999..1000])
+                    .convert_bytes_to_segments(&bytes)
+                    .as_ref(),
+                b""
+            );
+        }
+    }
+
+    mod span {
+        use super::*;
+
+        #[test]
+        fn global_line_and_utf8_column_should_properly_translate_across_segments(
+        ) {
+            let input = Span::from_static("line1\nline2\nline3")
+                .into_segments(vec![0..2, 4..8, 13..15, 16..17]);
+
+            // line1|line2|line3
+            // xxooxxxxoooooxxox
+            // 0 2 4   8    13
+            //                15
+            //                 16
+            assert_eq!(input.fragment_str(), "nene2\nle");
+
+            // Calculate the line and UTF8 column of each byte position
+            let mut lines_and_columns = Vec::new();
+            for i in 0..input.fragment_len() {
+                let pos = input.slice(i..);
+                lines_and_columns
+                    .push((pos.global_line(), pos.global_utf8_column()));
+            }
+
+            // Lines & columns are using base of 1 and 1
+            assert_eq!(
+                lines_and_columns,
+                vec![
+                    (1, 3), // n    master offset: 2
+                    (1, 4), // e    master offset: 2
+                    (2, 3), // n    master offset: 6
+                    (2, 4), // e    master offset: 6
+                    (2, 5), // 2    master offset: 6
+                    (2, 6), // \n   master offset: 6
+                    (3, 1), // l    master offset: 6
+                    (3, 4), // e    master offset: 8
+                ]
+            );
+        }
     }
 }

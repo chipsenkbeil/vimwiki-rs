@@ -45,7 +45,7 @@ pub(crate) fn multi_line_comment(
 
         // Capture all content between comments as individual lines
         let (input, lines) = map(take_until("+%%"), |s: Span| {
-            s.fragment().lines().map(String::from).collect()
+            s.fragment_str().lines().map(String::from).collect()
         })(input)?;
 
         let (input, _) = tag("+%%")(input)?;
@@ -59,27 +59,27 @@ pub(crate) fn multi_line_comment(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lang::utils::{new_span, Region};
+    use crate::lang::utils::{Region, Span};
     use nom::bytes::complete::take;
 
     #[test]
     fn comment_should_fail_if_no_input() {
-        let input = new_span("");
+        let input = Span::from("");
         assert!(comment(input).is_err());
     }
 
     #[test]
     fn comment_should_fail_if_only_one_percent_sign() {
-        let input = new_span("% comment");
+        let input = Span::from("% comment");
         assert!(comment(input).is_err());
 
-        let input = new_span("%+ comment +%");
+        let input = Span::from("%+ comment +%");
         assert!(comment(input).is_err());
     }
 
     #[test]
     fn comment_should_fail_if_line_comment_not_at_start_of_line() {
-        let input = new_span("abc%% comment");
+        let input = Span::from("abc%% comment");
         fn advance(input: Span) -> VimwikiIResult<()> {
             let (input, _) = take(3usize)(input)?;
             Ok((input, ()))
@@ -90,7 +90,7 @@ mod tests {
 
     #[test]
     fn comment_should_parse_line_comment() {
-        let input = new_span("%% comment");
+        let input = Span::from("%% comment");
         let (input, c) = comment(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume comment");
         assert_eq!(
@@ -99,7 +99,7 @@ mod tests {
         );
 
         // NOTE: Line comment doesn't consume the newline; it leaves a blank line
-        let input = new_span("%% comment\nnext line");
+        let input = Span::from("%% comment\nnext line");
         let (input, c) = comment(input).unwrap();
         assert_eq!(
             *input.fragment(),
@@ -115,7 +115,7 @@ mod tests {
 
     #[test]
     fn comment_should_parse_multi_line_comment() {
-        let input = new_span("%%+ comment +%%");
+        let input = Span::from("%%+ comment +%%");
         let (input, c) = comment(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume comment");
         assert_eq!(
@@ -124,7 +124,7 @@ mod tests {
         );
         assert_eq!(c.region, Region::from((0, 0, 0, 14)));
 
-        let input = new_span("%%+ comment\nnext line +%%");
+        let input = Span::from("%%+ comment\nnext line +%%");
         let (input, c) = comment(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume comment");
         assert_eq!(
@@ -136,7 +136,7 @@ mod tests {
         );
         assert_eq!(c.region, Region::from((0, 0, 1, 12)));
 
-        let input = new_span("%%+ comment\nnext line +%%after");
+        let input = Span::from("%%+ comment\nnext line +%%after");
         let (input, c) = comment(input).unwrap();
         assert_eq!(*input.fragment(), "after", "Unexpected input consumed");
         assert_eq!(

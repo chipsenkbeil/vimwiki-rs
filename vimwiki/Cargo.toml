@@ -11,15 +11,17 @@ readme = "README.md"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
+bytecount = "0.6.0"
+bytes = "0.5.6"
 chrono = { version = "0.4.15", features = ["serde"] }
-nom = "5.1.2"
-nom_locate = "2.0.0"
-numerals = "0.1.4"
-rstar = { version = "0.8.2", features = ["serde"] }
-serde = { version = "1.0.115", features = ["derive"] }
-shellexpand = "2.0.0"
-uriparse = { version = "0.6.3", features = ["serde"] }
 lazy_static = "1.4"
+memchr = "2.3.3"
+nom = "5.1.2"
+numerals = "0.1.4"
+# rstar = { version = "0.8.2", features = ["serde"] }
+serde = { version = "1.0.115", features = ["derive"] }
+# shellexpand = "2.0.0"
+uriparse = { version = "0.6.3", features = ["serde"] }
 
 [dependencies.derive_more]
 version = "0.99.0"

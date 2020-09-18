@@ -4,7 +4,6 @@ use super::{
     wiki::wiki_link,
     Span, VimwikiIResult, LC,
 };
-use crate::lang::utils::new_span;
 use chrono::NaiveDate;
 use nom::{
     bytes::complete::tag, character::complete::anychar, sequence::preceded,
@@ -16,18 +15,19 @@ pub fn diary_link(input: Span) -> VimwikiIResult<LC<DiaryLink>> {
         // First, parse as a standard wiki link, which should stash the potential
         // diary as the path
         let (input, link) = wiki_link(input)?;
+
         let path = link.path.to_str().ok_or_else(|| {
-            nom::Err::Error(VimwikiNomError::from_ctx(input, "Not diary link"))
+            nom::Err::Error(VimwikiNomError::from_ctx(&input, "Not diary link"))
         })?;
 
         // Second, check if the link is a diary
         match parse_date_from_path(path) {
-            Some((_, date)) => Ok((
+            Some(date) => Ok((
                 input,
                 link.map(|c| DiaryLink::new(date, c.description, c.anchor)),
             )),
             _ => Err(nom::Err::Error(VimwikiNomError::from_ctx(
-                input,
+                &input,
                 "Not diary link",
             ))),
         }
@@ -37,13 +37,12 @@ pub fn diary_link(input: Span) -> VimwikiIResult<LC<DiaryLink>> {
 }
 
 #[inline]
-fn parse_date_from_path(path: &str) -> Option<(&str, NaiveDate)> {
-    preceded(tag("diary:"), take_line_while1(anychar))(new_span(path))
+fn parse_date_from_path(path: &str) -> Option<NaiveDate> {
+    preceded(tag("diary:"), take_line_while1(anychar))(Span::from(path))
         .ok()
         .map(|x| {
-            NaiveDate::parse_from_str(x.1.fragment(), "%Y-%m-%d")
-                .ok()
-                .map(|date| (*x.0.fragment(), date))
+            let date_str = x.1.fragment_str();
+            NaiveDate::parse_from_str(date_str, "%Y-%m-%d").ok()
         })
         .flatten()
 }
@@ -55,19 +54,19 @@ mod tests {
 
     #[test]
     fn diary_link_should_fail_if_not_using_diary_scheme() {
-        let input = new_span("[[notdiary:2012-03-05]]");
+        let input = Span::from("[[notdiary:2012-03-05]]");
         assert!(diary_link(input).is_err());
     }
 
     #[test]
     fn diary_link_should_fail_if_not_using_correct_date_format() {
-        let input = new_span("[[diary:2012/03/05]]");
+        let input = Span::from("[[diary:2012/03/05]]");
         assert!(diary_link(input).is_err());
     }
 
     #[test]
     fn diary_link_should_support_diary_scheme() {
-        let input = new_span("[[diary:2012-03-05]]");
+        let input = Span::from("[[diary:2012-03-05]]");
         let (input, link) =
             diary_link(input).expect("Parser unexpectedly failed");
 
@@ -81,7 +80,7 @@ mod tests {
 
     #[test]
     fn diary_link_should_support_a_description() {
-        let input = new_span("[[diary:2012-03-05|some description]]");
+        let input = Span::from("[[diary:2012-03-05|some description]]");
         let (input, link) =
             diary_link(input).expect("Parser unexpectedly failed");
 
@@ -98,7 +97,7 @@ mod tests {
 
     #[test]
     fn diary_link_should_support_an_anchor() {
-        let input = new_span("[[diary:2012-03-05#Tomorrow]]");
+        let input = Span::from("[[diary:2012-03-05#Tomorrow]]");
         let (input, link) =
             diary_link(input).expect("Parser unexpectedly failed");
 
@@ -116,7 +115,7 @@ mod tests {
     #[test]
     fn diary_link_should_support_an_anchor_and_description() {
         let input =
-            new_span("[[diary:2012-03-05#Tomorrow|Tasks for tomorrow]]");
+            Span::from("[[diary:2012-03-05#Tomorrow|Tasks for tomorrow]]");
         let (input, link) =
             diary_link(input).expect("Parser unexpectedly failed");
 
