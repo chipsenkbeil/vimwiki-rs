@@ -880,6 +880,7 @@ fn tokenize_preformatted_text(
     preformatted_text: &PreformattedText,
 ) -> TokenStream {
     let root = root_crate();
+    let lang = tokenize_option(&preformatted_text.lang, tokenize_string);
     let metadata = tokenize_hashmap(
         &preformatted_text.metadata,
         tokenize_string_type(),
@@ -890,6 +891,7 @@ fn tokenize_preformatted_text(
     let lines = preformatted_text.lines.iter().map(tokenize_string);
     quote! {
         #root::components::PreformattedText {
+            lang: #lang,
             metadata: #metadata,
             lines: vec![#(#lines),*],
         }

@@ -2,28 +2,28 @@ use super::{
     components::PreformattedText,
     utils::{
         any_line, beginning_of_line, context, end_of_line_or_input, lc,
-        take_line_while, take_line_while1,
+        pstring, take_line_while, take_line_while1,
     },
     Span, VimwikiIResult, LC,
 };
 use nom::{
     bytes::complete::tag,
     character::complete::{char, space0},
-    combinator::{map, not},
+    combinator::{map, not, opt, verify},
     multi::{many1, separated_list},
-    sequence::{delimited, preceded, separated_pair},
+    sequence::{delimited, preceded, separated_pair, terminated},
 };
 use std::collections::HashMap;
 
 #[inline]
 pub fn preformatted_text(input: Span) -> VimwikiIResult<LC<PreformattedText>> {
     fn inner(input: Span) -> VimwikiIResult<PreformattedText> {
-        let (input, metadata) = preformatted_text_start(input)?;
+        let (input, (maybe_lang, metadata)) = preformatted_text_start(input)?;
         let (input, lines) =
             many1(preceded(not(preformatted_text_end), any_line))(input)?;
         let (input, _) = preformatted_text_end(input)?;
 
-        Ok((input, PreformattedText::new(metadata, lines)))
+        Ok((input, PreformattedText::new(maybe_lang, metadata, lines)))
     }
 
     context("Preformatted Text", lc(inner))(input)
@@ -32,13 +32,23 @@ pub fn preformatted_text(input: Span) -> VimwikiIResult<LC<PreformattedText>> {
 #[inline]
 fn preformatted_text_start(
     input: Span,
-) -> VimwikiIResult<HashMap<String, String>> {
+) -> VimwikiIResult<(Option<String>, HashMap<String, String>)> {
     // First, verify we have the start of a block and consume it
     let (input, _) = beginning_of_line(input)?;
     let (input, _) = space0(input)?;
     let (input, _) = tag("{{{")(input)?;
 
-    // Second, look for optional metadata and consume it
+    // Second, look for optional language and consume it
+    //
+    // e.g. {{{c++ -> Some("c++")
+    let (input, maybe_lang) = opt(terminated(
+        pstring(verify(take_line_while1(not(char(';'))), |s: &Span| {
+            !s.fragment_str().contains('=')
+        })),
+        opt(char(';')),
+    ))(input)?;
+
+    // Third, look for optional metadata and consume it
     let (input, mut pairs) = separated_list(
         char(';'),
         map(
@@ -57,7 +67,7 @@ fn preformatted_text_start(
         ),
     )(input)?;
 
-    // Third, consume end of line
+    // Fourth, consume end of line
     let (input, _) = space0(input)?;
     let (input, _) = end_of_line_or_input(input)?;
 
@@ -66,7 +76,7 @@ fn preformatted_text_start(
         metadata.insert(k, v);
     }
 
-    Ok((input, metadata))
+    Ok((input, (maybe_lang, metadata)))
 }
 
 #[inline]
@@ -132,6 +142,40 @@ mod tests {
     }
 
     #[test]
+    fn preformatted_text_should_support_lang_shorthand() {
+        let input = Span::from(indoc! {r"
+            {{{c++
+            some code
+            }}}
+        "});
+        let (input, p) = preformatted_text(input).unwrap();
+        assert!(
+            input.fragment().is_empty(),
+            "Did not consume preformatted block"
+        );
+        assert_eq!(p.lang, Some("c++".to_string()));
+        assert_eq!(p.lines, vec!["some code".to_string()]);
+        assert!(p.metadata.is_empty(), "Has unexpected metadata");
+    }
+
+    #[test]
+    fn preformatted_text_should_support_lang_shorthand_with_metadata() {
+        let input = Span::from(indoc! {r#"
+            {{{c++;key="value"
+            some code
+            }}}
+        "#});
+        let (input, p) = preformatted_text(input).unwrap();
+        assert!(
+            input.fragment().is_empty(),
+            "Did not consume preformatted block"
+        );
+        assert_eq!(p.lang, Some("c++".to_string()));
+        assert_eq!(p.lines, vec!["some code".to_string()]);
+        assert_eq!(p.metadata.get("key"), Some(&"value".to_string()));
+    }
+
+    #[test]
     fn preformatted_text_should_parse_all_lines_between() {
         let input = Span::from(indoc! {r"
             {{{
@@ -163,6 +207,7 @@ mod tests {
                 "   What the hand dare sieze the fire?",
             ]
         );
+        assert!(p.lang.is_none(), "Has unexpected language");
         assert!(p.metadata.is_empty(), "Has unexpected metadata");
     }
 
@@ -213,6 +258,7 @@ mod tests {
                 r#"        print("Hello {0} number {1}".format(world, x))"#,
             ]
         );
+        assert!(p.lang.is_none(), "Has unexpected language");
         assert_eq!(p.metadata.get("class"), Some(&"brush: python".to_string()));
         assert_eq!(
             p.metadata.get("style"),

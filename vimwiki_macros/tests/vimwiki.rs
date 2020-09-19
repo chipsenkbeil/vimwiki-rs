@@ -349,6 +349,7 @@ fn vimwiki_preformatted_text() {
     assert_eq!(
         x.component,
         PreformattedText::new(
+            None,
             Default::default(),
             vec!["some code".to_string()]
         )
@@ -363,6 +364,7 @@ fn vimwiki_preformatted_text_raw() {
     assert_eq!(
         x.component,
         PreformattedText::new(
+            None,
             Default::default(),
             vec!["    some code".to_string()]
         )
