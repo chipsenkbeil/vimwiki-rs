@@ -30,6 +30,10 @@ pub mod typefaces;
 /// Parses entire vimwiki page
 pub fn page(input: Span) -> VimwikiIResult<LC<Page>> {
     fn inner(input: Span) -> VimwikiIResult<Page> {
+        // Used for our second pass, needs to be done here given that we
+        // will be breaking up into segments based on raw input
+        let input_2 = input.clone();
+
         // First, parse the page for comments and remove all from input,
         // skipping over any character that is not a comment
         let (input, mut ranges_and_comments) =
@@ -38,7 +42,7 @@ pub fn page(input: Span) -> VimwikiIResult<LC<Page>> {
         // Second, produce a new custom span that skips over commented regions
         let segments =
             ranges_and_comments.iter().map(|x| x.0.to_owned()).collect();
-        let no_comments_input = input.clone().without_segments(segments);
+        let input_2 = input_2.without_segments(segments);
 
         // Third, continuously parse input for new block components until we
         // have nothing left (or we fail)
@@ -46,7 +50,7 @@ pub fn page(input: Span) -> VimwikiIResult<LC<Page>> {
             "Page Components",
             // NOTE: all_consuming will yield an Eof error if input len != 0
             all_consuming(many0(block_component)),
-        )(no_comments_input)?;
+        )(input_2)?;
 
         // Fourth, return a page wrapped in a location that comprises the
         // entire input
@@ -200,14 +204,14 @@ mod tests {
             comment.component,
             Comment::from(LineComment("comment".to_string()))
         );
-        assert_eq!(comment.region, Region::from((0, 0, 0, 8)));
+        assert_eq!(comment.region, Region::from((1, 1, 1, 9)));
 
         let comment = &page.comments[1];
         assert_eq!(
             comment.component,
             Comment::from(MultiLineComment(vec!["comment".to_string()])),
         );
-        assert_eq!(comment.region, Region::from((1, 5, 1, 17)));
+        assert_eq!(comment.region, Region::from((2, 6, 2, 18)));
 
         let comment = &page.comments[2];
         assert_eq!(
@@ -217,11 +221,11 @@ mod tests {
                 "comment".to_string(),
             ])),
         );
-        assert_eq!(comment.region, Region::from((1, 22, 2, 9)));
+        assert_eq!(comment.region, Region::from((2, 23, 3, 10)));
 
         let component = &page.components[0];
         assert_eq!(component.component, BlockComponent::BlankLine);
-        assert_eq!(component.region, Region::from((0, 9, 0, 9)));
+        assert_eq!(component.region, Region::from((1, 10, 1, 10)));
 
         let component = &page.components[1];
         assert_eq!(
@@ -230,7 +234,7 @@ mod tests {
                 InlineComponent::Text("Some more text".to_string())
             )]))
         );
-        assert_eq!(component.region, Region::from((1, 0, 2, 14)));
+        assert_eq!(component.region, Region::from((2, 1, 3, 15)));
     }
 
     #[test]

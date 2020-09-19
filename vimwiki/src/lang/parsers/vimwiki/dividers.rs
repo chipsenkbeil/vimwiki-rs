@@ -50,10 +50,10 @@ mod tests {
         let input = Span::from("----");
         let (input, d) = divider(input).unwrap();
         assert!(input.fragment().is_empty(), "Divider not consumed");
-        assert_eq!(d.region.start.line, 0);
-        assert_eq!(d.region.start.column, 0);
-        assert_eq!(d.region.end.line, 0);
-        assert_eq!(d.region.end.column, 3);
+        assert_eq!(d.region.start.line, 1);
+        assert_eq!(d.region.start.column, 1);
+        assert_eq!(d.region.end.line, 1);
+        assert_eq!(d.region.end.column, 4);
     }
 
     #[test]
@@ -61,10 +61,10 @@ mod tests {
         let input = Span::from("-----");
         let (input, d) = divider(input).unwrap();
         assert!(input.fragment().is_empty(), "Divider not consumed");
-        assert_eq!(d.region.start.line, 0);
-        assert_eq!(d.region.start.column, 0);
-        assert_eq!(d.region.end.line, 0);
-        assert_eq!(d.region.end.column, 4);
+        assert_eq!(d.region.start.line, 1);
+        assert_eq!(d.region.start.column, 1);
+        assert_eq!(d.region.end.line, 1);
+        assert_eq!(d.region.end.column, 5);
     }
 
     #[test]
@@ -72,9 +72,9 @@ mod tests {
         let input = Span::from("----\nabcd");
         let (input, d) = divider(input).unwrap();
         assert_eq!(input.fragment_str(), "abcd");
-        assert_eq!(d.region.start.line, 0);
-        assert_eq!(d.region.start.column, 0);
-        assert_eq!(d.region.end.line, 0);
-        assert_eq!(d.region.end.column, 4);
+        assert_eq!(d.region.start.line, 1);
+        assert_eq!(d.region.start.column, 1);
+        assert_eq!(d.region.end.line, 1);
+        assert_eq!(d.region.end.column, 5);
     }
 }

@@ -110,7 +110,7 @@ mod tests {
             c.component,
             Comment::from(LineComment(" comment".to_string()))
         );
-        assert_eq!(c.region, Region::from((0, 0, 0, 9)));
+        assert_eq!(c.region, Region::from((1, 1, 1, 10)));
     }
 
     #[test]
@@ -122,7 +122,7 @@ mod tests {
             c.component,
             Comment::from(MultiLineComment(vec![" comment ".to_string()]))
         );
-        assert_eq!(c.region, Region::from((0, 0, 0, 14)));
+        assert_eq!(c.region, Region::from((1, 1, 1, 15)));
 
         let input = Span::from("%%+ comment\nnext line +%%");
         let (input, c) = comment(input).unwrap();
@@ -134,7 +134,7 @@ mod tests {
                 "next line ".to_string(),
             ]))
         );
-        assert_eq!(c.region, Region::from((0, 0, 1, 12)));
+        assert_eq!(c.region, Region::from((1, 1, 2, 13)));
 
         let input = Span::from("%%+ comment\nnext line +%%after");
         let (input, c) = comment(input).unwrap();
@@ -146,6 +146,6 @@ mod tests {
                 "next line ".to_string(),
             ]))
         );
-        assert_eq!(c.region, Region::from((0, 0, 1, 12)));
+        assert_eq!(c.region, Region::from((1, 1, 2, 13)));
     }
 }
