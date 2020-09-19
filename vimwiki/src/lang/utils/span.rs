@@ -755,7 +755,7 @@ mod tests {
     mod span {
         use super::*;
 
-        mod nom {
+        mod nom_traits {
             use super::*;
 
             #[test]
@@ -848,138 +848,310 @@ mod tests {
 
             #[test]
             fn new_builder_should_create_an_empty_byte_vec() {
-                todo!();
+                let span1 = Span::from_static("abc");
+                assert_eq!(span1.new_builder(), vec![]);
             }
 
             #[test]
             fn extend_into_should_copy_local_bytes_to_end_of_provided_byte_vec()
             {
-                todo!();
+                let span = Span::new(
+                    Bytes::new(),
+                    Bytes::from("abc"),
+                    Default::default(),
+                );
+                let mut acc = b"123".to_vec();
+                span.extend_into(&mut acc);
+                assert_eq!(acc, b"123abc");
+                assert_eq!(span.fragment_str(), "abc");
             }
 
             #[test]
             fn find_substring_should_yield_none_if_unable_to_find_byte_string_in_local_bytes(
             ) {
-                todo!();
+                let span = Span::new(
+                    Bytes::new(),
+                    Bytes::from("abc123"),
+                    Default::default(),
+                );
+                assert_eq!(span.find_substring(&b"cc"[..]), None);
             }
 
             #[test]
             fn find_substring_should_yield_position_of_first_byte_string_match_in_local_bytes(
             ) {
-                todo!();
+                let span = Span::new(
+                    Bytes::new(),
+                    Bytes::from("abc123"),
+                    Default::default(),
+                );
+                assert_eq!(span.find_substring(&b"c1"[..]), Some(2));
             }
 
             #[test]
             fn find_substring_should_yield_none_if_unable_to_find_string_in_local_bytes(
             ) {
-                todo!();
+                let span = Span::new(
+                    Bytes::new(),
+                    Bytes::from("abc123"),
+                    Default::default(),
+                );
+                assert_eq!(span.find_substring("cc"), None);
             }
 
             #[test]
             fn find_substring_should_yield_some_position_of_first_string_match()
             {
-                todo!();
+                let span = Span::new(
+                    Bytes::new(),
+                    Bytes::from("abc123"),
+                    Default::default(),
+                );
+                assert_eq!(span.find_substring("c1"), Some(2));
             }
 
             #[test]
             fn find_token_should_yield_true_if_byte_exists_in_local_bytes() {
-                todo!();
+                let span = Span::new(
+                    Bytes::new(),
+                    Bytes::from("abc123"),
+                    Default::default(),
+                );
+                assert_eq!(span.find_token(b'c'), true);
             }
 
             #[test]
             fn find_token_should_yield_false_if_byte_missing_in_local_bytes() {
-                todo!();
+                let span = Span::new(
+                    Bytes::new(),
+                    Bytes::from("abc123"),
+                    Default::default(),
+                );
+                assert_eq!(span.find_token(b'z'), false);
             }
 
             #[test]
             fn find_token_should_yield_true_if_byte_ref_exists_in_local_bytes()
             {
-                todo!();
+                let span = Span::new(
+                    Bytes::new(),
+                    Bytes::from("abc123"),
+                    Default::default(),
+                );
+                assert_eq!(span.find_token(&b'c'), true);
             }
 
             #[test]
             fn find_token_should_yield_false_if_byte_ref_missing_in_local_bytes(
             ) {
-                todo!();
+                let span = Span::new(
+                    Bytes::new(),
+                    Bytes::from("abc123"),
+                    Default::default(),
+                );
+                assert_eq!(span.find_token(&b'z'), false);
             }
 
             #[test]
             fn find_token_should_yield_true_if_char_exists_in_local_bytes() {
-                todo!();
+                let span = Span::new(
+                    Bytes::new(),
+                    Bytes::from("abc123"),
+                    Default::default(),
+                );
+                assert_eq!(span.find_token('c'), true);
             }
 
             #[test]
             fn find_token_should_yield_false_if_char_missing_in_local_bytes() {
-                todo!();
+                let span = Span::new(
+                    Bytes::new(),
+                    Bytes::from("abc123"),
+                    Default::default(),
+                );
+                assert_eq!(span.find_token('z'), false);
             }
 
             #[test]
             fn iter_indicies_should_yield_an_iterator_of_local_index_and_byte_tuples(
             ) {
-                todo!();
+                let span = Span::new(
+                    Bytes::new(),
+                    Bytes::from("abc123"),
+                    Default::default(),
+                );
+                assert_eq!(
+                    span.iter_indices().collect::<Vec<_>>(),
+                    vec![
+                        (0, b'a'),
+                        (1, b'b'),
+                        (2, b'c'),
+                        (3, b'1'),
+                        (4, b'2'),
+                        (5, b'3'),
+                    ]
+                );
             }
 
             #[test]
             fn iter_elements_should_yield_an_iterator_of_local_bytes() {
-                todo!();
+                let span = Span::new(
+                    Bytes::new(),
+                    Bytes::from("abc123"),
+                    Default::default(),
+                );
+                assert_eq!(
+                    span.iter_elements().collect::<Vec<_>>(),
+                    vec![b'a', b'b', b'c', b'1', b'2', b'3']
+                );
             }
 
             #[test]
             fn position_should_yield_an_none_if_the_predicate_does_not_match_a_local_byte(
             ) {
-                todo!();
+                let span = Span::new(
+                    Bytes::new(),
+                    Bytes::from("abc123"),
+                    Default::default(),
+                );
+                assert_eq!(span.position(|_| false), None);
             }
 
             #[test]
             fn position_should_yield_an_index_if_the_predicate_matches_a_local_byte(
             ) {
-                todo!();
+                let span = Span::new(
+                    Bytes::new(),
+                    Bytes::from("abc123"),
+                    Default::default(),
+                );
+                assert_eq!(span.position(|b| b == b'c'), Some(2));
             }
 
             #[test]
             fn slice_index_should_yield_the_index_if_available_in_local_bytes()
             {
-                todo!();
+                let span = Span::new(
+                    Bytes::new(),
+                    Bytes::from("abc123"),
+                    Default::default(),
+                );
+                assert_eq!(span.slice_index(3), Some(3));
             }
 
             #[test]
-            fn slice_index_should_yield_an_error_reflecting_needed_bytes_if_unavailable_in_local_bytes(
-            ) {
-                todo!();
+            fn slice_index_should_yield_none_if_unavailable_in_local_bytes() {
+                let span = Span::new(
+                    Bytes::new(),
+                    Bytes::from("abc123"),
+                    Default::default(),
+                );
+                assert_eq!(span.slice_index(7), None);
             }
 
             #[test]
             fn input_len_should_yield_the_byte_length_of_local_bytes() {
-                todo!();
+                let span = Span::new(
+                    Bytes::new(),
+                    Bytes::from("abc123"),
+                    Default::default(),
+                );
+                assert_eq!(span.input_len(), 6);
             }
 
             #[test]
             fn take_should_yield_a_span_that_has_the_first_n_local_bytes() {
-                todo!();
+                let span = Span::from_static("abc123");
+                let span = span.take(3);
+                assert_eq!(span.fragment_str(), "abc");
+                assert_eq!(span.global.as_ref(), b"abc123");
             }
 
             #[test]
             fn take_split_should_yield_two_spans_the_first_is_local_bytes_after_n_and_second_is_local_bytes_up_to_n(
             ) {
-                todo!();
+                let span = Span::from_static("abc123");
+                let (suffix, prefix) = span.take_split(2);
+
+                assert_eq!(prefix.fragment_str(), "ab");
+                assert_eq!(prefix.global.as_ref(), b"abc123");
+
+                assert_eq!(suffix.fragment_str(), "c123");
+                assert_eq!(suffix.global.as_ref(), b"abc123");
+            }
+
+            #[test]
+            fn take_split_should_support_producing_an_empty_prefix_span() {
+                let span = Span::from_static("abc123");
+                let (suffix, prefix) = span.take_split(0);
+
+                assert_eq!(prefix.fragment_str(), "");
+                assert_eq!(prefix.global.as_ref(), b"abc123");
+
+                assert_eq!(suffix.fragment_str(), "abc123");
+                assert_eq!(suffix.global.as_ref(), b"abc123");
+            }
+
+            #[test]
+            fn take_split_should_support_producing_an_empty_suffix_span() {
+                let span = Span::from_static("abc123");
+                let (suffix, prefix) = span.take_split(6);
+
+                assert_eq!(prefix.fragment_str(), "abc123");
+                assert_eq!(prefix.global.as_ref(), b"abc123");
+
+                assert_eq!(suffix.fragment_str(), "");
+                assert_eq!(suffix.global.as_ref(), b"abc123");
             }
 
             #[test]
             fn split_at_position_should_yield_incomplete_if_no_match_found_in_local_bytes(
             ) {
-                todo!();
+                let span = Span::new(
+                    Bytes::new(),
+                    Bytes::from("abc123"),
+                    Default::default(),
+                );
+                assert_eq!(
+                    span.split_at_position::<_, ()>(|_| false),
+                    Err(nom::Err::Incomplete(nom::Needed::Size(1)))
+                );
             }
 
             #[test]
             fn split_at_position_should_yield_local_bytes_up_to_the_first_match_in_local_bytes(
             ) {
-                todo!();
+                let span = Span::new(
+                    Bytes::from("abc123456def"),
+                    Bytes::from("abc123"),
+                    Default::default(),
+                );
+
+                let (suffix, prefix) =
+                    span.split_at_position::<_, ()>(|b| b == b'c').unwrap();
+                assert_eq!(prefix.fragment_str(), "ab");
+                assert_eq!(prefix.global.as_ref(), b"abc123456def");
+
+                assert_eq!(suffix.fragment_str(), "c123");
+                assert_eq!(suffix.global.as_ref(), b"abc123456def");
             }
 
             #[test]
             fn split_at_position_should_support_an_empty_span_being_produced_from_local_bytes(
             ) {
-                todo!();
+                let span = Span::new(
+                    Bytes::from("abc123456def"),
+                    Bytes::from("abc123"),
+                    Default::default(),
+                );
+
+                let (suffix, prefix) =
+                    span.split_at_position::<_, ()>(|b| b == b'a').unwrap();
+                assert_eq!(prefix.fragment_str(), "");
+                assert_eq!(prefix.global.as_ref(), b"abc123456def");
+
+                assert_eq!(suffix.fragment_str(), "abc123");
+                assert_eq!(suffix.global.as_ref(), b"abc123456def");
             }
 
             #[test]
