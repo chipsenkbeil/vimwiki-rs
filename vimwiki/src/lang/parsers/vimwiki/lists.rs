@@ -191,8 +191,8 @@ fn list_item_prefix(
 ///
 /// ### Example
 ///
-///     - Some list item
-///     * Some other list item
+/// - Some list item
+/// * Some other list item
 ///
 #[inline]
 fn unordered_list_item_prefix(
@@ -211,13 +211,13 @@ fn unordered_list_item_prefix(
 ///
 /// ### Example
 ///
-///     1. Some list item
-///     1) Some other list item
-///     aaa) Some other list item
-///     AAA) Some other list item
-///     iii) Some other list item
-///     III) Some other list item
-///     # Some other list item
+/// 1. Some list item
+/// 1) Some other list item
+/// aaa) Some other list item
+/// AAA) Some other list item
+/// iii) Some other list item
+/// III) Some other list item
+/// # Some other list item
 ///
 #[inline]
 fn ordered_list_item_prefix(

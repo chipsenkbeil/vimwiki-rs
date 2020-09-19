@@ -50,7 +50,7 @@ pub fn transclusion_link(input: Span) -> VimwikiIResult<LC<TransclusionLink>> {
 
 /// Parser for property pairs separated by | in the form of
 ///
-///     key1="value1"|key2="value2"|...
+/// key1="value1"|key2="value2"|...
 #[inline]
 fn transclusion_properties(
     input: Span,

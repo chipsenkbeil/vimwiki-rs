@@ -21,15 +21,15 @@ impl List {
     ///
     /// For example, if you have the following list:
     ///
-    ///     Hyphen
-    ///     Number
-    ///     Asterisk
+    /// 1. Hyphen
+    /// 2. Number
+    /// 3. Asterisk
     ///
     /// You would get back out the following list:
     ///
-    ///     Hyphen
-    ///     Hyphen
-    ///     Hyphen
+    /// 1. Hyphen
+    /// 2. Hyphen
+    /// 3. Hyphen
     ///
     /// Note that this does NOT normalize sublists, which should be done
     /// manually.

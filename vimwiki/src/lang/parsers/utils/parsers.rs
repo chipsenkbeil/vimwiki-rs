@@ -307,17 +307,17 @@ pub fn scan<T>(
 ///
 /// ### Regular cases
 ///
-///     1. https (https://example.com)
-///     2. http (http://example.com)
-///     3. ftp (ftp:)
-///     4. file (file:relative/path)
-///     5. local (local:relative/path)
-///     6. mailto (mailto:someone@example.com)
+/// 1. https (https://example.com)
+/// 2. http (http://example.com)
+/// 3. ftp (ftp:)
+/// 4. file (file:relative/path)
+/// 5. local (local:relative/path)
+/// 6. mailto (mailto:someone@example.com)
 ///
 /// ### Special cases
 ///
-///     1. www (www.example.com) -> (https://www.example.com)
-///     2. // (//some/abs/path) -> (file:/some/abs/path)
+/// 1. www (www.example.com) -> (https://www.example.com)
+/// 2. // (//some/abs/path) -> (file:/some/abs/path)
 #[inline]
 pub fn uri(input: Span) -> VimwikiIResult<URI<'static>> {
     // URI = scheme:[//authority]path[?query][#fragment]
