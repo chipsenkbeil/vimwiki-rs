@@ -194,6 +194,9 @@ impl Span {
             .lock()
             .unwrap()
             .get_or_insert_with(|| {
+                // TODO: This won't work as is because local is shifting
+                //       around and doesn't have a contiguous memory pointer
+                //       (or does it?)
                 Self::find_column(self.local.as_ref(), self.local_offset())
             })
     }
@@ -564,14 +567,23 @@ impl Display for Span {
 }
 
 macro_rules! impl_slice_range {
-    ( $fragment_type:ty, $range_type:ty, $can_return_self:expr ) => {
+    ( $fragment_type:ty, $range_type:ty, $can_return_self:expr, $calc_consumed_len:expr ) => {
         impl Slice<$range_type> for Span {
             fn slice(&self, range: $range_type) -> Self {
                 if $can_return_self(&range) {
                     return self.clone();
                 }
+                // CHIP CHIP CHIP
+                // offset using nom trait impl that is getting and doing pointer
+                // comparisons, which don't seem to work right with Bytes
+                //
+                // Thought is to provide another function to macro that takes
+                // in the next_local and range to determine the consumed len
+                //
+                // Note that this only cares about consumed bytes from the
+                // front as the offset and line would need to be recalculated
+                let consumed_len = $calc_consumed_len(&range);
                 let next_local = self.local.slice(range);
-                let consumed_len = self.local.offset(&next_local);
                 if consumed_len == 0 {
                     return Span::new_at_pos(
                         self.global.clone(),
@@ -602,10 +614,30 @@ macro_rules! impl_slice_range {
     };
 }
 
-impl_slice_range! {&[u8], Range<usize>, |_| false}
-impl_slice_range! {&[u8], RangeTo<usize>, |_| false}
-impl_slice_range! {&[u8], RangeFrom<usize>, |range:&RangeFrom<usize>| range.start == 0}
-impl_slice_range! {&[u8], RangeFull, |_| true}
+impl_slice_range! {
+    &[u8],
+    Range<usize>,
+    |_| false,
+    |r: &Range<usize>| r.start
+}
+impl_slice_range! {
+    &[u8],
+    RangeTo<usize>,
+    |_| false,
+    |_| 0
+}
+impl_slice_range! {
+    &[u8],
+    RangeFrom<usize>,
+    |r: &RangeFrom<usize>| r.start == 0,
+    |r: &RangeFrom<usize>| r.start
+}
+impl_slice_range! {
+    &[u8],
+    RangeFull,
+    |_| true,
+    |_| 0
+}
 
 #[cfg(test)]
 mod tests {
@@ -1157,108 +1189,375 @@ mod tests {
             #[test]
             fn split_at_position1_should_yield_incomplete_if_no_match_found_in_local_bytes(
             ) {
-                todo!();
+                let span = Span::new(
+                    Bytes::new(),
+                    Bytes::from("abc123"),
+                    Default::default(),
+                );
+                assert_eq!(
+                    span.split_at_position1::<_, ()>(
+                        |_| false,
+                        ErrorKind::Alpha
+                    ),
+                    Err(nom::Err::Incomplete(nom::Needed::Size(1)))
+                );
             }
 
             #[test]
             fn split_at_position1_should_yield_local_bytes_up_to_the_first_match_in_local_bytes(
             ) {
-                todo!();
+                let span = Span::new(
+                    Bytes::from("abc123456def"),
+                    Bytes::from("abc123"),
+                    Default::default(),
+                );
+
+                let (suffix, prefix) = span
+                    .split_at_position1::<_, ()>(
+                        |b| b == b'c',
+                        ErrorKind::Alpha,
+                    )
+                    .unwrap();
+                assert_eq!(prefix.fragment_str(), "ab");
+                assert_eq!(prefix.global.as_ref(), b"abc123456def");
+
+                assert_eq!(suffix.fragment_str(), "c123");
+                assert_eq!(suffix.global.as_ref(), b"abc123456def");
             }
 
             #[test]
             fn split_at_position1_fail_if_an_empty_span_would_be_produced_from_local_bytes(
             ) {
-                todo!();
+                let span = Span::new(
+                    Bytes::from("abc123456def"),
+                    Bytes::from("abc123"),
+                    Default::default(),
+                );
+
+                assert_eq!(
+                    span.split_at_position1::<_, (Span, ErrorKind)>(
+                        |b| b == b'a',
+                        ErrorKind::Alpha,
+                    ),
+                    Err(nom::Err::Error((span, ErrorKind::Alpha)))
+                );
             }
 
             #[test]
             fn split_at_position_complete_should_yield_all_input_if_no_match_found_in_local_bytes(
             ) {
-                todo!();
+                let span = Span::new(
+                    Bytes::new(),
+                    Bytes::from("abc123"),
+                    Default::default(),
+                );
+                assert_eq!(
+                    span.split_at_position_complete::<_, ()>(|_| false),
+                    Ok((
+                        Span::new_at_pos(
+                            Bytes::new(),
+                            Bytes::new(),
+                            Default::default(),
+                            6,
+                            1,
+                        ),
+                        span
+                    ))
+                );
             }
 
             #[test]
             fn split_at_position_complete_should_yield_local_bytes_up_to_the_first_match_in_local_bytes(
             ) {
-                todo!();
+                let span = Span::new(
+                    Bytes::from("abc123456def"),
+                    Bytes::from("abc123"),
+                    Default::default(),
+                );
+
+                let (suffix, prefix) = span
+                    .split_at_position_complete::<_, ()>(|b| b == b'c')
+                    .unwrap();
+                assert_eq!(prefix.fragment_str(), "ab");
+                assert_eq!(prefix.global.as_ref(), b"abc123456def");
+
+                assert_eq!(suffix.fragment_str(), "c123");
+                assert_eq!(suffix.global.as_ref(), b"abc123456def");
             }
 
             #[test]
             fn split_at_position_complete_should_support_an_empty_span_being_produced_from_local_bytes(
             ) {
-                todo!();
+                let span = Span::new(
+                    Bytes::from("abc123456def"),
+                    Bytes::from("abc123"),
+                    Default::default(),
+                );
+
+                let (suffix, prefix) = span
+                    .split_at_position_complete::<_, ()>(|b| b == b'a')
+                    .unwrap();
+                assert_eq!(prefix.fragment_str(), "");
+                assert_eq!(prefix.global.as_ref(), b"abc123456def");
+
+                assert_eq!(suffix.fragment_str(), "abc123");
+                assert_eq!(suffix.global.as_ref(), b"abc123456def");
             }
 
             #[test]
             fn split_at_position1_complete_should_yield_all_input_if_no_match_found_in_local_bytes(
             ) {
-                todo!();
+                let span = Span::new(
+                    Bytes::new(),
+                    Bytes::from("abc123"),
+                    Default::default(),
+                );
+                assert_eq!(
+                    span.split_at_position1_complete::<_, ()>(
+                        |_| false,
+                        ErrorKind::Alpha
+                    ),
+                    Ok((
+                        Span::new_at_pos(
+                            Bytes::new(),
+                            Bytes::new(),
+                            Default::default(),
+                            6,
+                            1,
+                        ),
+                        span
+                    ))
+                );
             }
 
             #[test]
             fn split_at_position1_complete_should_yield_local_bytes_up_to_the_first_match_in_local_bytes(
             ) {
-                todo!();
+                let span = Span::new(
+                    Bytes::from("abc123456def"),
+                    Bytes::from("abc123"),
+                    Default::default(),
+                );
+
+                let (suffix, prefix) = span
+                    .split_at_position1_complete::<_, ()>(
+                        |b| b == b'c',
+                        ErrorKind::Alpha,
+                    )
+                    .unwrap();
+                assert_eq!(prefix.fragment_str(), "ab");
+                assert_eq!(prefix.global.as_ref(), b"abc123456def");
+
+                assert_eq!(suffix.fragment_str(), "c123");
+                assert_eq!(suffix.global.as_ref(), b"abc123456def");
             }
 
             #[test]
             fn split_at_position1_complete_fail_if_an_empty_span_would_be_produced_from_local_bytes(
             ) {
-                todo!();
+                let span = Span::new(
+                    Bytes::from("abc123456def"),
+                    Bytes::from("abc123"),
+                    Default::default(),
+                );
+
+                assert_eq!(
+                    span.split_at_position1_complete::<_, (Span, ErrorKind)>(
+                        |b| b == b'a',
+                        ErrorKind::Alpha,
+                    ),
+                    Err(nom::Err::Error((span, ErrorKind::Alpha)))
+                );
+            }
+
+            #[test]
+            fn offset_should_yield_zero_if_at_same_offset() {
+                let span1 = Span::from_static("abc123");
+                let mut span2 = span1.clone();
+                span2.offset = 3;
+
+                assert_eq!(span1.offset(&span2), 3);
             }
 
             #[test]
             fn offset_should_yield_offset_between_first_local_byte_of_self_with_local_byte_of_other(
             ) {
-                todo!();
+                let span1 = Span::from_static("abc123");
+                let span2 = span1.clone();
+
+                assert_eq!(span1.offset(&span2), 0);
+            }
+
+            #[test]
+            #[should_panic]
+            fn offset_should_panic_if_would_yield_negative_value() {
+                let span1 = Span::from_static("abc123");
+                let mut span2 = span1.clone();
+                span2.offset = 3;
+
+                span2.offset(&span1);
             }
 
             #[test]
             fn parse_to_should_convert_local_bytes_to_str_and_then_apply_parse()
             {
-                todo!();
+                let span = Span::new(
+                    Bytes::new(),
+                    Bytes::from("123"),
+                    Default::default(),
+                );
+                let result: u32 = span.parse_to().unwrap();
+                assert_eq!(result, 123);
+            }
+
+            #[test]
+            fn parse_to_should_yield_none_if_failing_to_parse() {
+                let span = Span::new(
+                    Bytes::from("123"),
+                    Bytes::from("abc"),
+                    Default::default(),
+                );
+                let result: Option<u32> = span.parse_to();
+                assert_eq!(result, None);
             }
 
             #[test]
             fn slice_should_yield_a_clone_of_span_if_given_full_range() {
-                todo!();
+                let span1 = Span::new_at_pos(
+                    Bytes::from("abc\ndef\nghi"),
+                    Bytes::from("123\n456\n789"),
+                    SpanSegments::new(vec![1..3]),
+                    5,
+                    2,
+                );
+                let span2 = span1.slice(..);
+                assert_eq!(span2.global, span1.global);
+                assert_eq!(span2.local, span1.local);
+                assert_eq!(span2.segments, span1.segments);
+                assert_eq!(span2.offset, span1.offset);
+                assert_eq!(span2.line, span1.line);
+            }
+
+            #[test]
+            fn slice_should_support_yielding_an_empty_span() {
+                let span1 = Span::new_at_pos(
+                    Bytes::from("abc\ndef\nghi"),
+                    Bytes::from("123\n456\n789"),
+                    SpanSegments::new(vec![1..3]),
+                    5,
+                    2,
+                );
+
+                let span2 = span1.slice(0..0);
+                assert_eq!(span2.global, span1.global);
+                assert_eq!(span2.local, Bytes::new());
+                assert_eq!(span2.segments, span1.segments);
+                assert_eq!(span2.offset, span1.offset);
+                assert_eq!(span2.line, span1.line);
+
+                let span2 = span1.slice(11..);
+                assert_eq!(span2.global, span1.global);
+                assert_eq!(span2.local, Bytes::new());
+                assert_eq!(span2.segments, span1.segments);
+                assert_eq!(span2.offset, span1.offset + 11);
+                assert_eq!(span2.line, span1.line + 2);
+
+                let span2 = span1.slice(..0);
+                assert_eq!(span2.global, span1.global);
+                assert_eq!(span2.local, Bytes::new());
+                assert_eq!(span2.segments, span1.segments);
+                assert_eq!(span2.offset, span1.offset);
+                assert_eq!(span2.line, span1.line);
             }
 
             #[test]
             fn slice_should_yield_same_offset_and_line_with_new_local_bytes_if_offset_equal_given_range(
             ) {
-                todo!();
+                let span1 = Span::new_at_pos(
+                    Bytes::from("abc\ndef\nghi"),
+                    Bytes::from("123\n456\n789"),
+                    SpanSegments::new(vec![1..3]),
+                    5,
+                    2,
+                );
+                let span2 = span1.slice(0..2);
+                assert_eq!(span2.global, span1.global);
+                assert_eq!(span2.local, Bytes::from("12"));
+                assert_eq!(span2.segments, span1.segments);
+                assert_eq!(span2.offset, span1.offset);
+                assert_eq!(span2.line, span1.line);
             }
 
             #[test]
             fn slice_should_yield_new_line_and_offset_alongside_new_local_bytes_if_offset_different_given_range(
             ) {
-                todo!();
+                let span1 = Span::new_at_pos(
+                    Bytes::from("abc\ndef\nghi"),
+                    Bytes::from("123\n456\n789"),
+                    SpanSegments::new(vec![1..3]),
+                    5,
+                    2,
+                );
+                let span2 = span1.slice(5..10);
+                assert_eq!(span2.global, span1.global);
+                assert_eq!(span2.local, Bytes::from("56\n78"));
+                assert_eq!(span2.segments, span1.segments);
+                assert_eq!(span2.offset, span1.offset + 5);
+                assert_eq!(span2.line, span1.line + 1);
             }
 
             #[test]
-            fn slice_should_yield_same_offset_and_line_with_new_local_bytes_if_offset_equal_given_range_to(
+            fn slice_should_yield_same_offset_and_line_with_new_local_bytes_if_given_range_to(
             ) {
-                todo!();
-            }
-
-            #[test]
-            fn slice_should_yield_new_line_and_offset_alongside_new_local_bytes_if_offset_different_given_range_to(
-            ) {
-                todo!();
+                let span1 = Span::new_at_pos(
+                    Bytes::from("abc\ndef\nghi"),
+                    Bytes::from("123\n456\n789"),
+                    SpanSegments::new(vec![1..3]),
+                    5,
+                    2,
+                );
+                let span2 = span1.slice(..10);
+                assert_eq!(span2.global, span1.global);
+                assert_eq!(span2.local, Bytes::from("123\n456\n78"));
+                assert_eq!(span2.segments, span1.segments);
+                assert_eq!(span2.offset, span1.offset);
+                assert_eq!(span2.line, span1.line);
             }
 
             #[test]
             fn slice_should_yield_same_offset_and_line_with_new_local_bytes_if_offset_equal_given_range_from(
             ) {
-                todo!();
+                let span1 = Span::new_at_pos(
+                    Bytes::from("abc\ndef\nghi"),
+                    Bytes::from("123\n456\n789"),
+                    SpanSegments::new(vec![1..3]),
+                    5,
+                    2,
+                );
+                let span2 = span1.slice(0..);
+                assert_eq!(span2.global, span1.global);
+                assert_eq!(span2.local, Bytes::from("123\n456\n789"));
+                assert_eq!(span2.segments, span1.segments);
+                assert_eq!(span2.offset, span1.offset);
+                assert_eq!(span2.line, span1.line);
             }
 
             #[test]
             fn slice_should_yield_new_line_and_offset_alongside_new_local_bytes_if_offset_different_given_range_from(
             ) {
-                todo!();
+                let span1 = Span::new_at_pos(
+                    Bytes::from("abc\ndef\nghi"),
+                    Bytes::from("123\n456\n789"),
+                    SpanSegments::new(vec![1..3]),
+                    5,
+                    2,
+                );
+                let span2 = span1.slice(5..);
+                assert_eq!(span2.global, span1.global);
+                assert_eq!(span2.local, Bytes::from("56\n789"));
+                assert_eq!(span2.segments, span1.segments);
+                assert_eq!(span2.offset, span1.offset + 5);
+                assert_eq!(span2.line, span1.line + 1);
             }
         }
 
