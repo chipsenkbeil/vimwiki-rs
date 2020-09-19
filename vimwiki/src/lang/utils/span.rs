@@ -188,16 +188,33 @@ impl Span {
 
     /// Retrieves the local column number using code pointers since a UTF8
     /// character may span multiple bytes (base 1)
+    ///
+    /// NOTE: Will panic if our local offset has exceeded the maximum value
+    ///       of an isize type (2,147,483,647), which is highly unlikely
+    ///       given the use case of our span
     pub fn local_utf8_column(&self) -> usize {
         *self
             .cached_local_utf8_column
             .lock()
             .unwrap()
             .get_or_insert_with(|| {
-                // TODO: This won't work as is because local is shifting
-                //       around and doesn't have a contiguous memory pointer
-                //       (or does it?)
-                Self::find_column(self.local.as_ref(), self.local_offset())
+                // NOTE: We need to find the start of our original local
+                //       byte slice so we can then find the start of the
+                //       line we are on and count the bytes past that line
+                let self_ptr = self.local.as_ref().as_ptr();
+                let local_offset = self.local_offset();
+                let before_self = unsafe {
+                    assert!(
+                        local_offset <= isize::max_value() as usize,
+                        "offset is too big: {} > {}",
+                        local_offset,
+                        isize::max_value(),
+                    );
+                    let orig_input_ptr =
+                        self_ptr.offset(-(local_offset as isize));
+                    std::slice::from_raw_parts(orig_input_ptr, local_offset)
+                };
+                Self::find_column(before_self, local_offset)
             })
     }
 

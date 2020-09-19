@@ -106,10 +106,10 @@ pub fn lc<T>(
         let start_line = input.global_line();
         let start_column = input.global_utf8_column();
 
-        let (input2, x   ) = parser(input.clone())?;
+        let (input2, x) = parser(input.clone())?;
 
         // Get offset at end (new start - 1)
-        let mut offset = input2.offset(&input);
+        let mut offset = input.offset(&input2);
         if offset > 0 {
             offset -= 1;
         }
