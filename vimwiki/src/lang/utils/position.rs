@@ -17,12 +17,12 @@ use std::cmp::Ordering;
     Deserialize,
 )]
 pub struct Position {
-    pub line: u32,
+    pub line: usize,
     pub column: usize,
 }
 
-impl From<(u32, usize)> for Position {
-    fn from(coords: (u32, usize)) -> Self {
+impl From<(usize, usize)> for Position {
+    fn from(coords: (usize, usize)) -> Self {
         Self {
             line: coords.0,
             column: coords.1,

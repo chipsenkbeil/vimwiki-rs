@@ -36,14 +36,14 @@ impl From<(Position, Position)> for Region {
     }
 }
 
-impl From<((u32, usize), (u32, usize))> for Region {
-    fn from(coords: ((u32, usize), (u32, usize))) -> Self {
+impl From<((usize, usize), (usize, usize))> for Region {
+    fn from(coords: ((usize, usize), (usize, usize))) -> Self {
         Self::from((Position::from(coords.0), Position::from(coords.1)))
     }
 }
 
-impl From<(u32, usize, u32, usize)> for Region {
-    fn from(coords: (u32, usize, u32, usize)) -> Self {
+impl From<(usize, usize, usize, usize)> for Region {
+    fn from(coords: (usize, usize, usize, usize)) -> Self {
         Self::from(((coords.0, coords.1), (coords.2, coords.3)))
     }
 }

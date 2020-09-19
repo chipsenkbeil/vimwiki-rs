@@ -8,7 +8,7 @@ pub struct LangParserError {
     ctx: String,
     sample: String,
     offset: usize,
-    line: u32,
+    line: usize,
     column: usize,
     next: Option<Box<Self>>,
 }

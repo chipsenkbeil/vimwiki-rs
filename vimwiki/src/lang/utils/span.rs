@@ -7,7 +7,7 @@ use nom::{
     ParseTo, Slice,
 };
 use std::{
-    cmp::Ordering,
+    cmp::{self, Ordering},
     fmt::{Display, Formatter, Result as FmtResult},
     iter::{Enumerate, FromIterator},
     ops::{Range, RangeFrom, RangeFull, RangeTo},
@@ -49,7 +49,17 @@ impl SpanSegments {
         Bytes::from_iter(
             self.segments
                 .iter()
-                .map(|seg| bytes.slice(seg.start..seg.end).into_iter())
+                .filter_map(|seg| {
+                    // Only provide a slice if we are within bounds
+                    if seg.start < bytes.len() {
+                        // Ensure that the end of the range doesn't exceed
+                        // the length of the byte sequence
+                        let end = cmp::min(seg.end, bytes.len());
+                        Some(bytes.slice(seg.start..end).into_iter())
+                    } else {
+                        None
+                    }
+                })
                 .flatten(),
         )
     }
@@ -78,7 +88,7 @@ impl SpanSegments {
             let gap = seg.start - last_end;
             global_offset += gap;
             if seg.contains(&global_offset) {
-                break;
+                return global_offset;
             }
 
             // Otherwise, continue and flag the end of the last segment so
@@ -86,7 +96,8 @@ impl SpanSegments {
             last_end = seg.end;
         }
 
-        global_offset
+        // If we reach here, no segment matched, so just return the input
+        offset
     }
 }
 
@@ -107,7 +118,7 @@ pub struct Span {
 
     /// Offset and line location for fragment
     offset: usize,
-    line: u32,
+    line: usize,
 
     /// Cached local utf8 column
     cached_local_utf8_column: Arc<Mutex<Option<usize>>>,
@@ -116,7 +127,7 @@ pub struct Span {
     cached_global_offset: Arc<Mutex<Option<usize>>>,
 
     /// Cached global line
-    cached_global_line: Arc<Mutex<Option<u32>>>,
+    cached_global_line: Arc<Mutex<Option<usize>>>,
 
     /// Cached global utf8 column
     cached_global_utf8_column: Arc<Mutex<Option<usize>>>,
@@ -132,7 +143,7 @@ impl Span {
         local: Bytes,
         segments: SpanSegments,
         offset: usize,
-        line: u32,
+        line: usize,
     ) -> Self {
         Self {
             global,
@@ -171,7 +182,7 @@ impl Span {
     }
 
     /// Retrieves the local line number (base 1)
-    pub fn local_line(&self) -> u32 {
+    pub fn local_line(&self) -> usize {
         self.line
     }
 
@@ -183,12 +194,7 @@ impl Span {
             .lock()
             .unwrap()
             .get_or_insert_with(|| {
-                let before_local = Self::get_columns_and_bytes_before_offset(
-                    self.local.as_ref(),
-                    self.local_offset(),
-                )
-                .1;
-                bytecount::num_chars(before_local) + 1
+                Self::find_column(self.local.as_ref(), self.local_offset())
             })
     }
 
@@ -199,14 +205,13 @@ impl Span {
     }
 
     /// Retrieves the global line number (base 1)
-    pub fn global_line(&self) -> u32 {
+    pub fn global_line(&self) -> usize {
         *self
             .cached_global_line
             .lock()
             .unwrap()
             .get_or_insert_with(|| {
-                let offset = self.global_offset();
-                self.slice(offset..).local_line()
+                Self::find_line(self.global.as_ref(), self.global_offset())
             })
     }
 
@@ -218,12 +223,7 @@ impl Span {
             .lock()
             .unwrap()
             .get_or_insert_with(|| {
-                let before_global = Self::get_columns_and_bytes_before_offset(
-                    self.global.as_ref(),
-                    self.global_offset(),
-                )
-                .1;
-                bytecount::num_chars(before_global) + 1
+                Self::find_column(self.global.as_ref(), self.global_offset())
             })
     }
 
@@ -289,18 +289,24 @@ impl Span {
         self.into_segments(segments_to_keep)
     }
 
-    /// Retrieves the byte column location (index 1) and series of bytes
-    /// prior to the current position within a byte slice
-    fn get_columns_and_bytes_before_offset(
-        bytes: &[u8],
-        offset: usize,
-    ) -> (usize, &[u8]) {
+    /// Determines the line position (base index of 1) based on a series of
+    /// bytes and an offset
+    fn find_line(bytes: &[u8], offset: usize) -> usize {
+        let before_offset = bytes.slice(..offset);
+        let cnt = Memchr::new(b'\n', before_offset).count();
+        cnt + 1
+    }
+
+    /// Determines the column position (base index of 1) based on a series of
+    /// bytes and an offset
+    fn find_column(bytes: &[u8], offset: usize) -> usize {
+        let bytes = &bytes[..offset];
         let column = match memchr::memrchr(b'\n', bytes) {
             None => offset + 1,
             Some(pos) => offset - pos,
         };
 
-        (column, &bytes[offset - (column - 1)..])
+        bytecount::num_chars(&bytes[offset - (column - 1)..]) + 1
     }
 }
 
@@ -380,6 +386,13 @@ impl ExtendInto for Span {
     #[inline]
     fn extend_into(&self, acc: &mut Self::Extender) {
         self.fragment().extend_into(acc)
+    }
+}
+
+impl<'a> FindSubstring<&'a [u8]> for Span {
+    #[inline]
+    fn find_substring(&self, substr: &'a [u8]) -> Option<usize> {
+        self.fragment().find_substring(substr)
     }
 }
 
@@ -574,7 +587,7 @@ macro_rules! impl_slice_range {
 
                 let consumed_as_bytes = consumed.as_bytes();
                 let iter = Memchr::new(b'\n', consumed_as_bytes);
-                let number_of_lines = iter.count() as u32;
+                let number_of_lines = iter.count();
                 let next_line = self.line + number_of_lines;
 
                 Span::new_at_pos(
@@ -601,15 +614,21 @@ mod tests {
     mod span_segments {
         use super::*;
 
+        fn btos(b: &[u8]) -> &str {
+            unsafe { std::str::from_utf8_unchecked(b) }
+        }
+
         #[test]
         fn convert_bytes_to_segments_should_empty_if_no_segments_provided() {
             let bytes = Bytes::from_static(b"some fragment");
 
             assert_eq!(
-                SpanSegments::new(vec![])
-                    .convert_bytes_to_segments(&bytes)
-                    .as_ref(),
-                b"some"
+                btos(
+                    SpanSegments::new(vec![])
+                        .convert_bytes_to_segments(&bytes)
+                        .as_ref()
+                ),
+                ""
             );
         }
 
@@ -618,38 +637,48 @@ mod tests {
             let bytes = Bytes::from_static(b"some fragment");
 
             assert_eq!(
-                SpanSegments::new(vec![0..5])
-                    .convert_bytes_to_segments(&bytes)
-                    .as_ref(),
-                b"some"
+                btos(
+                    SpanSegments::new(vec![0..4])
+                        .convert_bytes_to_segments(&bytes)
+                        .as_ref()
+                ),
+                "some"
             );
 
             assert_eq!(
-                SpanSegments::new(vec![4..5])
-                    .convert_bytes_to_segments(&bytes)
-                    .as_ref(),
-                b" "
+                btos(
+                    SpanSegments::new(vec![4..5])
+                        .convert_bytes_to_segments(&bytes)
+                        .as_ref()
+                ),
+                " "
             );
 
             assert_eq!(
-                SpanSegments::new(vec![4..13])
-                    .convert_bytes_to_segments(&bytes)
-                    .as_ref(),
-                b"fragment"
+                btos(
+                    SpanSegments::new(vec![5..13])
+                        .convert_bytes_to_segments(&bytes)
+                        .as_ref()
+                ),
+                "fragment"
             );
 
             assert_eq!(
-                SpanSegments::new(vec![1..2, 2..3, 3..4])
-                    .convert_bytes_to_segments(&bytes)
-                    .as_ref(),
-                b"ome"
+                btos(
+                    SpanSegments::new(vec![1..2, 2..3, 3..4])
+                        .convert_bytes_to_segments(&bytes)
+                        .as_ref()
+                ),
+                "ome"
             );
 
             assert_eq!(
-                SpanSegments::new(vec![0..2, 4..5, 8..11,])
-                    .convert_bytes_to_segments(&bytes)
-                    .as_ref(),
-                b"so gme"
+                btos(
+                    SpanSegments::new(vec![0..2, 4..5, 8..11,])
+                        .convert_bytes_to_segments(&bytes)
+                        .as_ref()
+                ),
+                "so gme"
             );
         }
 
@@ -659,29 +688,413 @@ mod tests {
             let bytes = Bytes::from_static(b"some fragment");
 
             assert_eq!(
-                SpanSegments::new(vec![0..999])
-                    .convert_bytes_to_segments(&bytes)
-                    .as_ref(),
-                b"some fragment"
+                btos(
+                    SpanSegments::new(vec![0..999])
+                        .convert_bytes_to_segments(&bytes)
+                        .as_ref()
+                ),
+                "some fragment"
             );
 
             assert_eq!(
-                SpanSegments::new(vec![999..1000])
-                    .convert_bytes_to_segments(&bytes)
-                    .as_ref(),
-                b""
+                btos(
+                    SpanSegments::new(vec![999..1000])
+                        .convert_bytes_to_segments(&bytes)
+                        .as_ref()
+                ),
+                ""
             );
+        }
+
+        #[test]
+        fn map_local_to_global_offset_should_be_identity_if_one_comprehensive_segment(
+        ) {
+            let segments = SpanSegments::new(vec![0..5]);
+            let mut actual = Vec::new();
+            for i in 0..5 {
+                actual.push(segments.map_local_to_global_offset(i));
+            }
+
+            assert_eq!(actual, vec![0, 1, 2, 3, 4]);
+        }
+
+        #[test]
+        fn map_local_to_global_offset_should_support_gaps_in_middle() {
+            let segments = SpanSegments::new(vec![0..2, 3..5]);
+            let mut actual = Vec::new();
+            for i in 0..4 {
+                actual.push(segments.map_local_to_global_offset(i));
+            }
+
+            assert_eq!(actual, vec![0, 1, 3, 4]);
+        }
+
+        #[test]
+        fn map_local_to_global_offset_should_support_starting_gap() {
+            let segments = SpanSegments::new(vec![3..5]);
+            let mut actual = Vec::new();
+            for i in 0..2 {
+                actual.push(segments.map_local_to_global_offset(i));
+            }
+
+            assert_eq!(actual, vec![3, 4]);
+        }
+
+        #[test]
+        fn map_local_to_global_offset_should_support_contiguous_segments() {
+            let segments = SpanSegments::new(vec![0..2, 2..4, 4..5]);
+            let mut actual = Vec::new();
+            for i in 0..5 {
+                actual.push(segments.map_local_to_global_offset(i));
+            }
+
+            assert_eq!(actual, vec![0, 1, 2, 3, 4]);
         }
     }
 
     mod span {
         use super::*;
 
+        mod nom {
+            use super::*;
+
+            #[test]
+            fn as_bytes_should_return_local_bytes_as_slice() {
+                let span = Span::new(
+                    Bytes::from_static(b"global"),
+                    Bytes::from_static(b"local"),
+                    Default::default(),
+                );
+                assert_eq!(span.fragment(), b"local");
+            }
+
+            #[test]
+            fn compare_should_yield_ok_if_local_bytes_are_equal() {
+                let span1 = Span::from_static("abcdef");
+                let span2 = Span::from_static("abcdef");
+                assert_eq!(span1.compare(span2), CompareResult::Ok);
+                assert_eq!(span1.compare("abcdef"), CompareResult::Ok);
+                assert_eq!(span1.compare(&b"abcdef"[..]), CompareResult::Ok);
+            }
+
+            #[test]
+            fn compare_should_yield_error_if_local_bytes_are_not_equal() {
+                let span1 = Span::from_static("abcdef");
+                let span2 = Span::from_static("defabc");
+                assert_eq!(span1.compare(span2), CompareResult::Error);
+                assert_eq!(span1.compare("defabc"), CompareResult::Error);
+                assert_eq!(span1.compare(&b"defabc"[..]), CompareResult::Error);
+            }
+
+            #[test]
+            fn compare_should_yield_incomplete_if_local_bytes_length_is_smaller_than_other(
+            ) {
+                let span1 = Span::from_static("abc");
+                let span2 = Span::from_static("abcdef");
+                assert_eq!(span1.compare(span2), CompareResult::Incomplete);
+                assert_eq!(span1.compare("abcdef"), CompareResult::Incomplete);
+                assert_eq!(
+                    span1.compare(&b"abcdef"[..]),
+                    CompareResult::Incomplete
+                );
+            }
+
+            #[test]
+            fn compare_no_case_should_yield_ok_if_local_bytes_are_equal() {
+                let span1 = Span::from_static("abcdef");
+                let span2 = Span::from_static("AbCdEf");
+                assert_eq!(span1.compare_no_case(span2), CompareResult::Ok);
+                assert_eq!(span1.compare_no_case("AbCdEf"), CompareResult::Ok);
+                assert_eq!(
+                    span1.compare_no_case(&b"AbCdEf"[..]),
+                    CompareResult::Ok
+                );
+            }
+
+            #[test]
+            fn compare_no_case_should_yield_error_if_local_bytes_are_not_equal()
+            {
+                let span1 = Span::from_static("abcdef");
+                let span2 = Span::from_static("DeFaBc");
+                assert_eq!(span1.compare_no_case(span2), CompareResult::Error);
+                assert_eq!(
+                    span1.compare_no_case("DeFaBc"),
+                    CompareResult::Error
+                );
+                assert_eq!(
+                    span1.compare_no_case(&b"DeFaBc"[..]),
+                    CompareResult::Error
+                );
+            }
+
+            #[test]
+            fn compare_no_case_should_yield_incomplete_if_local_bytes_length_is_smaller_than_other(
+            ) {
+                let span1 = Span::from_static("abc");
+                let span2 = Span::from_static("AbCdEf");
+                assert_eq!(
+                    span1.compare_no_case(span2),
+                    CompareResult::Incomplete
+                );
+                assert_eq!(
+                    span1.compare_no_case("AbCdEf"),
+                    CompareResult::Incomplete
+                );
+                assert_eq!(
+                    span1.compare_no_case(&b"AbCdEf"[..]),
+                    CompareResult::Incomplete
+                );
+            }
+
+            #[test]
+            fn new_builder_should_create_an_empty_byte_vec() {
+                todo!();
+            }
+
+            #[test]
+            fn extend_into_should_copy_local_bytes_to_end_of_provided_byte_vec()
+            {
+                todo!();
+            }
+
+            #[test]
+            fn find_substring_should_yield_none_if_unable_to_find_byte_string_in_local_bytes(
+            ) {
+                todo!();
+            }
+
+            #[test]
+            fn find_substring_should_yield_position_of_first_byte_string_match_in_local_bytes(
+            ) {
+                todo!();
+            }
+
+            #[test]
+            fn find_substring_should_yield_none_if_unable_to_find_string_in_local_bytes(
+            ) {
+                todo!();
+            }
+
+            #[test]
+            fn find_substring_should_yield_some_position_of_first_string_match()
+            {
+                todo!();
+            }
+
+            #[test]
+            fn find_token_should_yield_true_if_byte_exists_in_local_bytes() {
+                todo!();
+            }
+
+            #[test]
+            fn find_token_should_yield_false_if_byte_missing_in_local_bytes() {
+                todo!();
+            }
+
+            #[test]
+            fn find_token_should_yield_true_if_byte_ref_exists_in_local_bytes()
+            {
+                todo!();
+            }
+
+            #[test]
+            fn find_token_should_yield_false_if_byte_ref_missing_in_local_bytes(
+            ) {
+                todo!();
+            }
+
+            #[test]
+            fn find_token_should_yield_true_if_char_exists_in_local_bytes() {
+                todo!();
+            }
+
+            #[test]
+            fn find_token_should_yield_false_if_char_missing_in_local_bytes() {
+                todo!();
+            }
+
+            #[test]
+            fn iter_indicies_should_yield_an_iterator_of_local_index_and_byte_tuples(
+            ) {
+                todo!();
+            }
+
+            #[test]
+            fn iter_elements_should_yield_an_iterator_of_local_bytes() {
+                todo!();
+            }
+
+            #[test]
+            fn position_should_yield_an_none_if_the_predicate_does_not_match_a_local_byte(
+            ) {
+                todo!();
+            }
+
+            #[test]
+            fn position_should_yield_an_index_if_the_predicate_matches_a_local_byte(
+            ) {
+                todo!();
+            }
+
+            #[test]
+            fn slice_index_should_yield_the_index_if_available_in_local_bytes()
+            {
+                todo!();
+            }
+
+            #[test]
+            fn slice_index_should_yield_an_error_reflecting_needed_bytes_if_unavailable_in_local_bytes(
+            ) {
+                todo!();
+            }
+
+            #[test]
+            fn input_len_should_yield_the_byte_length_of_local_bytes() {
+                todo!();
+            }
+
+            #[test]
+            fn take_should_yield_a_span_that_has_the_first_n_local_bytes() {
+                todo!();
+            }
+
+            #[test]
+            fn take_split_should_yield_two_spans_the_first_is_local_bytes_after_n_and_second_is_local_bytes_up_to_n(
+            ) {
+                todo!();
+            }
+
+            #[test]
+            fn split_at_position_should_yield_incomplete_if_no_match_found_in_local_bytes(
+            ) {
+                todo!();
+            }
+
+            #[test]
+            fn split_at_position_should_yield_local_bytes_up_to_the_first_match_in_local_bytes(
+            ) {
+                todo!();
+            }
+
+            #[test]
+            fn split_at_position_should_support_an_empty_span_being_produced_from_local_bytes(
+            ) {
+                todo!();
+            }
+
+            #[test]
+            fn split_at_position1_should_yield_incomplete_if_no_match_found_in_local_bytes(
+            ) {
+                todo!();
+            }
+
+            #[test]
+            fn split_at_position1_should_yield_local_bytes_up_to_the_first_match_in_local_bytes(
+            ) {
+                todo!();
+            }
+
+            #[test]
+            fn split_at_position1_fail_if_an_empty_span_would_be_produced_from_local_bytes(
+            ) {
+                todo!();
+            }
+
+            #[test]
+            fn split_at_position_complete_should_yield_all_input_if_no_match_found_in_local_bytes(
+            ) {
+                todo!();
+            }
+
+            #[test]
+            fn split_at_position_complete_should_yield_local_bytes_up_to_the_first_match_in_local_bytes(
+            ) {
+                todo!();
+            }
+
+            #[test]
+            fn split_at_position_complete_should_support_an_empty_span_being_produced_from_local_bytes(
+            ) {
+                todo!();
+            }
+
+            #[test]
+            fn split_at_position1_complete_should_yield_all_input_if_no_match_found_in_local_bytes(
+            ) {
+                todo!();
+            }
+
+            #[test]
+            fn split_at_position1_complete_should_yield_local_bytes_up_to_the_first_match_in_local_bytes(
+            ) {
+                todo!();
+            }
+
+            #[test]
+            fn split_at_position1_complete_fail_if_an_empty_span_would_be_produced_from_local_bytes(
+            ) {
+                todo!();
+            }
+
+            #[test]
+            fn offset_should_yield_offset_between_first_local_byte_of_self_with_local_byte_of_other(
+            ) {
+                todo!();
+            }
+
+            #[test]
+            fn parse_to_should_convert_local_bytes_to_str_and_then_apply_parse()
+            {
+                todo!();
+            }
+
+            #[test]
+            fn slice_should_yield_a_clone_of_span_if_given_full_range() {
+                todo!();
+            }
+
+            #[test]
+            fn slice_should_yield_same_offset_and_line_with_new_local_bytes_if_offset_equal_given_range(
+            ) {
+                todo!();
+            }
+
+            #[test]
+            fn slice_should_yield_new_line_and_offset_alongside_new_local_bytes_if_offset_different_given_range(
+            ) {
+                todo!();
+            }
+
+            #[test]
+            fn slice_should_yield_same_offset_and_line_with_new_local_bytes_if_offset_equal_given_range_to(
+            ) {
+                todo!();
+            }
+
+            #[test]
+            fn slice_should_yield_new_line_and_offset_alongside_new_local_bytes_if_offset_different_given_range_to(
+            ) {
+                todo!();
+            }
+
+            #[test]
+            fn slice_should_yield_same_offset_and_line_with_new_local_bytes_if_offset_equal_given_range_from(
+            ) {
+                todo!();
+            }
+
+            #[test]
+            fn slice_should_yield_new_line_and_offset_alongside_new_local_bytes_if_offset_different_given_range_from(
+            ) {
+                todo!();
+            }
+        }
+
         #[test]
         fn global_line_and_utf8_column_should_properly_translate_across_segments(
         ) {
             let input = Span::from_static("line1\nline2\nline3")
-                .into_segments(vec![0..2, 4..8, 13..15, 16..17]);
+                .into_segments(vec![2..4, 8..13, 15..16]);
 
             // line1|line2|line3
             // xxooxxxxoooooxxox
