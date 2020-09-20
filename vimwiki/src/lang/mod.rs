@@ -27,7 +27,7 @@ macro_rules! parse {
 
                 // For debugging purposes, we will print out a report of what
                 // parts of our parsers took the longest
-                print_timekeeper_report();
+                print_timekeeper_report(true);
 
                 Ok(result)
             }

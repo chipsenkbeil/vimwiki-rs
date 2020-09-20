@@ -20,7 +20,7 @@ lazy_static! {
         Mutex::new(HashMap::new());
 }
 
-pub fn print_timekeeper_report() {
+pub fn print_timekeeper_report(clear_after_print: bool) {
     let mut results: Vec<(&'static str, (usize, u128))> = TIMEKEEPER
         .lock()
         .unwrap()
@@ -57,6 +57,10 @@ pub fn print_timekeeper_report() {
     }
     println!();
     println!("===============================");
+
+    if clear_after_print {
+        TIMEKEEPER.lock().unwrap().clear();
+    }
 }
 
 pub fn context<T>(
