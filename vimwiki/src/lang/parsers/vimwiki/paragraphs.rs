@@ -1,6 +1,15 @@
 use super::{
+    blockquotes::blockquote,
     components::Paragraph,
+    definitions::definition_list,
+    dividers::divider,
+    headers::header,
     inline_component_container,
+    lists::list,
+    math::math_block,
+    placeholders::placeholder,
+    preformatted::preformatted_text,
+    tables::table,
     utils::{beginning_of_line, blank_line, context, end_of_line_or_input, lc},
     Span, VimwikiIResult, LC,
 };
@@ -21,11 +30,12 @@ pub fn paragraph(input: Span) -> VimwikiIResult<LC<Paragraph>> {
         // Paragraph has NO indentation
         let (input, _) = not(space1)(input)?;
 
-        // Continuously take content until we reach a blank line
+        // Continuously take content until we encounter another type of
+        // component
         let (input, components) = context(
             "Paragraph",
             many1(delimited(
-                not(blank_line),
+                continue_paragraph,
                 map(inline_component_container, |c| c.component),
                 end_of_line_or_input,
             )),
@@ -38,6 +48,23 @@ pub fn paragraph(input: Span) -> VimwikiIResult<LC<Paragraph>> {
     }
 
     context("Paragraph", lc(inner))(input)
+}
+
+// TODO: Optimize by adjusting paragraph parser to be a tuple that
+//       includes an Option<BlockComponent> so that we don't waste
+//       the processing spent
+fn continue_paragraph(input: Span) -> VimwikiIResult<()> {
+    let (input, _) = not(header)(input)?;
+    let (input, _) = not(definition_list)(input)?;
+    let (input, _) = not(list)(input)?;
+    let (input, _) = not(table)(input)?;
+    let (input, _) = not(preformatted_text)(input)?;
+    let (input, _) = not(math_block)(input)?;
+    let (input, _) = not(blank_line)(input)?;
+    let (input, _) = not(blockquote)(input)?;
+    let (input, _) = not(divider)(input)?;
+    let (input, _) = not(placeholder)(input)?;
+    Ok((input, ()))
 }
 
 #[cfg(test)]
@@ -135,7 +162,7 @@ mod tests {
     {
         let input = Span::from(indoc! {"
         Some paragraph with *decorations*,
-            [[links]], $math$, and more
+          [[links]], $math$, and more
         "});
         let (input, mut p) = paragraph(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume paragraph");
@@ -155,7 +182,7 @@ mod tests {
                     Decoration::Bold
                 )),
                 InlineComponent::Text(",".to_string()),
-                InlineComponent::Text("    ".to_string()),
+                InlineComponent::Text("  ".to_string()),
                 InlineComponent::Link(Link::from(WikiLink::from(
                     PathBuf::from("links")
                 ))),

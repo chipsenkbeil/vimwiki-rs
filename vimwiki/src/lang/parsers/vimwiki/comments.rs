@@ -1,9 +1,6 @@
 use super::{
     components::{Comment, LineComment, MultiLineComment},
-    utils::{
-        beginning_of_line, context, lc, pstring,
-        take_until_end_of_line_or_input,
-    },
+    utils::{context, lc, pstring, take_until_end_of_line_or_input},
     Span, VimwikiIResult, LC,
 };
 use nom::{

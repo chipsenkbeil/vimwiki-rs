@@ -52,8 +52,10 @@ pub fn blockquote(input: Span) -> VimwikiIResult<LC<Blockquote>> {
 fn blockquote_line_1(input: Span) -> VimwikiIResult<String> {
     let (input, _) = beginning_of_line(input)?;
     let (input, _) = verify(space0, |s: &Span| s.fragment_len() >= 4)(input)?;
-    let (input, text) =
-        map(not_line_ending, |s: Span| s.fragment_str().to_string())(input)?;
+    let (input, text) = verify(
+        map(not_line_ending, |s: Span| s.fragment_str().to_string()),
+        |s: &str| !s.trim().is_empty(),
+    )(input)?;
     let (input, _) = end_of_line_or_input(input)?;
 
     Ok((input, text))
@@ -93,6 +95,12 @@ mod tests {
            three spaces
         regular line starts here and is needed for indoc to have a baseline
         "});
+        assert!(blockquote(input).is_err());
+    }
+
+    #[test]
+    fn blockquote_should_fail_if_using_indented_format_and_line_is_empty() {
+        let input = Span::from("        ");
         assert!(blockquote(input).is_err());
     }
 
