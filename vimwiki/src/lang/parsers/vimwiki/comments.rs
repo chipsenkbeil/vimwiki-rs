@@ -26,7 +26,6 @@ pub fn comment(input: Span) -> VimwikiIResult<LC<Comment>> {
 #[inline]
 pub(crate) fn line_comment(input: Span) -> VimwikiIResult<LC<LineComment>> {
     fn inner(input: Span) -> VimwikiIResult<LineComment> {
-        let (input, _) = beginning_of_line(input)?;
         let (input, _) = tag("%%")(input)?;
         let (input, text) = pstring(take_until_end_of_line_or_input)(input)?;
 
@@ -78,14 +77,19 @@ mod tests {
     }
 
     #[test]
-    fn comment_should_fail_if_line_comment_not_at_start_of_line() {
+    fn comment_should_support_line_comment_not_at_beginning_of_line() {
         let input = Span::from("abc%% comment");
         fn advance(input: Span) -> VimwikiIResult<()> {
             let (input, _) = take(3usize)(input)?;
             Ok((input, ()))
         }
         let (input, _) = advance(input).unwrap();
-        assert!(comment(input).is_err());
+        let (input, c) = comment(input).unwrap();
+        assert!(input.fragment().is_empty(), "Did not consume comment");
+        assert_eq!(
+            c.component,
+            Comment::from(LineComment(" comment".to_string()))
+        );
     }
 
     #[test]
