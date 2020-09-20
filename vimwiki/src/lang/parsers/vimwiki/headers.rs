@@ -2,14 +2,13 @@ use super::{
     components::Header,
     utils::{
         beginning_of_line, context, end_of_line_or_input, lc, take_line_while1,
+        take_until_end_of_line_or_input,
     },
     Span, VimwikiIResult, LC,
 };
 use nom::{
-    bytes::complete::take,
     character::complete::{char, space0},
-    combinator::{map, verify},
-    multi::many0_count,
+    combinator::{map, map_res, verify},
 };
 
 /// Parses a vimwiki header, returning the associated header if successful
@@ -31,31 +30,32 @@ pub fn header(input: Span) -> VimwikiIResult<LC<Header>> {
 
         // Third, get the content of the header by collecting all text until we
         // find a closing set of = matching our expected level
-        let (input, header) = map(
-            take_line_while1(verify(many0_count(char('=')), |count| {
-                *count < level
-            })),
-            |s: Span| {
-                Header::new(
-                    level,
-                    s.fragment_str().trim().to_string(),
-                    centered,
-                )
-            },
-        )(input)?;
+        let (input, header) = map(header_tail(level), |content| {
+            Header::new(level, content, centered)
+        })(input)?;
 
-        // Fourth, take the right-side of the header's = boundary
-        let (input, _) = take(level)(input)?;
-
-        // Fifth, be nice and consume any additional spaces as well as the end
-        // of the line to mark the conclusion of the header
-        let (input, _) = space0(input)?;
+        // Fourth, consume the end of line/input to indicate header complete
         let (input, _) = end_of_line_or_input(input)?;
 
         Ok((input, header))
     }
 
     context("Header", lc(inner))(input)
+}
+
+fn header_tail(level: usize) -> impl Fn(Span) -> VimwikiIResult<String> {
+    move |input: Span| {
+        map_res(take_until_end_of_line_or_input, |s: Span| {
+            let fragment = s.fragment_str().trim_end();
+            let suffix = "=".repeat(level);
+            match fragment.strip_suffix(&suffix) {
+                Some(content) if !content.ends_with('=') => {
+                    Ok(content.trim().to_string())
+                }
+                _ => Err(format!("Did not end in {}", suffix)),
+            }
+        })(input)
+    }
 }
 
 #[cfg(test)]
@@ -180,5 +180,13 @@ mod tests {
         let (input, h) = header(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume header");
         assert_eq!(h.text, "test header", "Wrong header text");
+    }
+
+    #[test]
+    fn header_should_support_equals_signs_within_content() {
+        let input = Span::from("=test =header=");
+        let (input, h) = header(input).unwrap();
+        assert!(input.fragment().is_empty(), "Did not consume header");
+        assert_eq!(h.text, "test =header", "Wrong header text");
     }
 }
