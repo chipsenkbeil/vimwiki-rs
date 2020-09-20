@@ -77,15 +77,15 @@ pub fn block_component(input: Span) -> VimwikiIResult<LC<BlockComponent>> {
                 c.map(BlockComponent::from)
             }),
             map(math::math_block, |c| c.map(BlockComponent::from)),
+            map(blank_line, |c| LC::new(BlockComponent::BlankLine, c.region)),
             map(blockquotes::blockquote, |c| c.map(BlockComponent::from)),
             map(dividers::divider, |c| c.map(BlockComponent::from)),
             map(placeholders::placeholder, |c| c.map(BlockComponent::from)),
             map(paragraphs::paragraph, |c| c.map(BlockComponent::from)),
             map(tags::tags, |c| c.map(BlockComponent::from)),
-            // NOTE: Parses a single line to end, failing if contains non-whitespace
-            map(blank_line, |c| LC::new(BlockComponent::BlankLine, c.region)),
             // NOTE: Parses a single line to end; final type because will match
-            //       anychar and consume the line
+            //       anychar and consume the line; used as our fallback in
+            //       case we don't match any other type
             map(non_blank_line, |c| c.map(BlockComponent::from)),
         )),
     )(input)
