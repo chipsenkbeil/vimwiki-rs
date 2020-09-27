@@ -62,19 +62,18 @@ pub struct Page {
 /// Represents components that are standalone (metaphorically a block element in CSS)
 #[derive(Clone, Debug, From, Eq, PartialEq, Serialize, Deserialize)]
 pub enum BlockComponent {
-    Header(Header),
-    Paragraph(Paragraph),
-    DefinitionList(DefinitionList),
-    List(List),
-    Table(Table),
-    PreformattedText(PreformattedText),
-    Math(MathBlock),
-    Blockquote(Blockquote),
-    Divider(Divider),
-    Tags(Tags),
-    Placeholder(Placeholder),
-    NonBlankLine(String),
     BlankLine,
+    Blockquote(Blockquote),
+    DefinitionList(DefinitionList),
+    Divider(Divider),
+    Header(Header),
+    List(List),
+    Math(MathBlock),
+    NonBlankLine(String),
+    Paragraph(Paragraph),
+    Placeholder(Placeholder),
+    PreformattedText(PreformattedText),
+    Table(Table),
 }
 
 macro_rules! lc_mapping {
@@ -96,6 +95,5 @@ lc_mapping!(PreformattedText);
 lc_mapping!(MathBlock);
 lc_mapping!(Blockquote);
 lc_mapping!(Divider);
-lc_mapping!(Tags);
 lc_mapping!(Placeholder);
 lc_mapping!(String);

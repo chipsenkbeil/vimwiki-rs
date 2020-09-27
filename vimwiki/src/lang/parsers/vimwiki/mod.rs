@@ -82,7 +82,6 @@ pub fn block_component(input: Span) -> VimwikiIResult<LC<BlockComponent>> {
             map(dividers::divider, |c| c.map(BlockComponent::from)),
             map(placeholders::placeholder, |c| c.map(BlockComponent::from)),
             map(paragraphs::paragraph, |c| c.map(BlockComponent::from)),
-            map(tags::tags, |c| c.map(BlockComponent::from)),
             // NOTE: Parses a single line to end; final type because will match
             //       anychar and consume the line; used as our fallback in
             //       case we don't match any other type

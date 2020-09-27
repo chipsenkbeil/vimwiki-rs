@@ -243,10 +243,6 @@ fn tokenize_block_component(block_component: &BlockComponent) -> TokenStream {
             let t = tokenize_table(&x);
             quote! { #root::components::BlockComponent::Table(#t) }
         }
-        BlockComponent::Tags(x) => {
-            let t = tokenize_tags(&x);
-            quote! { #root::components::BlockComponent::Tags(#t) }
-        }
     }
 }
 
