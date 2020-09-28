@@ -15,6 +15,7 @@ pub enum InlineComponent {
     Text(Text),
     DecoratedText(DecoratedText),
     Keyword(Keyword),
+    #[item(flatten)]
     Link(Link),
     Tags(Tags),
     Math(MathInline),

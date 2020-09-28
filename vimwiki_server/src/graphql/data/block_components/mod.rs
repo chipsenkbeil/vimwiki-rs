@@ -36,6 +36,7 @@ pub enum BlockComponent {
     Math(MathBlock),
     NonBlankLine(NonBlankLine),
     Paragraph(Paragraph),
+    #[item(flatten)]
     Placeholder(Placeholder),
     PreformattedText(PreformattedText),
     Table(Table),

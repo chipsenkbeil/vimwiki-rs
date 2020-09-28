@@ -52,6 +52,7 @@ pub enum DecoratedTextContent {
     Text(Text),
     DecoratedText(DecoratedText),
     Keyword(Keyword),
+    #[item(flatten)]
     Link(Link),
 }
 
