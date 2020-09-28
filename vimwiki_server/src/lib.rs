@@ -1,31 +1,14 @@
 use async_graphql::{EmptyMutation, EmptySubscription, Schema};
 use std::convert::Infallible;
-use vimwiki_macros::*;
 use warp::{reply::Reply, Filter};
 
 mod graphql;
 
-struct Query;
-
-#[async_graphql::Object]
-impl Query {
-    #[field(desc = "Returns a page")]
-    async fn page(&self) -> graphql::data::Page {
-        graphql::data::Page::from(vimwiki_page! {r#"
-            = Some Header =
-            =Another Header=
-            =Third Header=
-        "#})
-    }
-}
-
-type MySchema = Schema<Query, EmptyMutation, EmptySubscription>;
-
 macro_rules! graphql_endpoint {
     () => {{
-        let schema = Schema::new(Query, EmptyMutation, EmptySubscription);
+        let schema = Schema::new(graphql::Query, EmptyMutation, EmptySubscription);
         async_graphql_warp::graphql(schema).and_then(
-            |(schema, request): (MySchema, async_graphql::Request)| async move {
+            |(schema, request): (graphql::Schema, async_graphql::Request)| async move {
                 let resp = schema.execute(request).await;
                 Ok::<_, Infallible>(warp::reply::json(&resp).into_response())
             },
@@ -34,10 +17,10 @@ macro_rules! graphql_endpoint {
 }
 
 macro_rules! graphiql_endpoint {
-    () => {{
-        warp::path("graphiql").map(|| {
+    ($path:expr, $graphql_endpoint:expr) => {{
+        warp::path($path).map(move || {
             warp::reply::html(async_graphql::http::graphiql_source(
-                "http://localhost:8000",
+                $graphql_endpoint,
                 None,
             ))
         })
@@ -45,21 +28,22 @@ macro_rules! graphiql_endpoint {
 }
 
 macro_rules! graphql_playground_endpoint {
-    () => {{
-        warp::path("graphql_playground").map(|| {
+    ($path:expr, $graphql_endpoint:expr) => {{
+        warp::path($path).map(move || {
             warp::reply::html(async_graphql::http::playground_source(
                 async_graphql::http::GraphQLPlaygroundConfig::new(
-                    "http://localhost:8000",
+                    $graphql_endpoint,
                 ),
             ))
         })
     }};
 }
 
-pub async fn run_server() {
+pub async fn run_server(graphql_endpoint: &'static str) {
     let graphql_filter = graphql_endpoint!();
-    let graphiql_filter = graphiql_endpoint!();
-    let graphql_playground_filter = graphql_playground_endpoint!();
+    let graphiql_filter = graphiql_endpoint!("graphiql", graphql_endpoint);
+    let graphql_playground_filter =
+        graphql_playground_endpoint!("graphql_playground", graphql_endpoint);
 
     let routes = warp::any().and(
         graphql_filter
