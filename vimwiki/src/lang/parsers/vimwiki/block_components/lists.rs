@@ -4,7 +4,7 @@ use super::{
         List, ListItem, ListItemContent, ListItemContents, ListItemSuffix,
         ListItemType, OrderedListItemType, UnorderedListItemType,
     },
-    inline_component_container,
+    inline::inline_component_container,
     utils::{beginning_of_line, context, end_of_line_or_input, lc},
     Span, VimwikiIResult, LC,
 };

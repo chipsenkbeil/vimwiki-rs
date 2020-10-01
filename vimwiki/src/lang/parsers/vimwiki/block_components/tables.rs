@@ -1,6 +1,6 @@
 use super::{
     components::{Cell, Row, Table},
-    inline_component_container,
+    inline::inline_component_container,
     utils::{context, end_of_line_or_input, lc, take_line_while1},
     Span, VimwikiIResult, LC,
 };

@@ -147,7 +147,6 @@ impl_tokenize!(OrderedListItemType, tokenize_ordered_list_item_type);
 impl_tokenize!(UnorderedListItemType, tokenize_unordered_list_item_type);
 
 // Math
-impl_tokenize!(Math, tokenize_math);
 impl_tokenize!(MathInline, tokenize_math_inline);
 impl_tokenize!(MathBlock, tokenize_math_block);
 
@@ -788,20 +787,6 @@ fn tokenize_unordered_list_item_type(
 }
 
 // Math
-
-fn tokenize_math(math: &Math) -> TokenStream {
-    let root = root_crate();
-    match &math {
-        Math::Block(x) => {
-            let t = tokenize_math_block(&x);
-            quote! { #root::components::Math::Block(#t) }
-        }
-        Math::Inline(x) => {
-            let t = tokenize_math_inline(&x);
-            quote! { #root::components::Math::Inline(#t) }
-        }
-    }
-}
 
 fn tokenize_math_inline(math_inline: &MathInline) -> TokenStream {
     let root = root_crate();

@@ -4,7 +4,7 @@ use super::{
     definitions::definition_list,
     dividers::divider,
     headers::header,
-    inline_component_container,
+    inline::inline_component_container,
     lists::list,
     math::math_block,
     placeholders::placeholder,

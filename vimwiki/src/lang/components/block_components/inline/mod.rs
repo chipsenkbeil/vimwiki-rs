@@ -4,6 +4,15 @@ use derive_more::{
 };
 use serde::{Deserialize, Serialize};
 
+mod links;
+pub use links::*;
+mod math;
+pub use math::*;
+mod tags;
+pub use tags::*;
+mod typefaces;
+pub use typefaces::*;
+
 /// Represents components that can be dropped into other components
 #[derive(Clone, Debug, From, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum InlineComponent {

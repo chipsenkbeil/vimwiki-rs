@@ -55,15 +55,24 @@ macro_rules! impl_try_from {
 
 // Top-level types
 impl_try_from!(LC<Page>, vimwiki::page);
-impl_try_from!(LC<BlockComponent>, vimwiki::block_component);
+impl_try_from!(
+    LC<BlockComponent>,
+    vimwiki::block_components::block_component
+);
 impl_try_from!(
     LC<InlineComponentContainer>,
-    vimwiki::inline_component_container
+    vimwiki::block_components::inline::inline_component_container
 );
-impl_try_from!(LC<InlineComponent>, vimwiki::inline_component);
+impl_try_from!(
+    LC<InlineComponent>,
+    vimwiki::block_components::inline::inline_component
+);
 
 // Blockquotes
-impl_try_from!(LC<Blockquote>, vimwiki::blockquotes::blockquote);
+impl_try_from!(
+    LC<Blockquote>,
+    vimwiki::block_components::blockquotes::blockquote
+);
 
 // Comments
 impl_try_from!(LC<Comment>, vimwiki::comments::comment);
@@ -71,63 +80,93 @@ impl_try_from!(LC<LineComment>, vimwiki::comments::line_comment);
 impl_try_from!(LC<MultiLineComment>, vimwiki::comments::multi_line_comment);
 
 // Definitions (NOTE: Generic LocatedComponent def above handles term & def)
-impl_try_from!(LC<DefinitionList>, vimwiki::definitions::definition_list);
+impl_try_from!(
+    LC<DefinitionList>,
+    vimwiki::block_components::definitions::definition_list
+);
 // impl_try_from!(LC<Definition>, vimwiki::definition);
 // impl_try_from!(LC<Term>, vimwiki::term);
 
 // Dividers
-impl_try_from!(LC<Divider>, vimwiki::dividers::divider);
+impl_try_from!(LC<Divider>, vimwiki::block_components::dividers::divider);
 
 // Headers
-impl_try_from!(LC<Header>, vimwiki::headers::header);
+impl_try_from!(LC<Header>, vimwiki::block_components::headers::header);
 
 // Links
-impl_try_from!(LC<Link>, vimwiki::links::link);
-impl_try_from!(LC<DiaryLink>, vimwiki::links::diary::diary_link);
+impl_try_from!(LC<Link>, vimwiki::block_components::inline::links::link);
+impl_try_from!(
+    LC<DiaryLink>,
+    vimwiki::block_components::inline::links::diary::diary_link
+);
 impl_try_from!(
     LC<ExternalFileLink>,
-    vimwiki::links::external::external_file_link
+    vimwiki::block_components::inline::links::external::external_file_link
 );
-impl_try_from!(LC<RawLink>, vimwiki::links::raw::raw_link);
+impl_try_from!(
+    LC<RawLink>,
+    vimwiki::block_components::inline::links::raw::raw_link
+);
 impl_try_from!(
     LC<TransclusionLink>,
-    vimwiki::links::transclusion::transclusion_link
+    vimwiki::block_components::inline::links::transclusion::transclusion_link
 );
-impl_try_from!(LC<WikiLink>, vimwiki::links::wiki::wiki_link);
+impl_try_from!(
+    LC<WikiLink>,
+    vimwiki::block_components::inline::links::wiki::wiki_link
+);
 impl_try_from!(
     LC<InterWikiLink>,
-    vimwiki::links::interwiki::inter_wiki_link
+    vimwiki::block_components::inline::links::interwiki::inter_wiki_link
 );
 
 // Lists
-impl_try_from!(LC<List>, vimwiki::lists::list);
+impl_try_from!(LC<List>, vimwiki::block_components::lists::list);
 
 // Math
-impl_try_from!(LC<MathInline>, vimwiki::math::math_inline);
-impl_try_from!(LC<MathBlock>, vimwiki::math::math_block);
+impl_try_from!(
+    LC<MathInline>,
+    vimwiki::block_components::inline::math::math_inline
+);
+impl_try_from!(LC<MathBlock>, vimwiki::block_components::math::math_block);
 
 // Paragraphs
-impl_try_from!(LC<Paragraph>, vimwiki::paragraphs::paragraph);
+impl_try_from!(
+    LC<Paragraph>,
+    vimwiki::block_components::paragraphs::paragraph
+);
 
 // Placeholders
-impl_try_from!(LC<Placeholder>, vimwiki::placeholders::placeholder);
+impl_try_from!(
+    LC<Placeholder>,
+    vimwiki::block_components::placeholders::placeholder
+);
 
 // Preformatted Text
 impl_try_from!(
     LC<PreformattedText>,
-    vimwiki::preformatted::preformatted_text
+    vimwiki::block_components::preformatted::preformatted_text
 );
 
 // Tables
-impl_try_from!(LC<Table>, vimwiki::tables::table);
+impl_try_from!(LC<Table>, vimwiki::block_components::tables::table);
 
 // Tags
-impl_try_from!(LC<Tags>, vimwiki::tags::tags);
+impl_try_from!(LC<Tags>, vimwiki::block_components::inline::tags::tags);
 
 // Typefaces
-impl_try_from!(LC<String>, vimwiki::typefaces::text);
-impl_try_from!(LC<DecoratedText>, vimwiki::typefaces::decorated_text);
-impl_try_from!(LC<Keyword>, vimwiki::typefaces::keyword);
+impl_try_from!(
+    LC<String>,
+    vimwiki::block_components::inline::typefaces::text
+);
+impl_try_from!(
+    LC<DecoratedText>,
+    vimwiki::block_components::inline::typefaces::decorated_text
+);
+impl_try_from!(
+    LC<Keyword>,
+    vimwiki::block_components::inline::typefaces::keyword
+);
 
 #[cfg(test)]
 mod tests {
