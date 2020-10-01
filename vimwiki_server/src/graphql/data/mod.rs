@@ -1,7 +1,7 @@
 use vimwiki::{components, LC};
 
-mod block_components;
-pub use block_components::*;
+mod blocks;
+pub use blocks::*;
 mod comments;
 pub use comments::*;
 mod utils;

@@ -5,7 +5,7 @@ use super::{
 };
 use nom::{combinator::all_consuming, multi::many0, InputLength, Slice};
 
-pub mod block_components;
+pub mod blocks;
 pub mod comments;
 
 /// Parses entire vimwiki page
@@ -30,7 +30,7 @@ pub fn page(input: Span) -> VimwikiIResult<LC<Page>> {
         let (_, components) = context(
             "Page Components",
             // NOTE: all_consuming will yield an Eof error if input len != 0
-            all_consuming(many0(block_components::block_component)),
+            all_consuming(many0(blocks::block_component)),
         )(input_2)?;
 
         // Fourth, return a page wrapped in a location that comprises the
@@ -87,7 +87,7 @@ mod tests {
     }
 
     #[test]
-    fn page_should_parse_block_components() {
+    fn page_should_parse_blocks() {
         let input = Span::from("some text with % signs");
         let (input, page) = page(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume all of input");
@@ -101,8 +101,8 @@ mod tests {
     }
 
     #[test]
-    fn page_should_properly_translate_line_and_column_of_block_components_with_comments(
-    ) {
+    fn page_should_properly_translate_line_and_column_of_blocks_with_comments()
+    {
         let input =
             Span::from("%%comment\nSome %%+comment+%%more%%+\ncomment+%% text");
         let (input, page) = page(input).unwrap();

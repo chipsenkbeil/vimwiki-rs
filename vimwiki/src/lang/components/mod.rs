@@ -2,8 +2,8 @@ use super::utils::LC;
 use derive_more::Constructor;
 use serde::{Deserialize, Serialize};
 
-mod block_components;
-pub use block_components::*;
+mod blocks;
+pub use blocks::*;
 mod comments;
 pub use comments::*;
 
