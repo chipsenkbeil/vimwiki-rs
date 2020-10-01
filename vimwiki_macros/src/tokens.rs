@@ -4,9 +4,9 @@ use std::collections::{HashMap, HashSet};
 use std::iter::once;
 use std::path::PathBuf;
 use vimwiki::{
-    components::*,
+    elements::*,
     vendor::{chrono::NaiveDate, uriparse::URI},
-    LocatedComponent, Position, Region,
+    LocatedElement, Position, Region,
 };
 
 #[inline]
@@ -52,17 +52,17 @@ impl Tokenize for f64 {
     }
 }
 
-impl<T: Tokenize> Tokenize for LocatedComponent<T> {
+impl<T: Tokenize> Tokenize for LocatedElement<T> {
     fn tokenize(&self, stream: &mut TokenStream) {
         let root = root_crate();
-        let mut component = TokenStream::new();
-        self.component.tokenize(&mut component);
+        let mut element = TokenStream::new();
+        self.element.tokenize(&mut element);
 
         let region = tokenize_region(&self.region);
 
         let self_stream = quote! {
-            #root::LocatedComponent {
-                component: #component,
+            #root::LocatedElement {
+                element: #element,
                 region: #region,
             }
         };
@@ -91,12 +91,12 @@ impl_tokenize!(PathBuf, tokenize_path_buf);
 
 // Top-level types
 impl_tokenize!(Page, tokenize_page);
-impl_tokenize!(BlockComponent, tokenize_block_component);
+impl_tokenize!(BlockElement, tokenize_block_element);
 impl_tokenize!(
-    InlineComponentContainer,
-    tokenize_inline_component_container
+    InlineElementContainer,
+    tokenize_inline_element_container
 );
-impl_tokenize!(InlineComponent, tokenize_inline_component);
+impl_tokenize!(InlineElement, tokenize_inline_element);
 
 // Blockquotes
 impl_tokenize!(Blockquote, tokenize_blockquote);
@@ -106,7 +106,7 @@ impl_tokenize!(Comment, tokenize_comment);
 impl_tokenize!(LineComment, tokenize_line_comment);
 impl_tokenize!(MultiLineComment, tokenize_multi_line_comment);
 
-// Definitions (NOTE: Generic LocatedComponent def above handles term & def)
+// Definitions (NOTE: Generic LocatedElement def above handles term & def)
 impl_tokenize!(DefinitionList, tokenize_definition_list);
 // impl_tokenize!(Definition, tokenize_definition);
 // impl_tokenize!(Term, tokenize_term);
@@ -175,119 +175,119 @@ impl_tokenize!(DecoratedText, tokenize_decorated_text);
 impl_tokenize!(Keyword, tokenize_keyword);
 
 fn tokenize_page(page: &Page) -> TokenStream {
-    let components = page
-        .components
+    let elements = page
+        .elements
         .iter()
-        .map(|c| tokenize_located_component(c, tokenize_block_component));
+        .map(|c| tokenize_located_element(c, tokenize_block_element));
     let comments = page
         .comments
         .iter()
-        .map(|c| tokenize_located_component(c, tokenize_comment));
+        .map(|c| tokenize_located_element(c, tokenize_comment));
     let root = root_crate();
     quote! {
-        #root::components::Page {
-            components: vec![#(#components),*],
+        #root::elements::Page {
+            elements: vec![#(#elements),*],
             comments: vec![#(#comments),*],
         }
     }
 }
 
-fn tokenize_block_component(block_component: &BlockComponent) -> TokenStream {
+fn tokenize_block_element(block_element: &BlockElement) -> TokenStream {
     let root = root_crate();
-    match block_component {
-        BlockComponent::BlankLine => {
-            quote! { #root::components::BlockComponent::BlankLine}
+    match block_element {
+        BlockElement::BlankLine => {
+            quote! { #root::elements::BlockElement::BlankLine}
         }
-        BlockComponent::Blockquote(x) => {
+        BlockElement::Blockquote(x) => {
             let t = tokenize_blockquote(&x);
-            quote! { #root::components::BlockComponent::Blockquote(#t) }
+            quote! { #root::elements::BlockElement::Blockquote(#t) }
         }
-        BlockComponent::DefinitionList(x) => {
+        BlockElement::DefinitionList(x) => {
             let t = tokenize_definition_list(&x);
-            quote! { #root::components::BlockComponent::DefinitionList(#t) }
+            quote! { #root::elements::BlockElement::DefinitionList(#t) }
         }
-        BlockComponent::Divider(x) => {
+        BlockElement::Divider(x) => {
             let t = tokenize_divider(&x);
-            quote! { #root::components::BlockComponent::Divider(#t) }
+            quote! { #root::elements::BlockElement::Divider(#t) }
         }
-        BlockComponent::Header(x) => {
+        BlockElement::Header(x) => {
             let t = tokenize_header(&x);
-            quote! { #root::components::BlockComponent::Header(#t) }
+            quote! { #root::elements::BlockElement::Header(#t) }
         }
-        BlockComponent::List(x) => {
+        BlockElement::List(x) => {
             let t = tokenize_list(&x);
-            quote! { #root::components::BlockComponent::List(#t) }
+            quote! { #root::elements::BlockElement::List(#t) }
         }
-        BlockComponent::Math(x) => {
+        BlockElement::Math(x) => {
             let t = tokenize_math_block(&x);
-            quote! { #root::components::BlockComponent::Math(#t) }
+            quote! { #root::elements::BlockElement::Math(#t) }
         }
-        BlockComponent::NonBlankLine(x) => {
+        BlockElement::NonBlankLine(x) => {
             let t = quote! { #x.quote() };
-            quote! { #root::components::BlockComponent::NonBlankLine(#t) }
+            quote! { #root::elements::BlockElement::NonBlankLine(#t) }
         }
-        BlockComponent::Paragraph(x) => {
+        BlockElement::Paragraph(x) => {
             let t = tokenize_paragraph(&x);
-            quote! { #root::components::BlockComponent::Paragraph(#t) }
+            quote! { #root::elements::BlockElement::Paragraph(#t) }
         }
-        BlockComponent::Placeholder(x) => {
+        BlockElement::Placeholder(x) => {
             let t = tokenize_placeholder(&x);
-            quote! { #root::components::BlockComponent::Placeholder(#t) }
+            quote! { #root::elements::BlockElement::Placeholder(#t) }
         }
-        BlockComponent::PreformattedText(x) => {
+        BlockElement::PreformattedText(x) => {
             let t = tokenize_preformatted_text(&x);
-            quote! { #root::components::BlockComponent::PreformattedText(#t) }
+            quote! { #root::elements::BlockElement::PreformattedText(#t) }
         }
-        BlockComponent::Table(x) => {
+        BlockElement::Table(x) => {
             let t = tokenize_table(&x);
-            quote! { #root::components::BlockComponent::Table(#t) }
+            quote! { #root::elements::BlockElement::Table(#t) }
         }
     }
 }
 
-fn tokenize_inline_component_container(
-    inline_component_container: &InlineComponentContainer,
+fn tokenize_inline_element_container(
+    inline_element_container: &InlineElementContainer,
 ) -> TokenStream {
     let root = root_crate();
-    let components = inline_component_container
-        .components
+    let elements = inline_element_container
+        .elements
         .iter()
-        .map(|c| tokenize_located_component(c, tokenize_inline_component));
+        .map(|c| tokenize_located_element(c, tokenize_inline_element));
     quote! {
-        #root::components::InlineComponentContainer {
-            components: vec![#(#components),*],
+        #root::elements::InlineElementContainer {
+            elements: vec![#(#elements),*],
         }
     }
 }
 
-fn tokenize_inline_component(
-    inline_component: &InlineComponent,
+fn tokenize_inline_element(
+    inline_element: &InlineElement,
 ) -> TokenStream {
     let root = root_crate();
-    match inline_component {
-        InlineComponent::Text(x) => {
+    match inline_element {
+        InlineElement::Text(x) => {
             let t = tokenize_string(&x);
-            quote! { #root::components::InlineComponent::Text(#t) }
+            quote! { #root::elements::InlineElement::Text(#t) }
         }
-        InlineComponent::DecoratedText(x) => {
+        InlineElement::DecoratedText(x) => {
             let t = tokenize_decorated_text(&x);
-            quote! { #root::components::InlineComponent::DecoratedText(#t) }
+            quote! { #root::elements::InlineElement::DecoratedText(#t) }
         }
-        InlineComponent::Keyword(x) => {
+        InlineElement::Keyword(x) => {
             let t = tokenize_keyword(&x);
-            quote! { #root::components::InlineComponent::Keyword(#t) }
+            quote! { #root::elements::InlineElement::Keyword(#t) }
         }
-        InlineComponent::Link(x) => {
+        InlineElement::Link(x) => {
             let t = tokenize_link(&x);
-            quote! { #root::components::InlineComponent::Link(#t) }
+            quote! { #root::elements::InlineElement::Link(#t) }
         }
-        InlineComponent::Tags(x) => {
+        InlineElement::Tags(x) => {
             let t = tokenize_tags(&x);
-            quote! { #root::components::InlineComponent::Tags(#t) }
+            quote! { #root::elements::InlineElement::Tags(#t) }
         }
-        InlineComponent::Math(x) => {
+        InlineElement::Math(x) => {
             let t = tokenize_math_inline(&x);
-            quote! { #root::components::InlineComponent::Math(#t) }
+            quote! { #root::elements::InlineElement::Math(#t) }
         }
     }
 }
@@ -297,7 +297,7 @@ fn tokenize_blockquote(blockquote: &Blockquote) -> TokenStream {
     let root = root_crate();
     let lines = blockquote.lines.iter().map(tokenize_string);
     quote! {
-        #root::components::Blockquote {
+        #root::elements::Blockquote {
             lines: vec![#(#lines),*],
         }
     }
@@ -309,11 +309,11 @@ fn tokenize_comment(comment: &Comment) -> TokenStream {
     match comment {
         Comment::Line(x) => {
             let t = tokenize_line_comment(&x);
-            quote! { #root::components::Comment::Line(#t) }
+            quote! { #root::elements::Comment::Line(#t) }
         }
         Comment::MultiLine(x) => {
             let t = tokenize_multi_line_comment(&x);
-            quote! { #root::components::Comment::MultiLine(#t) }
+            quote! { #root::elements::Comment::MultiLine(#t) }
         }
     }
 }
@@ -322,7 +322,7 @@ fn tokenize_line_comment(line_comment: &LineComment) -> TokenStream {
     let root = root_crate();
     let t = tokenize_string(&line_comment.0);
     quote! {
-        #root::components::LineComment(#t)
+        #root::elements::LineComment(#t)
     }
 }
 
@@ -332,7 +332,7 @@ fn tokenize_multi_line_comment(
     let root = root_crate();
     let t = multi_line_comment.0.iter().map(tokenize_string);
     quote! {
-        #root::components::MultiLineComment(vec![#(#t),*])
+        #root::elements::MultiLineComment(vec![#(#t),*])
     }
 }
 
@@ -341,7 +341,7 @@ fn tokenize_definition_list(definition_list: &DefinitionList) -> TokenStream {
     let root = root_crate();
     let td = definition_list.iter().map(tokenize_term_and_definitions);
     quote! {
-        #root::components::DefinitionList::from(vec![#(#td),*])
+        #root::elements::DefinitionList::from(vec![#(#td),*])
     }
 }
 
@@ -355,7 +355,7 @@ fn tokenize_term_and_definitions(
         .iter()
         .map(tokenize_definition);
     quote! {
-        #root::components::TermAndDefinitions {
+        #root::elements::TermAndDefinitions {
             term: #term,
             definitions: vec![#(#definitions),*],
         }
@@ -363,18 +363,18 @@ fn tokenize_term_and_definitions(
 }
 
 fn tokenize_definition(definition: &Definition) -> TokenStream {
-    tokenize_located_component(definition, tokenize_string)
+    tokenize_located_element(definition, tokenize_string)
 }
 
 fn tokenize_term(term: &Term) -> TokenStream {
-    tokenize_located_component(term, tokenize_string)
+    tokenize_located_element(term, tokenize_string)
 }
 
 // Dividers
 fn tokenize_divider(_divider: &Divider) -> TokenStream {
     let root = root_crate();
     quote! {
-        #root::components::Divider
+        #root::elements::Divider
     }
 }
 
@@ -388,7 +388,7 @@ fn tokenize_header(header: &Header) -> TokenStream {
     } = header;
     let t = tokenize_string(&text);
     quote! {
-        #root::components::Header {
+        #root::elements::Header {
             level: #level,
             text: #t,
             centered: #centered,
@@ -402,27 +402,27 @@ fn tokenize_link(link: &Link) -> TokenStream {
     match &link {
         Link::Diary(x) => {
             let t = tokenize_diary_link(&x);
-            quote! { #root::components::Link::Diary(#t) }
+            quote! { #root::elements::Link::Diary(#t) }
         }
         Link::ExternalFile(x) => {
             let t = tokenize_external_file_link(&x);
-            quote! { #root::components::Link::ExternalFile(#t) }
+            quote! { #root::elements::Link::ExternalFile(#t) }
         }
         Link::InterWiki(x) => {
             let t = tokenize_inter_wiki_link(&x);
-            quote! { #root::components::Link::InterWiki(#t) }
+            quote! { #root::elements::Link::InterWiki(#t) }
         }
         Link::Raw(x) => {
             let t = tokenize_raw_link(&x);
-            quote! { #root::components::Link::Raw(#t) }
+            quote! { #root::elements::Link::Raw(#t) }
         }
         Link::Transclusion(x) => {
             let t = tokenize_transclusion_link(&x);
-            quote! { #root::components::Link::Transclusion(#t) }
+            quote! { #root::elements::Link::Transclusion(#t) }
         }
         Link::Wiki(x) => {
             let t = tokenize_wiki_link(&x);
-            quote! { #root::components::Link::Wiki(#t) }
+            quote! { #root::elements::Link::Wiki(#t) }
         }
     }
 }
@@ -434,7 +434,7 @@ fn tokenize_diary_link(diary_link: &DiaryLink) -> TokenStream {
         tokenize_option(&diary_link.description, tokenize_description);
     let anchor = tokenize_option(&diary_link.anchor, tokenize_anchor);
     quote! {
-        #root::components::DiaryLink {
+        #root::elements::DiaryLink {
             date: #date,
             description: #description,
             anchor: #anchor,
@@ -451,7 +451,7 @@ fn tokenize_external_file_link(
     let description =
         tokenize_option(&external_file_link.description, tokenize_description);
     quote! {
-        #root::components::ExternalFileLink {
+        #root::elements::ExternalFileLink {
             scheme: #scheme,
             path: #path,
             description: #description,
@@ -465,13 +465,13 @@ fn tokenize_external_file_link_scheme(
     let root = root_crate();
     match &external_file_link_scheme {
         ExternalFileLinkScheme::Absolute => {
-            quote! { #root::components::ExternalFileLinkScheme::Absolute }
+            quote! { #root::elements::ExternalFileLinkScheme::Absolute }
         }
         ExternalFileLinkScheme::File => {
-            quote! { #root::components::ExternalFileLinkScheme::File }
+            quote! { #root::elements::ExternalFileLinkScheme::File }
         }
         ExternalFileLinkScheme::Local => {
-            quote! { #root::components::ExternalFileLinkScheme::Local }
+            quote! { #root::elements::ExternalFileLinkScheme::Local }
         }
     }
 }
@@ -480,7 +480,7 @@ fn tokenize_raw_link(raw_link: &RawLink) -> TokenStream {
     let root = root_crate();
     let uri = tokenize_uri(&raw_link.uri);
     quote! {
-        #root::components::RawLink {
+        #root::elements::RawLink {
             uri: #uri,
         }
     }
@@ -501,7 +501,7 @@ fn tokenize_transclusion_link(
         tokenize_string,
     );
     quote! {
-        #root::components::TransclusionLink {
+        #root::elements::TransclusionLink {
             uri: #uri,
             description: #description,
             properties: #properties,
@@ -516,7 +516,7 @@ fn tokenize_wiki_link(wiki_link: &WikiLink) -> TokenStream {
         tokenize_option(&wiki_link.description, tokenize_description);
     let anchor = tokenize_option(&wiki_link.anchor, tokenize_anchor);
     quote! {
-        #root::components::WikiLink {
+        #root::elements::WikiLink {
             path: #path,
             description: #description,
             anchor: #anchor,
@@ -529,11 +529,11 @@ fn tokenize_inter_wiki_link(inter_wiki_link: &InterWikiLink) -> TokenStream {
     match &inter_wiki_link {
         InterWikiLink::Indexed(x) => {
             let t = tokenize_indexed_inter_wiki_link(&x);
-            quote! { #root::components::InterWikiLink::Indexed(#t) }
+            quote! { #root::elements::InterWikiLink::Indexed(#t) }
         }
         InterWikiLink::Named(x) => {
             let t = tokenize_named_inter_wiki_link(&x);
-            quote! { #root::components::InterWikiLink::Named(#t) }
+            quote! { #root::elements::InterWikiLink::Named(#t) }
         }
     }
 }
@@ -545,7 +545,7 @@ fn tokenize_indexed_inter_wiki_link(
     let index = indexed_inter_wiki_link.index;
     let link = tokenize_wiki_link(&indexed_inter_wiki_link.link);
     quote! {
-        #root::components::IndexedInterWikiLink {
+        #root::elements::IndexedInterWikiLink {
             index: #index,
             link: #link,
         }
@@ -559,7 +559,7 @@ fn tokenize_named_inter_wiki_link(
     let name = tokenize_string(&named_inter_wiki_link.name);
     let link = tokenize_wiki_link(&named_inter_wiki_link.link);
     quote! {
-        #root::components::NamedInterWikiLink {
+        #root::elements::NamedInterWikiLink {
             name: #name,
             link: #link,
         }
@@ -571,21 +571,21 @@ fn tokenize_description(description: &Description) -> TokenStream {
     match &description {
         Description::Text(x) => {
             let t = tokenize_string(&x);
-            quote! { #root::components::Description::Text(#t) }
+            quote! { #root::elements::Description::Text(#t) }
         }
         Description::URI(x) => {
             let t = tokenize_uri(&x);
-            quote! { #root::components::Description::URI(#t) }
+            quote! { #root::elements::Description::URI(#t) }
         }
     }
 }
 
 fn tokenize_anchor(anchor: &Anchor) -> TokenStream {
     let root = root_crate();
-    let components = anchor.components.iter().map(tokenize_string);
+    let elements = anchor.elements.iter().map(tokenize_string);
     quote! {
-        #root::components::Anchor {
-            components: vec![#(#components),*],
+        #root::elements::Anchor {
+            elements: vec![#(#elements),*],
         }
     }
 }
@@ -609,9 +609,9 @@ fn tokenize_list(list: &List) -> TokenStream {
     let items = list
         .items
         .iter()
-        .map(|x| tokenize_located_component(x, tokenize_enhanced_list_item));
+        .map(|x| tokenize_located_element(x, tokenize_enhanced_list_item));
     quote! {
-        #root::components::List {
+        #root::elements::List {
             items: vec![#(#items),*],
         }
     }
@@ -624,11 +624,11 @@ fn tokenize_enhanced_list_item(
     let item = tokenize_list_item(&enhanced_list_item.item);
     let attributes = tokenize_hashset(
         &enhanced_list_item.attributes,
-        quote! { #root::components::EnhancedListItemAttribute },
+        quote! { #root::elements::EnhancedListItemAttribute },
         tokenize_enhanced_list_item_attribute,
     );
     quote! {
-        #root::components::EnhancedListItem {
+        #root::elements::EnhancedListItem {
             item: #item,
             attributes: #attributes,
         }
@@ -641,22 +641,22 @@ fn tokenize_enhanced_list_item_attribute(
     let root = root_crate();
     match &enhanced_list_item_attribute {
         EnhancedListItemAttribute::TodoIncomplete => {
-            quote! { #root::components::EnhancedListItemAttribute::TodoIncomplete }
+            quote! { #root::elements::EnhancedListItemAttribute::TodoIncomplete }
         }
         EnhancedListItemAttribute::TodoPartiallyComplete1 => {
-            quote! { #root::components::EnhancedListItemAttribute::TodoPartiallyComplete1 }
+            quote! { #root::elements::EnhancedListItemAttribute::TodoPartiallyComplete1 }
         }
         EnhancedListItemAttribute::TodoPartiallyComplete2 => {
-            quote! { #root::components::EnhancedListItemAttribute::TodoPartiallyComplete2 }
+            quote! { #root::elements::EnhancedListItemAttribute::TodoPartiallyComplete2 }
         }
         EnhancedListItemAttribute::TodoPartiallyComplete3 => {
-            quote! { #root::components::EnhancedListItemAttribute::TodoPartiallyComplete3 }
+            quote! { #root::elements::EnhancedListItemAttribute::TodoPartiallyComplete3 }
         }
         EnhancedListItemAttribute::TodoComplete => {
-            quote! { #root::components::EnhancedListItemAttribute::TodoComplete }
+            quote! { #root::elements::EnhancedListItemAttribute::TodoComplete }
         }
         EnhancedListItemAttribute::TodoRejected => {
-            quote! { #root::components::EnhancedListItemAttribute::TodoRejected }
+            quote! { #root::elements::EnhancedListItemAttribute::TodoRejected }
         }
     }
 }
@@ -673,7 +673,7 @@ fn tokenize_list_item(list_item: &ListItem) -> TokenStream {
     let suffix_t = tokenize_list_item_suffix(&suffix);
     let contents_t = tokenize_list_item_contents(&contents);
     quote! {
-        #root::components::ListItem {
+        #root::elements::ListItem {
             item_type: #item_type_t,
             suffix: #suffix_t,
             pos: #pos,
@@ -688,12 +688,12 @@ fn tokenize_list_item_content(
     let root = root_crate();
     match &list_item_content {
         ListItemContent::InlineContent(x) => {
-            let t = tokenize_inline_component_container(&x);
-            quote! { #root::components::ListItemContent::InlineContent(#t) }
+            let t = tokenize_inline_element_container(&x);
+            quote! { #root::elements::ListItemContent::InlineContent(#t) }
         }
         ListItemContent::List(x) => {
             let t = tokenize_list(&x);
-            quote! { #root::components::ListItemContent::List(#t) }
+            quote! { #root::elements::ListItemContent::List(#t) }
         }
     }
 }
@@ -705,9 +705,9 @@ fn tokenize_list_item_contents(
     let contents = list_item_contents
         .contents
         .iter()
-        .map(|x| tokenize_located_component(x, tokenize_list_item_content));
+        .map(|x| tokenize_located_element(x, tokenize_list_item_content));
     quote! {
-        #root::components::ListItemContents {
+        #root::elements::ListItemContents {
             contents: vec![#(#contents),*],
         }
     }
@@ -717,13 +717,13 @@ fn tokenize_list_item_suffix(list_item_suffix: &ListItemSuffix) -> TokenStream {
     let root = root_crate();
     match &list_item_suffix {
         ListItemSuffix::None => {
-            quote! { #root::components::ListItemSuffix::None }
+            quote! { #root::elements::ListItemSuffix::None }
         }
         ListItemSuffix::Period => {
-            quote! { #root::components::ListItemSuffix::Period }
+            quote! { #root::elements::ListItemSuffix::Period }
         }
         ListItemSuffix::Paren => {
-            quote! { #root::components::ListItemSuffix::Paren }
+            quote! { #root::elements::ListItemSuffix::Paren }
         }
     }
 }
@@ -733,11 +733,11 @@ fn tokenize_list_item_type(list_item_type: &ListItemType) -> TokenStream {
     match &list_item_type {
         ListItemType::Ordered(x) => {
             let t = tokenize_ordered_list_item_type(&x);
-            quote! { #root::components::ListItemType::Ordered(#t) }
+            quote! { #root::elements::ListItemType::Ordered(#t) }
         }
         ListItemType::Unordered(x) => {
             let t = tokenize_unordered_list_item_type(&x);
-            quote! { #root::components::ListItemType::Unordered(#t) }
+            quote! { #root::elements::ListItemType::Unordered(#t) }
         }
     }
 }
@@ -748,22 +748,22 @@ fn tokenize_ordered_list_item_type(
     let root = root_crate();
     match &ordered_list_item_type {
         OrderedListItemType::Number => {
-            quote! { #root::components::OrderedListItemType::Number }
+            quote! { #root::elements::OrderedListItemType::Number }
         }
         OrderedListItemType::Pound => {
-            quote! { #root::components::OrderedListItemType::Pound }
+            quote! { #root::elements::OrderedListItemType::Pound }
         }
         OrderedListItemType::LowercaseAlphabet => {
-            quote! { #root::components::OrderedListItemType::LowercaseAlphabet }
+            quote! { #root::elements::OrderedListItemType::LowercaseAlphabet }
         }
         OrderedListItemType::UppercaseAlphabet => {
-            quote! { #root::components::OrderedListItemType::UppercaseAlphabet }
+            quote! { #root::elements::OrderedListItemType::UppercaseAlphabet }
         }
         OrderedListItemType::LowercaseRoman => {
-            quote! { #root::components::OrderedListItemType::LowercaseRoman }
+            quote! { #root::elements::OrderedListItemType::LowercaseRoman }
         }
         OrderedListItemType::UppercaseRoman => {
-            quote! { #root::components::OrderedListItemType::UppercaseRoman }
+            quote! { #root::elements::OrderedListItemType::UppercaseRoman }
         }
     }
 }
@@ -774,14 +774,14 @@ fn tokenize_unordered_list_item_type(
     let root = root_crate();
     match &unordered_list_item_type {
         UnorderedListItemType::Hyphen => {
-            quote! { #root::components::UnorderedListItemType::Hyphen }
+            quote! { #root::elements::UnorderedListItemType::Hyphen }
         }
         UnorderedListItemType::Asterisk => {
-            quote! { #root::components::UnorderedListItemType::Asterisk }
+            quote! { #root::elements::UnorderedListItemType::Asterisk }
         }
         UnorderedListItemType::Other(x) => {
             let t = tokenize_string(&x);
-            quote! { #root::components::UnorderedListItemType::Other(#t) }
+            quote! { #root::elements::UnorderedListItemType::Other(#t) }
         }
     }
 }
@@ -792,7 +792,7 @@ fn tokenize_math_inline(math_inline: &MathInline) -> TokenStream {
     let root = root_crate();
     let formula = tokenize_string(&math_inline.formula);
     quote! {
-        #root::components::MathInline {
+        #root::elements::MathInline {
             formula: #formula,
         }
     }
@@ -803,7 +803,7 @@ fn tokenize_math_block(math_block: &MathBlock) -> TokenStream {
     let lines = math_block.lines.iter().map(tokenize_string);
     let environment = tokenize_option(&math_block.environment, tokenize_string);
     quote! {
-        #root::components::MathBlock {
+        #root::elements::MathBlock {
             lines: vec![#(#lines),*],
             environment: #environment,
         }
@@ -814,9 +814,9 @@ fn tokenize_math_block(math_block: &MathBlock) -> TokenStream {
 
 fn tokenize_paragraph(paragraph: &Paragraph) -> TokenStream {
     let root = root_crate();
-    let content = tokenize_inline_component_container(&paragraph.content);
+    let content = tokenize_inline_element_container(&paragraph.content);
     quote! {
-        #root::components::Paragraph {
+        #root::elements::Paragraph {
             content: #content,
         }
     }
@@ -829,16 +829,16 @@ fn tokenize_placeholder(placeholder: &Placeholder) -> TokenStream {
     match &placeholder {
         Placeholder::Date(x) => {
             let t = tokenize_naive_date(&x);
-            quote! { #root::components::Placeholder::Date(#t) }
+            quote! { #root::elements::Placeholder::Date(#t) }
         }
         Placeholder::NoHtml => {
-            quote! { #root::components::Placeholder::NoHtml }
+            quote! { #root::elements::Placeholder::NoHtml }
         }
         Placeholder::Other { name, value } => {
             let name_t = tokenize_string(&name);
             let value_t = tokenize_string(&value);
             quote! {
-                #root::components::Placeholder::Other {
+                #root::elements::Placeholder::Other {
                     name: #name_t,
                     value: #value_t,
                 }
@@ -846,11 +846,11 @@ fn tokenize_placeholder(placeholder: &Placeholder) -> TokenStream {
         }
         Placeholder::Template(x) => {
             let t = tokenize_string(&x);
-            quote! { #root::components::Placeholder::Template(#t) }
+            quote! { #root::elements::Placeholder::Template(#t) }
         }
         Placeholder::Title(x) => {
             let t = tokenize_string(&x);
-            quote! { #root::components::Placeholder::Title(#t) }
+            quote! { #root::elements::Placeholder::Title(#t) }
         }
     }
 }
@@ -871,7 +871,7 @@ fn tokenize_preformatted_text(
     );
     let lines = preformatted_text.lines.iter().map(tokenize_string);
     quote! {
-        #root::components::PreformattedText {
+        #root::elements::PreformattedText {
             lang: #lang,
             metadata: #metadata,
             lines: vec![#(#lines),*],
@@ -886,10 +886,10 @@ fn tokenize_table(table: &Table) -> TokenStream {
     let rows = table
         .rows
         .iter()
-        .map(|x| tokenize_located_component(x, tokenize_row));
+        .map(|x| tokenize_located_element(x, tokenize_row));
     let centered = table.centered;
     quote! {
-        #root::components::Table {
+        #root::elements::Table {
             rows: vec![#(#rows),*],
             centered: #centered,
         }
@@ -902,11 +902,11 @@ fn tokenize_row(row: &Row) -> TokenStream {
         Row::Content { cells } => {
             let t = cells
                 .iter()
-                .map(|x| tokenize_located_component(x, tokenize_cell));
-            quote! { #root::components::Row::Content { cells: vec![#(#t),*] } }
+                .map(|x| tokenize_located_element(x, tokenize_cell));
+            quote! { #root::elements::Row::Content { cells: vec![#(#t),*] } }
         }
         Row::Divider => {
-            quote! { #root::components::Row::Divider }
+            quote! { #root::elements::Row::Divider }
         }
     }
 }
@@ -915,14 +915,14 @@ fn tokenize_cell(cell: &Cell) -> TokenStream {
     let root = root_crate();
     match &cell {
         Cell::Content(x) => {
-            let t = tokenize_inline_component_container(&x);
-            quote! { #root::components::Cell::Content(#t) }
+            let t = tokenize_inline_element_container(&x);
+            quote! { #root::elements::Cell::Content(#t) }
         }
         Cell::SpanAbove => {
-            quote! { #root::components::Cell::SpanAbove }
+            quote! { #root::elements::Cell::SpanAbove }
         }
         Cell::SpanLeft => {
-            quote! { #root::components::Cell::SpanLeft }
+            quote! { #root::elements::Cell::SpanLeft }
         }
     }
 }
@@ -933,7 +933,7 @@ fn tokenize_tags(tags: &Tags) -> TokenStream {
     let root = root_crate();
     let inner = tags.0.iter().map(tokenize_tag);
     quote! {
-        #root::components::Tags(vec![#(#inner),*])
+        #root::elements::Tags(vec![#(#inner),*])
     }
 }
 
@@ -941,7 +941,7 @@ fn tokenize_tag(tag: &Tag) -> TokenStream {
     let root = root_crate();
     let inner = tokenize_string(&tag.0);
     quote! {
-        #root::components::Tag(#inner)
+        #root::elements::Tag(#inner)
     }
 }
 
@@ -950,22 +950,22 @@ fn tokenize_tag(tag: &Tag) -> TokenStream {
 fn tokenize_decoration(decoration: &Decoration) -> TokenStream {
     let root = root_crate();
     match &decoration {
-        Decoration::Bold => quote! { #root::components::Decoration::Bold },
+        Decoration::Bold => quote! { #root::elements::Decoration::Bold },
         Decoration::BoldItalic => {
-            quote! { #root::components::Decoration::BoldItalic }
+            quote! { #root::elements::Decoration::BoldItalic }
         }
-        Decoration::Code => quote! { #root::components::Decoration::Code },
+        Decoration::Code => quote! { #root::elements::Decoration::Code },
         Decoration::Italic => {
-            quote! { #root::components::Decoration::Italic }
+            quote! { #root::elements::Decoration::Italic }
         }
         Decoration::Strikeout => {
-            quote! { #root::components::Decoration::Strikeout }
+            quote! { #root::elements::Decoration::Strikeout }
         }
         Decoration::Subscript => {
-            quote! { #root::components::Decoration::Subscript }
+            quote! { #root::elements::Decoration::Subscript }
         }
         Decoration::Superscript => {
-            quote! { #root::components::Decoration::Superscript }
+            quote! { #root::elements::Decoration::Superscript }
         }
     }
 }
@@ -977,19 +977,19 @@ fn tokenize_decorated_text_content(
     match &decorated_text_content {
         DecoratedTextContent::DecoratedText(x) => {
             let t = tokenize_decorated_text(&x);
-            quote! { #root::components::DecoratedTextContent::DecoratedText(#t) }
+            quote! { #root::elements::DecoratedTextContent::DecoratedText(#t) }
         }
         DecoratedTextContent::Keyword(x) => {
             let t = tokenize_keyword(&x);
-            quote! { #root::components::DecoratedTextContent::Keyword(#t) }
+            quote! { #root::elements::DecoratedTextContent::Keyword(#t) }
         }
         DecoratedTextContent::Link(x) => {
             let t = tokenize_link(&x);
-            quote! { #root::components::DecoratedTextContent::Link(#t) }
+            quote! { #root::elements::DecoratedTextContent::Link(#t) }
         }
         DecoratedTextContent::Text(x) => {
             let t = tokenize_string(&x);
-            quote! { #root::components::DecoratedTextContent::Text(#t) }
+            quote! { #root::elements::DecoratedTextContent::Text(#t) }
         }
     }
 }
@@ -997,11 +997,11 @@ fn tokenize_decorated_text_content(
 fn tokenize_decorated_text(decorated_text: &DecoratedText) -> TokenStream {
     let root = root_crate();
     let contents = decorated_text.contents.iter().map(|x| {
-        tokenize_located_component(x, tokenize_decorated_text_content)
+        tokenize_located_element(x, tokenize_decorated_text_content)
     });
     let decoration = tokenize_decoration(&decorated_text.decoration);
     quote! {
-        #root::components::DecoratedText {
+        #root::elements::DecoratedText {
             contents: vec![#(#contents),*],
             decoration: #decoration,
         }
@@ -1012,36 +1012,36 @@ fn tokenize_keyword(keyword: &Keyword) -> TokenStream {
     let root = root_crate();
     match keyword {
         Keyword::DONE => {
-            quote! { #root::components::Keyword::DONE }
+            quote! { #root::elements::Keyword::DONE }
         }
         Keyword::FIXED => {
-            quote! { #root::components::Keyword::FIXED }
+            quote! { #root::elements::Keyword::FIXED }
         }
         Keyword::FIXME => {
-            quote! { #root::components::Keyword::FIXME }
+            quote! { #root::elements::Keyword::FIXME }
         }
         Keyword::STARTED => {
-            quote! { #root::components::Keyword::STARTED }
+            quote! { #root::elements::Keyword::STARTED }
         }
         Keyword::TODO => {
-            quote! { #root::components::Keyword::TODO }
+            quote! { #root::elements::Keyword::TODO }
         }
         Keyword::XXX => {
-            quote! { #root::components::Keyword::XXX }
+            quote! { #root::elements::Keyword::XXX }
         }
     }
 }
 
-fn tokenize_located_component<T: Tokenize>(
-    lc: &LocatedComponent<T>,
+fn tokenize_located_element<T: Tokenize>(
+    lc: &LocatedElement<T>,
     f: impl Fn(&T) -> TokenStream,
 ) -> TokenStream {
     let root = root_crate();
-    let component = f(&lc.component);
+    let element = f(&lc.element);
     let region = tokenize_region(&lc.region);
     quote! {
-        #root::LocatedComponent {
-            component: #component,
+        #root::LocatedElement {
+            element: #element,
             region: #region,
         }
     }

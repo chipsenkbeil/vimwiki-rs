@@ -1,5 +1,5 @@
 use super::{
-    components::Placeholder,
+    elements::Placeholder,
     utils::{
         beginning_of_line, context, end_of_line_or_input, lc, pstring,
         take_line_while1, take_until_end_of_line_or_input,

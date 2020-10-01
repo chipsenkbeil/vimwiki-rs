@@ -1,5 +1,5 @@
 use super::{
-    components::DiaryLink,
+    elements::DiaryLink,
     utils::{context, take_line_while1, VimwikiNomError},
     wiki::wiki_link,
     Span, VimwikiIResult, LC,
@@ -49,7 +49,7 @@ fn parse_date_from_path(path: &str) -> Option<NaiveDate> {
 
 #[cfg(test)]
 mod tests {
-    use super::super::components::{Anchor, Description};
+    use super::super::elements::{Anchor, Description};
     use super::*;
 
     #[test]

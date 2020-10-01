@@ -1,6 +1,6 @@
 // Import to make more easily accessible to submodules
 use super::{
-    components,
+    elements,
     utils::{Region, Span, LC},
 };
 

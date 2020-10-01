@@ -1,5 +1,5 @@
 use super::{
-    components::{Comment, LineComment, MultiLineComment},
+    elements::{Comment, LineComment, MultiLineComment},
     utils::{context, lc, pstring, take_until_end_of_line_or_input},
     Span, VimwikiIResult, LC,
 };
@@ -84,7 +84,7 @@ mod tests {
         let (input, c) = comment(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume comment");
         assert_eq!(
-            c.component,
+            c.element,
             Comment::from(LineComment(" comment".to_string()))
         );
     }
@@ -95,7 +95,7 @@ mod tests {
         let (input, c) = comment(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume comment");
         assert_eq!(
-            c.component,
+            c.element,
             Comment::from(LineComment(" comment".to_string()))
         );
 
@@ -108,7 +108,7 @@ mod tests {
             "Unexpected input consumed"
         );
         assert_eq!(
-            c.component,
+            c.element,
             Comment::from(LineComment(" comment".to_string()))
         );
         assert_eq!(c.region, Region::from((1, 1, 1, 10)));
@@ -120,7 +120,7 @@ mod tests {
         let (input, c) = comment(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume comment");
         assert_eq!(
-            c.component,
+            c.element,
             Comment::from(MultiLineComment(vec![" comment ".to_string()]))
         );
         assert_eq!(c.region, Region::from((1, 1, 1, 15)));
@@ -129,7 +129,7 @@ mod tests {
         let (input, c) = comment(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume comment");
         assert_eq!(
-            c.component,
+            c.element,
             Comment::from(MultiLineComment(vec![
                 " comment".to_string(),
                 "next line ".to_string(),
@@ -141,7 +141,7 @@ mod tests {
         let (input, c) = comment(input).unwrap();
         assert_eq!(input.fragment_str(), "after", "Unexpected input consumed");
         assert_eq!(
-            c.component,
+            c.element,
             Comment::from(MultiLineComment(vec![
                 " comment".to_string(),
                 "next line ".to_string(),

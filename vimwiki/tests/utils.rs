@@ -1,23 +1,23 @@
-use vimwiki::{components::BlockComponent, LC};
+use vimwiki::{elements::BlockElement, LC};
 
 #[inline]
-pub fn blank_line() -> LC<BlockComponent> {
-    LC::from(BlockComponent::BlankLine)
+pub fn blank_line() -> LC<BlockElement> {
+    LC::from(BlockElement::BlankLine)
 }
 
-/// Compares top-level block components from a page against an expected set
-pub fn compare_page_components(
-    actual: &[LC<BlockComponent>],
-    expected: &[LC<BlockComponent>],
+/// Compares top-level block elements from a page against an expected set
+pub fn compare_page_elements(
+    actual: &[LC<BlockElement>],
+    expected: &[LC<BlockElement>],
 ) {
     // NOTE: Rather than comparing vecs directly, we iterate through the
-    //       page components with a zip so we can get finer-grain details on
+    //       page elements with a zip so we can get finer-grain details on
     //       what and when there is an issue
     for (i, (ac, ec)) in actual.iter().zip(expected.iter()).enumerate() {
-        assert_eq!(ac, ec, "Components at index {} are not equal!", i);
+        assert_eq!(ac, ec, "Elements at index {} are not equal!", i);
         assert_eq!(
             ac.region, ec.region,
-            "Component regions at index {} are not equal!",
+            "Element regions at index {} are not equal!",
             i
         );
     }
@@ -28,6 +28,6 @@ pub fn compare_page_components(
     assert_eq!(
         actual.len(),
         expected.len(),
-        "Varying number of top-level page components!"
+        "Varying number of top-level page elements!"
     );
 }

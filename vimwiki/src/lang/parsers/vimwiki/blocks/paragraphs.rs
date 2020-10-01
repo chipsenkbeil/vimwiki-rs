@@ -1,10 +1,10 @@
 use super::{
     blockquotes::blockquote,
-    components::Paragraph,
+    elements::Paragraph,
     definitions::definition_list,
     dividers::divider,
     headers::header,
-    inline::inline_component_container,
+    inline::inline_element_container,
     lists::list,
     math::math_block,
     placeholders::placeholder,
@@ -31,18 +31,18 @@ pub fn paragraph(input: Span) -> VimwikiIResult<LC<Paragraph>> {
         let (input, _) = not(space1)(input)?;
 
         // Continuously take content until we encounter another type of
-        // component
-        let (input, components) = context(
+        // element
+        let (input, elements) = context(
             "Paragraph",
             many1(delimited(
                 continue_paragraph,
-                map(inline_component_container, |c| c.component),
+                map(inline_element_container, |c| c.element),
                 end_of_line_or_input,
             )),
         )(input)?;
 
         // Transform contents into the paragraph itself
-        let paragraph = Paragraph::new(From::from(components));
+        let paragraph = Paragraph::new(From::from(elements));
 
         Ok((input, paragraph))
     }
@@ -51,7 +51,7 @@ pub fn paragraph(input: Span) -> VimwikiIResult<LC<Paragraph>> {
 }
 
 // TODO: Optimize by adjusting paragraph parser to be a tuple that
-//       includes an Option<BlockComponent> so that we don't waste
+//       includes an Option<BlockElement> so that we don't waste
 //       the processing spent
 fn continue_paragraph(input: Span) -> VimwikiIResult<()> {
     let (input, _) = not(header)(input)?;
@@ -69,8 +69,8 @@ fn continue_paragraph(input: Span) -> VimwikiIResult<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::super::components::{
-        DecoratedText, DecoratedTextContent, Decoration, InlineComponent, Link,
+    use super::super::elements::{
+        DecoratedText, DecoratedTextContent, Decoration, InlineElement, Link,
         MathInline, WikiLink,
     };
     use super::*;
@@ -100,25 +100,25 @@ mod tests {
 
         assert_eq!(
             p.content
-                .components
+                .elements
                 .drain(..)
-                .map(|c| c.component)
-                .collect::<Vec<InlineComponent>>(),
+                .map(|c| c.element)
+                .collect::<Vec<InlineElement>>(),
             vec![
-                InlineComponent::Text("Some paragraph with ".to_string()),
-                InlineComponent::DecoratedText(DecoratedText::new(
+                InlineElement::Text("Some paragraph with ".to_string()),
+                InlineElement::DecoratedText(DecoratedText::new(
                     vec![LC::from(DecoratedTextContent::Text(
                         "decorations".to_string()
                     ))],
                     Decoration::Bold
                 )),
-                InlineComponent::Text(", ".to_string()),
-                InlineComponent::Link(Link::from(WikiLink::from(
+                InlineElement::Text(", ".to_string()),
+                InlineElement::Link(Link::from(WikiLink::from(
                     PathBuf::from("links")
                 ))),
-                InlineComponent::Text(", ".to_string()),
-                InlineComponent::Math(MathInline::new("math".to_string())),
-                InlineComponent::Text(", and more".to_string()),
+                InlineElement::Text(", ".to_string()),
+                InlineElement::Math(MathInline::new("math".to_string())),
+                InlineElement::Text(", and more".to_string()),
             ],
         );
     }
@@ -134,25 +134,25 @@ mod tests {
 
         assert_eq!(
             p.content
-                .components
+                .elements
                 .drain(..)
-                .map(|c| c.component)
-                .collect::<Vec<InlineComponent>>(),
+                .map(|c| c.element)
+                .collect::<Vec<InlineElement>>(),
             vec![
-                InlineComponent::Text("Some paragraph with ".to_string()),
-                InlineComponent::DecoratedText(DecoratedText::new(
+                InlineElement::Text("Some paragraph with ".to_string()),
+                InlineElement::DecoratedText(DecoratedText::new(
                     vec![LC::from(DecoratedTextContent::Text(
                         "decorations".to_string()
                     ))],
                     Decoration::Bold
                 )),
-                InlineComponent::Text(",".to_string()),
-                InlineComponent::Link(Link::from(WikiLink::from(
+                InlineElement::Text(",".to_string()),
+                InlineElement::Link(Link::from(WikiLink::from(
                     PathBuf::from("links")
                 ))),
-                InlineComponent::Text(", ".to_string()),
-                InlineComponent::Math(MathInline::new("math".to_string())),
-                InlineComponent::Text(", and more".to_string()),
+                InlineElement::Text(", ".to_string()),
+                InlineElement::Math(MathInline::new("math".to_string())),
+                InlineElement::Text(", and more".to_string()),
             ],
         );
     }
@@ -169,26 +169,26 @@ mod tests {
 
         assert_eq!(
             p.content
-                .components
+                .elements
                 .drain(..)
-                .map(|c| c.component)
-                .collect::<Vec<InlineComponent>>(),
+                .map(|c| c.element)
+                .collect::<Vec<InlineElement>>(),
             vec![
-                InlineComponent::Text("Some paragraph with ".to_string()),
-                InlineComponent::DecoratedText(DecoratedText::new(
+                InlineElement::Text("Some paragraph with ".to_string()),
+                InlineElement::DecoratedText(DecoratedText::new(
                     vec![LC::from(DecoratedTextContent::Text(
                         "decorations".to_string()
                     ))],
                     Decoration::Bold
                 )),
-                InlineComponent::Text(",".to_string()),
-                InlineComponent::Text("  ".to_string()),
-                InlineComponent::Link(Link::from(WikiLink::from(
+                InlineElement::Text(",".to_string()),
+                InlineElement::Text("  ".to_string()),
+                InlineElement::Link(Link::from(WikiLink::from(
                     PathBuf::from("links")
                 ))),
-                InlineComponent::Text(", ".to_string()),
-                InlineComponent::Math(MathInline::new("math".to_string())),
-                InlineComponent::Text(", and more".to_string()),
+                InlineElement::Text(", ".to_string()),
+                InlineElement::Math(MathInline::new("math".to_string())),
+                InlineElement::Text(", and more".to_string()),
             ],
         );
     }
@@ -210,25 +210,25 @@ mod tests {
 
         assert_eq!(
             p.content
-                .components
+                .elements
                 .drain(..)
-                .map(|c| c.component)
-                .collect::<Vec<InlineComponent>>(),
+                .map(|c| c.element)
+                .collect::<Vec<InlineElement>>(),
             vec![
-                InlineComponent::Text("Some paragraph with ".to_string()),
-                InlineComponent::DecoratedText(DecoratedText::new(
+                InlineElement::Text("Some paragraph with ".to_string()),
+                InlineElement::DecoratedText(DecoratedText::new(
                     vec![LC::from(DecoratedTextContent::Text(
                         "decorations".to_string()
                     ))],
                     Decoration::Bold
                 )),
-                InlineComponent::Text(",".to_string()),
-                InlineComponent::Link(Link::from(WikiLink::from(
+                InlineElement::Text(",".to_string()),
+                InlineElement::Link(Link::from(WikiLink::from(
                     PathBuf::from("links")
                 ))),
-                InlineComponent::Text(", ".to_string()),
-                InlineComponent::Math(MathInline::new("math".to_string())),
-                InlineComponent::Text(", and more".to_string()),
+                InlineElement::Text(", ".to_string()),
+                InlineElement::Math(MathInline::new("math".to_string())),
+                InlineElement::Text(", and more".to_string()),
             ],
         );
     }

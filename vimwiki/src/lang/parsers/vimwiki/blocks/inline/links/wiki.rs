@@ -1,5 +1,5 @@
 use super::{
-    components::{Anchor, Description, WikiLink},
+    elements::{Anchor, Description, WikiLink},
     utils::{context, lc, pstring, take_line_while1, uri, VimwikiNomError},
     Span, VimwikiIResult, LC,
 };

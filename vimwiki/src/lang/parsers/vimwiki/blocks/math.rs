@@ -1,5 +1,5 @@
 use super::{
-    components::MathBlock,
+    elements::MathBlock,
     utils::{
         any_line, beginning_of_line, context, end_of_line_or_input, lc,
         pstring, take_line_while1,

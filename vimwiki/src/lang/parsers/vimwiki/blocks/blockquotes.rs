@@ -1,5 +1,5 @@
 use super::{
-    components::Blockquote,
+    elements::Blockquote,
     utils::{beginning_of_line, blank_line, context, end_of_line_or_input, lc},
     Span, VimwikiIResult, LC,
 };

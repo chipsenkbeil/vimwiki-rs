@@ -1,5 +1,5 @@
 use super::{
-    components::{Definition, DefinitionList, Term, TermAndDefinitions},
+    elements::{Definition, DefinitionList, Term, TermAndDefinitions},
     utils::{
         beginning_of_line, context, end_of_line_or_input, lc, pstring,
         take_line_while1, take_until_end_of_line_or_input,
@@ -95,9 +95,9 @@ mod tests {
         );
         for d in defs.iter() {
             assert!(
-                expected.contains(&d.component.as_str()),
+                expected.contains(&d.element.as_str()),
                 "Definition {} not expected",
-                d.component
+                d.element
             );
         }
     }

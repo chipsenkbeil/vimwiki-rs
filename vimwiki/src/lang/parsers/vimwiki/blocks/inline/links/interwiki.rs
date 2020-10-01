@@ -1,5 +1,5 @@
 use super::{
-    components::{IndexedInterWikiLink, InterWikiLink, NamedInterWikiLink},
+    elements::{IndexedInterWikiLink, InterWikiLink, NamedInterWikiLink},
     utils::{context, take_line_while1, VimwikiNomError},
     wiki::wiki_link,
     Span, VimwikiIResult, LC,
@@ -76,7 +76,7 @@ fn parse_name_from_path(path: &str) -> Option<(Span, String)> {
 
 #[cfg(test)]
 mod tests {
-    use super::super::components::{Anchor, Description};
+    use super::super::elements::{Anchor, Description};
     use super::*;
 
     #[test]

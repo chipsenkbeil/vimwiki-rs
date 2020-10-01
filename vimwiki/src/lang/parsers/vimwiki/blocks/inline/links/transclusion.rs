@@ -1,5 +1,5 @@
 use super::{
-    components::{Description, TransclusionLink},
+    elements::{Description, TransclusionLink},
     utils::{context, lc, take_line_while, take_line_while1},
     Span, VimwikiIResult, LC,
 };

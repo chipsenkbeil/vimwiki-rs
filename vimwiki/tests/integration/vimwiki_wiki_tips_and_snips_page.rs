@@ -1,9 +1,9 @@
 use super::{
     fixtures::VimwikiFile,
-    utils::{blank_line, compare_page_components},
+    utils::{blank_line, compare_page_elements},
 };
 use std::convert::TryInto;
-use vimwiki::{components::*, RawStr, Region, LC};
+use vimwiki::{elements::*, RawStr, Region, LC};
 use vimwiki_macros::*;
 
 #[test]
@@ -102,5 +102,5 @@ setlocal foldexpr=Fold(v:lnum)
             .take_with_region(Region::from((45, 1, 45, 1))),
     ];
 
-    compare_page_components(&page.components, &expected);
+    compare_page_elements(&page.elements, &expected);
 }

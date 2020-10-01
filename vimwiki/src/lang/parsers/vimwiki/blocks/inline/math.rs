@@ -1,5 +1,5 @@
 use super::{
-    components::MathInline,
+    elements::MathInline,
     utils::{context, lc, pstring, take_line_while1},
     Span, VimwikiIResult, LC,
 };

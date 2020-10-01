@@ -1,5 +1,5 @@
 use super::{
-    components::{DecoratedText, DecoratedTextContent, Decoration, Keyword},
+    elements::{DecoratedText, DecoratedTextContent, Decoration, Keyword},
     links::link,
     math::math_inline,
     tags::tags,
@@ -107,7 +107,7 @@ pub fn keyword(input: Span) -> VimwikiIResult<LC<Keyword>> {
 
 #[cfg(test)]
 mod tests {
-    use super::super::components::{Link, WikiLink};
+    use super::super::elements::{Link, WikiLink};
     use super::*;
     use crate::lang::utils::Span;
     use std::path::PathBuf;
@@ -127,7 +127,7 @@ mod tests {
             "$math$",
             "Unexpected input consumption"
         );
-        assert_eq!(&t.component, "abc123");
+        assert_eq!(&t.element, "abc123");
     }
 
     #[test]
@@ -139,7 +139,7 @@ mod tests {
             ":tag:",
             "Unexpected input consumption"
         );
-        assert_eq!(&t.component, "abc123");
+        assert_eq!(&t.element, "abc123");
     }
 
     #[test]
@@ -151,7 +151,7 @@ mod tests {
             "[[some link]]",
             "Unexpected input consumption"
         );
-        assert_eq!(&t.component, "abc123");
+        assert_eq!(&t.element, "abc123");
     }
 
     #[test]
@@ -163,7 +163,7 @@ mod tests {
             "*bold text*",
             "Unexpected input consumption"
         );
-        assert_eq!(&t.component, "abc123");
+        assert_eq!(&t.element, "abc123");
     }
 
     #[test]
@@ -175,7 +175,7 @@ mod tests {
             "TODO",
             "Unexpected input consumption"
         );
-        assert_eq!(&t.component, "abc123 ");
+        assert_eq!(&t.element, "abc123 ");
     }
 
     #[test]
@@ -187,7 +187,7 @@ mod tests {
             "\nsome other text",
             "Unexpected input consumption"
         );
-        assert_eq!(&t.component, "abc123");
+        assert_eq!(&t.element, "abc123");
     }
 
     #[test]
@@ -195,7 +195,7 @@ mod tests {
         let input = Span::from("abc123");
         let (input, t) = text(input).unwrap();
         assert_eq!(input.fragment_str(), "", "Unexpected input consumption");
-        assert_eq!(&t.component, "abc123");
+        assert_eq!(&t.element, "abc123");
     }
 
     #[test]
@@ -219,7 +219,7 @@ mod tests {
             "Did not consume decorated text"
         );
         assert_eq!(
-            dt.component,
+            dt.element,
             DecoratedText::new(
                 vec![LC::from(DecoratedTextContent::Text(
                     "bold text".to_string()
@@ -238,7 +238,7 @@ mod tests {
             "Did not consume decorated text"
         );
         assert_eq!(
-            dt.component,
+            dt.element,
             DecoratedText::new(
                 vec![LC::from(DecoratedTextContent::Text(
                     "italic text".to_string()
@@ -257,7 +257,7 @@ mod tests {
             "Did not consume decorated text"
         );
         assert_eq!(
-            dt.component,
+            dt.element,
             DecoratedText::new(
                 vec![LC::from(DecoratedTextContent::Text(
                     "bold italic text".to_string()
@@ -276,7 +276,7 @@ mod tests {
             "Did not consume decorated text"
         );
         assert_eq!(
-            dt.component,
+            dt.element,
             DecoratedText::new(
                 vec![LC::from(DecoratedTextContent::Text(
                     "bold italic text".to_string()
@@ -295,7 +295,7 @@ mod tests {
             "Did not consume decorated text"
         );
         assert_eq!(
-            dt.component,
+            dt.element,
             DecoratedText::new(
                 vec![LC::from(DecoratedTextContent::Text(
                     "strikeout text".to_string()
@@ -314,7 +314,7 @@ mod tests {
             "Did not consume decorated text"
         );
         assert_eq!(
-            dt.component,
+            dt.element,
             DecoratedText::new(
                 vec![LC::from(DecoratedTextContent::Text(
                     "code text".to_string()
@@ -333,7 +333,7 @@ mod tests {
             "Did not consume decorated text"
         );
         assert_eq!(
-            dt.component,
+            dt.element,
             DecoratedText::new(
                 vec![LC::from(DecoratedTextContent::Text(
                     "superscript text".to_string()
@@ -352,7 +352,7 @@ mod tests {
             "Did not consume decorated text"
         );
         assert_eq!(
-            dt.component,
+            dt.element,
             DecoratedText::new(
                 vec![LC::from(DecoratedTextContent::Text(
                     "subscript text".to_string()
@@ -371,7 +371,7 @@ mod tests {
             "Did not consume decorated text"
         );
         assert_eq!(
-            dt.component,
+            dt.element,
             DecoratedText::new(
                 vec![LC::from(DecoratedTextContent::Link(Link::Wiki(
                     WikiLink::from(PathBuf::from("some link"))
@@ -390,7 +390,7 @@ mod tests {
             "Did not consume decorated text"
         );
         assert_eq!(
-            dt.component,
+            dt.element,
             DecoratedText::new(
                 vec![LC::from(DecoratedTextContent::Keyword(Keyword::TODO))],
                 Decoration::Bold
@@ -407,7 +407,7 @@ mod tests {
             "Did not consume decorated text"
         );
         assert_eq!(
-            dt.component,
+            dt.element,
             DecoratedText::new(
                 vec![
                     LC::from(DecoratedTextContent::Text(
@@ -443,26 +443,26 @@ mod tests {
     fn keyword_should_consume_specific_keywords() {
         let input = Span::from("DONE");
         let (_, k) = keyword(input).unwrap();
-        assert_eq!(k.component, Keyword::DONE);
+        assert_eq!(k.element, Keyword::DONE);
 
         let input = Span::from("FIXED");
         let (_, k) = keyword(input).unwrap();
-        assert_eq!(k.component, Keyword::FIXED);
+        assert_eq!(k.element, Keyword::FIXED);
 
         let input = Span::from("FIXME");
         let (_, k) = keyword(input).unwrap();
-        assert_eq!(k.component, Keyword::FIXME);
+        assert_eq!(k.element, Keyword::FIXME);
 
         let input = Span::from("STARTED");
         let (_, k) = keyword(input).unwrap();
-        assert_eq!(k.component, Keyword::STARTED);
+        assert_eq!(k.element, Keyword::STARTED);
 
         let input = Span::from("TODO");
         let (_, k) = keyword(input).unwrap();
-        assert_eq!(k.component, Keyword::TODO);
+        assert_eq!(k.element, Keyword::TODO);
 
         let input = Span::from("XXX");
         let (_, k) = keyword(input).unwrap();
-        assert_eq!(k.component, Keyword::XXX);
+        assert_eq!(k.element, Keyword::XXX);
     }
 }

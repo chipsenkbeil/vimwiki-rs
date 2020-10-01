@@ -1,5 +1,5 @@
 use super::{
-    components::PreformattedText,
+    elements::PreformattedText,
     utils::{
         any_line, beginning_of_line, context, end_of_line_or_input, lc,
         pstring, take_line_while, take_line_while1,

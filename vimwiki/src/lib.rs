@@ -1,12 +1,12 @@
 pub mod lang;
 
-// Export the language components without dumping them into the top leve
-pub use lang::components;
+// Export the language elements without dumping them into the top leve
+pub use lang::elements;
 
 // Export our top-level parser structs
 pub use lang::{LangParserError, RawStr};
 
-// Dump our utilities (LocatedComponent, Region, Point, ...) into top level
+// Dump our utilities (LocatedElement, Region, Point, ...) into top level
 pub use lang::utils::*;
 
 // Re-export the vendor libraries so we're able to reconstruct their

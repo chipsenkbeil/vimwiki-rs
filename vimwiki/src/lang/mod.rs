@@ -1,8 +1,8 @@
-pub mod components;
+pub mod elements;
 mod parsers;
 pub mod utils;
 
-use components::*;
+use elements::*;
 use derive_more::Display;
 pub use parsers::LangParserError;
 use parsers::{print_timekeeper_report, vimwiki};
@@ -56,16 +56,16 @@ macro_rules! impl_try_from {
 // Top-level types
 impl_try_from!(LC<Page>, vimwiki::page);
 impl_try_from!(
-    LC<BlockComponent>,
-    vimwiki::blocks::block_component
+    LC<BlockElement>,
+    vimwiki::blocks::block_element
 );
 impl_try_from!(
-    LC<InlineComponentContainer>,
-    vimwiki::blocks::inline::inline_component_container
+    LC<InlineElementContainer>,
+    vimwiki::blocks::inline::inline_element_container
 );
 impl_try_from!(
-    LC<InlineComponent>,
-    vimwiki::blocks::inline::inline_component
+    LC<InlineElement>,
+    vimwiki::blocks::inline::inline_element
 );
 
 // Blockquotes
@@ -79,7 +79,7 @@ impl_try_from!(LC<Comment>, vimwiki::comments::comment);
 impl_try_from!(LC<LineComment>, vimwiki::comments::line_comment);
 impl_try_from!(LC<MultiLineComment>, vimwiki::comments::multi_line_comment);
 
-// Definitions (NOTE: Generic LocatedComponent def above handles term & def)
+// Definitions (NOTE: Generic LocatedElement def above handles term & def)
 impl_try_from!(
     LC<DefinitionList>,
     vimwiki::blocks::definitions::definition_list
@@ -184,23 +184,23 @@ mod tests {
         }
 
         #[test]
-        fn try_from_raw_str_to_lc_block_component() {
+        fn try_from_raw_str_to_lc_block_element() {
             let input = RawStr::Vimwiki("some text");
-            let _result: LC<BlockComponent> =
+            let _result: LC<BlockElement> =
                 input.try_into().expect("Failed to parse");
         }
 
         #[test]
-        fn try_from_raw_str_to_lc_inline_component_container() {
+        fn try_from_raw_str_to_lc_inline_element_container() {
             let input = RawStr::Vimwiki("some text");
-            let _result: LC<InlineComponentContainer> =
+            let _result: LC<InlineElementContainer> =
                 input.try_into().expect("Failed to parse");
         }
 
         #[test]
-        fn try_from_raw_str_to_lc_inline_component() {
+        fn try_from_raw_str_to_lc_inline_element() {
             let input = RawStr::Vimwiki("some text");
-            let _result: LC<InlineComponent> =
+            let _result: LC<InlineElement> =
                 input.try_into().expect("Failed to parse");
         }
 

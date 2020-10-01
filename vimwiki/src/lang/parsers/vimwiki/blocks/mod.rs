@@ -1,5 +1,5 @@
 use super::{
-    components::{self, BlockComponent},
+    elements::{self, BlockElement},
     utils::{self, context, lc, VimwikiIResult},
     Span, LC,
 };
@@ -20,30 +20,30 @@ pub mod placeholders;
 pub mod preformatted;
 pub mod tables;
 
-/// Parses a block component
-pub fn block_component(input: Span) -> VimwikiIResult<LC<BlockComponent>> {
+/// Parses a block element
+pub fn block_element(input: Span) -> VimwikiIResult<LC<BlockElement>> {
     context(
-        "Block Component",
+        "Block Element",
         alt((
-            map(headers::header, |c| c.map(BlockComponent::from)),
+            map(headers::header, |c| c.map(BlockElement::from)),
             map(definitions::definition_list, |c| {
-                c.map(BlockComponent::from)
+                c.map(BlockElement::from)
             }),
-            map(lists::list, |c| c.map(BlockComponent::from)),
-            map(tables::table, |c| c.map(BlockComponent::from)),
+            map(lists::list, |c| c.map(BlockElement::from)),
+            map(tables::table, |c| c.map(BlockElement::from)),
             map(preformatted::preformatted_text, |c| {
-                c.map(BlockComponent::from)
+                c.map(BlockElement::from)
             }),
-            map(math::math_block, |c| c.map(BlockComponent::from)),
-            map(blank_line, |c| LC::new(BlockComponent::BlankLine, c.region)),
-            map(blockquotes::blockquote, |c| c.map(BlockComponent::from)),
-            map(dividers::divider, |c| c.map(BlockComponent::from)),
-            map(placeholders::placeholder, |c| c.map(BlockComponent::from)),
-            map(paragraphs::paragraph, |c| c.map(BlockComponent::from)),
+            map(math::math_block, |c| c.map(BlockElement::from)),
+            map(blank_line, |c| LC::new(BlockElement::BlankLine, c.region)),
+            map(blockquotes::blockquote, |c| c.map(BlockElement::from)),
+            map(dividers::divider, |c| c.map(BlockElement::from)),
+            map(placeholders::placeholder, |c| c.map(BlockElement::from)),
+            map(paragraphs::paragraph, |c| c.map(BlockElement::from)),
             // NOTE: Parses a single line to end; final type because will match
             //       anychar and consume the line; used as our fallback in
             //       case we don't match any other type
-            map(non_blank_line, |c| c.map(BlockComponent::from)),
+            map(non_blank_line, |c| c.map(BlockElement::from)),
         )),
     )(input)
 }

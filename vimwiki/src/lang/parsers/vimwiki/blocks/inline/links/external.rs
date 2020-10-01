@@ -1,5 +1,5 @@
 use super::{
-    components::{Description, ExternalFileLink, ExternalFileLinkScheme},
+    elements::{Description, ExternalFileLink, ExternalFileLinkScheme},
     utils::{context, lc, take_line_while1},
     Span, VimwikiIResult, LC,
 };
@@ -69,7 +69,7 @@ fn take_segment(input: Span) -> VimwikiIResult<Span> {
 
 #[cfg(test)]
 mod tests {
-    use super::super::components::Description;
+    use super::super::elements::Description;
     use super::*;
     use crate::lang::utils::Span;
     use std::path::PathBuf;

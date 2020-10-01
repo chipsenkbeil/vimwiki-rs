@@ -99,7 +99,7 @@ pub fn context<T>(
     }
 }
 
-/// Parser that wraps another parser's output in a LocatedComponent based on
+/// Parser that wraps another parser's output in a LocatedElement based on
 /// the consumed input
 #[inline]
 pub fn lc<T>(

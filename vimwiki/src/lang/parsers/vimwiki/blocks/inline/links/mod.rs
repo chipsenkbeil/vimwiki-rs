@@ -1,5 +1,5 @@
 use super::{
-    components::{self, Link},
+    elements::{self, Link},
     utils::{self, context},
     Span, VimwikiIResult, LC,
 };
@@ -70,45 +70,45 @@ mod tests {
     fn link_should_return_external_link_where_appropriate() {
         let input = Span::from("[[file:/home/somebody/a/b/c/music.mp3]]");
         let (_, l) = link(input).unwrap();
-        assert!(matches!(l.component, Link::ExternalFile(_)));
+        assert!(matches!(l.element, Link::ExternalFile(_)));
     }
 
     #[test]
     fn link_should_return_diary_link_where_appropriate() {
         let input = Span::from("[[diary:2012-03-05]]");
         let (_, l) = link(input).unwrap();
-        assert!(matches!(l.component, Link::Diary(_)));
+        assert!(matches!(l.element, Link::Diary(_)));
     }
 
     #[test]
     fn link_should_return_interwiki_link_where_appropriate() {
         let input = Span::from("[[wiki1:Some Link]]");
         let (_, l) = link(input).unwrap();
-        assert!(matches!(l.component, Link::InterWiki(_)));
+        assert!(matches!(l.element, Link::InterWiki(_)));
 
         let input = Span::from("[[wn.My Name:Some Link]]");
         let (_, l) = link(input).unwrap();
-        assert!(matches!(l.component, Link::InterWiki(_)));
+        assert!(matches!(l.element, Link::InterWiki(_)));
     }
 
     #[test]
     fn link_should_return_wiki_link_where_appropriate() {
         let input = Span::from("[[Some Link]]");
         let (_, l) = link(input).unwrap();
-        assert!(matches!(l.component, Link::Wiki(_)));
+        assert!(matches!(l.element, Link::Wiki(_)));
     }
 
     #[test]
     fn link_should_return_raw_link_where_appropriate() {
         let input = Span::from("https://example.com");
         let (_, l) = link(input).unwrap();
-        assert!(matches!(l.component, Link::Raw(_)));
+        assert!(matches!(l.element, Link::Raw(_)));
     }
 
     #[test]
     fn link_should_return_transclusion_link_where_appropriate() {
         let input = Span::from("{{https://example.com/img.jpg}}");
         let (_, l) = link(input).unwrap();
-        assert!(matches!(l.component, Link::Transclusion(_)));
+        assert!(matches!(l.element, Link::Transclusion(_)));
     }
 }

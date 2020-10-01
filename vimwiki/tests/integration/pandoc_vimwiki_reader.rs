@@ -1,9 +1,9 @@
 use super::{
     fixtures::VimwikiFile,
-    utils::{blank_line, compare_page_components},
+    utils::{blank_line, compare_page_elements},
 };
 use std::convert::TryInto;
-use vimwiki::{components::*, RawStr, Region, LC};
+use vimwiki::{elements::*, RawStr, Region, LC};
 use vimwiki_macros::*;
 
 #[test]
@@ -178,5 +178,5 @@ fn test() {
         blank_line().take_with_region(Region::from((79, 1, 79, 1))),
     ];
 
-    compare_page_components(&page.components, &expected);
+    compare_page_elements(&page.elements, &expected);
 }

@@ -1,5 +1,5 @@
 use super::{
-    components::{Tag, Tags},
+    elements::{Tag, Tags},
     utils::{context, lc, take_line_while1},
     Span, VimwikiIResult, LC,
 };

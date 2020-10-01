@@ -1,10 +1,10 @@
 use super::{
-    components::{
-        EnhancedListItem, EnhancedListItemAttribute, InlineComponentContainer,
+    elements::{
+        EnhancedListItem, EnhancedListItemAttribute, InlineElementContainer,
         List, ListItem, ListItemContent, ListItemContents, ListItemSuffix,
         ListItemType, OrderedListItemType, UnorderedListItemType,
     },
-    inline::inline_component_container,
+    inline::inline_element_container,
     utils::{beginning_of_line, context, end_of_line_or_input, lc},
     Span, VimwikiIResult, LC,
 };
@@ -155,8 +155,8 @@ fn indentation_level(consume: bool) -> impl Fn(Span) -> VimwikiIResult<usize> {
 #[inline]
 fn list_item_line_content(
     input: Span,
-) -> VimwikiIResult<LC<InlineComponentContainer>> {
-    terminated(inline_component_container, end_of_line_or_input)(input)
+) -> VimwikiIResult<LC<InlineElementContainer>> {
+    terminated(inline_element_container, end_of_line_or_input)(input)
 }
 
 #[inline]
@@ -335,8 +335,8 @@ fn list_item_suffix_none(input: Span) -> VimwikiIResult<ListItemSuffix> {
 
 #[cfg(test)]
 mod tests {
-    use super::super::components::{
-        DecoratedText, DecoratedTextContent, Decoration, InlineComponent,
+    use super::super::elements::{
+        DecoratedText, DecoratedTextContent, Decoration, InlineElement,
         Keyword, Link, MathInline, Tags, WikiLink,
     };
     use super::*;
@@ -350,16 +350,16 @@ mod tests {
         item_suffix: ListItemSuffix,
         text: &str,
     ) {
-        let item = &l.items[0].component;
+        let item = &l.items[0].element;
         assert_eq!(item.item_type, item_type);
         assert_eq!(item.suffix, item_suffix);
         assert_eq!(item.pos, 0);
 
-        let component = match &item.contents[0].component {
-            ListItemContent::InlineContent(c) => &c.components[0].component,
+        let element = match &item.contents[0].element {
+            ListItemContent::InlineContent(c) => &c.elements[0].element,
             x => panic!("Unexpected list item content: {:?}", x),
         };
-        assert_eq!(component, &InlineComponent::Text(text.to_string()));
+        assert_eq!(element, &InlineElement::Text(text.to_string()));
     }
 
     #[test]
@@ -389,7 +389,7 @@ mod tests {
         assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
-            &l.component,
+            &l.element,
             ListItemType::from(UnorderedListItemType::Hyphen),
             ListItemSuffix::None,
             "list item 1",
@@ -404,7 +404,7 @@ mod tests {
         assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
-            &l.component,
+            &l.element,
             ListItemType::from(UnorderedListItemType::Asterisk),
             ListItemSuffix::None,
             "list item 1",
@@ -419,7 +419,7 @@ mod tests {
         assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
-            &l.component,
+            &l.element,
             ListItemType::from(OrderedListItemType::Pound),
             ListItemSuffix::None,
             "list item 1",
@@ -434,7 +434,7 @@ mod tests {
         assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
-            &l.component,
+            &l.element,
             ListItemType::from(OrderedListItemType::Number),
             ListItemSuffix::Period,
             "list item 1",
@@ -449,7 +449,7 @@ mod tests {
         assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
-            &l.component,
+            &l.element,
             ListItemType::from(OrderedListItemType::Number),
             ListItemSuffix::Paren,
             "list item 1",
@@ -464,7 +464,7 @@ mod tests {
         assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
-            &l.component,
+            &l.element,
             ListItemType::from(OrderedListItemType::LowercaseAlphabet),
             ListItemSuffix::Paren,
             "list item 1",
@@ -479,7 +479,7 @@ mod tests {
         assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
-            &l.component,
+            &l.element,
             ListItemType::from(OrderedListItemType::UppercaseAlphabet),
             ListItemSuffix::Paren,
             "list item 1",
@@ -494,7 +494,7 @@ mod tests {
         assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
-            &l.component,
+            &l.element,
             ListItemType::from(OrderedListItemType::LowercaseRoman),
             ListItemSuffix::Paren,
             "list item 1",
@@ -509,7 +509,7 @@ mod tests {
         assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
-            &l.component,
+            &l.element,
             ListItemType::from(OrderedListItemType::UppercaseRoman),
             ListItemSuffix::Paren,
             "list item 1",
@@ -529,25 +529,25 @@ mod tests {
             l.items[0]
                 .contents
                 .inline_content_iter()
-                .collect::<Vec<&InlineComponent>>(),
+                .collect::<Vec<&InlineElement>>(),
             vec![
-                &InlineComponent::Text("list ".to_string()),
-                &InlineComponent::DecoratedText(DecoratedText::new(
+                &InlineElement::Text("list ".to_string()),
+                &InlineElement::DecoratedText(DecoratedText::new(
                     vec![LC::from(DecoratedTextContent::Text(
                         "item 1".to_string()
                     ))],
                     Decoration::Bold
                 )),
-                &InlineComponent::Text(" has a ".to_string()),
-                &InlineComponent::Link(Link::from(WikiLink::from(
+                &InlineElement::Text(" has a ".to_string()),
+                &InlineElement::Link(Link::from(WikiLink::from(
                     PathBuf::from("link")
                 ))),
-                &InlineComponent::Text(" with ".to_string()),
-                &InlineComponent::Tags(Tags::from("tag")),
-                &InlineComponent::Text(" and ".to_string()),
-                &InlineComponent::Math(MathInline::new("formula".to_string())),
-                &InlineComponent::Text(" is ".to_string()),
-                &InlineComponent::Keyword(Keyword::DONE),
+                &InlineElement::Text(" with ".to_string()),
+                &InlineElement::Tags(Tags::from("tag")),
+                &InlineElement::Text(" and ".to_string()),
+                &InlineElement::Math(MathInline::new("formula".to_string())),
+                &InlineElement::Text(" is ".to_string()),
+                &InlineElement::Keyword(Keyword::DONE),
             ]
         );
     }
@@ -568,11 +568,11 @@ mod tests {
             l.items[0]
                 .contents
                 .inline_content_iter()
-                .collect::<Vec<&InlineComponent>>(),
+                .collect::<Vec<&InlineElement>>(),
             vec![
-                &InlineComponent::Text("list item 1".to_string()),
-                &InlineComponent::Text("has extra content".to_string()),
-                &InlineComponent::Text("on multiple lines".to_string()),
+                &InlineElement::Text("list item 1".to_string()),
+                &InlineElement::Text("has extra content".to_string()),
+                &InlineElement::Text("on multiple lines".to_string()),
             ]
         );
     }
@@ -597,11 +597,11 @@ mod tests {
             l.items[0]
                 .contents
                 .inline_content_iter()
-                .collect::<Vec<&InlineComponent>>(),
+                .collect::<Vec<&InlineElement>>(),
             vec![
-                &InlineComponent::Text("list item 1".to_string()),
-                &InlineComponent::Text("has extra content".to_string()),
-                &InlineComponent::Text("on multiple lines".to_string()),
+                &InlineElement::Text("list item 1".to_string()),
+                &InlineElement::Text("has extra content".to_string()),
+                &InlineElement::Text("on multiple lines".to_string()),
             ]
         );
 
@@ -613,10 +613,10 @@ mod tests {
             sublist.items[0]
                 .contents
                 .inline_content_iter()
-                .collect::<Vec<&InlineComponent>>(),
+                .collect::<Vec<&InlineElement>>(),
             vec![
-                &InlineComponent::Text("sublist item 1".to_string()),
-                &InlineComponent::Text("has content".to_string()),
+                &InlineElement::Text("sublist item 1".to_string()),
+                &InlineElement::Text("has content".to_string()),
             ]
         );
 
@@ -624,8 +624,8 @@ mod tests {
             sublist.items[1]
                 .contents
                 .inline_content_iter()
-                .collect::<Vec<&InlineComponent>>(),
-            vec![&InlineComponent::Text("sublist item 2".to_string()),]
+                .collect::<Vec<&InlineElement>>(),
+            vec![&InlineElement::Text("sublist item 2".to_string()),]
         );
     }
 
@@ -646,37 +646,37 @@ mod tests {
         assert!(l.items[0].is_todo_incomplete());
         assert_eq!(
             l.items[0].contents.inline_content_iter().next(),
-            Some(&InlineComponent::Text("list item 1".to_string())),
+            Some(&InlineElement::Text("list item 1".to_string())),
         );
 
         assert!(l.items[1].is_todo_partially_complete_1());
         assert_eq!(
             l.items[1].contents.inline_content_iter().next(),
-            Some(&InlineComponent::Text("list item 2".to_string())),
+            Some(&InlineElement::Text("list item 2".to_string())),
         );
 
         assert!(l.items[2].is_todo_partially_complete_2());
         assert_eq!(
             l.items[2].contents.inline_content_iter().next(),
-            Some(&InlineComponent::Text("list item 3".to_string())),
+            Some(&InlineElement::Text("list item 3".to_string())),
         );
 
         assert!(l.items[3].is_todo_partially_complete_3());
         assert_eq!(
             l.items[3].contents.inline_content_iter().next(),
-            Some(&InlineComponent::Text("list item 4".to_string())),
+            Some(&InlineElement::Text("list item 4".to_string())),
         );
 
         assert!(l.items[4].is_todo_complete());
         assert_eq!(
             l.items[4].contents.inline_content_iter().next(),
-            Some(&InlineComponent::Text("list item 5".to_string())),
+            Some(&InlineElement::Text("list item 5".to_string())),
         );
 
         assert!(l.items[5].is_todo_rejected());
         assert_eq!(
             l.items[5].contents.inline_content_iter().next(),
-            Some(&InlineComponent::Text("list item 6".to_string())),
+            Some(&InlineElement::Text("list item 6".to_string())),
         );
     }
 }

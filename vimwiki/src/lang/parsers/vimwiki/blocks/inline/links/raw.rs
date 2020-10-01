@@ -1,5 +1,5 @@
 use super::{
-    components::RawLink,
+    elements::RawLink,
     utils::{context, lc, uri},
     Span, VimwikiIResult, LC,
 };

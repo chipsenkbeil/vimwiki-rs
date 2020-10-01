@@ -1,5 +1,5 @@
 use super::{
-    components::{self, Page},
+    elements::{self, Page},
     utils::{self, context, lc, range, scan, VimwikiIResult},
     Span, LC,
 };
@@ -25,19 +25,19 @@ pub fn page(input: Span) -> VimwikiIResult<LC<Page>> {
             ranges_and_comments.iter().map(|x| x.0.to_owned()).collect();
         let input_2 = input_2.without_segments(segments);
 
-        // Third, continuously parse input for new block components until we
+        // Third, continuously parse input for new block elements until we
         // have nothing left (or we fail)
-        let (_, components) = context(
-            "Page Components",
+        let (_, elements) = context(
+            "Page Elements",
             // NOTE: all_consuming will yield an Eof error if input len != 0
-            all_consuming(many0(blocks::block_component)),
+            all_consuming(many0(blocks::block_element)),
         )(input_2)?;
 
         // Fourth, return a page wrapped in a location that comprises the
         // entire input
         let comments = ranges_and_comments.drain(..).map(|x| x.1).collect();
         let input = input.slice(input.input_len()..);
-        Ok((input, Page::new(components, comments)))
+        Ok((input, Page::new(elements, comments)))
     }
 
     context("Page", lc(inner))(input)
@@ -47,8 +47,8 @@ pub fn page(input: Span) -> VimwikiIResult<LC<Page>> {
 mod tests {
     use super::*;
     use crate::{
-        components::{
-            BlockComponent, Comment, InlineComponent, LineComment,
+        elements::{
+            BlockElement, Comment, InlineElement, LineComment,
             MultiLineComment, Paragraph,
         },
         lang::utils::Span,
@@ -62,8 +62,8 @@ mod tests {
         assert!(input.fragment().is_empty(), "Did not consume all of input");
         assert!(page.comments.is_empty());
         assert_eq!(
-            page.components,
-            vec![BlockComponent::BlankLine, BlockComponent::BlankLine]
+            page.elements,
+            vec![BlockElement::BlankLine, BlockElement::BlankLine]
         );
     }
 
@@ -81,8 +81,8 @@ mod tests {
             ],
         );
         assert_eq!(
-            page.components,
-            vec![BlockComponent::BlankLine, BlockComponent::BlankLine]
+            page.elements,
+            vec![BlockElement::BlankLine, BlockElement::BlankLine]
         );
     }
 
@@ -93,9 +93,9 @@ mod tests {
         assert!(input.fragment().is_empty(), "Did not consume all of input");
         assert!(page.comments.is_empty(), "Unexpected parsed comment");
         assert_eq!(
-            page.components,
-            vec![BlockComponent::from(Paragraph::from(vec![LC::from(
-                InlineComponent::Text("some text with % signs".to_string())
+            page.elements,
+            vec![BlockElement::from(Paragraph::from(vec![LC::from(
+                InlineElement::Text("some text with % signs".to_string())
             )]))]
         );
     }
@@ -110,21 +110,21 @@ mod tests {
 
         let comment = &page.comments[0];
         assert_eq!(
-            comment.component,
+            comment.element,
             Comment::from(LineComment("comment".to_string()))
         );
         assert_eq!(comment.region, Region::from((1, 1, 1, 9)));
 
         let comment = &page.comments[1];
         assert_eq!(
-            comment.component,
+            comment.element,
             Comment::from(MultiLineComment(vec!["comment".to_string()])),
         );
         assert_eq!(comment.region, Region::from((2, 6, 2, 18)));
 
         let comment = &page.comments[2];
         assert_eq!(
-            comment.component,
+            comment.element,
             Comment::from(MultiLineComment(vec![
                 "".to_string(),
                 "comment".to_string(),
@@ -132,17 +132,17 @@ mod tests {
         );
         assert_eq!(comment.region, Region::from((2, 23, 3, 10)));
 
-        let component = &page.components[0];
-        assert_eq!(component.component, BlockComponent::BlankLine);
-        assert_eq!(component.region, Region::from((1, 10, 1, 10)));
+        let element = &page.elements[0];
+        assert_eq!(element.element, BlockElement::BlankLine);
+        assert_eq!(element.region, Region::from((1, 10, 1, 10)));
 
-        let component = &page.components[1];
+        let element = &page.elements[1];
         assert_eq!(
-            component.component,
-            BlockComponent::from(Paragraph::from(vec![LC::from(
-                InlineComponent::Text("Some more text".to_string())
+            element.element,
+            BlockElement::from(Paragraph::from(vec![LC::from(
+                InlineElement::Text("Some more text".to_string())
             )]))
         );
-        assert_eq!(component.region, Region::from((2, 1, 3, 15)));
+        assert_eq!(element.region, Region::from((2, 1, 3, 15)));
     }
 }

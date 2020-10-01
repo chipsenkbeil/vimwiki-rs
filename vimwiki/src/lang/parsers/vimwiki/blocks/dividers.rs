@@ -1,5 +1,5 @@
 use super::{
-    components::Divider,
+    elements::Divider,
     utils::{
         beginning_of_line, context, end_of_line_or_input, lc, take_line_while1,
     },
