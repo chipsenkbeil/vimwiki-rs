@@ -24,7 +24,7 @@ pub use preformatted::*;
 mod tables;
 pub use tables::*;
 
-/// Represents a single document page
+/// Represents a single document component at a block-level
 #[derive(async_graphql::Union)]
 pub enum BlockComponent {
     BlankLine(BlankLine),

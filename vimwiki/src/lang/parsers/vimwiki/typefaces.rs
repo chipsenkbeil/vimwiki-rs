@@ -67,6 +67,9 @@ pub fn decorated_text(input: Span) -> VimwikiIResult<LC<DecoratedText>> {
         }
     }
 
+    // TODO: Code is special in that we don't need to check for links, decorations,
+    //       or anything else. Rather, we can just take all content as one
+    //       text object instead
     context(
         "Decorated Text",
         lc(alt((
