@@ -1,8 +1,10 @@
 use super::{Config, WikiConfig};
-use indicatif::{ProgressBar, ProgressStyle};
+use indicatif::{HumanDuration, ProgressBar, ProgressStyle};
 use log::{debug, error, info, trace};
 use snafu::{ResultExt, Snafu};
-use std::{collections::HashMap, convert::TryInto, path::PathBuf};
+use std::{
+    collections::HashMap, convert::TryInto, path::PathBuf, time::Instant,
+};
 use vimwiki::{elements::Page, RawStr, LE};
 
 /// Contains the state of the program while it is running
@@ -19,9 +21,9 @@ pub enum ProgramError {
         path: PathBuf,
         source: tokio::io::Error,
     },
-    #[snafu(display("Could deserialize json to program: {}", source))]
+    #[snafu(display("Could not deserialize json to program: {}", source))]
     JsonToProgram { source: serde_json::Error },
-    #[snafu(display("Could serialize program to json: {}", source))]
+    #[snafu(display("Could not serialize program to json: {}", source))]
     ProgramToJson { source: serde_json::Error },
     #[snafu(display("Could not create cache directory {}: {}", path.display(), source))]
     MakeProgramCacheDirectory {
@@ -62,7 +64,15 @@ impl Program {
         // TODO: Provide caching of wikis that haven't changed?
         if !paths.is_empty() {
             for (w, paths) in paths.drain() {
-                let wiki = build_wiki(w, paths).await;
+                let started = Instant::now();
+                let wiki = build_wiki(w.clone(), paths).await;
+                if config.verbose > 1 {
+                    eprintln!(
+                        "Parsed {} in {}",
+                        w,
+                        HumanDuration(started.elapsed())
+                    );
+                }
                 if let Some(name) = wiki.name.as_ref() {
                     program.name_to_index.insert(name.to_string(), wiki.index);
                 }
@@ -121,6 +131,18 @@ pub struct Wiki {
 
 #[async_graphql::Object]
 impl Wiki {
+    async fn index(&self) -> u32 {
+        self.index
+    }
+
+    async fn name(&self) -> Option<&String> {
+        self.name.as_ref()
+    }
+
+    async fn path(&self) -> String {
+        self.path.to_string_lossy().to_string()
+    }
+
     async fn page(
         &self,
         path: String,
