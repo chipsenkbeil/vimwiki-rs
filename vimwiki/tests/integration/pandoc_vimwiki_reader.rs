@@ -50,7 +50,7 @@ fn test() {
         adjust(vimwiki_paragraph!("=== not a header ===="), 26).into(),
         blank_line().take_at_line(27),
         adjust(vimwiki_header_raw!(" == centred header =="), 28).into(),
-        blank_line().take_at_line(29),
+        blank_line().take_with_region(Region::from((29, 1, 29, 2))),
         adjust(
             vimwiki_header!("== header with some `==` in between =="),
             30,
@@ -77,8 +77,11 @@ fn test() {
         blank_line().take_at_line(47),
         adjust(vimwiki_paragraph!("_~~strikeout~~ inside emph_"), 48).into(),
         blank_line().take_at_line(49),
-        adjust(vimwiki_paragraph!("~~This is _struck out_ with emph~~"), 50)
-            .into(),
+        adjust(
+            vimwiki_paragraph!("~~This is _struck out_ with emph~~ "),
+            50,
+        )
+        .into(),
         blank_line().take_at_line(51),
         adjust(
             vimwiki_paragraph! {r#"
@@ -114,7 +117,16 @@ fn test() {
         blank_line().take_at_line(77),
         adjust(vimwiki_paragraph!("not a rule-----"), 78).into(),
         blank_line().take_at_line(79),
+        adjust(
+            vimwiki_paragraph! {r#"
+                not a rule (trailing spaces):
+                ----- 
+            "#},
+            80,
+        )
+        .into(),
     ];
 
+    // TODO: Validate comments
     compare_page_elements(&page.elements, &expected);
 }
