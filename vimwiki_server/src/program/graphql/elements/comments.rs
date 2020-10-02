@@ -2,12 +2,13 @@ use super::Region;
 use vimwiki::{elements, LC};
 
 /// Represents a single document comment
-#[derive(async_graphql::Union)]
+#[derive(async_graphql::Union, Debug)]
 pub enum Comment {
     Line(LineComment),
     MultiLine(MultiLineComment),
 }
 
+#[derive(Debug)]
 pub struct LineComment {
     region: Region,
     line: String,
@@ -32,6 +33,7 @@ impl LineComment {
     }
 }
 
+#[derive(Debug)]
 pub struct MultiLineComment {
     region: Region,
     lines: Vec<String>,

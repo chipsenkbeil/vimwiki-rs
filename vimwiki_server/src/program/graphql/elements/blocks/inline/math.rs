@@ -2,7 +2,7 @@ use super::Region;
 use vimwiki::{elements, LC};
 
 /// Represents a single document inline math formula
-#[derive(async_graphql::SimpleObject)]
+#[derive(async_graphql::SimpleObject, Debug)]
 pub struct MathInline {
     /// The segment of the document this inline math covers
     region: Region,

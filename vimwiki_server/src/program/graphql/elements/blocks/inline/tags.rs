@@ -2,7 +2,7 @@ use super::Region;
 use vimwiki::{elements, LC};
 
 /// Represents a single document inline set of tags
-#[derive(async_graphql::SimpleObject)]
+#[derive(async_graphql::SimpleObject, Debug)]
 pub struct Tags {
     /// The segment of the document this inline set of tags covers
     region: Region,

@@ -1,3 +1,4 @@
+use super::Program;
 use vimwiki_macros::*;
 
 pub mod elements;
@@ -23,3 +24,13 @@ pub type Schema = async_graphql::Schema<
     async_graphql::EmptyMutation,
     async_graphql::EmptySubscription,
 >;
+
+pub fn build_schema_with_program(program: Program) -> Schema {
+    Schema::build(
+        Query,
+        async_graphql::EmptyMutation,
+        async_graphql::EmptySubscription,
+    )
+    .data(program)
+    .finish()
+}

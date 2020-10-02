@@ -1,5 +1,5 @@
 /// Represents a segment of a document marked by [start, end]
-#[derive(async_graphql::SimpleObject)]
+#[derive(async_graphql::SimpleObject, Debug)]
 pub struct Region {
     /// The inclusive start of something within a document
     start: Position,
@@ -18,7 +18,7 @@ impl From<vimwiki::Region> for Region {
 }
 
 /// Represents a specific location within a document
-#[derive(async_graphql::SimpleObject)]
+#[derive(async_graphql::SimpleObject, Debug)]
 pub struct Position {
     /// The line within a document starting at 1
     line: i32,

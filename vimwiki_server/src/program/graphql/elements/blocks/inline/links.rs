@@ -5,7 +5,7 @@ use vimwiki::{
     LC,
 };
 
-#[derive(async_graphql::Union)]
+#[derive(async_graphql::Union, Debug)]
 pub enum Link {
     Wiki(WikiLink),
     IndexedInterWiki(IndexedInterWikiLink),
@@ -22,12 +22,12 @@ impl From<LC<elements::Link>> for Link {
             elements::Link::Wiki(x) => {
                 Self::from(WikiLink::from(LC::new(x, lc.region)))
             }
-            elements::Link::InterWiki(
-                elements::InterWikiLink::Indexed(x),
-            ) => Self::from(IndexedInterWikiLink::from(LC::new(x, lc.region))),
-            elements::Link::InterWiki(elements::InterWikiLink::Named(
-                x,
-            )) => Self::from(NamedInterWikiLink::from(LC::new(x, lc.region))),
+            elements::Link::InterWiki(elements::InterWikiLink::Indexed(x)) => {
+                Self::from(IndexedInterWikiLink::from(LC::new(x, lc.region)))
+            }
+            elements::Link::InterWiki(elements::InterWikiLink::Named(x)) => {
+                Self::from(NamedInterWikiLink::from(LC::new(x, lc.region)))
+            }
             elements::Link::Diary(x) => {
                 Self::from(DiaryLink::from(LC::new(x, lc.region)))
             }
@@ -45,7 +45,7 @@ impl From<LC<elements::Link>> for Link {
 }
 
 /// Represents a single document wiki link
-#[derive(async_graphql::SimpleObject)]
+#[derive(async_graphql::SimpleObject, Debug)]
 pub struct WikiLink {
     /// The segment of the document this link covers
     region: Region,
@@ -82,7 +82,7 @@ impl From<LC<elements::WikiLink>> for WikiLink {
 
 /// Represents a single document wiki link within another wiki
 /// referenced by index
-#[derive(async_graphql::SimpleObject)]
+#[derive(async_graphql::SimpleObject, Debug)]
 pub struct IndexedInterWikiLink {
     /// The segment of the document this link covers
     region: Region,
@@ -123,7 +123,7 @@ impl From<LC<elements::IndexedInterWikiLink>> for IndexedInterWikiLink {
 
 /// Represents a single document wiki link within another wiki
 /// referenced by name
-#[derive(async_graphql::SimpleObject)]
+#[derive(async_graphql::SimpleObject, Debug)]
 pub struct NamedInterWikiLink {
     /// The segment of the document this link covers
     region: Region,
@@ -163,7 +163,7 @@ impl From<LC<elements::NamedInterWikiLink>> for NamedInterWikiLink {
 }
 
 /// Represents a single document link to a diary entry
-#[derive(async_graphql::SimpleObject)]
+#[derive(async_graphql::SimpleObject, Debug)]
 pub struct DiaryLink {
     /// The segment of the document this link covers
     region: Region,
@@ -190,7 +190,7 @@ impl From<LC<elements::DiaryLink>> for DiaryLink {
 }
 
 /// Represents a single document link to an external file
-#[derive(async_graphql::SimpleObject)]
+#[derive(async_graphql::SimpleObject, Debug)]
 pub struct ExternalFileLink {
     /// The segment of the document this link covers
     region: Region,
@@ -217,7 +217,7 @@ impl From<LC<elements::ExternalFileLink>> for ExternalFileLink {
 }
 
 /// Represents the scheme associated with an external file link
-#[derive(async_graphql::Enum, Copy, Clone, Eq, PartialEq)]
+#[derive(async_graphql::Enum, Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ExternalFileLinkScheme {
     Local,
     File,
@@ -235,7 +235,7 @@ impl From<elements::ExternalFileLinkScheme> for ExternalFileLinkScheme {
 }
 
 /// Represents a single document link formed from a raw URI
-#[derive(async_graphql::SimpleObject)]
+#[derive(async_graphql::SimpleObject, Debug)]
 pub struct RawLink {
     /// The segment of the document this link covers
     region: Region,
@@ -254,7 +254,7 @@ impl From<LC<elements::RawLink>> for RawLink {
 }
 
 /// Represents a single document transclusion link
-#[derive(async_graphql::SimpleObject)]
+#[derive(async_graphql::SimpleObject, Debug)]
 pub struct TransclusionLink {
     /// The segment of the document this link covers
     region: Region,
@@ -285,12 +285,13 @@ impl From<LC<elements::TransclusionLink>> for TransclusionLink {
     }
 }
 
-#[derive(async_graphql::SimpleObject)]
+#[derive(async_graphql::SimpleObject, Debug)]
 pub struct Property {
     key: String,
     value: String,
 }
 
+#[derive(Debug)]
 pub enum Description {
     Text(String),
     URI(Uri),
@@ -334,7 +335,7 @@ impl Description {
 }
 
 /// Represents anchor for a link
-#[derive(async_graphql::SimpleObject)]
+#[derive(async_graphql::SimpleObject, Debug)]
 pub struct Anchor {
     /// The pieces of an anchor #one#two#three -> ["one", "two", "three"]
     elements: Vec<String>,
@@ -348,6 +349,7 @@ impl From<elements::Anchor> for Anchor {
     }
 }
 
+#[derive(Debug)]
 pub struct Uri(URI<'static>);
 
 /// Represents a traditional URI

@@ -8,7 +8,7 @@ mod utils;
 pub use utils::*;
 
 /// Represents a single document page
-#[derive(async_graphql::SimpleObject)]
+#[derive(async_graphql::SimpleObject, Debug)]
 pub struct Page {
     /// The elements contained within the page
     elements: Vec<BlockElement>,

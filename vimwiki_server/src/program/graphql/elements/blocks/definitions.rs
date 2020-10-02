@@ -1,6 +1,7 @@
 use super::Region;
 use vimwiki::{elements, LC};
 
+#[derive(Debug)]
 pub struct DefinitionList(LC<elements::DefinitionList>);
 
 impl From<LC<elements::DefinitionList>> for DefinitionList {

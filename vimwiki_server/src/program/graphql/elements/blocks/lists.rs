@@ -2,7 +2,7 @@ use super::{InlineElement, Region};
 use vimwiki::{elements, LC};
 
 /// Represents a single document list
-#[derive(async_graphql::SimpleObject)]
+#[derive(async_graphql::SimpleObject, Debug)]
 pub struct List {
     /// The segment of the document this list covers
     region: Region,
@@ -21,7 +21,7 @@ impl From<LC<elements::List>> for List {
 }
 
 /// Represents a single item within a list in a document
-#[derive(async_graphql::SimpleObject)]
+#[derive(async_graphql::SimpleObject, Debug)]
 pub struct ListItem {
     /// The segment of the document this list item covers
     region: Region,
@@ -69,7 +69,7 @@ impl From<LC<elements::EnhancedListItem>> for ListItem {
 }
 
 /// Represents the type of prefix used with a list item
-#[derive(async_graphql::Enum, Copy, Clone, Eq, PartialEq)]
+#[derive(async_graphql::Enum, Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ListItemType {
     Number,
     Pound,
@@ -110,7 +110,7 @@ impl From<elements::ListItemType> for ListItemType {
     }
 }
 
-#[derive(async_graphql::Enum, Copy, Clone, Eq, PartialEq)]
+#[derive(async_graphql::Enum, Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ListItemSuffix {
     None,
     Period,
@@ -127,7 +127,7 @@ impl From<elements::ListItemSuffix> for ListItemSuffix {
     }
 }
 
-#[derive(async_graphql::Union)]
+#[derive(async_graphql::Union, Debug)]
 pub enum ListItemContent {
     InlineContent(InlineContent),
     List(List),
@@ -152,12 +152,12 @@ impl From<LC<elements::ListItemContent>> for ListItemContent {
     }
 }
 
-#[derive(async_graphql::SimpleObject)]
+#[derive(async_graphql::SimpleObject, Debug)]
 pub struct InlineContent {
     elements: Vec<InlineElement>,
 }
 
-#[derive(async_graphql::Enum, Copy, Clone, Eq, PartialEq)]
+#[derive(async_graphql::Enum, Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ListItemAttribute {
     /// Flags list item as a TODO item that has not been completed
     TodoIncomplete,

@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 #[derive(Clap, Debug)]
 #[clap(author, about, version)]
-pub struct Opt {
+pub struct Config {
     /// Activate debug mode
     #[clap(long)]
     pub debug: bool,
@@ -16,11 +16,11 @@ pub struct Opt {
     /// Wiki paths to load, monitor, and manipulate
     /// Format is index[:name]:path
     #[clap(long = "wiki", number_of_values = 1)]
-    pub wikis: Vec<WikiOpt>,
+    pub wikis: Vec<WikiConfig>,
 
     /// Mode to run server (http = web; stdin = read input from stdin and reply on stdout)
     #[clap(long, arg_enum, default_value = "http")]
-    pub mode: ModeOpt,
+    pub mode: Mode,
 
     /// Host/IP address of server
     #[clap(long, default_value = "localhost")]
@@ -37,20 +37,20 @@ pub struct Opt {
 
 /// Represents the mode to run the server (input from stdin or HTTP)
 #[derive(Clap, Copy, Clone, Debug, PartialEq, Eq)]
-pub enum ModeOpt {
+pub enum Mode {
     Stdin,
     Http,
 }
 
 /// Represents input information about a wiki
-#[derive(Debug)]
-pub struct WikiOpt {
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+pub struct WikiConfig {
     pub index: u32,
     pub name: Option<String>,
     pub path: PathBuf,
 }
 
-impl std::fmt::Display for WikiOpt {
+impl std::fmt::Display for WikiConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.index)?;
 
@@ -66,15 +66,15 @@ impl std::fmt::Display for WikiOpt {
 
 /// Represents parsing errors that can occur for a wiki opt
 #[derive(Debug, Display, Error)]
-pub enum ParseWikiOptError {
+pub enum ParseWikiConfigError {
     InvalidPath,
     InvalidIndex,
     InvalidName,
     InvalidInput,
 }
 
-impl std::str::FromStr for WikiOpt {
-    type Err = ParseWikiOptError;
+impl std::str::FromStr for WikiConfig {
+    type Err = ParseWikiConfigError;
 
     /// Parse input in form of <index>[:<name>]:path
     fn from_str(s: &str) -> Result<Self, Self::Err> {

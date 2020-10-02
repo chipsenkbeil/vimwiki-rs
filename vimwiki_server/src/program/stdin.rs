@@ -1,10 +1,9 @@
-use super::{graphql, Opt};
-use async_graphql::{EmptyMutation, EmptySubscription, Schema};
+use super::{graphql, Config, Program};
 use log::{error, info};
 
 /// Spawns a worker to process stdin and communicate back over stdout & stderr
-pub async fn run(_opt: Opt) {
-    let schema = Schema::new(graphql::Query, EmptyMutation, EmptySubscription);
+pub async fn run(program: Program, _config: Config) {
+    let schema = graphql::build_schema_with_program(program);
 
     info!("Monitoring stdin...");
     // NOTE: For now, we are using std lib's stdin & stdout due to

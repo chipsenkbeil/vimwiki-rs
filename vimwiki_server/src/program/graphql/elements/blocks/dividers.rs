@@ -2,7 +2,7 @@ use super::Region;
 use vimwiki::{elements, LC};
 
 /// Represents a single document divider
-#[derive(async_graphql::SimpleObject)]
+#[derive(async_graphql::SimpleObject, Debug)]
 pub struct Divider {
     /// The segment of the document this divider covers
     region: Region,

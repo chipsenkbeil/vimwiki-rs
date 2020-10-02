@@ -25,7 +25,7 @@ mod tables;
 pub use tables::*;
 
 /// Represents a single document element at a block-level
-#[derive(async_graphql::Union)]
+#[derive(async_graphql::Union, Debug)]
 pub enum BlockElement {
     BlankLine(BlankLine),
     Blockquote(Blockquote),
@@ -91,7 +91,7 @@ impl From<LC<elements::BlockElement>> for BlockElement {
 
 /// Represents a single non-blank line within a document that does not map
 /// to any other specific element
-#[derive(async_graphql::SimpleObject)]
+#[derive(async_graphql::SimpleObject, Debug)]
 pub struct NonBlankLine {
     /// The segment of the document this line covers
     region: Region,
@@ -101,7 +101,7 @@ pub struct NonBlankLine {
 }
 
 /// Represents a single blank line within a document
-#[derive(async_graphql::SimpleObject)]
+#[derive(async_graphql::SimpleObject, Debug)]
 pub struct BlankLine {
     /// The segment of the document this line covers
     region: Region,

@@ -1,6 +1,7 @@
 use super::Region;
 use vimwiki::{elements, LC};
 
+#[derive(Debug)]
 pub struct Blockquote {
     region: Region,
     lines: Vec<String>,

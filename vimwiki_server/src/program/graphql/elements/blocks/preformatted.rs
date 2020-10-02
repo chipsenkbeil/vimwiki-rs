@@ -2,6 +2,7 @@ use super::Region;
 use std::collections::HashMap;
 use vimwiki::{elements, LC};
 
+#[derive(Debug)]
 pub struct PreformattedText {
     region: Region,
     language: Option<String>,

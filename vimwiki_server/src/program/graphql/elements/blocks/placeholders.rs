@@ -1,7 +1,7 @@
 use super::Region;
 use vimwiki::{elements, vendor::chrono::NaiveDate, LC};
 
-#[derive(async_graphql::Union)]
+#[derive(async_graphql::Union, Debug)]
 pub enum Placeholder {
     Title(PlaceholderTitle),
     NoHtml(PlaceholderNoHtml),
@@ -38,7 +38,7 @@ impl From<LC<elements::Placeholder>> for Placeholder {
 }
 
 /// Represents a single document title placeholder
-#[derive(async_graphql::SimpleObject)]
+#[derive(async_graphql::SimpleObject, Debug)]
 pub struct PlaceholderTitle {
     /// The segment of the document this placeholder covers
     region: Region,
@@ -48,14 +48,14 @@ pub struct PlaceholderTitle {
 }
 
 /// Represents a single document nohtml placeholder
-#[derive(async_graphql::SimpleObject)]
+#[derive(async_graphql::SimpleObject, Debug)]
 pub struct PlaceholderNoHtml {
     /// The segment of the document this placeholder covers
     region: Region,
 }
 
 /// Represents a single document template placeholder
-#[derive(async_graphql::SimpleObject)]
+#[derive(async_graphql::SimpleObject, Debug)]
 pub struct PlaceholderTemplate {
     /// The segment of the document this placeholder covers
     region: Region,
@@ -65,7 +65,7 @@ pub struct PlaceholderTemplate {
 }
 
 /// Represents a single document date placeholder
-#[derive(async_graphql::SimpleObject)]
+#[derive(async_graphql::SimpleObject, Debug)]
 pub struct PlaceholderDate {
     /// The segment of the document this placeholder covers
     region: Region,
@@ -75,7 +75,7 @@ pub struct PlaceholderDate {
 }
 
 /// Represents a single document other placeholder
-#[derive(async_graphql::SimpleObject)]
+#[derive(async_graphql::SimpleObject, Debug)]
 pub struct PlaceholderOther {
     /// The segment of the document this placeholder covers
     region: Region,

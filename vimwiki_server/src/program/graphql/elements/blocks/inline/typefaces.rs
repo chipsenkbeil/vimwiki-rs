@@ -2,7 +2,7 @@ use super::{Link, Region};
 use vimwiki::{elements, LC};
 
 /// Represents raw text within a single document
-#[derive(async_graphql::SimpleObject)]
+#[derive(async_graphql::SimpleObject, Debug)]
 pub struct Text {
     /// The segment of the document this text covers
     region: Region,
@@ -21,7 +21,7 @@ impl From<LC<String>> for Text {
 }
 
 /// Represents a typeface decoration that can be applied to text
-#[derive(async_graphql::Enum, Copy, Clone, Eq, PartialEq)]
+#[derive(async_graphql::Enum, Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Decoration {
     Bold,
     Italic,
@@ -47,7 +47,7 @@ impl From<elements::Decoration> for Decoration {
 }
 
 /// Represents content that can be contained within a decoration
-#[derive(async_graphql::Union)]
+#[derive(async_graphql::Union, Debug)]
 pub enum DecoratedTextContent {
     Text(Text),
     DecoratedText(DecoratedText),
@@ -59,21 +59,17 @@ pub enum DecoratedTextContent {
 impl From<LC<elements::DecoratedTextContent>> for DecoratedTextContent {
     fn from(lc: LC<elements::DecoratedTextContent>) -> Self {
         match lc.element {
-            elements::DecoratedTextContent::Text(content) => {
-                Self::from(Text {
-                    region: Region::from(lc.region),
-                    content,
-                })
-            }
+            elements::DecoratedTextContent::Text(content) => Self::from(Text {
+                region: Region::from(lc.region),
+                content,
+            }),
             elements::DecoratedTextContent::DecoratedText(x) => {
                 Self::from(DecoratedText::from(LC::new(x, lc.region)))
             }
-            elements::DecoratedTextContent::Keyword(x) => {
-                Self::from(Keyword {
-                    region: Region::from(lc.region),
-                    r#type: KeywordType::from(x),
-                })
-            }
+            elements::DecoratedTextContent::Keyword(x) => Self::from(Keyword {
+                region: Region::from(lc.region),
+                r#type: KeywordType::from(x),
+            }),
             elements::DecoratedTextContent::Link(x) => {
                 Self::from(Link::from(LC::new(x, lc.region)))
             }
@@ -82,7 +78,7 @@ impl From<LC<elements::DecoratedTextContent>> for DecoratedTextContent {
 }
 
 /// Represents text (series of content) with a typeface decoration
-#[derive(async_graphql::SimpleObject)]
+#[derive(async_graphql::SimpleObject, Debug)]
 pub struct DecoratedText {
     /// The segment of the document this decorated text covers
     region: Region,
@@ -110,7 +106,7 @@ impl From<LC<elements::DecoratedText>> for DecoratedText {
 }
 
 /// Represents type of special keywords that have unique syntax highlighting
-#[derive(async_graphql::Enum, Copy, Clone, Eq, PartialEq)]
+#[derive(async_graphql::Enum, Copy, Clone, Debug, Eq, PartialEq)]
 pub enum KeywordType {
     TODO,
     DONE,
@@ -134,7 +130,7 @@ impl From<elements::Keyword> for KeywordType {
 }
 
 /// Represents special keywords that have unique syntax highlighting
-#[derive(async_graphql::SimpleObject)]
+#[derive(async_graphql::SimpleObject, Debug)]
 pub struct Keyword {
     /// The segment of the document this keyword covers
     region: Region,

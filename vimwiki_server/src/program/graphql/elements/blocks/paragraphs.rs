@@ -1,7 +1,7 @@
 use super::{InlineElement, Region};
 use vimwiki::{elements, LC};
 
-#[derive(async_graphql::SimpleObject)]
+#[derive(async_graphql::SimpleObject, Debug)]
 pub struct Paragraph {
     region: Region,
     elements: Vec<InlineElement>,

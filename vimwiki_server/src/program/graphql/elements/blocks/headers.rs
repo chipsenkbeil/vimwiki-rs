@@ -2,7 +2,7 @@ use super::Region;
 use vimwiki::{elements, LC};
 
 /// Represents a single document comment
-#[derive(async_graphql::SimpleObject)]
+#[derive(async_graphql::SimpleObject, Debug)]
 pub struct Header {
     /// The segment of the document this header covers
     region: Region,

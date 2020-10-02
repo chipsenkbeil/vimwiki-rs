@@ -10,7 +10,7 @@ pub use tags::*;
 mod typefaces;
 pub use typefaces::*;
 
-#[derive(async_graphql::Union)]
+#[derive(async_graphql::Union, Debug)]
 pub enum InlineElement {
     Text(Text),
     DecoratedText(DecoratedText),

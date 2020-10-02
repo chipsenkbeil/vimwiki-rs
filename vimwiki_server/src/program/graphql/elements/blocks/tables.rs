@@ -2,7 +2,7 @@ use super::{InlineElement, Region};
 use vimwiki::{elements, LC};
 
 /// Represents a single document table
-#[derive(async_graphql::SimpleObject)]
+#[derive(async_graphql::SimpleObject, Debug)]
 pub struct Table {
     /// The segment of the document this table covers
     region: Region,
@@ -32,7 +32,7 @@ impl From<LC<elements::Table>> for Table {
 }
 
 /// Represents a single row within a table in a document
-#[derive(async_graphql::Union)]
+#[derive(async_graphql::Union, Debug)]
 pub enum Row {
     Content(ContentRow),
     Divider(DividerRow),
@@ -63,7 +63,7 @@ impl Row {
 
 /// Represents a row that acts as a divider between other rows, usually for
 /// a header and later data rows
-#[derive(async_graphql::SimpleObject)]
+#[derive(async_graphql::SimpleObject, Debug)]
 pub struct DividerRow {
     /// The segment of the document this row covers
     region: Region,
@@ -73,7 +73,7 @@ pub struct DividerRow {
 }
 
 /// Represents a row that contains one or more cells of data
-#[derive(async_graphql::SimpleObject)]
+#[derive(async_graphql::SimpleObject, Debug)]
 pub struct ContentRow {
     /// The segment of the document this row covers
     region: Region,
@@ -86,7 +86,7 @@ pub struct ContentRow {
 }
 
 /// Represents a cell within a row
-#[derive(async_graphql::Union)]
+#[derive(async_graphql::Union, Debug)]
 pub enum Cell {
     Content(ContentCell),
     SpanLeft(SpanLeftCell),
@@ -127,7 +127,7 @@ impl Cell {
 }
 
 /// Represents a cell with content
-#[derive(async_graphql::SimpleObject)]
+#[derive(async_graphql::SimpleObject, Debug)]
 pub struct ContentCell {
     /// The segment of the document this cell covers
     region: Region,
@@ -143,7 +143,7 @@ pub struct ContentCell {
 }
 
 /// Represents a cell with no content that spans the left cell
-#[derive(async_graphql::SimpleObject)]
+#[derive(async_graphql::SimpleObject, Debug)]
 pub struct SpanLeftCell {
     /// The segment of the document this cell covers
     region: Region,
@@ -156,7 +156,7 @@ pub struct SpanLeftCell {
 }
 
 /// Represents a cell with no content that spans the above row
-#[derive(async_graphql::SimpleObject)]
+#[derive(async_graphql::SimpleObject, Debug)]
 pub struct SpanAboveCell {
     /// The segment of the document this cell covers
     region: Region,
