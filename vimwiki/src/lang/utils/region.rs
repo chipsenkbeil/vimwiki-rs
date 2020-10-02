@@ -25,6 +25,34 @@ impl Region {
     pub fn contains(&self, pos: Position) -> bool {
         pos >= self.start && pos <= self.end
     }
+
+    /// Shifts the start & end lines by the given delta
+    ///
+    /// ```
+    /// let mut region = Region::new(Position::new(1, 5), Position::new(4, 2));
+    /// region.shift_lines(3);
+    /// assert_eq!(region.start.line, 4);
+    /// assert_eq!(region.end.line, 7);
+    ///
+    /// region.shift_lines(-3);
+    /// assert_eq!(region.start.line, 1);
+    /// assert_eq!(region.end.line, 4);
+    /// ```
+    pub fn shift_lines(&mut self, delta: isize) {
+        match delta {
+            delta if delta > 0 => {
+                let delta_usize = delta as usize;
+                self.start.line += delta_usize;
+                self.end.line += delta_usize;
+            }
+            delta if delta < 0 => {
+                let delta_usize = -delta as usize;
+                self.start.line -= delta_usize;
+                self.end.line -= delta_usize;
+            }
+            _ => {}
+        }
+    }
 }
 
 impl From<(Position, Position)> for Region {

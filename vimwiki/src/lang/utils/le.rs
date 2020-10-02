@@ -62,9 +62,18 @@ impl<T> LocatedElement<T> {
     }
 
     /// Takes a `LocatedElement` and replaces its region, producing the
-    /// updated region. This is takes ownership of the existing element!
+    /// updated region. This takes ownership of the existing element!
     pub fn take_with_region(mut self, region: Region) -> Self {
         self.region = region;
+        self
+    }
+
+    /// Takes a `LocatedElement` and shifts its region such that it starts
+    /// at the specified line. This takes ownership of the existing element!
+    pub fn take_at_line(mut self, line: usize) -> Self {
+        let diff = self.region.end.line - self.region.start.line;
+        self.region.start.line = line;
+        self.region.end.line = line + diff;
         self
     }
 

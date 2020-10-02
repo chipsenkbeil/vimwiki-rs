@@ -5,20 +5,17 @@ use std::cmp::Ordering;
 
 /// Represents a position in a string or file
 #[derive(
-    Constructor,
-    Copy,
-    Clone,
-    Debug,
-    Default,
-    Hash,
-    Eq,
-    PartialEq,
-    Serialize,
-    Deserialize,
+    Constructor, Copy, Clone, Debug, Hash, Eq, PartialEq, Serialize, Deserialize,
 )]
 pub struct Position {
     pub line: usize,
     pub column: usize,
+}
+
+impl Default for Position {
+    fn default() -> Self {
+        Self { line: 1, column: 1 }
+    }
 }
 
 impl From<(usize, usize)> for Position {
