@@ -26,7 +26,7 @@ not a header:
 === not a header ====
 
  == centred header ==
-
+ 
 == header with some `==` in between ==
 == header with some == in between ==
 == header with some ==in between ==
@@ -47,7 +47,7 @@ _*strong inside* emph_
 
 _~~strikeout~~ inside emph_
 
-~~This is _struck out_ with emph~~
+~~This is _struck out_ with emph~~ 
 
 *not
 strong*
@@ -78,7 +78,7 @@ middle
 not a rule-----
 
 not a rule (trailing spaces):
------
+----- 
 
 not a rule (leading spaces):
   ----
@@ -87,7 +87,7 @@ not a rule (leading spaces):
 
 %% you can't see me.
 
-this
+this 
 %% secret
 is %% not secret
 
@@ -142,7 +142,7 @@ http://pandoc.org
 
 ftp://vim.org
 
-[[http://google.com]]
+[[http://google.com]] 
 
 [[mailto:info@example.org|email me]]
 
@@ -155,9 +155,9 @@ mailto:hello@bye.com
 [[This is a link source|Description of the link]]
 
 [[projects/Important Project 1]]
-
+   
 [[../index]]
-
+  
 [[a subdirectory/|Other files]]
 
 [[#tag-one|try me to test tag anchors]]
@@ -180,8 +180,8 @@ mailto:hello@bye.com
 {{file:./lalune.jpg}}
 
 {{http://vimwiki.googlecode.com/hg/images/vimwiki_logo.png|Vimwiki}}
-
-{{local:./movie.jpg}}
+  
+{{local:./movie.jpg}}  
 
 
 === image with attributes ===
@@ -289,7 +289,7 @@ III) Numbered list item 3
 * [o] a tab in the todo list marker `[ ]`
     III) [O] 4
       5
-    i) [X]
+    i) [X] 
 | a | b |
 * [X] task 2
 
@@ -309,7 +309,7 @@ $ \sum_i a_i^2 = 1 $
 }}$
 
 edge case (the `c^2 + ` after the multline tag is in the equation):
-{{$%multline%c^2 +
+{{$%multline%c^2 + 
 a^2 + b^2
 }}$
 
@@ -328,7 +328,7 @@ and I have $1.
 :tag-one:tag-two:
 
 == tables ==
-
+ 
 | Year | Temperature (low) | Temperature (high) |
 |------|-------------------|--------------------|
 | 1900 | -10               | 25                 |
@@ -341,8 +341,8 @@ and I have $1.
 === centered headerless tables ===
  | a | b |
  | c | d |
-
-
+ 
+ 
 == paragraphs ==
 
 This is first paragraph
@@ -386,7 +386,7 @@ Not ::Definition
 ::Not definition
 
     :: blockquote
-
+    
     block :: quote
 
 == metadata placeholders ==
@@ -431,3 +431,5 @@ TODO:
 
 `nohtml` placeholder is ignored.
 %nohtml
+
+
