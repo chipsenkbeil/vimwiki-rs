@@ -1,5 +1,5 @@
 use super::Region;
-use vimwiki::{elements, LC};
+use vimwiki::{elements, LE};
 
 /// Represents a single document comment
 #[derive(async_graphql::SimpleObject, Debug)]
@@ -17,8 +17,8 @@ pub struct Header {
     centered: bool,
 }
 
-impl From<LC<elements::Header>> for Header {
-    fn from(lc: LC<elements::Header>) -> Self {
+impl From<LE<elements::Header>> for Header {
+    fn from(lc: LE<elements::Header>) -> Self {
         let region = Region::from(lc.region);
         Self {
             region,

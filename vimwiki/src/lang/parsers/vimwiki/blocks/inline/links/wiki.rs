@@ -1,7 +1,7 @@
 use super::{
     elements::{Anchor, Description, WikiLink},
     utils::{context, lc, pstring, take_line_while1, uri, VimwikiNomError},
-    Span, VimwikiIResult, LC,
+    Span, VimwikiIResult, LE,
 };
 use nom::{
     branch::alt,
@@ -13,7 +13,7 @@ use nom::{
 use std::path::PathBuf;
 
 #[inline]
-pub fn wiki_link(input: Span) -> VimwikiIResult<LC<WikiLink>> {
+pub fn wiki_link(input: Span) -> VimwikiIResult<LE<WikiLink>> {
     context(
         "WikiLink",
         lc(delimited(tag("[["), wiki_link_internal, tag("]]"))),

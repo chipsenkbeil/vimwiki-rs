@@ -4,7 +4,7 @@ use super::{
         beginning_of_line, context, end_of_line_or_input, lc, pstring,
         take_line_while1, take_until_end_of_line_or_input,
     },
-    Span, VimwikiIResult, LC,
+    Span, VimwikiIResult, LE,
 };
 use chrono::NaiveDate;
 use nom::{
@@ -15,8 +15,8 @@ use nom::{
 };
 
 #[inline]
-pub fn placeholder(input: Span) -> VimwikiIResult<LC<Placeholder>> {
-    fn inner(input: Span) -> VimwikiIResult<LC<Placeholder>> {
+pub fn placeholder(input: Span) -> VimwikiIResult<LE<Placeholder>> {
+    fn inner(input: Span) -> VimwikiIResult<LE<Placeholder>> {
         let (input, _) = beginning_of_line(input)?;
         let (input, lc_placeholder) = lc(alt((
             placeholder_title,

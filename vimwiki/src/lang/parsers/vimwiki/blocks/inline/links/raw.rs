@@ -1,12 +1,12 @@
 use super::{
     elements::RawLink,
     utils::{context, lc, uri},
-    Span, VimwikiIResult, LC,
+    Span, VimwikiIResult, LE,
 };
 use nom::combinator::verify;
 
 #[inline]
-pub fn raw_link(input: Span) -> VimwikiIResult<LC<RawLink>> {
+pub fn raw_link(input: Span) -> VimwikiIResult<LE<RawLink>> {
     fn inner(input: Span) -> VimwikiIResult<RawLink> {
         // This will match any URI, but we only want to allow a certain set
         // to ensure that we don't mistake some text preceding a tag

@@ -1,4 +1,4 @@
-use super::{InlineElement, InlineElementContainer, LC};
+use super::{InlineElement, InlineElementContainer, LE};
 use derive_more::Constructor;
 use serde::{Deserialize, Serialize};
 
@@ -7,8 +7,8 @@ pub struct Paragraph {
     pub content: InlineElementContainer,
 }
 
-impl From<Vec<LC<InlineElement>>> for Paragraph {
-    fn from(elements: Vec<LC<InlineElement>>) -> Self {
+impl From<Vec<LE<InlineElement>>> for Paragraph {
+    fn from(elements: Vec<LE<InlineElement>>) -> Self {
         Self::new(elements.into())
     }
 }

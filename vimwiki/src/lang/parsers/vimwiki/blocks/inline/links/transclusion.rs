@@ -1,7 +1,7 @@
 use super::{
     elements::{Description, TransclusionLink},
     utils::{context, lc, take_line_while, take_line_while1},
-    Span, VimwikiIResult, LC,
+    Span, VimwikiIResult, LE,
 };
 use nom::{
     branch::alt,
@@ -15,7 +15,7 @@ use std::convert::TryFrom;
 use uriparse::URI;
 
 #[inline]
-pub fn transclusion_link(input: Span) -> VimwikiIResult<LC<TransclusionLink>> {
+pub fn transclusion_link(input: Span) -> VimwikiIResult<LE<TransclusionLink>> {
     fn inner(input: Span) -> VimwikiIResult<TransclusionLink> {
         let (input, _) = tag("{{")(input)?;
         let (input, link_uri) = map_res(

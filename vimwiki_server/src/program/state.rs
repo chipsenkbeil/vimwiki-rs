@@ -1,19 +1,58 @@
 use super::{Config, WikiConfig};
 use indicatif::{ProgressBar, ProgressStyle};
 use log::{debug, error, info, trace};
+use snafu::{ResultExt, Snafu};
 use std::{collections::HashMap, convert::TryInto, path::PathBuf};
-use vimwiki::{elements::Page, RawStr, LC};
+use vimwiki::{elements::Page, RawStr, LE};
 
 /// Contains the state of the program while it is running
-#[derive(Debug, Default)]
+#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct Program {
     wikis: HashMap<u32, Wiki>,
     name_to_index: HashMap<String, u32>,
 }
 
+#[derive(Debug, Snafu)]
+pub enum ProgramError {
+    #[snafu(display("Could not load program from {}: {}", path.display(), source))]
+    LoadProgram {
+        path: PathBuf,
+        source: tokio::io::Error,
+    },
+    #[snafu(display("Could deserialize json to program: {}", source))]
+    JsonToProgram { source: serde_json::Error },
+    #[snafu(display("Could serialize program to json: {}", source))]
+    ProgramToJson { source: serde_json::Error },
+    #[snafu(display("Could not create cache directory {}: {}", path.display(), source))]
+    MakeProgramCacheDirectory {
+        path: PathBuf,
+        source: tokio::io::Error,
+    },
+    #[snafu(display("Could not store program to {}: {}", path.display(), source))]
+    StoreProgram {
+        path: PathBuf,
+        source: tokio::io::Error,
+    },
+}
+
+pub type ProgramResult<T, E = ProgramError> = std::result::Result<T, E>;
+
 impl Program {
-    pub async fn load(config: &Config) -> Self {
-        let mut program = Program::default();
+    // Load program state using given config
+    pub async fn load(config: &Config) -> ProgramResult<Self> {
+        // TODO: Load program from cached file instead of default, then
+        //       we need to determine which parts of the program are invalid
+        let mut program = {
+            let path = Self::cache_file(config);
+            if path.exists() {
+                let contents = tokio::fs::read_to_string(&path)
+                    .await
+                    .context(LoadProgram { path })?;
+                serde_json::from_str(&contents).context(JsonToProgram {})?
+            } else {
+                Program::default()
+            }
+        };
 
         // Determine the paths of the wiki files we will be parsing and indexing
         // TODO: Provide caching of directories that haven't changed?
@@ -24,20 +63,72 @@ impl Program {
         if !paths.is_empty() {
             for (w, paths) in paths.drain() {
                 let wiki = build_wiki(w, paths).await;
+                if let Some(name) = wiki.name.as_ref() {
+                    program.name_to_index.insert(name.to_string(), wiki.index);
+                }
                 program.wikis.insert(wiki.index, wiki);
             }
         }
 
-        program
+        // Store our new program as the cache, logging any errors
+        if let Err(x) = program.store(&config).await {
+            error!("Failed to update program cache: {}", x);
+        }
+
+        Ok(program)
+    }
+
+    // Write program state to disk using given config
+    pub async fn store(&self, config: &Config) -> ProgramResult<()> {
+        let json =
+            serde_json::to_string_pretty(&self).context(ProgramToJson {})?;
+
+        let path = Self::cache_file(config);
+        if let Some(path) = path.parent() {
+            tokio::fs::create_dir_all(path)
+                .await
+                .context(MakeProgramCacheDirectory { path })?;
+        }
+
+        tokio::fs::write(&path, json)
+            .await
+            .context(StoreProgram { path })
+    }
+
+    pub fn wiki_by_name(&self, name: &str) -> Option<&Wiki> {
+        self.name_to_index
+            .get(name)
+            .and_then(|index| self.wikis.get(index))
+    }
+
+    pub fn wiki_by_index(&self, index: u32) -> Option<&Wiki> {
+        self.wikis.get(&index)
+    }
+
+    fn cache_file(config: &Config) -> PathBuf {
+        config.cache_dir.join("vimwiki.program")
     }
 }
 
 /// Represents a wiki and its associated files
-#[derive(Debug, Default)]
+#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct Wiki {
     index: u32,
     name: Option<String>,
-    files: HashMap<PathBuf, LC<Page>>,
+    path: PathBuf,
+    files: HashMap<PathBuf, LE<Page>>,
+}
+
+#[async_graphql::Object]
+impl Wiki {
+    async fn page(
+        &self,
+        path: String,
+    ) -> Option<super::graphql::elements::Page> {
+        self.files
+            .get(&self.path.join(path))
+            .map(|x| super::graphql::elements::Page::from(x.clone()))
+    }
 }
 
 fn load_paths(
@@ -74,12 +165,13 @@ async fn build_wiki(wiki_config: WikiConfig, mut paths: Vec<PathBuf>) -> Wiki {
     let mut wiki = Wiki {
         index: wiki_config.index,
         name: wiki_config.name,
+        path: wiki_config.path,
         files: HashMap::new(),
     };
 
     // Because this can take awhile, we will be presenting a progress bar
     // TODO: Parallelize this effort
-    // TODO: Cache LC<Page> instances for paths that haven't changed?
+    // TODO: Cache LE<Page> instances for paths that haven't changed?
     let progress = ProgressBar::new(paths.len() as u64).with_style(
         ProgressStyle::default_bar().template("{msg} {wide_bar} {pos}/{len}"),
     );
@@ -97,7 +189,7 @@ async fn build_wiki(wiki_config: WikiConfig, mut paths: Vec<PathBuf>) -> Wiki {
             }
         };
 
-        let page: LC<Page> = match RawStr::Vimwiki(&contents).try_into() {
+        let page: LE<Page> = match RawStr::Vimwiki(&contents).try_into() {
             Ok(x) => x,
             Err(x) => {
                 error!("Failed to parse {}: {}", path.to_string_lossy(), x);

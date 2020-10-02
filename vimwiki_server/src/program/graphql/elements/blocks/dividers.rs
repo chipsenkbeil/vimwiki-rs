@@ -1,5 +1,5 @@
 use super::Region;
-use vimwiki::{elements, LC};
+use vimwiki::{elements, LE};
 
 /// Represents a single document divider
 #[derive(async_graphql::SimpleObject, Debug)]
@@ -8,8 +8,8 @@ pub struct Divider {
     region: Region,
 }
 
-impl From<LC<elements::Divider>> for Divider {
-    fn from(lc: LC<elements::Divider>) -> Self {
+impl From<LE<elements::Divider>> for Divider {
+    fn from(lc: LE<elements::Divider>) -> Self {
         let region = Region::from(lc.region);
         Self { region }
     }

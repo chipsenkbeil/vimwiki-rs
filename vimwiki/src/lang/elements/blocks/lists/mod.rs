@@ -1,4 +1,4 @@
-use super::{InlineElement, InlineElementContainer, LC};
+use super::{InlineElement, InlineElementContainer, LE};
 use derive_more::{
     Constructor, Deref, DerefMut, From, Index, IndexMut, Into, IntoIterator,
 };
@@ -12,7 +12,7 @@ pub use item::*;
     Constructor, Clone, Debug, From, Eq, PartialEq, Serialize, Deserialize,
 )]
 pub struct List {
-    pub items: Vec<LC<EnhancedListItem>>,
+    pub items: Vec<LE<EnhancedListItem>>,
 }
 
 impl List {
@@ -76,7 +76,7 @@ pub enum ListItemContent {
     Deserialize,
 )]
 pub struct ListItemContents {
-    pub contents: Vec<LC<ListItemContent>>,
+    pub contents: Vec<LE<ListItemContent>>,
 }
 
 impl ListItemContents {

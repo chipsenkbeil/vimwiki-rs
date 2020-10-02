@@ -2,7 +2,7 @@ use std::{convert::TryFrom, path::PathBuf};
 use vimwiki::{
     elements::*,
     vendor::{chrono::NaiveDate, uriparse::URI},
-    LC,
+    LE,
 };
 use vimwiki_macros::*;
 
@@ -12,8 +12,8 @@ fn vimwiki_page() {
     assert_eq!(
         x.element,
         Page::new(
-            vec![LC::from(BlockElement::Paragraph(Paragraph::new(
-                InlineElementContainer::new(vec![LC::from(
+            vec![LE::from(BlockElement::Paragraph(Paragraph::new(
+                InlineElementContainer::new(vec![LE::from(
                     InlineElement::Text("some text".to_string())
                 )])
             )))],
@@ -28,7 +28,7 @@ fn vimwiki_block_element() {
     assert_eq!(
         x.element,
         BlockElement::Paragraph(Paragraph::new(
-            InlineElementContainer::new(vec![LC::from(
+            InlineElementContainer::new(vec![LE::from(
                 InlineElement::Text("some text".to_string())
             )])
         ))
@@ -40,7 +40,7 @@ fn vimwiki_inline_element_container() {
     let x = vimwiki_inline_element_container!("some text");
     assert_eq!(
         x.element,
-        InlineElementContainer::new(vec![LC::from(InlineElement::Text(
+        InlineElementContainer::new(vec![LE::from(InlineElement::Text(
             "some text".to_string()
         ))])
     );
@@ -88,8 +88,8 @@ fn vimwiki_definition_list() {
     assert_eq!(
         x.element,
         DefinitionList::from(vec![TermAndDefinitions::new(
-            LC::from("term".to_string()),
-            vec![LC::from("definition".to_string())],
+            LE::from("term".to_string()),
+            vec![LE::from("definition".to_string())],
         )])
     );
 }
@@ -189,14 +189,14 @@ fn vimwiki_list() {
     assert_eq!(
         x.element,
         List::new(vec![
-            LC::from(EnhancedListItem::new(
+            LE::from(EnhancedListItem::new(
                 ListItem::new(
                     ListItemType::Unordered(UnorderedListItemType::Hyphen),
                     ListItemSuffix::None,
                     0,
-                    ListItemContents::new(vec![LC::from(
+                    ListItemContents::new(vec![LE::from(
                         ListItemContent::InlineContent(
-                            InlineElementContainer::new(vec![LC::from(
+                            InlineElementContainer::new(vec![LE::from(
                                 InlineElement::Text(
                                     "some list item".to_string()
                                 )
@@ -206,31 +206,31 @@ fn vimwiki_list() {
                 ),
                 Default::default(),
             )),
-            LC::from(EnhancedListItem::new(
+            LE::from(EnhancedListItem::new(
                 ListItem::new(
                     ListItemType::Unordered(UnorderedListItemType::Hyphen),
                     ListItemSuffix::None,
                     1,
                     ListItemContents::new(vec![
-                        LC::from(ListItemContent::InlineContent(
-                            InlineElementContainer::new(vec![LC::from(
+                        LE::from(ListItemContent::InlineContent(
+                            InlineElementContainer::new(vec![LE::from(
                                 InlineElement::Text(
                                     "some other list item".to_string()
                                 )
                             )])
                         )),
-                        LC::from(ListItemContent::List(List::new(vec![
-                            LC::from(EnhancedListItem::new(
+                        LE::from(ListItemContent::List(List::new(vec![
+                            LE::from(EnhancedListItem::new(
                                 ListItem::new(
                                     ListItemType::Ordered(
                                         OrderedListItemType::Number
                                     ),
                                     ListItemSuffix::Period,
                                     0,
-                                    ListItemContents::new(vec![LC::from(
+                                    ListItemContents::new(vec![LE::from(
                                         ListItemContent::InlineContent(
                                             InlineElementContainer::new(
-                                                vec![LC::from(
+                                                vec![LE::from(
                                                     InlineElement::Text(
                                                         "sub list item"
                                                             .to_string()
@@ -256,14 +256,14 @@ fn vimwiki_list_raw() {
     let x = vimwiki_list_raw!("- some list item");
     assert_eq!(
         x.element,
-        List::new(vec![LC::from(EnhancedListItem::new(
+        List::new(vec![LE::from(EnhancedListItem::new(
             ListItem::new(
                 ListItemType::Unordered(UnorderedListItemType::Hyphen),
                 ListItemSuffix::None,
                 0,
-                ListItemContents::new(vec![LC::from(
+                ListItemContents::new(vec![LE::from(
                     ListItemContent::InlineContent(
-                        InlineElementContainer::new(vec![LC::from(
+                        InlineElementContainer::new(vec![LE::from(
                             InlineElement::Text("some list item".to_string())
                         )])
                     )
@@ -306,7 +306,7 @@ fn vimwiki_paragraph() {
     let x = vimwiki_paragraph!("some text");
     assert_eq!(
         x.element,
-        Paragraph::new(InlineElementContainer::new(vec![LC::from(
+        Paragraph::new(InlineElementContainer::new(vec![LE::from(
             InlineElement::Text("some text".to_string())
         )]))
     );
@@ -377,9 +377,9 @@ fn vimwiki_table() {
     assert_eq!(
         x.element,
         Table::new(
-            vec![LC::from(Row::Content {
-                cells: vec![LC::from(Cell::Content(
-                    InlineElementContainer::new(vec![LC::from(
+            vec![LE::from(Row::Content {
+                cells: vec![LE::from(Cell::Content(
+                    InlineElementContainer::new(vec![LE::from(
                         InlineElement::Text("cell".to_string())
                     )])
                 ))],
@@ -407,7 +407,7 @@ fn vimwiki_decorated_text() {
     assert_eq!(
         x.element,
         DecoratedText::new(
-            vec![LC::from(DecoratedTextContent::Text(
+            vec![LE::from(DecoratedTextContent::Text(
                 "some text".to_string()
             ))],
             Decoration::Bold

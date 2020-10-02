@@ -2,7 +2,7 @@ use super::Region;
 use vimwiki::{
     elements,
     vendor::{chrono::NaiveDate, uriparse::URI},
-    LC,
+    LE,
 };
 
 #[derive(async_graphql::Union, Debug)]
@@ -16,29 +16,29 @@ pub enum Link {
     Transclusion(TransclusionLink),
 }
 
-impl From<LC<elements::Link>> for Link {
-    fn from(lc: LC<elements::Link>) -> Self {
+impl From<LE<elements::Link>> for Link {
+    fn from(lc: LE<elements::Link>) -> Self {
         match lc.element {
             elements::Link::Wiki(x) => {
-                Self::from(WikiLink::from(LC::new(x, lc.region)))
+                Self::from(WikiLink::from(LE::new(x, lc.region)))
             }
             elements::Link::InterWiki(elements::InterWikiLink::Indexed(x)) => {
-                Self::from(IndexedInterWikiLink::from(LC::new(x, lc.region)))
+                Self::from(IndexedInterWikiLink::from(LE::new(x, lc.region)))
             }
             elements::Link::InterWiki(elements::InterWikiLink::Named(x)) => {
-                Self::from(NamedInterWikiLink::from(LC::new(x, lc.region)))
+                Self::from(NamedInterWikiLink::from(LE::new(x, lc.region)))
             }
             elements::Link::Diary(x) => {
-                Self::from(DiaryLink::from(LC::new(x, lc.region)))
+                Self::from(DiaryLink::from(LE::new(x, lc.region)))
             }
             elements::Link::Raw(x) => {
-                Self::from(RawLink::from(LC::new(x, lc.region)))
+                Self::from(RawLink::from(LE::new(x, lc.region)))
             }
             elements::Link::ExternalFile(x) => {
-                Self::from(ExternalFileLink::from(LC::new(x, lc.region)))
+                Self::from(ExternalFileLink::from(LE::new(x, lc.region)))
             }
             elements::Link::Transclusion(x) => {
-                Self::from(TransclusionLink::from(LC::new(x, lc.region)))
+                Self::from(TransclusionLink::from(LE::new(x, lc.region)))
             }
         }
     }
@@ -67,8 +67,8 @@ pub struct WikiLink {
     anchor: Option<Anchor>,
 }
 
-impl From<LC<elements::WikiLink>> for WikiLink {
-    fn from(lc: LC<elements::WikiLink>) -> Self {
+impl From<LE<elements::WikiLink>> for WikiLink {
+    fn from(lc: LE<elements::WikiLink>) -> Self {
         Self {
             region: Region::from(lc.region),
             is_dir: lc.element.is_path_dir(),
@@ -107,8 +107,8 @@ pub struct IndexedInterWikiLink {
     anchor: Option<Anchor>,
 }
 
-impl From<LC<elements::IndexedInterWikiLink>> for IndexedInterWikiLink {
-    fn from(lc: LC<elements::IndexedInterWikiLink>) -> Self {
+impl From<LE<elements::IndexedInterWikiLink>> for IndexedInterWikiLink {
+    fn from(lc: LE<elements::IndexedInterWikiLink>) -> Self {
         Self {
             region: Region::from(lc.region),
             index: lc.element.index as i32,
@@ -148,8 +148,8 @@ pub struct NamedInterWikiLink {
     anchor: Option<Anchor>,
 }
 
-impl From<LC<elements::NamedInterWikiLink>> for NamedInterWikiLink {
-    fn from(lc: LC<elements::NamedInterWikiLink>) -> Self {
+impl From<LE<elements::NamedInterWikiLink>> for NamedInterWikiLink {
+    fn from(lc: LE<elements::NamedInterWikiLink>) -> Self {
         Self {
             region: Region::from(lc.region),
             name: lc.element.name,
@@ -178,8 +178,8 @@ pub struct DiaryLink {
     anchor: Option<Anchor>,
 }
 
-impl From<LC<elements::DiaryLink>> for DiaryLink {
-    fn from(lc: LC<elements::DiaryLink>) -> Self {
+impl From<LE<elements::DiaryLink>> for DiaryLink {
+    fn from(lc: LE<elements::DiaryLink>) -> Self {
         Self {
             region: Region::from(lc.region),
             date: lc.element.date,
@@ -205,8 +205,8 @@ pub struct ExternalFileLink {
     description: Option<Description>,
 }
 
-impl From<LC<elements::ExternalFileLink>> for ExternalFileLink {
-    fn from(lc: LC<elements::ExternalFileLink>) -> Self {
+impl From<LE<elements::ExternalFileLink>> for ExternalFileLink {
+    fn from(lc: LE<elements::ExternalFileLink>) -> Self {
         Self {
             region: Region::from(lc.region),
             scheme: ExternalFileLinkScheme::from(lc.element.scheme),
@@ -244,8 +244,8 @@ pub struct RawLink {
     uri: Uri,
 }
 
-impl From<LC<elements::RawLink>> for RawLink {
-    fn from(lc: LC<elements::RawLink>) -> Self {
+impl From<LE<elements::RawLink>> for RawLink {
+    fn from(lc: LE<elements::RawLink>) -> Self {
         Self {
             region: Region::from(lc.region),
             uri: Uri(lc.element.uri),
@@ -269,8 +269,8 @@ pub struct TransclusionLink {
     properties: Vec<Property>,
 }
 
-impl From<LC<elements::TransclusionLink>> for TransclusionLink {
-    fn from(mut lc: LC<elements::TransclusionLink>) -> Self {
+impl From<LE<elements::TransclusionLink>> for TransclusionLink {
+    fn from(mut lc: LE<elements::TransclusionLink>) -> Self {
         Self {
             region: Region::from(lc.region),
             uri: Uri(lc.element.uri),

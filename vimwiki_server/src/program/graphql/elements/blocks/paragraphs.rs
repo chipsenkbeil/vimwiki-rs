@@ -1,5 +1,5 @@
 use super::{InlineElement, Region};
-use vimwiki::{elements, LC};
+use vimwiki::{elements, LE};
 
 #[derive(async_graphql::SimpleObject, Debug)]
 pub struct Paragraph {
@@ -7,8 +7,8 @@ pub struct Paragraph {
     elements: Vec<InlineElement>,
 }
 
-impl From<LC<elements::Paragraph>> for Paragraph {
-    fn from(mut lc: LC<elements::Paragraph>) -> Self {
+impl From<LE<elements::Paragraph>> for Paragraph {
+    fn from(mut lc: LE<elements::Paragraph>) -> Self {
         Self {
             region: Region::from(lc.region),
             elements: lc

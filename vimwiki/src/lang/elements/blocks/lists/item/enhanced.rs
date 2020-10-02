@@ -223,7 +223,7 @@ impl EnhancedListItem {
 
 #[cfg(test)]
 mod tests {
-    use super::super::super::LC;
+    use super::super::super::LE;
     use super::*;
 
     macro_rules! enhanced_item {
@@ -303,7 +303,7 @@ mod tests {
 
     #[test]
     fn compute_todo_progress_should_use_children_progress_if_has_children() {
-        // - [ ] <CALCULATING>
+        // - [ ] <CALEULATING>
         //     - [-] N/A
         //     - [X] 100%
         //     - [.] 25%
@@ -313,12 +313,12 @@ mod tests {
         assert_eq!(
             enhanced_item!(
                 TodoIncomplete,
-                LC::from(enhanced_item!(TodoRejected)),
-                LC::from(enhanced_item!(TodoComplete)),
-                LC::from(enhanced_item!(TodoPartiallyComplete1)),
-                LC::from(enhanced_item!(TodoPartiallyComplete2)),
-                LC::from(enhanced_item!(TodoPartiallyComplete3)),
-                LC::from(enhanced_item!(TodoIncomplete))
+                LE::from(enhanced_item!(TodoRejected)),
+                LE::from(enhanced_item!(TodoComplete)),
+                LE::from(enhanced_item!(TodoPartiallyComplete1)),
+                LE::from(enhanced_item!(TodoPartiallyComplete2)),
+                LE::from(enhanced_item!(TodoPartiallyComplete3)),
+                LE::from(enhanced_item!(TodoIncomplete))
             )
             .compute_todo_progress(),
             Some((1.0 + 0.25 + 0.5 + 0.75 + 0.0) / 5.0)
@@ -330,14 +330,14 @@ mod tests {
         assert_eq!(
             enhanced_item!(
                 TodoIncomplete,
-                LC::from(enhanced_item!(
+                LE::from(enhanced_item!(
                     TodoRejected,
-                    LC::from(enhanced_item!(TodoRejected)),
-                    LC::from(enhanced_item!(TodoComplete)),
-                    LC::from(enhanced_item!(TodoPartiallyComplete1)),
-                    LC::from(enhanced_item!(TodoPartiallyComplete2)),
-                    LC::from(enhanced_item!(TodoPartiallyComplete3)),
-                    LC::from(enhanced_item!(TodoIncomplete))
+                    LE::from(enhanced_item!(TodoRejected)),
+                    LE::from(enhanced_item!(TodoComplete)),
+                    LE::from(enhanced_item!(TodoPartiallyComplete1)),
+                    LE::from(enhanced_item!(TodoPartiallyComplete2)),
+                    LE::from(enhanced_item!(TodoPartiallyComplete3)),
+                    LE::from(enhanced_item!(TodoIncomplete))
                 ))
             )
             .compute_todo_progress(),

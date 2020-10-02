@@ -1,7 +1,7 @@
 use super::{
     elements::{Description, ExternalFileLink, ExternalFileLinkScheme},
     utils::{context, lc, take_line_while1},
-    Span, VimwikiIResult, LC,
+    Span, VimwikiIResult, LE,
 };
 use nom::{
     branch::alt,
@@ -12,7 +12,7 @@ use nom::{
 use std::path::PathBuf;
 
 #[inline]
-pub fn external_file_link(input: Span) -> VimwikiIResult<LC<ExternalFileLink>> {
+pub fn external_file_link(input: Span) -> VimwikiIResult<LE<ExternalFileLink>> {
     fn inner(input: Span) -> VimwikiIResult<ExternalFileLink> {
         let (input, _) = tag("[[")(input)?;
         let (input, link) = alt((

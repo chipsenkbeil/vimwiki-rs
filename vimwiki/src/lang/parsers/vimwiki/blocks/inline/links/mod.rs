@@ -1,7 +1,7 @@
 use super::{
     elements::{self, Link},
     utils::{self, context},
-    Span, VimwikiIResult, LC,
+    Span, VimwikiIResult, LE,
 };
 use nom::{branch::alt, combinator::map};
 
@@ -38,7 +38,7 @@ pub(crate) mod wiki;
 /// [[#a1#a2]]                   -> <a href="#a1-a2">#a1#a2</a>
 ///
 #[inline]
-pub fn link(input: Span) -> VimwikiIResult<LC<Link>> {
+pub fn link(input: Span) -> VimwikiIResult<LE<Link>> {
     context(
         "Link",
         alt((

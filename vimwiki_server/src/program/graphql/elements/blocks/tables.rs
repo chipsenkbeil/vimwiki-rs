@@ -1,5 +1,5 @@
 use super::{InlineElement, Region};
-use vimwiki::{elements, LC};
+use vimwiki::{elements, LE};
 
 /// Represents a single document table
 #[derive(async_graphql::SimpleObject, Debug)]
@@ -14,8 +14,8 @@ pub struct Table {
     centered: bool,
 }
 
-impl From<LC<elements::Table>> for Table {
-    fn from(mut lc: LC<elements::Table>) -> Self {
+impl From<LE<elements::Table>> for Table {
+    fn from(mut lc: LE<elements::Table>) -> Self {
         let region = Region::from(lc.region);
         Self {
             region,
@@ -39,7 +39,7 @@ pub enum Row {
 }
 
 impl Row {
-    fn from_at_pos(position: i32, lc: LC<elements::Row>) -> Self {
+    fn from_at_pos(position: i32, lc: LE<elements::Row>) -> Self {
         let region = Region::from(lc.region);
 
         match lc.element {
@@ -97,7 +97,7 @@ impl Cell {
     fn from_at_pos(
         row_position: i32,
         position: i32,
-        lc: LC<elements::Cell>,
+        lc: LE<elements::Cell>,
     ) -> Self {
         let region = Region::from(lc.region);
 

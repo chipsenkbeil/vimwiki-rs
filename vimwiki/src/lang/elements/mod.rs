@@ -1,4 +1,4 @@
-use super::utils::LC;
+use super::utils::LE;
 use derive_more::Constructor;
 use serde::{Deserialize, Serialize};
 
@@ -13,8 +13,8 @@ pub use comments::*;
 )]
 pub struct Page {
     /// Comprised of the elements within a page
-    pub elements: Vec<LC<BlockElement>>,
+    pub elements: Vec<LE<BlockElement>>,
 
     /// Comprised of the comments within a page
-    pub comments: Vec<LC<Comment>>,
+    pub comments: Vec<LE<Comment>>,
 }

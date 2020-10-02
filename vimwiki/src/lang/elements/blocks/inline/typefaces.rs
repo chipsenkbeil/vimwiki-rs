@@ -1,4 +1,4 @@
-use super::{Link, LC};
+use super::{Link, LE};
 use derive_more::{Constructor, From};
 use serde::{Deserialize, Serialize};
 
@@ -28,7 +28,7 @@ pub enum DecoratedTextContent {
     Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
 )]
 pub struct DecoratedText {
-    pub contents: Vec<LC<DecoratedTextContent>>,
+    pub contents: Vec<LE<DecoratedTextContent>>,
     pub decoration: Decoration,
 }
 

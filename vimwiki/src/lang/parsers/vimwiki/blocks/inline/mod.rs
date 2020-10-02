@@ -1,7 +1,7 @@
 use super::{
     elements::{self, InlineElement, InlineElementContainer},
     utils::{self, context, lc, VimwikiIResult},
-    Span, LC,
+    Span, LE,
 };
 use nom::{branch::alt, combinator::map, multi::many1};
 
@@ -15,7 +15,7 @@ pub mod typefaces;
 #[inline]
 pub fn inline_element_container(
     input: Span,
-) -> VimwikiIResult<LC<InlineElementContainer>> {
+) -> VimwikiIResult<LE<InlineElementContainer>> {
     context(
         "Inline Element Container",
         lc(map(many1(inline_element), InlineElementContainer::from)),
@@ -24,7 +24,7 @@ pub fn inline_element_container(
 
 /// Parses an inline element, which can only exist on a single line
 #[inline]
-pub fn inline_element(input: Span) -> VimwikiIResult<LC<InlineElement>> {
+pub fn inline_element(input: Span) -> VimwikiIResult<LE<InlineElement>> {
     // NOTE: Ordering matters here as the first match is used as the
     //       element. This means that we want to ensure that text,
     //       which can match any character, is the last of our elements.
@@ -46,12 +46,10 @@ mod tests {
     use super::*;
     use crate::{
         elements::{
-            Comment, DecoratedText, DecoratedTextContent, Decoration,
-            InlineElement, Keyword, LineComment, Link, MathInline,
-            MultiLineComment, Paragraph, Tags, WikiLink,
+            DecoratedText, DecoratedTextContent, Decoration, InlineElement,
+            Keyword, Link, MathInline, Tags, WikiLink,
         },
         lang::utils::Span,
-        Region,
     };
     use std::path::PathBuf;
 
@@ -70,15 +68,15 @@ mod tests {
                 .collect::<Vec<InlineElement>>(),
             vec![
                 InlineElement::DecoratedText(DecoratedText::new(
-                    vec![LC::from(DecoratedTextContent::Text(
+                    vec![LE::from(DecoratedTextContent::Text(
                         "item 1".to_string()
                     ))],
                     Decoration::Bold
                 )),
                 InlineElement::Text(" has a ".to_string()),
-                InlineElement::Link(Link::from(WikiLink::from(
-                    PathBuf::from("link")
-                ))),
+                InlineElement::Link(Link::from(WikiLink::from(PathBuf::from(
+                    "link"
+                )))),
                 InlineElement::Text(" with ".to_string()),
                 InlineElement::Tags(Tags::from("tag")),
                 InlineElement::Text(" and ".to_string()),

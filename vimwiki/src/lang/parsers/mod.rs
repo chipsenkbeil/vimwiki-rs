@@ -1,7 +1,7 @@
 // Import to make more easily accessible to submodules
 use super::{
     elements,
-    utils::{Region, Span, LC},
+    utils::{Region, Span, LE},
 };
 
 mod errors;

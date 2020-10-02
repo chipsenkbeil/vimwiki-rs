@@ -4,7 +4,7 @@ use super::{
         beginning_of_line, context, end_of_line_or_input, lc, take_line_while1,
         take_until_end_of_line_or_input,
     },
-    Span, VimwikiIResult, LC,
+    Span, VimwikiIResult, LE,
 };
 use nom::{
     character::complete::{char, space0},
@@ -13,7 +13,7 @@ use nom::{
 
 /// Parses a vimwiki header, returning the associated header if successful
 #[inline]
-pub fn header(input: Span) -> VimwikiIResult<LC<Header>> {
+pub fn header(input: Span) -> VimwikiIResult<LE<Header>> {
     fn inner(input: Span) -> VimwikiIResult<Header> {
         // Header must start at the beginning of a line
         let (input, _) = beginning_of_line(input)?;

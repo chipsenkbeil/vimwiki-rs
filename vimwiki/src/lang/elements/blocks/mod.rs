@@ -1,4 +1,4 @@
-use super::LC;
+use super::LE;
 use derive_more::From;
 use serde::{Deserialize, Serialize};
 
@@ -44,8 +44,8 @@ pub enum BlockElement {
 
 macro_rules! lc_mapping {
     ($type:ty) => {
-        impl From<LC<$type>> for LC<BlockElement> {
-            fn from(element: LC<$type>) -> Self {
+        impl From<LE<$type>> for LE<BlockElement> {
+            fn from(element: LE<$type>) -> Self {
                 element.map(BlockElement::from)
             }
         }

@@ -4,7 +4,7 @@ use super::{
     math::math_inline,
     tags::tags,
     utils::{context, lc, pstring, take_line_while1},
-    Span, VimwikiIResult, LC,
+    Span, VimwikiIResult, LE,
 };
 
 use nom::{
@@ -15,7 +15,7 @@ use nom::{
 };
 
 #[inline]
-pub fn text(input: Span) -> VimwikiIResult<LC<String>> {
+pub fn text(input: Span) -> VimwikiIResult<LE<String>> {
     fn is_text(input: Span) -> VimwikiIResult<()> {
         let (input, _) = not(math_inline)(input)?;
         let (input, _) = not(tags)(input)?;
@@ -29,7 +29,7 @@ pub fn text(input: Span) -> VimwikiIResult<LC<String>> {
 }
 
 #[inline]
-pub fn decorated_text(input: Span) -> VimwikiIResult<LC<DecoratedText>> {
+pub fn decorated_text(input: Span) -> VimwikiIResult<LE<DecoratedText>> {
     #[inline]
     fn dt(
         start: &'static str,
@@ -51,7 +51,7 @@ pub fn decorated_text(input: Span) -> VimwikiIResult<LC<DecoratedText>> {
 
             fn other(
                 end: &'static str,
-            ) -> impl Fn(Span) -> VimwikiIResult<LC<String>> {
+            ) -> impl Fn(Span) -> VimwikiIResult<LE<String>> {
                 lc(pstring(take_line_while1(is_other(end))))
             }
 
@@ -86,7 +86,7 @@ pub fn decorated_text(input: Span) -> VimwikiIResult<LC<DecoratedText>> {
 }
 
 #[inline]
-pub fn keyword(input: Span) -> VimwikiIResult<LC<Keyword>> {
+pub fn keyword(input: Span) -> VimwikiIResult<LE<Keyword>> {
     // TODO: Generate using strum to iterate over all keyword items,
     //       forming a tag based on the string version and parsing the
     //       string back into the keyword in a map (or possibly using
@@ -221,7 +221,7 @@ mod tests {
         assert_eq!(
             dt.element,
             DecoratedText::new(
-                vec![LC::from(DecoratedTextContent::Text(
+                vec![LE::from(DecoratedTextContent::Text(
                     "bold text".to_string()
                 ))],
                 Decoration::Bold
@@ -240,7 +240,7 @@ mod tests {
         assert_eq!(
             dt.element,
             DecoratedText::new(
-                vec![LC::from(DecoratedTextContent::Text(
+                vec![LE::from(DecoratedTextContent::Text(
                     "italic text".to_string()
                 ))],
                 Decoration::Italic
@@ -259,7 +259,7 @@ mod tests {
         assert_eq!(
             dt.element,
             DecoratedText::new(
-                vec![LC::from(DecoratedTextContent::Text(
+                vec![LE::from(DecoratedTextContent::Text(
                     "bold italic text".to_string()
                 ))],
                 Decoration::BoldItalic
@@ -278,7 +278,7 @@ mod tests {
         assert_eq!(
             dt.element,
             DecoratedText::new(
-                vec![LC::from(DecoratedTextContent::Text(
+                vec![LE::from(DecoratedTextContent::Text(
                     "bold italic text".to_string()
                 ))],
                 Decoration::BoldItalic
@@ -297,7 +297,7 @@ mod tests {
         assert_eq!(
             dt.element,
             DecoratedText::new(
-                vec![LC::from(DecoratedTextContent::Text(
+                vec![LE::from(DecoratedTextContent::Text(
                     "strikeout text".to_string()
                 ))],
                 Decoration::Strikeout
@@ -316,7 +316,7 @@ mod tests {
         assert_eq!(
             dt.element,
             DecoratedText::new(
-                vec![LC::from(DecoratedTextContent::Text(
+                vec![LE::from(DecoratedTextContent::Text(
                     "code text".to_string()
                 ))],
                 Decoration::Code
@@ -335,7 +335,7 @@ mod tests {
         assert_eq!(
             dt.element,
             DecoratedText::new(
-                vec![LC::from(DecoratedTextContent::Text(
+                vec![LE::from(DecoratedTextContent::Text(
                     "superscript text".to_string()
                 ))],
                 Decoration::Superscript
@@ -354,7 +354,7 @@ mod tests {
         assert_eq!(
             dt.element,
             DecoratedText::new(
-                vec![LC::from(DecoratedTextContent::Text(
+                vec![LE::from(DecoratedTextContent::Text(
                     "subscript text".to_string()
                 ))],
                 Decoration::Subscript
@@ -373,7 +373,7 @@ mod tests {
         assert_eq!(
             dt.element,
             DecoratedText::new(
-                vec![LC::from(DecoratedTextContent::Link(Link::Wiki(
+                vec![LE::from(DecoratedTextContent::Link(Link::Wiki(
                     WikiLink::from(PathBuf::from("some link"))
                 )))],
                 Decoration::Bold
@@ -392,7 +392,7 @@ mod tests {
         assert_eq!(
             dt.element,
             DecoratedText::new(
-                vec![LC::from(DecoratedTextContent::Keyword(Keyword::TODO))],
+                vec![LE::from(DecoratedTextContent::Keyword(Keyword::TODO))],
                 Decoration::Bold
             )
         );
@@ -410,12 +410,12 @@ mod tests {
             dt.element,
             DecoratedText::new(
                 vec![
-                    LC::from(DecoratedTextContent::Text(
+                    LE::from(DecoratedTextContent::Text(
                         "Bold Text ".to_string()
                     )),
-                    LC::from(DecoratedTextContent::DecoratedText(
+                    LE::from(DecoratedTextContent::DecoratedText(
                         DecoratedText::new(
-                            vec![LC::from(DecoratedTextContent::Text(
+                            vec![LE::from(DecoratedTextContent::Text(
                                 "Bold Strikeout Text".to_string()
                             ))],
                             Decoration::Strikeout

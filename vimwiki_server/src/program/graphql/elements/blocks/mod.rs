@@ -1,5 +1,5 @@
 use super::Region;
-use vimwiki::{elements, LC};
+use vimwiki::{elements, LE};
 
 mod blockquotes;
 pub use blockquotes::*;
@@ -42,39 +42,39 @@ pub enum BlockElement {
     Table(Table),
 }
 
-impl From<LC<elements::BlockElement>> for BlockElement {
-    fn from(lc: LC<elements::BlockElement>) -> Self {
+impl From<LE<elements::BlockElement>> for BlockElement {
+    fn from(lc: LE<elements::BlockElement>) -> Self {
         let region = lc.region;
         match lc.element {
             elements::BlockElement::Header(x) => {
-                Self::from(Header::from(LC::new(x, region)))
+                Self::from(Header::from(LE::new(x, region)))
             }
             elements::BlockElement::Paragraph(x) => {
-                Self::from(Paragraph::from(LC::new(x, region)))
+                Self::from(Paragraph::from(LE::new(x, region)))
             }
             elements::BlockElement::DefinitionList(x) => {
-                Self::from(DefinitionList::from(LC::new(x, region)))
+                Self::from(DefinitionList::from(LE::new(x, region)))
             }
             elements::BlockElement::List(x) => {
-                Self::from(List::from(LC::new(x, region)))
+                Self::from(List::from(LE::new(x, region)))
             }
             elements::BlockElement::Table(x) => {
-                Self::from(Table::from(LC::new(x, region)))
+                Self::from(Table::from(LE::new(x, region)))
             }
             elements::BlockElement::PreformattedText(x) => {
-                Self::from(PreformattedText::from(LC::new(x, region)))
+                Self::from(PreformattedText::from(LE::new(x, region)))
             }
             elements::BlockElement::Math(x) => {
-                Self::from(MathBlock::from(LC::new(x, region)))
+                Self::from(MathBlock::from(LE::new(x, region)))
             }
             elements::BlockElement::Blockquote(x) => {
-                Self::from(Blockquote::from(LC::new(x, region)))
+                Self::from(Blockquote::from(LE::new(x, region)))
             }
             elements::BlockElement::Divider(x) => {
-                Self::from(Divider::from(LC::new(x, region)))
+                Self::from(Divider::from(LE::new(x, region)))
             }
             elements::BlockElement::Placeholder(x) => {
-                Self::from(Placeholder::from(LC::new(x, region)))
+                Self::from(Placeholder::from(LE::new(x, region)))
             }
             elements::BlockElement::NonBlankLine(x) => {
                 Self::from(NonBlankLine {

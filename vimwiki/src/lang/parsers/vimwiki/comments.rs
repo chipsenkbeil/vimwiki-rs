@@ -1,7 +1,7 @@
 use super::{
     elements::{Comment, LineComment, MultiLineComment},
     utils::{context, lc, pstring, take_until_end_of_line_or_input},
-    Span, VimwikiIResult, LC,
+    Span, VimwikiIResult, LE,
 };
 use nom::{
     branch::alt,
@@ -10,7 +10,7 @@ use nom::{
 };
 
 #[inline]
-pub fn comment(input: Span) -> VimwikiIResult<LC<Comment>> {
+pub fn comment(input: Span) -> VimwikiIResult<LE<Comment>> {
     context(
         "Comment",
         alt((
@@ -21,7 +21,7 @@ pub fn comment(input: Span) -> VimwikiIResult<LC<Comment>> {
 }
 
 #[inline]
-pub(crate) fn line_comment(input: Span) -> VimwikiIResult<LC<LineComment>> {
+pub(crate) fn line_comment(input: Span) -> VimwikiIResult<LE<LineComment>> {
     fn inner(input: Span) -> VimwikiIResult<LineComment> {
         let (input, _) = tag("%%")(input)?;
         let (input, text) = pstring(take_until_end_of_line_or_input)(input)?;
@@ -35,7 +35,7 @@ pub(crate) fn line_comment(input: Span) -> VimwikiIResult<LC<LineComment>> {
 #[inline]
 pub(crate) fn multi_line_comment(
     input: Span,
-) -> VimwikiIResult<LC<MultiLineComment>> {
+) -> VimwikiIResult<LE<MultiLineComment>> {
     fn inner(input: Span) -> VimwikiIResult<MultiLineComment> {
         let (input, _) = tag("%%+")(input)?;
 

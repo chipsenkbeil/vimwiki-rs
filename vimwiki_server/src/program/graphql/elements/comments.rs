@@ -1,5 +1,5 @@
 use super::Region;
-use vimwiki::{elements, LC};
+use vimwiki::{elements, LE};
 
 /// Represents a single document comment
 #[derive(async_graphql::Union, Debug)]
@@ -58,8 +58,8 @@ impl MultiLineComment {
     }
 }
 
-impl From<LC<elements::Comment>> for Comment {
-    fn from(lc: LC<elements::Comment>) -> Self {
+impl From<LE<elements::Comment>> for Comment {
+    fn from(lc: LE<elements::Comment>) -> Self {
         let region = Region::from(lc.region);
         match lc.element {
             elements::Comment::Line(x) => {

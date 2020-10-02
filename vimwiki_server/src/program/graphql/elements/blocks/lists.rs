@@ -1,5 +1,5 @@
 use super::{InlineElement, Region};
-use vimwiki::{elements, LC};
+use vimwiki::{elements, LE};
 
 /// Represents a single document list
 #[derive(async_graphql::SimpleObject, Debug)]
@@ -11,8 +11,8 @@ pub struct List {
     items: Vec<ListItem>,
 }
 
-impl From<LC<elements::List>> for List {
-    fn from(mut lc: LC<elements::List>) -> Self {
+impl From<LE<elements::List>> for List {
+    fn from(mut lc: LE<elements::List>) -> Self {
         Self {
             region: Region::from(lc.region),
             items: lc.element.items.drain(..).map(ListItem::from).collect(),
@@ -42,8 +42,8 @@ pub struct ListItem {
     attributes: Vec<ListItemAttribute>,
 }
 
-impl From<LC<elements::EnhancedListItem>> for ListItem {
-    fn from(lc: LC<elements::EnhancedListItem>) -> Self {
+impl From<LE<elements::EnhancedListItem>> for ListItem {
+    fn from(lc: LE<elements::EnhancedListItem>) -> Self {
         let region = Region::from(lc.region);
         let mut element = lc.element;
 
@@ -133,8 +133,8 @@ pub enum ListItemContent {
     List(List),
 }
 
-impl From<LC<elements::ListItemContent>> for ListItemContent {
-    fn from(lc: LC<elements::ListItemContent>) -> Self {
+impl From<LE<elements::ListItemContent>> for ListItemContent {
+    fn from(lc: LE<elements::ListItemContent>) -> Self {
         match lc.element {
             elements::ListItemContent::InlineContent(mut x) => {
                 Self::InlineContent(InlineContent {
@@ -146,7 +146,7 @@ impl From<LC<elements::ListItemContent>> for ListItemContent {
                 })
             }
             elements::ListItemContent::List(x) => {
-                Self::List(List::from(LC::new(x, lc.region)))
+                Self::List(List::from(LE::new(x, lc.region)))
             }
         }
     }

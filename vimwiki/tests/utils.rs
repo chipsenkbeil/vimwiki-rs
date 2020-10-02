@@ -1,14 +1,14 @@
-use vimwiki::{elements::BlockElement, LC};
+use vimwiki::{elements::BlockElement, LE};
 
 #[inline]
-pub fn blank_line() -> LC<BlockElement> {
-    LC::from(BlockElement::BlankLine)
+pub fn blank_line() -> LE<BlockElement> {
+    LE::from(BlockElement::BlankLine)
 }
 
 /// Compares top-level block elements from a page against an expected set
 pub fn compare_page_elements(
-    actual: &[LC<BlockElement>],
-    expected: &[LC<BlockElement>],
+    actual: &[LE<BlockElement>],
+    expected: &[LE<BlockElement>],
 ) {
     // NOTE: Rather than comparing vecs directly, we iterate through the
     //       page elements with a zip so we can get finer-grain details on

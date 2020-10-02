@@ -1,4 +1,4 @@
-use vimwiki::{elements, LC};
+use vimwiki::{elements, LE};
 
 mod blocks;
 pub use blocks::*;
@@ -20,8 +20,8 @@ pub struct Page {
     region: Region,
 }
 
-impl From<LC<elements::Page>> for Page {
-    fn from(mut lc: LC<elements::Page>) -> Self {
+impl From<LE<elements::Page>> for Page {
+    fn from(mut lc: LE<elements::Page>) -> Self {
         let elements = lc
             .element
             .elements

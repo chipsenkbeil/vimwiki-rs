@@ -2,7 +2,7 @@ use super::{
     elements::DiaryLink,
     utils::{context, take_line_while1, VimwikiNomError},
     wiki::wiki_link,
-    Span, VimwikiIResult, LC,
+    Span, VimwikiIResult, LE,
 };
 use chrono::NaiveDate;
 use nom::{
@@ -10,8 +10,8 @@ use nom::{
 };
 
 #[inline]
-pub fn diary_link(input: Span) -> VimwikiIResult<LC<DiaryLink>> {
-    fn inner(input: Span) -> VimwikiIResult<LC<DiaryLink>> {
+pub fn diary_link(input: Span) -> VimwikiIResult<LE<DiaryLink>> {
+    fn inner(input: Span) -> VimwikiIResult<LE<DiaryLink>> {
         // First, parse as a standard wiki link, which should stash the potential
         // diary as the path
         let (input, link) = wiki_link(input)?;

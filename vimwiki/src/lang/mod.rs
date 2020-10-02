@@ -7,7 +7,7 @@ use elements::*;
 use parsers::vimwiki;
 pub use parsers::LangParserError;
 use std::convert::TryFrom;
-use utils::{Span, LC};
+use utils::{Span, LE};
 
 /// Represents a raw string for a type of language
 /// (vimwiki, markdown, mediawiki)
@@ -55,92 +55,92 @@ macro_rules! impl_try_from {
 }
 
 // Top-level types
-impl_try_from!(LC<Page>, vimwiki::page);
-impl_try_from!(LC<BlockElement>, vimwiki::blocks::block_element);
+impl_try_from!(LE<Page>, vimwiki::page);
+impl_try_from!(LE<BlockElement>, vimwiki::blocks::block_element);
 impl_try_from!(
-    LC<InlineElementContainer>,
+    LE<InlineElementContainer>,
     vimwiki::blocks::inline::inline_element_container
 );
-impl_try_from!(LC<InlineElement>, vimwiki::blocks::inline::inline_element);
+impl_try_from!(LE<InlineElement>, vimwiki::blocks::inline::inline_element);
 
 // Blockquotes
-impl_try_from!(LC<Blockquote>, vimwiki::blocks::blockquotes::blockquote);
+impl_try_from!(LE<Blockquote>, vimwiki::blocks::blockquotes::blockquote);
 
 // Comments
-impl_try_from!(LC<Comment>, vimwiki::comments::comment);
-impl_try_from!(LC<LineComment>, vimwiki::comments::line_comment);
-impl_try_from!(LC<MultiLineComment>, vimwiki::comments::multi_line_comment);
+impl_try_from!(LE<Comment>, vimwiki::comments::comment);
+impl_try_from!(LE<LineComment>, vimwiki::comments::line_comment);
+impl_try_from!(LE<MultiLineComment>, vimwiki::comments::multi_line_comment);
 
 // Definitions (NOTE: Generic LocatedElement def above handles term & def)
 impl_try_from!(
-    LC<DefinitionList>,
+    LE<DefinitionList>,
     vimwiki::blocks::definitions::definition_list
 );
-// impl_try_from!(LC<Definition>, vimwiki::definition);
-// impl_try_from!(LC<Term>, vimwiki::term);
+// impl_try_from!(LE<Definition>, vimwiki::definition);
+// impl_try_from!(LE<Term>, vimwiki::term);
 
 // Dividers
-impl_try_from!(LC<Divider>, vimwiki::blocks::dividers::divider);
+impl_try_from!(LE<Divider>, vimwiki::blocks::dividers::divider);
 
 // Headers
-impl_try_from!(LC<Header>, vimwiki::blocks::headers::header);
+impl_try_from!(LE<Header>, vimwiki::blocks::headers::header);
 
 // Links
-impl_try_from!(LC<Link>, vimwiki::blocks::inline::links::link);
+impl_try_from!(LE<Link>, vimwiki::blocks::inline::links::link);
 impl_try_from!(
-    LC<DiaryLink>,
+    LE<DiaryLink>,
     vimwiki::blocks::inline::links::diary::diary_link
 );
 impl_try_from!(
-    LC<ExternalFileLink>,
+    LE<ExternalFileLink>,
     vimwiki::blocks::inline::links::external::external_file_link
 );
-impl_try_from!(LC<RawLink>, vimwiki::blocks::inline::links::raw::raw_link);
+impl_try_from!(LE<RawLink>, vimwiki::blocks::inline::links::raw::raw_link);
 impl_try_from!(
-    LC<TransclusionLink>,
+    LE<TransclusionLink>,
     vimwiki::blocks::inline::links::transclusion::transclusion_link
 );
 impl_try_from!(
-    LC<WikiLink>,
+    LE<WikiLink>,
     vimwiki::blocks::inline::links::wiki::wiki_link
 );
 impl_try_from!(
-    LC<InterWikiLink>,
+    LE<InterWikiLink>,
     vimwiki::blocks::inline::links::interwiki::inter_wiki_link
 );
 
 // Lists
-impl_try_from!(LC<List>, vimwiki::blocks::lists::list);
+impl_try_from!(LE<List>, vimwiki::blocks::lists::list);
 
 // Math
-impl_try_from!(LC<MathInline>, vimwiki::blocks::inline::math::math_inline);
-impl_try_from!(LC<MathBlock>, vimwiki::blocks::math::math_block);
+impl_try_from!(LE<MathInline>, vimwiki::blocks::inline::math::math_inline);
+impl_try_from!(LE<MathBlock>, vimwiki::blocks::math::math_block);
 
 // Paragraphs
-impl_try_from!(LC<Paragraph>, vimwiki::blocks::paragraphs::paragraph);
+impl_try_from!(LE<Paragraph>, vimwiki::blocks::paragraphs::paragraph);
 
 // Placeholders
-impl_try_from!(LC<Placeholder>, vimwiki::blocks::placeholders::placeholder);
+impl_try_from!(LE<Placeholder>, vimwiki::blocks::placeholders::placeholder);
 
 // Preformatted Text
 impl_try_from!(
-    LC<PreformattedText>,
+    LE<PreformattedText>,
     vimwiki::blocks::preformatted::preformatted_text
 );
 
 // Tables
-impl_try_from!(LC<Table>, vimwiki::blocks::tables::table);
+impl_try_from!(LE<Table>, vimwiki::blocks::tables::table);
 
 // Tags
-impl_try_from!(LC<Tags>, vimwiki::blocks::inline::tags::tags);
+impl_try_from!(LE<Tags>, vimwiki::blocks::inline::tags::tags);
 
 // Typefaces
-impl_try_from!(LC<String>, vimwiki::blocks::inline::typefaces::text);
+impl_try_from!(LE<String>, vimwiki::blocks::inline::typefaces::text);
 impl_try_from!(
-    LC<DecoratedText>,
+    LE<DecoratedText>,
     vimwiki::blocks::inline::typefaces::decorated_text
 );
-impl_try_from!(LC<Keyword>, vimwiki::blocks::inline::typefaces::keyword);
+impl_try_from!(LE<Keyword>, vimwiki::blocks::inline::typefaces::keyword);
 
 #[cfg(test)]
 mod tests {
@@ -154,198 +154,198 @@ mod tests {
         #[test]
         fn try_from_raw_str_to_lc_page() {
             let input = RawStr::Vimwiki("some text");
-            let _result: LC<Page> = input.try_into().expect("Failed to parse");
+            let _result: LE<Page> = input.try_into().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_lc_block_element() {
             let input = RawStr::Vimwiki("some text");
-            let _result: LC<BlockElement> =
+            let _result: LE<BlockElement> =
                 input.try_into().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_lc_inline_element_container() {
             let input = RawStr::Vimwiki("some text");
-            let _result: LC<InlineElementContainer> =
+            let _result: LE<InlineElementContainer> =
                 input.try_into().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_lc_inline_element() {
             let input = RawStr::Vimwiki("some text");
-            let _result: LC<InlineElement> =
+            let _result: LE<InlineElement> =
                 input.try_into().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_lc_blockquote() {
             let input = RawStr::Vimwiki("> some text");
-            let _result: LC<Blockquote> =
+            let _result: LE<Blockquote> =
                 input.try_into().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_lc_comment() {
             let input = RawStr::Vimwiki("%% some comment");
-            let _result: LC<Comment> =
+            let _result: LE<Comment> =
                 input.try_into().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_lc_line_comment() {
             let input = RawStr::Vimwiki("%% some comment");
-            let _result: LC<LineComment> =
+            let _result: LE<LineComment> =
                 input.try_into().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_lc_multi_line_comment() {
             let input = RawStr::Vimwiki("%%+ some comment +%%");
-            let _result: LC<MultiLineComment> =
+            let _result: LE<MultiLineComment> =
                 input.try_into().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_lc_definition_list() {
             let input = RawStr::Vimwiki("term:: definition");
-            let _result: LC<DefinitionList> =
+            let _result: LE<DefinitionList> =
                 input.try_into().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_lc_divider() {
             let input = RawStr::Vimwiki("----");
-            let _result: LC<Divider> =
+            let _result: LE<Divider> =
                 input.try_into().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_lc_header() {
             let input = RawStr::Vimwiki("= header =");
-            let _result: LC<Header> =
+            let _result: LE<Header> =
                 input.try_into().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_lc_link() {
             let input = RawStr::Vimwiki("[[link]]");
-            let _result: LC<Link> = input.try_into().expect("Failed to parse");
+            let _result: LE<Link> = input.try_into().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_lc_diary_link() {
             let input = RawStr::Vimwiki("[[diary:2012-03-05]]");
-            let _result: LC<DiaryLink> =
+            let _result: LE<DiaryLink> =
                 input.try_into().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_lc_external_file_link() {
             let input = RawStr::Vimwiki("[[file:path/to/file]]");
-            let _result: LC<ExternalFileLink> =
+            let _result: LE<ExternalFileLink> =
                 input.try_into().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_lc_raw_link() {
             let input = RawStr::Vimwiki("https://example.com");
-            let _result: LC<RawLink> =
+            let _result: LE<RawLink> =
                 input.try_into().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_lc_transclusion_link() {
             let input = RawStr::Vimwiki("{{https://example.com/img.jpg}}");
-            let _result: LC<TransclusionLink> =
+            let _result: LE<TransclusionLink> =
                 input.try_into().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_lc_wiki_link() {
             let input = RawStr::Vimwiki("[[link]]");
-            let _result: LC<WikiLink> =
+            let _result: LE<WikiLink> =
                 input.try_into().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_lc_inter_wiki_link() {
             let input = RawStr::Vimwiki("[[wiki1:link]]");
-            let _result: LC<InterWikiLink> =
+            let _result: LE<InterWikiLink> =
                 input.try_into().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_lc_list() {
             let input = RawStr::Vimwiki("- some list item");
-            let _result: LC<List> = input.try_into().expect("Failed to parse");
+            let _result: LE<List> = input.try_into().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_lc_math_inline() {
             let input = RawStr::Vimwiki("$math$");
-            let _result: LC<MathInline> =
+            let _result: LE<MathInline> =
                 input.try_into().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_lc_math_block() {
             let input = RawStr::Vimwiki("{{$\nmath\n}}$");
-            let _result: LC<MathBlock> =
+            let _result: LE<MathBlock> =
                 input.try_into().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_lc_paragraph() {
             let input = RawStr::Vimwiki("some text");
-            let _result: LC<Paragraph> =
+            let _result: LE<Paragraph> =
                 input.try_into().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_lc_placeholder() {
             let input = RawStr::Vimwiki("%title some text");
-            let _result: LC<Placeholder> =
+            let _result: LE<Placeholder> =
                 input.try_into().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_lc_preformatted_text() {
             let input = RawStr::Vimwiki("{{{\nsome code\n}}}");
-            let _result: LC<PreformattedText> =
+            let _result: LE<PreformattedText> =
                 input.try_into().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_lc_table() {
             let input = RawStr::Vimwiki("|cell|");
-            let _result: LC<Table> = input.try_into().expect("Failed to parse");
+            let _result: LE<Table> = input.try_into().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_lc_tags() {
             let input = RawStr::Vimwiki(":tag:");
-            let _result: LC<Tags> = input.try_into().expect("Failed to parse");
+            let _result: LE<Tags> = input.try_into().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_lc_string() {
             let input = RawStr::Vimwiki("some text");
-            let _result: LC<String> =
+            let _result: LE<String> =
                 input.try_into().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_lc_decorated_text() {
             let input = RawStr::Vimwiki("*some text*");
-            let _result: LC<DecoratedText> =
+            let _result: LE<DecoratedText> =
                 input.try_into().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_lc_keyword() {
             let input = RawStr::Vimwiki("TODO");
-            let _result: LC<Keyword> =
+            let _result: LE<Keyword> =
                 input.try_into().expect("Failed to parse");
         }
     }

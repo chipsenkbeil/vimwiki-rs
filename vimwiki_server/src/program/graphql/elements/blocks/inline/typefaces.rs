@@ -1,5 +1,5 @@
 use super::{Link, Region};
-use vimwiki::{elements, LC};
+use vimwiki::{elements, LE};
 
 /// Represents raw text within a single document
 #[derive(async_graphql::SimpleObject, Debug)]
@@ -11,8 +11,8 @@ pub struct Text {
     content: String,
 }
 
-impl From<LC<String>> for Text {
-    fn from(lc: LC<String>) -> Self {
+impl From<LE<String>> for Text {
+    fn from(lc: LE<String>) -> Self {
         Self {
             region: Region::from(lc.region),
             content: lc.element,
@@ -56,22 +56,22 @@ pub enum DecoratedTextContent {
     Link(Link),
 }
 
-impl From<LC<elements::DecoratedTextContent>> for DecoratedTextContent {
-    fn from(lc: LC<elements::DecoratedTextContent>) -> Self {
+impl From<LE<elements::DecoratedTextContent>> for DecoratedTextContent {
+    fn from(lc: LE<elements::DecoratedTextContent>) -> Self {
         match lc.element {
             elements::DecoratedTextContent::Text(content) => Self::from(Text {
                 region: Region::from(lc.region),
                 content,
             }),
             elements::DecoratedTextContent::DecoratedText(x) => {
-                Self::from(DecoratedText::from(LC::new(x, lc.region)))
+                Self::from(DecoratedText::from(LE::new(x, lc.region)))
             }
             elements::DecoratedTextContent::Keyword(x) => Self::from(Keyword {
                 region: Region::from(lc.region),
                 r#type: KeywordType::from(x),
             }),
             elements::DecoratedTextContent::Link(x) => {
-                Self::from(Link::from(LC::new(x, lc.region)))
+                Self::from(Link::from(LE::new(x, lc.region)))
             }
         }
     }
@@ -90,8 +90,8 @@ pub struct DecoratedText {
     decoration: Decoration,
 }
 
-impl From<LC<elements::DecoratedText>> for DecoratedText {
-    fn from(mut lc: LC<elements::DecoratedText>) -> Self {
+impl From<LE<elements::DecoratedText>> for DecoratedText {
+    fn from(mut lc: LE<elements::DecoratedText>) -> Self {
         Self {
             region: Region::from(lc.region),
             contents: lc
@@ -139,8 +139,8 @@ pub struct Keyword {
     r#type: KeywordType,
 }
 
-impl From<LC<elements::Keyword>> for Keyword {
-    fn from(lc: LC<elements::Keyword>) -> Self {
+impl From<LE<elements::Keyword>> for Keyword {
+    fn from(lc: LE<elements::Keyword>) -> Self {
         Self {
             region: Region::from(lc.region),
             r#type: KeywordType::from(lc.element),

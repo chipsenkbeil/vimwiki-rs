@@ -1,4 +1,4 @@
-use super::{Region, Span, VimwikiIResult, VimwikiNomError, LC};
+use super::{Region, Span, VimwikiIResult, VimwikiNomError, LE};
 use nom::{
     branch::alt,
     bytes::complete::{tag, take, take_while},
@@ -113,7 +113,7 @@ pub fn context<T>(
 #[inline]
 pub fn lc<T>(
     parser: impl Fn(Span) -> VimwikiIResult<T>,
-) -> impl Fn(Span) -> VimwikiIResult<LC<T>> {
+) -> impl Fn(Span) -> VimwikiIResult<LE<T>> {
     use nom::{Offset, Slice};
     move |input: Span| {
         let start_line = input.global_line();
@@ -131,7 +131,7 @@ pub fn lc<T>(
         let end_line = input.global_line();
         let end_column = input.global_utf8_column();
 
-        Ok((input2, LC::new(x, Region::from((start_line, start_column, end_line, end_column)))))
+        Ok((input2, LE::new(x, Region::from((start_line, start_column, end_line, end_column)))))
     }
 }
 

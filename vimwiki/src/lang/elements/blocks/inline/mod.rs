@@ -43,7 +43,7 @@ pub enum InlineElement {
     Deserialize,
 )]
 pub struct InlineElementContainer {
-    pub elements: Vec<LC<InlineElement>>,
+    pub elements: Vec<LE<InlineElement>>,
 }
 
 impl From<Vec<InlineElementContainer>> for InlineElementContainer {
@@ -52,14 +52,14 @@ impl From<Vec<InlineElementContainer>> for InlineElementContainer {
     }
 }
 
-impl From<LC<InlineElement>> for InlineElementContainer {
-    fn from(element: LC<InlineElement>) -> Self {
+impl From<LE<InlineElement>> for InlineElementContainer {
+    fn from(element: LE<InlineElement>) -> Self {
         Self::new(vec![element])
     }
 }
 
-impl From<LC<&str>> for InlineElementContainer {
-    fn from(element: LC<&str>) -> Self {
+impl From<LE<&str>> for InlineElementContainer {
+    fn from(element: LE<&str>) -> Self {
         Self::from(element.map(|x| x.to_string()))
     }
 }
@@ -74,9 +74,9 @@ macro_rules! container_mapping {
     };
 }
 
-container_mapping!(LC<MathInline>);
-container_mapping!(LC<String>);
-container_mapping!(LC<DecoratedText>);
-container_mapping!(LC<Keyword>);
-container_mapping!(LC<Link>);
-container_mapping!(LC<Tags>);
+container_mapping!(LE<MathInline>);
+container_mapping!(LE<String>);
+container_mapping!(LE<DecoratedText>);
+container_mapping!(LE<Keyword>);
+container_mapping!(LE<Link>);
+container_mapping!(LE<Tags>);

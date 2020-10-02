@@ -1,7 +1,7 @@
 use paste::paste;
 use proc_macro2::{Span, TokenStream};
 use std::convert::TryInto;
-use vimwiki::{elements, RawStr, LC};
+use vimwiki::{elements, RawStr, LE};
 
 mod error;
 use error::{Error, Result};
@@ -71,35 +71,35 @@ macro_rules! impl_macro_vimwiki {
 ///////////////////////////////////////////////////////////////////////////////
 // Implement macros for vimwiki
 ///////////////////////////////////////////////////////////////////////////////
-impl_macro_vimwiki!(page, LC<elements::Page>);
-impl_macro_vimwiki!(block_element, LC<elements::BlockElement>);
+impl_macro_vimwiki!(page, LE<elements::Page>);
+impl_macro_vimwiki!(block_element, LE<elements::BlockElement>);
 impl_macro_vimwiki!(
     inline_element_container,
-    LC<elements::InlineElementContainer>
+    LE<elements::InlineElementContainer>
 );
-impl_macro_vimwiki!(inline_element, LC<elements::InlineElement>);
-impl_macro_vimwiki!(blockquote, LC<elements::Blockquote>);
-impl_macro_vimwiki!(comment, LC<elements::Comment>);
-impl_macro_vimwiki!(line_comment, LC<elements::LineComment>);
-impl_macro_vimwiki!(multi_line_comment, LC<elements::MultiLineComment>);
-impl_macro_vimwiki!(definition_list, LC<elements::DefinitionList>);
-impl_macro_vimwiki!(divider, LC<elements::Divider>);
-impl_macro_vimwiki!(header, LC<elements::Header>);
-impl_macro_vimwiki!(link, LC<elements::Link>);
-impl_macro_vimwiki!(diary_link, LC<elements::DiaryLink>);
-impl_macro_vimwiki!(external_file_link, LC<elements::ExternalFileLink>);
-impl_macro_vimwiki!(raw_link, LC<elements::RawLink>);
-impl_macro_vimwiki!(transclusion_link, LC<elements::TransclusionLink>);
-impl_macro_vimwiki!(wiki_link, LC<elements::WikiLink>);
-impl_macro_vimwiki!(inter_wiki_link, LC<elements::InterWikiLink>);
-impl_macro_vimwiki!(list, LC<elements::List>);
-impl_macro_vimwiki!(math_inline, LC<elements::MathInline>);
-impl_macro_vimwiki!(math_block, LC<elements::MathBlock>);
-impl_macro_vimwiki!(paragraph, LC<elements::Paragraph>);
-impl_macro_vimwiki!(placeholder, LC<elements::Placeholder>);
-impl_macro_vimwiki!(preformatted_text, LC<elements::PreformattedText>);
-impl_macro_vimwiki!(table, LC<elements::Table>);
-impl_macro_vimwiki!(tags, LC<elements::Tags>);
-impl_macro_vimwiki!(decorated_text, LC<elements::DecoratedText>);
-impl_macro_vimwiki!(keyword, LC<elements::Keyword>);
-impl_macro_vimwiki!(string, LC<String>);
+impl_macro_vimwiki!(inline_element, LE<elements::InlineElement>);
+impl_macro_vimwiki!(blockquote, LE<elements::Blockquote>);
+impl_macro_vimwiki!(comment, LE<elements::Comment>);
+impl_macro_vimwiki!(line_comment, LE<elements::LineComment>);
+impl_macro_vimwiki!(multi_line_comment, LE<elements::MultiLineComment>);
+impl_macro_vimwiki!(definition_list, LE<elements::DefinitionList>);
+impl_macro_vimwiki!(divider, LE<elements::Divider>);
+impl_macro_vimwiki!(header, LE<elements::Header>);
+impl_macro_vimwiki!(link, LE<elements::Link>);
+impl_macro_vimwiki!(diary_link, LE<elements::DiaryLink>);
+impl_macro_vimwiki!(external_file_link, LE<elements::ExternalFileLink>);
+impl_macro_vimwiki!(raw_link, LE<elements::RawLink>);
+impl_macro_vimwiki!(transclusion_link, LE<elements::TransclusionLink>);
+impl_macro_vimwiki!(wiki_link, LE<elements::WikiLink>);
+impl_macro_vimwiki!(inter_wiki_link, LE<elements::InterWikiLink>);
+impl_macro_vimwiki!(list, LE<elements::List>);
+impl_macro_vimwiki!(math_inline, LE<elements::MathInline>);
+impl_macro_vimwiki!(math_block, LE<elements::MathBlock>);
+impl_macro_vimwiki!(paragraph, LE<elements::Paragraph>);
+impl_macro_vimwiki!(placeholder, LE<elements::Placeholder>);
+impl_macro_vimwiki!(preformatted_text, LE<elements::PreformattedText>);
+impl_macro_vimwiki!(table, LE<elements::Table>);
+impl_macro_vimwiki!(tags, LE<elements::Tags>);
+impl_macro_vimwiki!(decorated_text, LE<elements::DecoratedText>);
+impl_macro_vimwiki!(keyword, LE<elements::Keyword>);
+impl_macro_vimwiki!(string, LE<String>);

@@ -4,7 +4,7 @@ use super::{
         any_line, beginning_of_line, context, end_of_line_or_input, lc,
         pstring, take_line_while1,
     },
-    Span, VimwikiIResult, LC,
+    Span, VimwikiIResult, LE,
 };
 use nom::{
     bytes::complete::tag,
@@ -15,7 +15,7 @@ use nom::{
 };
 
 #[inline]
-pub fn math_block(input: Span) -> VimwikiIResult<LC<MathBlock>> {
+pub fn math_block(input: Span) -> VimwikiIResult<LE<MathBlock>> {
     fn inner(input: Span) -> VimwikiIResult<MathBlock> {
         // First, look for the beginning section including an optional environment
         let (input, environment) = beginning_of_math_block(input)?;

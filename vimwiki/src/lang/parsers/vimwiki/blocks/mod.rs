@@ -1,7 +1,7 @@
 use super::{
     elements::{self, BlockElement},
     utils::{self, context, lc, VimwikiIResult},
-    Span, LC,
+    Span, LE,
 };
 use nom::{
     branch::alt,
@@ -21,7 +21,7 @@ pub mod preformatted;
 pub mod tables;
 
 /// Parses a block element
-pub fn block_element(input: Span) -> VimwikiIResult<LC<BlockElement>> {
+pub fn block_element(input: Span) -> VimwikiIResult<LE<BlockElement>> {
     context(
         "Block Element",
         alt((
@@ -35,7 +35,7 @@ pub fn block_element(input: Span) -> VimwikiIResult<LC<BlockElement>> {
                 c.map(BlockElement::from)
             }),
             map(math::math_block, |c| c.map(BlockElement::from)),
-            map(blank_line, |c| LC::new(BlockElement::BlankLine, c.region)),
+            map(blank_line, |c| LE::new(BlockElement::BlankLine, c.region)),
             map(blockquotes::blockquote, |c| c.map(BlockElement::from)),
             map(dividers::divider, |c| c.map(BlockElement::from)),
             map(placeholders::placeholder, |c| c.map(BlockElement::from)),
@@ -49,11 +49,11 @@ pub fn block_element(input: Span) -> VimwikiIResult<LC<BlockElement>> {
 }
 
 /// Parses a blank line
-fn blank_line(input: Span) -> VimwikiIResult<LC<()>> {
+fn blank_line(input: Span) -> VimwikiIResult<LE<()>> {
     context("Blank Line", lc(value((), utils::blank_line)))(input)
 }
 
 /// Parses a non-blank line
-fn non_blank_line(input: Span) -> VimwikiIResult<LC<String>> {
+fn non_blank_line(input: Span) -> VimwikiIResult<LE<String>> {
     context("Non Blank Line", lc(utils::non_blank_line))(input)
 }

@@ -2,14 +2,14 @@ use super::{
     elements::{IndexedInterWikiLink, InterWikiLink, NamedInterWikiLink},
     utils::{context, take_line_while1, VimwikiNomError},
     wiki::wiki_link,
-    Span, VimwikiIResult, LC,
+    Span, VimwikiIResult, LE,
 };
 use nom::{bytes::complete::tag, combinator::not, sequence::delimited};
 use std::path::PathBuf;
 
 #[inline]
-pub fn inter_wiki_link(input: Span) -> VimwikiIResult<LC<InterWikiLink>> {
-    fn inner(input: Span) -> VimwikiIResult<LC<InterWikiLink>> {
+pub fn inter_wiki_link(input: Span) -> VimwikiIResult<LE<InterWikiLink>> {
+    fn inner(input: Span) -> VimwikiIResult<LE<InterWikiLink>> {
         let (input, mut link) = wiki_link(input)?;
         let path = link.path.to_str().ok_or_else(|| {
             nom::Err::Error(VimwikiNomError::from_ctx(

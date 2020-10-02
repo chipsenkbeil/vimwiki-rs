@@ -1,5 +1,5 @@
 use super::Region;
-use vimwiki::{elements, LC};
+use vimwiki::{elements, LE};
 
 #[derive(Debug)]
 pub struct MathBlock {
@@ -32,8 +32,8 @@ impl MathBlock {
     }
 }
 
-impl From<LC<elements::MathBlock>> for MathBlock {
-    fn from(lc: LC<elements::MathBlock>) -> Self {
+impl From<LE<elements::MathBlock>> for MathBlock {
+    fn from(lc: LE<elements::MathBlock>) -> Self {
         Self {
             region: Region::from(lc.region),
             lines: lc.element.lines,

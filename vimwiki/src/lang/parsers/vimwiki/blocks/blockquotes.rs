@@ -1,7 +1,7 @@
 use super::{
     elements::Blockquote,
     utils::{beginning_of_line, blank_line, context, end_of_line_or_input, lc},
-    Span, VimwikiIResult, LC,
+    Span, VimwikiIResult, LE,
 };
 use nom::{
     branch::alt,
@@ -13,7 +13,7 @@ use nom::{
 };
 
 #[inline]
-pub fn blockquote(input: Span) -> VimwikiIResult<LC<Blockquote>> {
+pub fn blockquote(input: Span) -> VimwikiIResult<LE<Blockquote>> {
     fn inner(input: Span) -> VimwikiIResult<Blockquote> {
         let (input, lines) = alt((
             // NOTE: Indented blockquotes do not allow blank lines

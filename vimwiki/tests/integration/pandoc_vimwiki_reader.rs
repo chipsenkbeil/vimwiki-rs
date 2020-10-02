@@ -3,12 +3,12 @@ use super::{
     utils::{blank_line, compare_page_elements},
 };
 use std::convert::TryInto;
-use vimwiki::{elements::*, RawStr, Region, LC};
+use vimwiki::{elements::*, RawStr, Region, LE};
 use vimwiki_macros::*;
 
 #[test]
 fn test() {
-    let page: LC<Page> =
+    let page: LE<Page> =
         RawStr::Vimwiki(&VimwikiFile::PandocVimwikiReader.load().unwrap())
             .try_into()
             .unwrap();

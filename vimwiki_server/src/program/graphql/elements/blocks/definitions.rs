@@ -1,11 +1,11 @@
 use super::Region;
-use vimwiki::{elements, LC};
+use vimwiki::{elements, LE};
 
 #[derive(Debug)]
-pub struct DefinitionList(LC<elements::DefinitionList>);
+pub struct DefinitionList(LE<elements::DefinitionList>);
 
-impl From<LC<elements::DefinitionList>> for DefinitionList {
-    fn from(lc: LC<elements::DefinitionList>) -> Self {
+impl From<LE<elements::DefinitionList>> for DefinitionList {
+    fn from(lc: LE<elements::DefinitionList>) -> Self {
         Self(lc)
     }
 }

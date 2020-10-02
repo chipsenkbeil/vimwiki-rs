@@ -11,7 +11,7 @@ use super::{
     preformatted::preformatted_text,
     tables::table,
     utils::{beginning_of_line, blank_line, context, end_of_line_or_input, lc},
-    Span, VimwikiIResult, LC,
+    Span, VimwikiIResult, LE,
 };
 use nom::{
     character::complete::space1,
@@ -22,7 +22,7 @@ use nom::{
 
 /// Parses a vimwiki paragraph, returning the associated paragraph is successful
 #[inline]
-pub fn paragraph(input: Span) -> VimwikiIResult<LC<Paragraph>> {
+pub fn paragraph(input: Span) -> VimwikiIResult<LE<Paragraph>> {
     fn inner(input: Span) -> VimwikiIResult<Paragraph> {
         // Ensure that we are starting at the beginning of a line
         let (input, _) = beginning_of_line(input)?;
@@ -107,7 +107,7 @@ mod tests {
             vec![
                 InlineElement::Text("Some paragraph with ".to_string()),
                 InlineElement::DecoratedText(DecoratedText::new(
-                    vec![LC::from(DecoratedTextContent::Text(
+                    vec![LE::from(DecoratedTextContent::Text(
                         "decorations".to_string()
                     ))],
                     Decoration::Bold
@@ -141,7 +141,7 @@ mod tests {
             vec![
                 InlineElement::Text("Some paragraph with ".to_string()),
                 InlineElement::DecoratedText(DecoratedText::new(
-                    vec![LC::from(DecoratedTextContent::Text(
+                    vec![LE::from(DecoratedTextContent::Text(
                         "decorations".to_string()
                     ))],
                     Decoration::Bold
@@ -176,7 +176,7 @@ mod tests {
             vec![
                 InlineElement::Text("Some paragraph with ".to_string()),
                 InlineElement::DecoratedText(DecoratedText::new(
-                    vec![LC::from(DecoratedTextContent::Text(
+                    vec![LE::from(DecoratedTextContent::Text(
                         "decorations".to_string()
                     ))],
                     Decoration::Bold
@@ -217,7 +217,7 @@ mod tests {
             vec![
                 InlineElement::Text("Some paragraph with ".to_string()),
                 InlineElement::DecoratedText(DecoratedText::new(
-                    vec![LC::from(DecoratedTextContent::Text(
+                    vec![LE::from(DecoratedTextContent::Text(
                         "decorations".to_string()
                     ))],
                     Decoration::Bold

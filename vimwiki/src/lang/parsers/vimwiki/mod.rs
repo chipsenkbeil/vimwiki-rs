@@ -1,7 +1,7 @@
 use super::{
     elements::{self, Page},
     utils::{self, context, lc, range, scan, VimwikiIResult},
-    Span, LC,
+    Span, LE,
 };
 use nom::{combinator::all_consuming, multi::many0, InputLength, Slice};
 
@@ -9,7 +9,7 @@ pub mod blocks;
 pub mod comments;
 
 /// Parses entire vimwiki page
-pub fn page(input: Span) -> VimwikiIResult<LC<Page>> {
+pub fn page(input: Span) -> VimwikiIResult<LE<Page>> {
     fn inner(input: Span) -> VimwikiIResult<Page> {
         // Used for our second pass, needs to be done here given that we
         // will be breaking up into segments based on raw input
@@ -94,7 +94,7 @@ mod tests {
         assert!(page.comments.is_empty(), "Unexpected parsed comment");
         assert_eq!(
             page.elements,
-            vec![BlockElement::from(Paragraph::from(vec![LC::from(
+            vec![BlockElement::from(Paragraph::from(vec![LE::from(
                 InlineElement::Text("some text with % signs".to_string())
             )]))]
         );
@@ -139,7 +139,7 @@ mod tests {
         let element = &page.elements[1];
         assert_eq!(
             element.element,
-            BlockElement::from(Paragraph::from(vec![LC::from(
+            BlockElement::from(Paragraph::from(vec![LE::from(
                 InlineElement::Text("Some more text".to_string())
             )]))
         );

@@ -6,7 +6,7 @@ use super::{
     },
     inline::inline_element_container,
     utils::{beginning_of_line, context, end_of_line_or_input, lc},
-    Span, VimwikiIResult, LC,
+    Span, VimwikiIResult, LE,
 };
 use nom::{
     branch::alt,
@@ -18,7 +18,7 @@ use nom::{
 };
 
 #[inline]
-pub fn list(input: Span) -> VimwikiIResult<LC<List>> {
+pub fn list(input: Span) -> VimwikiIResult<LE<List>> {
     fn inner(input: Span) -> VimwikiIResult<List> {
         // A list must at least have one item, whose indentation level we will
         // use to determine how far to go
@@ -65,8 +65,8 @@ pub fn list(input: Span) -> VimwikiIResult<LC<List>> {
 
 /// Parse space/tabs before a list item, followed by the list item
 #[inline]
-fn list_item(input: Span) -> VimwikiIResult<(usize, LC<EnhancedListItem>)> {
-    fn inner(input: Span) -> VimwikiIResult<(usize, LC<EnhancedListItem>)> {
+fn list_item(input: Span) -> VimwikiIResult<(usize, LE<EnhancedListItem>)> {
+    fn inner(input: Span) -> VimwikiIResult<(usize, LE<EnhancedListItem>)> {
         // 1. Start at the beginning of the line
         let (input, _) = beginning_of_line(input)?;
 
@@ -155,7 +155,7 @@ fn indentation_level(consume: bool) -> impl Fn(Span) -> VimwikiIResult<usize> {
 #[inline]
 fn list_item_line_content(
     input: Span,
-) -> VimwikiIResult<LC<InlineElementContainer>> {
+) -> VimwikiIResult<LE<InlineElementContainer>> {
     terminated(inline_element_container, end_of_line_or_input)(input)
 }
 
@@ -314,7 +314,7 @@ fn ordered_list_item_type_upper_roman(
 ) -> VimwikiIResult<OrderedListItemType> {
     value(
         OrderedListItemType::UppercaseRoman,
-        many1(one_of("IVXLCDM")),
+        many1(one_of("IVXLEDM")),
     )(input)
 }
 
@@ -533,7 +533,7 @@ mod tests {
             vec![
                 &InlineElement::Text("list ".to_string()),
                 &InlineElement::DecoratedText(DecoratedText::new(
-                    vec![LC::from(DecoratedTextContent::Text(
+                    vec![LE::from(DecoratedTextContent::Text(
                         "item 1".to_string()
                     ))],
                     Decoration::Bold

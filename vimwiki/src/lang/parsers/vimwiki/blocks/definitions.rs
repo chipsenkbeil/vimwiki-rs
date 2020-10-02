@@ -4,7 +4,7 @@ use super::{
         beginning_of_line, context, end_of_line_or_input, lc, pstring,
         take_line_while1, take_until_end_of_line_or_input,
     },
-    Span, VimwikiIResult, LC,
+    Span, VimwikiIResult, LE,
 };
 use nom::{
     bytes::complete::tag,
@@ -15,7 +15,7 @@ use nom::{
 };
 
 #[inline]
-pub fn definition_list(input: Span) -> VimwikiIResult<LC<DefinitionList>> {
+pub fn definition_list(input: Span) -> VimwikiIResult<LE<DefinitionList>> {
     context(
         "Definition List",
         lc(map(many1(term_and_definitions), DefinitionList::from)),

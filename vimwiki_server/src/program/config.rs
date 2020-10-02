@@ -1,6 +1,15 @@
 use clap::Clap;
 use derive_more::{Display, Error};
+use directories::ProjectDirs;
+use lazy_static::lazy_static;
 use std::path::PathBuf;
+
+lazy_static! {
+    static ref DEFAULT_CACHE_DIR: String =
+        ProjectDirs::from("com", "chipsenkbeil", "vimwiki_server")
+            .map(|dir| dir.cache_dir().to_string_lossy().to_string())
+            .unwrap_or_default();
+}
 
 #[derive(Clap, Debug)]
 #[clap(author, about, version)]
@@ -33,6 +42,10 @@ pub struct Config {
     /// Extensions for wiki files to parse
     #[clap(long = "ext", number_of_values = 1, default_value = "wiki")]
     pub exts: Vec<String>,
+
+    /// Directory where cache information for use with server will be stored
+    #[clap(long, default_value = &DEFAULT_CACHE_DIR)]
+    pub cache_dir: PathBuf,
 }
 
 /// Represents the mode to run the server (input from stdin or HTTP)

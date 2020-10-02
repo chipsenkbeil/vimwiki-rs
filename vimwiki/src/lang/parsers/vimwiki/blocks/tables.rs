@@ -2,7 +2,7 @@ use super::{
     elements::{Cell, Row, Table},
     inline::inline_element_container,
     utils::{context, end_of_line_or_input, lc, take_line_while1},
-    Span, VimwikiIResult, LC,
+    Span, VimwikiIResult, LE,
 };
 use nom::{
     branch::alt,
@@ -14,7 +14,7 @@ use nom::{
 };
 
 #[inline]
-pub fn table(input: Span) -> VimwikiIResult<LC<Table>> {
+pub fn table(input: Span) -> VimwikiIResult<LE<Table>> {
     fn inner(input: Span) -> VimwikiIResult<Table> {
         // Assume a table is centered if the first row is indented
         let (input, (table_header, centered)) =
@@ -38,7 +38,7 @@ pub fn table(input: Span) -> VimwikiIResult<LC<Table>> {
 }
 
 #[inline]
-fn row(input: Span) -> VimwikiIResult<LC<Row>> {
+fn row(input: Span) -> VimwikiIResult<LE<Row>> {
     fn inner(input: Span) -> VimwikiIResult<Row> {
         terminated(
             delimited(
@@ -64,7 +64,7 @@ fn hyphens(input: Span) -> VimwikiIResult<()> {
 }
 
 #[inline]
-fn cell(input: Span) -> VimwikiIResult<LC<Cell>> {
+fn cell(input: Span) -> VimwikiIResult<LE<Cell>> {
     fn inner(input: Span) -> VimwikiIResult<Cell> {
         alt((
             cell_span_above,

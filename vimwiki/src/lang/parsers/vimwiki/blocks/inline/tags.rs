@@ -1,7 +1,7 @@
 use super::{
     elements::{Tag, Tags},
     utils::{context, lc, take_line_while1},
-    Span, VimwikiIResult, LC,
+    Span, VimwikiIResult, LE,
 };
 use nom::{
     character::complete::char, combinator::not, multi::many1,
@@ -9,7 +9,7 @@ use nom::{
 };
 
 #[inline]
-pub fn tags(input: Span) -> VimwikiIResult<LC<Tags>> {
+pub fn tags(input: Span) -> VimwikiIResult<LE<Tags>> {
     fn inner(input: Span) -> VimwikiIResult<Tags> {
         let (input, _) = char(':')(input)?;
         let (input, contents) =

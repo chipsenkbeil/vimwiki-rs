@@ -27,7 +27,7 @@ pub struct LocatedElement<T> {
 }
 
 /// Shorthand alias for LocatedElement
-pub type LC<T> = LocatedElement<T>;
+pub type LE<T> = LocatedElement<T>;
 
 impl<T> LocatedElement<T> {
     /// Maps a `LocatedElement<T>` to `LocatedElement<U>` by applying a
@@ -112,76 +112,74 @@ mod tests {
     use std::collections::HashSet;
 
     #[test]
-    fn located_element_map_should_transform_inner_element_and_keep_region()
-    {
-        let lc = LC::new(3, Region::from(((1, 2), (3, 4))));
-        let mapped_lc = lc.map(|c| c + 1);
-        assert_eq!(mapped_lc.element, 4);
-        assert_eq!(mapped_lc.region, Region::from(((1, 2), (3, 4))));
+    fn located_element_map_should_transform_inner_element_and_keep_region() {
+        let le = LE::new(3, Region::from(((1, 2), (3, 4))));
+        let mapped_le = le.map(|c| c + 1);
+        assert_eq!(mapped_le.element, 4);
+        assert_eq!(mapped_le.region, Region::from(((1, 2), (3, 4))));
     }
 
     #[test]
-    fn located_element_wrap_should_apply_function_and_wrap_in_default_region()
-    {
-        let lc = LC::wrap(|x: usize| x.to_string())(3);
-        assert_eq!(lc.element, String::from("3"));
-        assert_eq!(lc.region, Region::default());
+    fn located_element_wrap_should_apply_function_and_wrap_in_default_region() {
+        let le = LE::wrap(|x: usize| x.to_string())(3);
+        assert_eq!(le.element, String::from("3"));
+        assert_eq!(le.region, Region::default());
     }
 
     #[test]
     fn located_element_wrap_with_region_should_apply_function_and_wrap_in_provided_region(
     ) {
-        let lc =
-            LC::wrap_with_region(Region::from(((1, 2), (3, 4))), |x: usize| {
+        let le =
+            LE::wrap_with_region(Region::from(((1, 2), (3, 4))), |x: usize| {
                 x.to_string()
             })(3);
-        assert_eq!(lc.element, String::from("3"));
-        assert_eq!(lc.region, Region::from(((1, 2), (3, 4))));
+        assert_eq!(le.element, String::from("3"));
+        assert_eq!(le.region, Region::from(((1, 2), (3, 4))));
     }
 
     #[test]
     fn located_element_equality_with_other_located_element_should_only_use_inner_element(
     ) {
-        let lc1 = LC::new(3, Region::from(((1, 2), (3, 4))));
-        let lc2 = LC::new(3, Region::default());
-        assert_eq!(lc1, lc2);
+        let le1 = LE::new(3, Region::from(((1, 2), (3, 4))));
+        let le2 = LE::new(3, Region::default());
+        assert_eq!(le1, le2);
     }
 
     #[test]
-    fn located_element_equality_with_inner_type_should_only_use_inner_element(
-    ) {
-        let lc = LC::new(3, Region::from(((1, 2), (3, 4))));
+    fn located_element_equality_with_inner_type_should_only_use_inner_element()
+    {
+        let le = LE::new(3, Region::from(((1, 2), (3, 4))));
         let inner = 3;
-        assert_eq!(lc, inner);
-        assert!(lc != inner + 1);
+        assert_eq!(le, inner);
+        assert!(le != inner + 1);
     }
 
     #[test]
     fn located_element_hashing_should_only_use_inner_element() {
-        let lc1 = LC::new(3, Region::from(((1, 2), (3, 4))));
-        let lc2 = LC::new(3, Region::default());
-        let lc3 = LC::new(4, Region::from(((1, 2), (3, 4))));
-        let lc4 = LC::new(3, Region::from(((1, 2), (3, 4))));
+        let le1 = LE::new(3, Region::from(((1, 2), (3, 4))));
+        let le2 = LE::new(3, Region::default());
+        let le3 = LE::new(4, Region::from(((1, 2), (3, 4))));
+        let le4 = LE::new(3, Region::from(((1, 2), (3, 4))));
 
         let mut m = HashSet::new();
-        m.insert(lc1);
+        m.insert(le1);
 
-        let lc = m.get(&lc2).expect("Failed to retrieve LC with another LC");
-        assert_eq!(lc.element, 3);
-        assert_eq!(lc.region, Region::from(((1, 2), (3, 4))));
+        let le = m.get(&le2).expect("Failed to retrieve LE with another LE");
+        assert_eq!(le.element, 3);
+        assert_eq!(le.region, Region::from(((1, 2), (3, 4))));
 
-        assert_eq!(m.get(&lc3), None);
+        assert_eq!(m.get(&le3), None);
 
-        let lc = m.get(&lc4).expect("Failed to retrieve LC with another LC");
-        assert_eq!(lc.element, 3);
-        assert_eq!(lc.region, Region::from(((1, 2), (3, 4))));
+        let le = m.get(&le4).expect("Failed to retrieve LE with another LE");
+        assert_eq!(le.element, 3);
+        assert_eq!(le.region, Region::from(((1, 2), (3, 4))));
     }
 
     #[test]
     fn located_element_equality_with_strict_located_element_should_use_inner_element_and_region(
     ) {
-        let lc = LC::new(3, Region::from(((1, 2), (3, 4))));
-        let slc = StrictLocatedElement::new(3, Region::default());
-        assert!(lc != slc, "{:?} unexpectedly equaled {:?}", lc, slc);
+        let le = LE::new(3, Region::from(((1, 2), (3, 4))));
+        let sle = StrictLocatedElement::new(3, Region::default());
+        assert!(le != sle, "{:?} unexpectedly equaled {:?}", le, sle);
     }
 }

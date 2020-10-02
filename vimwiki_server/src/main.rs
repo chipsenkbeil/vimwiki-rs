@@ -5,5 +5,5 @@ async fn main() {
     pretty_env_logger::formatted_builder()
         // .filter_level(log::LevelFilter::Trace)
         .init();
-    program::run().await;
+    program::run().await.expect("Program failed unexpectedly");
 }

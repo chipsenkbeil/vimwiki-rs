@@ -1,5 +1,4 @@
-use super::Program;
-use vimwiki_macros::*;
+use super::{Program, Wiki};
 
 pub mod elements;
 
@@ -8,13 +7,22 @@ pub struct Query;
 
 #[async_graphql::Object]
 impl Query {
-    #[field(desc = "Returns a page")]
-    async fn page(&self) -> elements::Page {
-        elements::Page::from(vimwiki_page! {r#"
-            = Some Header =
-            =Another Header=
-            =Third Header=
-        "#})
+    #[field(desc = "Returns a wiki using its index")]
+    async fn wiki_at_index<'a>(
+        &'a self,
+        ctx: &'a async_graphql::Context<'_>,
+        index: u32,
+    ) -> Option<&'a Wiki> {
+        ctx.data_unchecked::<Program>().wiki_by_index(index)
+    }
+
+    #[field(desc = "Returns a wiki using its name")]
+    async fn wiki_with_name<'a>(
+        &'a self,
+        ctx: &'a async_graphql::Context<'_>,
+        name: String,
+    ) -> Option<&'a Wiki> {
+        ctx.data_unchecked::<Program>().wiki_by_name(&name)
     }
 }
 

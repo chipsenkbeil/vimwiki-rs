@@ -1,10 +1,10 @@
-mod lc;
-pub use lc::{LocatedElement, LC};
+mod le;
+pub use le::{LocatedElement, LE};
 mod position;
 pub use position::Position;
 mod region;
 pub use region::Region;
-mod slc;
-pub use slc::{StrictLocatedElement, SLC};
+mod sle;
+pub use sle::{StrictLocatedElement, SLE};
 mod span;
 pub use span::Span;

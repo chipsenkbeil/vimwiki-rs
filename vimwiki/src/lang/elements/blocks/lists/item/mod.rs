@@ -212,7 +212,7 @@ fn pos_to_alphabet(pos: usize, to_lower: bool) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::super::LC;
+    use super::super::LE;
     use super::*;
 
     macro_rules! unordered_item {
@@ -321,8 +321,8 @@ mod tests {
     }
 
     fn make_content(text: &str) -> ListItemContents {
-        let lc_text = LC::from(text.to_string());
-        vec![LC::from(ListItemContent::InlineContent(lc_text.into()))].into()
+        let lc_text = LE::from(text.to_string());
+        vec![LE::from(ListItemContent::InlineContent(lc_text.into()))].into()
     }
 
     #[test]

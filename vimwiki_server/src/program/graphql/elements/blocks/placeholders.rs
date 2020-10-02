@@ -1,5 +1,5 @@
 use super::Region;
-use vimwiki::{elements, vendor::chrono::NaiveDate, LC};
+use vimwiki::{elements, vendor::chrono::NaiveDate, LE};
 
 #[derive(async_graphql::Union, Debug)]
 pub enum Placeholder {
@@ -10,8 +10,8 @@ pub enum Placeholder {
     Other(PlaceholderOther),
 }
 
-impl From<LC<elements::Placeholder>> for Placeholder {
-    fn from(lc: LC<elements::Placeholder>) -> Self {
+impl From<LE<elements::Placeholder>> for Placeholder {
+    fn from(lc: LE<elements::Placeholder>) -> Self {
         let region = Region::from(lc.region);
         match lc.element {
             elements::Placeholder::Title(title) => {

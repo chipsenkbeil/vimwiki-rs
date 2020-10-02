@@ -1,4 +1,4 @@
-use super::{LangParserError, Region, Span, LC};
+use super::{LangParserError, Region, Span, LE};
 use nom::Err;
 
 mod parsers;
