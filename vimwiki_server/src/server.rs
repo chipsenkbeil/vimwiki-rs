@@ -1,5 +1,6 @@
-use super::graphql;
+use super::{graphql, Opt};
 use async_graphql::{EmptyMutation, EmptySubscription, Schema};
+use log::info;
 use std::convert::Infallible;
 use warp::{reply::Reply, Filter};
 
@@ -38,16 +39,21 @@ macro_rules! graphql_playground_endpoint {
     }};
 }
 
-pub async fn run(graphql_endpoint: &'static str) {
+pub async fn run(opt: Opt) {
+    let endpoint = format!("http://{}:{}", opt.host, opt.port);
+    let endpoint_2 = endpoint.clone();
+
     let graphql_filter = graphql_endpoint!();
-    let graphiql_filter = graphiql_endpoint!("graphiql", graphql_endpoint);
+    let graphiql_filter = graphiql_endpoint!("graphiql", &endpoint);
     let graphql_playground_filter =
-        graphql_playground_endpoint!("graphql_playground", graphql_endpoint);
+        graphql_playground_endpoint!("graphql_playground", &endpoint_2);
 
     let routes = warp::any().and(
         graphql_filter
             .or(graphiql_filter)
             .or(graphql_playground_filter),
     );
-    warp::serve(routes).run(([0, 0, 0, 0], 8000)).await;
+
+    info!("Listening on 0.0.0.0:{}", opt.port);
+    warp::serve(routes).run(([0, 0, 0, 0], opt.port)).await;
 }

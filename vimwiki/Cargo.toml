@@ -10,11 +10,15 @@ repository = "https://github.com/chipsenkbeil/vimwiki-server"
 readme = "README.md"
 license = "MIT OR Apache-2.0"
 
+[features]
+default = []
+timekeeper = ["lazy_static"]
+
 [dependencies]
 bytecount = "0.6.0"
 bytes = "0.5.6"
 chrono = { version = "0.4.15", features = ["serde"] }
-lazy_static = "1.4"
+lazy_static = {version = "1.4", optional = true }
 memchr = "2.3.3"
 nom = "5.1.2"
 numerals = "0.1.4"

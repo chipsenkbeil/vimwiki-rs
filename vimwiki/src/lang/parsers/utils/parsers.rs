@@ -1,5 +1,4 @@
 use super::{Region, Span, VimwikiIResult, VimwikiNomError, LC};
-use lazy_static::lazy_static;
 use nom::{
     branch::alt,
     bytes::complete::{tag, take, take_while},
@@ -14,12 +13,13 @@ use std::convert::TryFrom;
 use std::ops::Range;
 use uriparse::URI;
 
-use std::{collections::HashMap, sync::Mutex, time::Instant};
-lazy_static! {
-    static ref TIMEKEEPER: Mutex<HashMap<&'static str, (usize, u128)>> =
-        Mutex::new(HashMap::new());
+#[cfg(feature = "timekeeper")]
+lazy_static::lazy_static! {
+    static ref TIMEKEEPER: Mutex<std::collections::HashMap<&'static str, (usize, u128)>> =
+        std::sync::Mutex::new(std::collections::HashMap::new());
 }
 
+#[cfg(feature = "timekeeper")]
 pub fn print_timekeeper_report(clear_after_print: bool) {
     let mut results: Vec<(&'static str, (usize, u128))> = TIMEKEEPER
         .lock()
@@ -63,13 +63,22 @@ pub fn print_timekeeper_report(clear_after_print: bool) {
     }
 }
 
+#[cfg(not(feature = "timekeeper"))]
+pub fn context<T>(
+    ctx: &'static str,
+    f: impl Fn(Span) -> VimwikiIResult<T>,
+) -> impl Fn(Span) -> VimwikiIResult<T> {
+    nom::error::context(ctx, f)
+}
+
+#[cfg(feature = "timekeeper")]
 pub fn context<T>(
     ctx: &'static str,
     f: impl Fn(Span) -> VimwikiIResult<T>,
 ) -> impl Fn(Span) -> VimwikiIResult<T> {
     use nom::error::ParseError;
     move |input: Span| {
-        let start = Instant::now();
+        let start = std::time::Instant::now();
 
         // NOTE: Following is the code found in nom's context parser, but due
         //       to issues with wrapping a function like above in a parser,

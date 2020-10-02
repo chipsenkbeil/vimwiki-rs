@@ -14,12 +14,25 @@ pub struct Opt {
     pub verbose: u8,
 
     /// Wiki paths to load, monitor, and manipulate
+    /// Format is index[:name]:path
     #[clap(long = "wiki", number_of_values = 1)]
     pub wikis: Vec<WikiOpt>,
 
-    /// Mode to run server
+    /// Mode to run server (http = web; stdin = read input from stdin and reply on stdout)
     #[clap(long, arg_enum, default_value = "http")]
     pub mode: ModeOpt,
+
+    /// Host/IP address of server
+    #[clap(long, default_value = "localhost")]
+    pub host: String,
+
+    /// Port of the server
+    #[clap(long, default_value = "8000")]
+    pub port: u16,
+
+    /// Extensions for wiki files to parse
+    #[clap(long = "ext", number_of_values = 1, default_value = "wiki")]
+    pub exts: Vec<String>,
 }
 
 /// Represents the mode to run the server (input from stdin or HTTP)
@@ -32,9 +45,23 @@ pub enum ModeOpt {
 /// Represents input information about a wiki
 #[derive(Debug)]
 pub struct WikiOpt {
-    index: u32,
-    name: Option<String>,
-    path: PathBuf,
+    pub index: u32,
+    pub name: Option<String>,
+    pub path: PathBuf,
+}
+
+impl std::fmt::Display for WikiOpt {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.index)?;
+
+        if let Some(name) = self.name.as_ref() {
+            write!(f, "/{}", name)?;
+        }
+
+        write!(f, ":{}", self.path.to_string_lossy())?;
+
+        Ok(())
+    }
 }
 
 /// Represents parsing errors that can occur for a wiki opt

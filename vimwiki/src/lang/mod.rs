@@ -2,10 +2,10 @@ pub mod elements;
 mod parsers;
 pub mod utils;
 
-use elements::*;
 use derive_more::Display;
+use elements::*;
+use parsers::vimwiki;
 pub use parsers::LangParserError;
-use parsers::{print_timekeeper_report, vimwiki};
 use std::convert::TryFrom;
 use utils::{Span, LC};
 
@@ -27,7 +27,8 @@ macro_rules! parse {
 
                 // For debugging purposes, we will print out a report of what
                 // parts of our parsers took the longest
-                print_timekeeper_report(true);
+                #[cfg(feature = "timekeeper")]
+                parsers::print_timekeeper_report(true);
 
                 Ok(result)
             }
@@ -55,24 +56,15 @@ macro_rules! impl_try_from {
 
 // Top-level types
 impl_try_from!(LC<Page>, vimwiki::page);
-impl_try_from!(
-    LC<BlockElement>,
-    vimwiki::blocks::block_element
-);
+impl_try_from!(LC<BlockElement>, vimwiki::blocks::block_element);
 impl_try_from!(
     LC<InlineElementContainer>,
     vimwiki::blocks::inline::inline_element_container
 );
-impl_try_from!(
-    LC<InlineElement>,
-    vimwiki::blocks::inline::inline_element
-);
+impl_try_from!(LC<InlineElement>, vimwiki::blocks::inline::inline_element);
 
 // Blockquotes
-impl_try_from!(
-    LC<Blockquote>,
-    vimwiki::blocks::blockquotes::blockquote
-);
+impl_try_from!(LC<Blockquote>, vimwiki::blocks::blockquotes::blockquote);
 
 // Comments
 impl_try_from!(LC<Comment>, vimwiki::comments::comment);
@@ -103,10 +95,7 @@ impl_try_from!(
     LC<ExternalFileLink>,
     vimwiki::blocks::inline::links::external::external_file_link
 );
-impl_try_from!(
-    LC<RawLink>,
-    vimwiki::blocks::inline::links::raw::raw_link
-);
+impl_try_from!(LC<RawLink>, vimwiki::blocks::inline::links::raw::raw_link);
 impl_try_from!(
     LC<TransclusionLink>,
     vimwiki::blocks::inline::links::transclusion::transclusion_link
@@ -124,23 +113,14 @@ impl_try_from!(
 impl_try_from!(LC<List>, vimwiki::blocks::lists::list);
 
 // Math
-impl_try_from!(
-    LC<MathInline>,
-    vimwiki::blocks::inline::math::math_inline
-);
+impl_try_from!(LC<MathInline>, vimwiki::blocks::inline::math::math_inline);
 impl_try_from!(LC<MathBlock>, vimwiki::blocks::math::math_block);
 
 // Paragraphs
-impl_try_from!(
-    LC<Paragraph>,
-    vimwiki::blocks::paragraphs::paragraph
-);
+impl_try_from!(LC<Paragraph>, vimwiki::blocks::paragraphs::paragraph);
 
 // Placeholders
-impl_try_from!(
-    LC<Placeholder>,
-    vimwiki::blocks::placeholders::placeholder
-);
+impl_try_from!(LC<Placeholder>, vimwiki::blocks::placeholders::placeholder);
 
 // Preformatted Text
 impl_try_from!(
@@ -155,18 +135,12 @@ impl_try_from!(LC<Table>, vimwiki::blocks::tables::table);
 impl_try_from!(LC<Tags>, vimwiki::blocks::inline::tags::tags);
 
 // Typefaces
-impl_try_from!(
-    LC<String>,
-    vimwiki::blocks::inline::typefaces::text
-);
+impl_try_from!(LC<String>, vimwiki::blocks::inline::typefaces::text);
 impl_try_from!(
     LC<DecoratedText>,
     vimwiki::blocks::inline::typefaces::decorated_text
 );
-impl_try_from!(
-    LC<Keyword>,
-    vimwiki::blocks::inline::typefaces::keyword
-);
+impl_try_from!(LC<Keyword>, vimwiki::blocks::inline::typefaces::keyword);
 
 #[cfg(test)]
 mod tests {
