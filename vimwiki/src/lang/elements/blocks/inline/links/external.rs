@@ -1,7 +1,7 @@
 use super::Description;
 use derive_more::Constructor;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::{fmt, path::PathBuf};
 
 /// Represents the scheme associated with the external file link
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
@@ -28,5 +28,15 @@ impl ExternalFileLink {
         path: PathBuf,
     ) -> Self {
         Self::new(scheme, path, None)
+    }
+}
+
+impl fmt::Display for ExternalFileLink {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(desc) = self.description.as_ref() {
+            write!(f, "{}", desc)
+        } else {
+            write!(f, "{}", self.path.to_string_lossy())
+        }
     }
 }

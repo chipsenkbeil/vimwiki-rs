@@ -1,8 +1,9 @@
 use derive_more::{
-    Constructor, Deref, DerefMut, From, Index, IndexMut, Into, IntoIterator,
-    TryInto,
+    Constructor, Deref, DerefMut, Display, From, Index, IndexMut, Into,
+    IntoIterator, TryInto,
 };
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use uriparse::URI;
 
 mod diary;
@@ -25,7 +26,16 @@ pub use wiki::WikiLink;
 
 /// Represents a description for a link
 #[derive(
-    Clone, Debug, From, TryInto, Eq, PartialEq, Hash, Serialize, Deserialize,
+    Clone,
+    Debug,
+    Display,
+    From,
+    TryInto,
+    Eq,
+    PartialEq,
+    Hash,
+    Serialize,
+    Deserialize,
 )]
 pub enum Description {
     Text(String),
@@ -60,6 +70,16 @@ pub struct Anchor {
     pub elements: Vec<String>,
 }
 
+impl fmt::Display for Anchor {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.elements.is_empty() {
+            Ok(())
+        } else {
+            write!(f, "#{}", self.elements.join("#"))
+        }
+    }
+}
+
 impl From<String> for Anchor {
     fn from(s: String) -> Self {
         Self::new(vec![s])
@@ -72,7 +92,9 @@ impl From<&str> for Anchor {
     }
 }
 
-#[derive(Clone, Debug, From, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(
+    Clone, Debug, Display, From, Eq, PartialEq, Hash, Serialize, Deserialize,
+)]
 pub enum Link {
     Wiki(WikiLink),
     InterWiki(InterWikiLink),

@@ -1,8 +1,16 @@
-use derive_more::Constructor;
+use derive_more::{Constructor, Display};
 use serde::{Deserialize, Serialize};
 
 #[derive(
-    Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
+    Constructor,
+    Clone,
+    Debug,
+    Display,
+    Eq,
+    PartialEq,
+    Hash,
+    Serialize,
+    Deserialize,
 )]
 pub struct MathInline {
     pub formula: String,

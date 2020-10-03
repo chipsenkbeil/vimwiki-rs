@@ -1,7 +1,9 @@
 use derive_more::{
-    Constructor, Deref, DerefMut, From, Index, IndexMut, Into, IntoIterator,
+    Constructor, Deref, DerefMut, Display, From, Index, IndexMut, Into,
+    IntoIterator,
 };
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 /// Represents a sequence of one or more tags
 ///
@@ -32,6 +34,15 @@ use serde::{Deserialize, Serialize};
 )]
 pub struct Tags(pub Vec<Tag>);
 
+impl fmt::Display for Tags {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for tag in self.0.iter() {
+            write!(f, ":{}", tag.0)?;
+        }
+        write!(f, ":")
+    }
+}
+
 impl From<Tag> for Tags {
     fn from(tag: Tag) -> Self {
         Self::new(vec![tag])
@@ -57,6 +68,7 @@ impl From<&str> for Tags {
     Debug,
     Deref,
     DerefMut,
+    Display,
     From,
     Into,
     Eq,

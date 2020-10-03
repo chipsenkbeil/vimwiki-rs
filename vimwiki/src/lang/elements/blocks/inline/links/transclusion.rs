@@ -1,9 +1,12 @@
 use super::Description;
 use derive_more::Constructor;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::convert::TryFrom;
-use std::hash::{Hash, Hasher};
+use std::{
+    collections::HashMap,
+    convert::TryFrom,
+    fmt,
+    hash::{Hash, Hasher},
+};
 use uriparse::URI;
 
 /// Represents a link that is used as a "Wiki Include" to pull in resources
@@ -48,6 +51,16 @@ impl Hash for TransclusionLink {
         // Use property keys in hash
         for k in keys.drain(..) {
             k.hash(state);
+        }
+    }
+}
+
+impl fmt::Display for TransclusionLink {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(desc) = self.description.as_ref() {
+            write!(f, "{}", desc)
+        } else {
+            write!(f, "{}", self.uri)
         }
     }
 }

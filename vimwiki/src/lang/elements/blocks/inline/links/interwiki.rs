@@ -1,10 +1,12 @@
 use super::{Anchor, Description, WikiLink};
-use derive_more::{Constructor, From};
+use derive_more::{Constructor, Display, From};
 use serde::{Deserialize, Serialize};
-use std::path::Path;
+use std::{fmt, path::Path};
 
 /// Represents a link to a file or directory in another wiki
-#[derive(Clone, Debug, From, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(
+    Clone, Debug, Display, From, Eq, PartialEq, Hash, Serialize, Deserialize,
+)]
 pub enum InterWikiLink {
     Indexed(IndexedInterWikiLink),
     Named(NamedInterWikiLink),
@@ -59,6 +61,12 @@ pub struct IndexedInterWikiLink {
     pub link: WikiLink,
 }
 
+impl fmt::Display for IndexedInterWikiLink {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.link)
+    }
+}
+
 impl From<(u32, WikiLink)> for IndexedInterWikiLink {
     fn from((index, link): (u32, WikiLink)) -> Self {
         Self::new(index, link)
@@ -73,6 +81,12 @@ impl From<(u32, WikiLink)> for IndexedInterWikiLink {
 pub struct NamedInterWikiLink {
     pub name: String,
     pub link: WikiLink,
+}
+
+impl fmt::Display for NamedInterWikiLink {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.link)
+    }
 }
 
 impl From<(String, WikiLink)> for NamedInterWikiLink {

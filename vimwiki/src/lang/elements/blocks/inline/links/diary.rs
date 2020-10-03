@@ -2,7 +2,7 @@ use super::{Anchor, Description};
 use chrono::naive::NaiveDate;
 use derive_more::Constructor;
 use serde::{Deserialize, Serialize};
-use std::convert::TryFrom;
+use std::{convert::TryFrom, fmt};
 
 /// Represents a link to an entry in the diary wiki
 #[derive(
@@ -12,6 +12,20 @@ pub struct DiaryLink {
     pub date: NaiveDate,
     pub description: Option<Description>,
     pub anchor: Option<Anchor>,
+}
+
+impl fmt::Display for DiaryLink {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(desc) = self.description.as_ref() {
+            write!(f, "{}", desc)
+        } else {
+            write!(f, "{}", self.date)?;
+            if let Some(anchor) = self.anchor.as_ref() {
+                write!(f, "{}", anchor)?;
+            }
+            Ok(())
+        }
+    }
 }
 
 impl From<NaiveDate> for DiaryLink {

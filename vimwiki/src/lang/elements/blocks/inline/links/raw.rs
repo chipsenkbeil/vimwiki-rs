@@ -1,12 +1,21 @@
-use derive_more::Constructor;
+use derive_more::{Constructor, Display};
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use uriparse::URI;
 
 /// Represents a raw link in the form of http[s]://example.com
 #[derive(
-    Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
+    Constructor,
+    Clone,
+    Debug,
+    Display,
+    Eq,
+    PartialEq,
+    Hash,
+    Serialize,
+    Deserialize,
 )]
+#[display(fmt = "{}", uri)]
 pub struct RawLink {
     pub uri: URI<'static>,
 }

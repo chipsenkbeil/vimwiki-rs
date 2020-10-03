@@ -1,8 +1,10 @@
 use super::*;
 use derive_more::{
-    Constructor, Deref, DerefMut, From, Index, IndexMut, Into, IntoIterator,
+    Constructor, Deref, DerefMut, Display, From, Index, IndexMut, Into,
+    IntoIterator,
 };
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 mod links;
 pub use links::*;
@@ -14,7 +16,9 @@ mod typefaces;
 pub use typefaces::*;
 
 /// Represents elements that can be dropped into other elements
-#[derive(Clone, Debug, From, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(
+    Clone, Debug, Display, From, Eq, PartialEq, Hash, Serialize, Deserialize,
+)]
 pub enum InlineElement {
     Text(String),
     DecoratedText(DecoratedText),
@@ -44,6 +48,15 @@ pub enum InlineElement {
 )]
 pub struct InlineElementContainer {
     pub elements: Vec<LE<InlineElement>>,
+}
+
+impl fmt::Display for InlineElementContainer {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for le in self.elements.iter() {
+            write!(f, "{}", le.element.to_string())?;
+        }
+        Ok(())
+    }
 }
 
 impl From<Vec<InlineElementContainer>> for InlineElementContainer {

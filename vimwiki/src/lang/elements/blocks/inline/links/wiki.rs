@@ -1,7 +1,7 @@
 use super::{Anchor, Description};
 use derive_more::Constructor;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::{fmt, path::PathBuf};
 
 /// Represents a link to a file or directory in the active wiki
 #[derive(
@@ -37,6 +37,20 @@ impl WikiLink {
             .last()
             .map(std::path::is_separator)
             .unwrap_or_default()
+    }
+}
+
+impl fmt::Display for WikiLink {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(desc) = self.description.as_ref() {
+            write!(f, "{}", desc)
+        } else {
+            write!(f, "{}", self.path.to_string_lossy())?;
+            if let Some(anchor) = self.anchor.as_ref() {
+                write!(f, "{}", anchor)?;
+            }
+            Ok(())
+        }
     }
 }
 
