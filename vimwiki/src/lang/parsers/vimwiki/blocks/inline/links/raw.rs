@@ -1,6 +1,6 @@
 use super::{
     elements::RawLink,
-    utils::{context, lc, uri},
+    utils::{context, le, uri},
     Span, VimwikiIResult, LE,
 };
 use nom::combinator::verify;
@@ -18,7 +18,7 @@ pub fn raw_link(input: Span) -> VimwikiIResult<LE<RawLink>> {
         Ok((input, RawLink::from(uri)))
     }
 
-    context("Raw Link", lc(inner))(input)
+    context("Raw Link", le(inner))(input)
 }
 
 #[cfg(test)]

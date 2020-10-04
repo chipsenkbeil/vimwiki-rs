@@ -1,15 +1,16 @@
 use super::{
     elements::{Definition, DefinitionList, Term, TermAndDefinitions},
+    inline::inline_element_container,
     utils::{
-        beginning_of_line, context, end_of_line_or_input, lc, pstring,
-        take_line_while1, take_until_end_of_line_or_input,
+        beginning_of_line, context, end_of_line_or_input, le, take_line_while1,
+        take_until_end_of_line_or_input, unwrap_le,
     },
     Span, VimwikiIResult, LE,
 };
 use nom::{
     bytes::complete::tag,
     character::complete::{space0, space1},
-    combinator::{map, not, opt, verify},
+    combinator::{map, map_parser, not, opt, verify},
     multi::{many0, many1},
     sequence::{pair, preceded, terminated},
 };
@@ -18,7 +19,7 @@ use nom::{
 pub fn definition_list(input: Span) -> VimwikiIResult<LE<DefinitionList>> {
     context(
         "Definition List",
-        lc(map(many1(term_and_definitions), DefinitionList::from)),
+        le(map(many1(term_and_definitions), DefinitionList::from)),
     )(input)
 }
 
@@ -52,14 +53,20 @@ fn term_line(input: Span) -> VimwikiIResult<(Term, Option<Definition>)> {
 
     // Parse our term and provide location information for it
     let (input, term) = terminated(
-        lc(pstring(take_line_while1(not(tag("::"))))),
+        map_parser(
+            take_line_while1(not(tag("::"))),
+            unwrap_le(inline_element_container),
+        ),
         tag("::"),
     )(input)?;
 
     // Now check if we have a definition following
     let (input, maybe_def) = opt(preceded(
         space1,
-        lc(pstring(take_until_end_of_line_or_input)),
+        map_parser(
+            take_until_end_of_line_or_input,
+            unwrap_le(inline_element_container),
+        ),
     ))(input)?;
 
     // Conclude with any lingering space and newline
@@ -74,7 +81,10 @@ fn definition_line(input: Span) -> VimwikiIResult<Definition> {
     let (input, _) = beginning_of_line(input)?;
     let (input, _) = tag("::")(input)?;
     let (input, _) = space1(input)?;
-    let (input, def) = lc(pstring(take_until_end_of_line_or_input))(input)?;
+    let (input, def) = map_parser(
+        take_until_end_of_line_or_input,
+        unwrap_le(inline_element_container),
+    )(input)?;
     let (input, _) = end_of_line_or_input(input)?;
 
     Ok((input, def))
@@ -83,8 +93,15 @@ fn definition_line(input: Span) -> VimwikiIResult<Definition> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lang::utils::Span;
+    use crate::{
+        elements::{
+            DecoratedText, DecoratedTextContent, Decoration, InlineElement,
+            InlineElementContainer, Link, MathInline, WikiLink,
+        },
+        lang::utils::Span,
+    };
     use indoc::indoc;
+    use std::path::PathBuf;
 
     /// Checks defs match those of a provided list in ANY order
     fn check_text_defs(defs: Vec<&Definition>, expected: Vec<&str>) {
@@ -95,9 +112,9 @@ mod tests {
         );
         for d in defs.iter() {
             assert!(
-                expected.contains(&d.element.as_str()),
+                expected.contains(&d.to_string().as_str()),
                 "Definition {} not expected",
-                d.element
+                d
             );
         }
     }
@@ -242,5 +259,49 @@ mod tests {
 
         let defs = l.defs_for_term("term 2").unwrap().collect();
         check_text_defs(defs, vec!["def 3", "def 4"]);
+    }
+
+    #[test]
+    fn definition_list_should_support_inline_elements_in_terms_and_definitions()
+    {
+        let input = Span::from(indoc! {r#"
+            *term* 1:: [[def 1]]
+            :: def $2+2$
+        "#});
+        let (input, l) = definition_list(input).unwrap();
+        assert!(input.fragment().is_empty(), "Did not consume def list");
+
+        let terms: Vec<&Term> = l.terms().collect();
+        assert_eq!(
+            terms,
+            vec![&InlineElementContainer::new(vec![
+                LE::from(InlineElement::DecoratedText(DecoratedText::new(
+                    vec![LE::from(DecoratedTextContent::Text(
+                        "term".to_string()
+                    ))],
+                    Decoration::Bold
+                ))),
+                LE::from(InlineElement::Text(" 1".to_string())),
+            ])]
+        );
+
+        let defs: Vec<&Definition> =
+            l.defs_for_term("term 1").unwrap().collect();
+        assert_eq!(defs.len(), 2, "Wrong number of definitions found");
+        assert_eq!(
+            defs[0],
+            &InlineElementContainer::new(vec![LE::from(InlineElement::from(
+                Link::from(WikiLink::new(PathBuf::from("def 1"), None, None))
+            ))])
+        );
+        assert_eq!(
+            defs[1],
+            &InlineElementContainer::new(vec![
+                LE::from(InlineElement::Text("def ".to_string())),
+                LE::from(InlineElement::from(MathInline::new(
+                    "2+2".to_string()
+                ))),
+            ])
+        );
     }
 }

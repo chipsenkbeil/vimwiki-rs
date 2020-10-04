@@ -1,7 +1,7 @@
 use super::{
     elements::MathBlock,
     utils::{
-        any_line, beginning_of_line, context, end_of_line_or_input, lc,
+        any_line, beginning_of_line, context, end_of_line_or_input, le,
         pstring, take_line_while1,
     },
     Span, VimwikiIResult, LE,
@@ -31,7 +31,7 @@ pub fn math_block(input: Span) -> VimwikiIResult<LE<MathBlock>> {
         Ok((input, math_block))
     }
 
-    context("Math Block", lc(inner))(input)
+    context("Math Block", le(inner))(input)
 }
 
 fn beginning_of_math_block(input: Span) -> VimwikiIResult<Option<String>> {

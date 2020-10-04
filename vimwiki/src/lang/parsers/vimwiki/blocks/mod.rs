@@ -1,6 +1,6 @@
 use super::{
     elements::{self, BlockElement},
-    utils::{self, context, lc, VimwikiIResult},
+    utils::{self, context, le, VimwikiIResult},
     Span, LE,
 };
 use nom::{
@@ -26,9 +26,7 @@ pub fn block_element(input: Span) -> VimwikiIResult<LE<BlockElement>> {
         "Block Element",
         alt((
             map(headers::header, |c| c.map(BlockElement::from)),
-            map(definitions::definition_list, |c| {
-                c.map(BlockElement::from)
-            }),
+            map(definitions::definition_list, |c| c.map(BlockElement::from)),
             map(lists::list, |c| c.map(BlockElement::from)),
             map(tables::table, |c| c.map(BlockElement::from)),
             map(preformatted::preformatted_text, |c| {
@@ -50,10 +48,10 @@ pub fn block_element(input: Span) -> VimwikiIResult<LE<BlockElement>> {
 
 /// Parses a blank line
 fn blank_line(input: Span) -> VimwikiIResult<LE<()>> {
-    context("Blank Line", lc(value((), utils::blank_line)))(input)
+    context("Blank Line", le(value((), utils::blank_line)))(input)
 }
 
 /// Parses a non-blank line
 fn non_blank_line(input: Span) -> VimwikiIResult<LE<String>> {
-    context("Non Blank Line", lc(utils::non_blank_line))(input)
+    context("Non Blank Line", le(utils::non_blank_line))(input)
 }

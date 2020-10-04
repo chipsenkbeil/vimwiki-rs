@@ -1,30 +1,56 @@
-use super::Region;
+use super::{InlineElement, Region};
 use vimwiki::{elements, LE};
 
-/// Represents a single document comment
-#[derive(async_graphql::SimpleObject, Debug)]
+#[derive(Debug)]
 pub struct Header {
-    /// The segment of the document this header covers
     region: Region,
-
-    /// The level of the header (ranging 1 to 6)
     level: i32,
-
-    /// The text within the header
-    text: String,
-
-    /// Whether or not the header is centered
+    content: elements::InlineElementContainer,
     centered: bool,
 }
 
+/// Represents a single document comment
+#[async_graphql::Object]
+impl Header {
+    /// The segment of the document this header covers
+    async fn region(&self) -> &Region {
+        &self.region
+    }
+
+    /// The level of the header (ranging 1 to 6)
+    async fn level(&self) -> i32 {
+        self.level
+    }
+
+    /// The content within the header as individual elements
+    async fn content_elements(&self) -> Vec<InlineElement> {
+        self.content
+            .elements
+            .iter()
+            .map(|e| InlineElement::from(e.clone()))
+            .collect()
+    }
+
+    /// The content within the header as it would be read by humans
+    /// without frills
+    async fn content(&self) -> String {
+        self.content.to_string()
+    }
+
+    /// Whether or not the header is centered
+    async fn centered(&self) -> bool {
+        self.centered
+    }
+}
+
 impl From<LE<elements::Header>> for Header {
-    fn from(lc: LE<elements::Header>) -> Self {
-        let region = Region::from(lc.region);
+    fn from(le: LE<elements::Header>) -> Self {
+        let region = Region::from(le.region);
         Self {
             region,
-            level: lc.element.level as i32,
-            text: lc.element.text,
-            centered: lc.element.centered,
+            level: le.element.level as i32,
+            content: le.element.content,
+            centered: le.element.centered,
         }
     }
 }

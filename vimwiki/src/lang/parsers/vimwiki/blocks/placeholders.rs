@@ -1,7 +1,7 @@
 use super::{
     elements::Placeholder,
     utils::{
-        beginning_of_line, context, end_of_line_or_input, lc, pstring,
+        beginning_of_line, context, end_of_line_or_input, le, pstring,
         take_line_while1, take_until_end_of_line_or_input,
     },
     Span, VimwikiIResult, LE,
@@ -18,7 +18,7 @@ use nom::{
 pub fn placeholder(input: Span) -> VimwikiIResult<LE<Placeholder>> {
     fn inner(input: Span) -> VimwikiIResult<LE<Placeholder>> {
         let (input, _) = beginning_of_line(input)?;
-        let (input, lc_placeholder) = lc(alt((
+        let (input, le_placeholder) = le(alt((
             placeholder_title,
             placeholder_nohtml,
             placeholder_template,
@@ -26,7 +26,7 @@ pub fn placeholder(input: Span) -> VimwikiIResult<LE<Placeholder>> {
             placeholder_other,
         )))(input)?;
         let (input, _) = end_of_line_or_input(input)?;
-        Ok((input, lc_placeholder))
+        Ok((input, le_placeholder))
     }
 
     context("Placeholder", inner)(input)

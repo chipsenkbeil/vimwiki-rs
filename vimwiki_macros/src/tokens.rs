@@ -92,10 +92,7 @@ impl_tokenize!(PathBuf, tokenize_path_buf);
 // Top-level types
 impl_tokenize!(Page, tokenize_page);
 impl_tokenize!(BlockElement, tokenize_block_element);
-impl_tokenize!(
-    InlineElementContainer,
-    tokenize_inline_element_container
-);
+impl_tokenize!(InlineElementContainer, tokenize_inline_element_container);
 impl_tokenize!(InlineElement, tokenize_inline_element);
 
 // Blockquotes
@@ -260,9 +257,7 @@ fn tokenize_inline_element_container(
     }
 }
 
-fn tokenize_inline_element(
-    inline_element: &InlineElement,
-) -> TokenStream {
+fn tokenize_inline_element(inline_element: &InlineElement) -> TokenStream {
     let root = root_crate();
     match inline_element {
         InlineElement::Text(x) => {
@@ -363,11 +358,11 @@ fn tokenize_term_and_definitions(
 }
 
 fn tokenize_definition(definition: &Definition) -> TokenStream {
-    tokenize_located_element(definition, tokenize_string)
+    tokenize_inline_element_container(&definition)
 }
 
 fn tokenize_term(term: &Term) -> TokenStream {
-    tokenize_located_element(term, tokenize_string)
+    tokenize_inline_element_container(&term)
 }
 
 // Dividers
@@ -383,14 +378,14 @@ fn tokenize_header(header: &Header) -> TokenStream {
     let root = root_crate();
     let Header {
         level,
-        text,
+        content,
         centered,
     } = header;
-    let t = tokenize_string(&text);
+    let content_t = tokenize_inline_element_container(&content);
     quote! {
         #root::elements::Header {
             level: #level,
-            text: #t,
+            content: #content_t,
             centered: #centered,
         }
     }
@@ -996,9 +991,10 @@ fn tokenize_decorated_text_content(
 
 fn tokenize_decorated_text(decorated_text: &DecoratedText) -> TokenStream {
     let root = root_crate();
-    let contents = decorated_text.contents.iter().map(|x| {
-        tokenize_located_element(x, tokenize_decorated_text_content)
-    });
+    let contents = decorated_text
+        .contents
+        .iter()
+        .map(|x| tokenize_located_element(x, tokenize_decorated_text_content));
     let decoration = tokenize_decoration(&decorated_text.decoration);
     quote! {
         #root::elements::DecoratedText {

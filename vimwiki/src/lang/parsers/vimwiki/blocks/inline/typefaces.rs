@@ -3,7 +3,7 @@ use super::{
     links::link,
     math::math_inline,
     tags::tags,
-    utils::{context, lc, pstring, take_line_while1},
+    utils::{context, le, pstring, take_line_while1},
     Span, VimwikiIResult, LE,
 };
 
@@ -25,7 +25,7 @@ pub fn text(input: Span) -> VimwikiIResult<LE<String>> {
         Ok((input, ()))
     }
 
-    context("Text", lc(pstring(take_line_while1(is_text))))(input)
+    context("Text", le(pstring(take_line_while1(is_text))))(input)
 }
 
 #[inline]
@@ -52,7 +52,7 @@ pub fn decorated_text(input: Span) -> VimwikiIResult<LE<DecoratedText>> {
             fn other(
                 end: &'static str,
             ) -> impl Fn(Span) -> VimwikiIResult<LE<String>> {
-                lc(pstring(take_line_while1(is_other(end))))
+                le(pstring(take_line_while1(is_other(end))))
             }
 
             let (input, _) = tag(start)(input)?;
@@ -72,7 +72,7 @@ pub fn decorated_text(input: Span) -> VimwikiIResult<LE<DecoratedText>> {
     //       text object instead
     context(
         "Decorated Text",
-        lc(alt((
+        le(alt((
             dt("_*", "*_", Decoration::BoldItalic),
             dt("*_", "_*", Decoration::BoldItalic),
             dt("*", "*", Decoration::Bold),
@@ -94,7 +94,7 @@ pub fn keyword(input: Span) -> VimwikiIResult<LE<Keyword>> {
     //       the variants themselves)
     context(
         "Keyword",
-        lc(alt((
+        le(alt((
             map(tag("DONE"), |_| Keyword::DONE),
             map(tag("FIXED"), |_| Keyword::FIXED),
             map(tag("FIXME"), |_| Keyword::FIXME),

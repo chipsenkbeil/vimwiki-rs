@@ -1,19 +1,19 @@
-use super::LE;
+use super::{InlineElementContainer, LE};
 use derive_more::Constructor;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
 
 /// Represents the type used for a single term
-pub type Term = LE<String>;
+pub type Term = InlineElementContainer;
 
 /// Represents the type used for a single definition
-pub type Definition = LE<String>;
+pub type Definition = InlineElementContainer;
 
 /// Represents a term and associated definitions
 #[derive(Constructor, Clone, Debug, Serialize, Deserialize)]
 pub struct TermAndDefinitions {
-    pub term: LE<String>,
+    pub term: Term,
     pub definitions: Vec<Definition>,
 }
 
@@ -21,31 +21,31 @@ impl Eq for TermAndDefinitions {}
 
 impl PartialEq for TermAndDefinitions {
     fn eq(&self, other: &Self) -> bool {
-        self.term == other.term
+        self.term.to_string() == other.term.to_string()
     }
 }
 
-impl PartialEq<LE<String>> for TermAndDefinitions {
-    fn eq(&self, other: &LE<String>) -> bool {
-        &self.term == other
+impl PartialEq<InlineElementContainer> for TermAndDefinitions {
+    fn eq(&self, other: &InlineElementContainer) -> bool {
+        self.term.to_string() == other.to_string()
     }
 }
 
 impl PartialEq<String> for TermAndDefinitions {
     fn eq(&self, other: &String) -> bool {
-        &self.term.element == other
+        &self.term.to_string() == other
     }
 }
 
 impl PartialEq<&str> for TermAndDefinitions {
     fn eq(&self, other: &&str) -> bool {
-        &self.term.element == other
+        &self.term.to_string() == other
     }
 }
 
 impl Hash for TermAndDefinitions {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.term.hash(state);
+        self.term.to_string().hash(state);
     }
 }
 
@@ -62,7 +62,7 @@ impl DefinitionList {
     /// Retrieves a term and its associated definitions
     pub fn get(&self, term: &str) -> Option<&TermAndDefinitions> {
         self.terms_and_definitions.get(&TermAndDefinitions {
-            term: LE::from(term.to_string()),
+            term: Term::from(LE::from(term)),
             definitions: vec![],
         })
     }
@@ -101,49 +101,47 @@ impl From<Vec<TermAndDefinitions>> for DefinitionList {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::elements::{
+        DecoratedText, DecoratedTextContent, Decoration, InlineElement,
+    };
 
     #[test]
     fn term_and_definitions_should_equal_other_instance_if_names_are_same() {
-        let td1 =
-            TermAndDefinitions::new(LE::from(String::from("term")), vec![]);
+        let td1 = TermAndDefinitions::new(Term::from(LE::from("term")), vec![]);
         let td2 = TermAndDefinitions::new(
-            LE::from(String::from("term")),
-            vec![LE::from(String::from("definition"))],
+            Term::from(LE::from("term")),
+            vec![Definition::from(LE::from("definition"))],
         );
         assert_eq!(td1, td2);
     }
 
     #[test]
     fn term_and_definitions_should_equal_lc_string_if_name_equals_string() {
-        let td =
-            TermAndDefinitions::new(LE::from(String::from("term")), vec![]);
-        let other = LE::from(String::from("term"));
+        let td = TermAndDefinitions::new(Term::from(LE::from("term")), vec![]);
+        let other = Term::from(LE::from("term"));
         assert_eq!(td, other);
     }
 
     #[test]
     fn term_and_definitions_should_equal_string_if_name_equals_string() {
-        let td =
-            TermAndDefinitions::new(LE::from(String::from("term")), vec![]);
+        let td = TermAndDefinitions::new(Term::from(LE::from("term")), vec![]);
         let other = String::from("term");
         assert_eq!(td, other);
     }
 
     #[test]
     fn term_and_definitions_should_equal_str_slice_if_name_equals_str_slice() {
-        let td =
-            TermAndDefinitions::new(LE::from(String::from("term")), vec![]);
+        let td = TermAndDefinitions::new(Term::from(LE::from("term")), vec![]);
         let other = "term";
         assert_eq!(td, other);
     }
 
     #[test]
     fn term_and_definitions_should_hash_using_its_name() {
-        let td1 =
-            TermAndDefinitions::new(LE::from(String::from("term")), vec![]);
+        let td1 = TermAndDefinitions::new(Term::from(LE::from("term")), vec![]);
         let td2 = TermAndDefinitions::new(
-            LE::from(String::from("term")),
-            vec![LE::from(String::from("definition"))],
+            Term::from(LE::from("term")),
+            vec![Term::from(LE::from("definition"))],
         );
 
         // Insert first TermAndDefinitions and use second, which has definitions
@@ -158,8 +156,8 @@ mod tests {
     fn definition_list_should_be_able_to_get_term_and_definitions_by_term_name()
     {
         let dl = DefinitionList::from(vec![TermAndDefinitions::new(
-            LE::from(String::from("term")),
-            vec![LE::from(String::from("definition"))],
+            Term::from(LE::from("term")),
+            vec![Definition::from(LE::from("definition"))],
         )]);
         assert!(dl.get("term").is_some());
     }
@@ -168,17 +166,17 @@ mod tests {
     fn definition_list_should_be_able_to_iterate_through_terms() {
         let dl = DefinitionList::from(vec![
             TermAndDefinitions::new(
-                LE::from(String::from("term1")),
-                vec![LE::from(String::from("definition"))],
+                Term::from(LE::from("term1")),
+                vec![Definition::from(LE::from("definition"))],
             ),
-            TermAndDefinitions::new(LE::from(String::from("term2")), vec![]),
+            TermAndDefinitions::new(Term::from(LE::from("term2")), vec![]),
         ]);
 
         let term_names =
-            dl.terms().map(|t| &t.element[..]).collect::<Vec<&str>>();
+            dl.terms().map(|t| t.to_string()).collect::<Vec<String>>();
         assert_eq!(term_names.len(), 2);
-        assert!(term_names.contains(&"term1"));
-        assert!(term_names.contains(&"term2"));
+        assert!(term_names.contains(&"term1".to_string()));
+        assert!(term_names.contains(&"term2".to_string()));
     }
 
     #[test]
@@ -186,27 +184,45 @@ mod tests {
     {
         let dl = DefinitionList::from(vec![
             TermAndDefinitions::new(
-                LE::from(String::from("term1")),
-                vec![LE::from(String::from("definition"))],
+                Term::from(LE::from("term1")),
+                vec![Definition::from(LE::from("definition"))],
             ),
-            TermAndDefinitions::new(LE::from(String::from("term2")), vec![]),
+            TermAndDefinitions::new(Term::from(LE::from("term2")), vec![]),
         ]);
 
         let defs = dl
             .defs_for_term("term1")
             .expect("Failed to find term")
-            .map(|d| &d.element[..])
-            .collect::<Vec<&str>>();
+            .map(|d| d.to_string())
+            .collect::<Vec<String>>();
         assert_eq!(defs.len(), 1);
-        assert!(defs.contains(&"definition"));
+        assert!(defs.contains(&"definition".to_string()));
 
         let defs = dl
             .defs_for_term("term2")
             .expect("Failed to find term")
-            .map(|d| &d.element[..])
-            .collect::<Vec<&str>>();
+            .map(|d| d.to_string())
+            .collect::<Vec<String>>();
         assert!(defs.is_empty());
 
         assert!(dl.defs_for_term("term-unknown").is_none());
+    }
+
+    #[test]
+    fn definition_list_should_support_lookup_with_terms_containing_other_inline_elements(
+    ) {
+        let dl = DefinitionList::from(vec![TermAndDefinitions::new(
+            Term::new(vec![
+                LE::from(InlineElement::DecoratedText(DecoratedText::new(
+                    vec![LE::from(DecoratedTextContent::Text(
+                        "term".to_string(),
+                    ))],
+                    Decoration::Bold,
+                ))),
+                LE::from(InlineElement::Text(" 1".to_string())),
+            ]),
+            vec![Definition::from(LE::from("definition"))],
+        )]);
+        assert!(dl.get("term 1").is_some());
     }
 }

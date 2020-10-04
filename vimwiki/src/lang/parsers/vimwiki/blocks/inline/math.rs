@@ -1,6 +1,6 @@
 use super::{
     elements::MathInline,
-    utils::{context, lc, pstring, take_line_while1},
+    utils::{context, le, pstring, take_line_while1},
     Span, VimwikiIResult, LE,
 };
 use nom::{
@@ -24,7 +24,7 @@ pub fn math_inline(input: Span) -> VimwikiIResult<LE<MathInline>> {
         )(input)
     }
 
-    context("Math Inline", lc(inner))(input)
+    context("Math Inline", le(inner))(input)
 }
 
 #[cfg(test)]

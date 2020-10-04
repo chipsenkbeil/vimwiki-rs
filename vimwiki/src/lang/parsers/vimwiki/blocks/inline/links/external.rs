@@ -1,6 +1,6 @@
 use super::{
     elements::{Description, ExternalFileLink, ExternalFileLinkScheme},
-    utils::{context, lc, take_line_while1},
+    utils::{context, le, take_line_while1},
     Span, VimwikiIResult, LE,
 };
 use nom::{
@@ -34,7 +34,7 @@ pub fn external_file_link(input: Span) -> VimwikiIResult<LE<ExternalFileLink>> {
         Ok((input, link))
     }
 
-    context("External File Link", lc(inner))(input)
+    context("External File Link", le(inner))(input)
 }
 
 #[inline]

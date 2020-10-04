@@ -1,6 +1,6 @@
 use super::{
     elements::{Description, TransclusionLink},
-    utils::{context, lc, take_line_while, take_line_while1},
+    utils::{context, le, take_line_while, take_line_while1},
     Span, VimwikiIResult, LE,
 };
 use nom::{
@@ -45,7 +45,7 @@ pub fn transclusion_link(input: Span) -> VimwikiIResult<LE<TransclusionLink>> {
         ))
     }
 
-    context("Transclusion Link", lc(inner))(input)
+    context("Transclusion Link", le(inner))(input)
 }
 
 /// Parser for property pairs separated by | in the form of

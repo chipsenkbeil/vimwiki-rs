@@ -1,6 +1,6 @@
 use super::{
     elements::{self, Page},
-    utils::{self, context, lc, range, scan, VimwikiIResult},
+    utils::{self, context, le, range, scan, VimwikiIResult},
     Span, LE,
 };
 use nom::{combinator::all_consuming, multi::many0, InputLength, Slice};
@@ -40,7 +40,7 @@ pub fn page(input: Span) -> VimwikiIResult<LE<Page>> {
         Ok((input, Page::new(elements, comments)))
     }
 
-    context("Page", lc(inner))(input)
+    context("Page", le(inner))(input)
 }
 
 #[cfg(test)]

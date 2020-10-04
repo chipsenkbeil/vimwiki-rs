@@ -1,6 +1,6 @@
 use super::{
     elements::Blockquote,
-    utils::{beginning_of_line, blank_line, context, end_of_line_or_input, lc},
+    utils::{beginning_of_line, blank_line, context, end_of_line_or_input, le},
     Span, VimwikiIResult, LE,
 };
 use nom::{
@@ -44,7 +44,7 @@ pub fn blockquote(input: Span) -> VimwikiIResult<LE<Blockquote>> {
         Ok((input, Blockquote::new(lines)))
     }
 
-    context("Blockquote", lc(inner))(input)
+    context("Blockquote", le(inner))(input)
 }
 
 /// Parses a blockquote line that begins with four or more spaces

@@ -1,7 +1,7 @@
 use super::{
     elements::PreformattedText,
     utils::{
-        any_line, beginning_of_line, context, end_of_line_or_input, lc,
+        any_line, beginning_of_line, context, end_of_line_or_input, le,
         pstring, take_line_while, take_line_while1,
     },
     Span, VimwikiIResult, LE,
@@ -26,7 +26,7 @@ pub fn preformatted_text(input: Span) -> VimwikiIResult<LE<PreformattedText>> {
         Ok((input, PreformattedText::new(maybe_lang, metadata, lines)))
     }
 
-    context("Preformatted Text", lc(inner))(input)
+    context("Preformatted Text", le(inner))(input)
 }
 
 #[inline]

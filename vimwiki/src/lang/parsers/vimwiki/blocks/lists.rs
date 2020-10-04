@@ -5,7 +5,7 @@ use super::{
         ListItemType, OrderedListItemType, UnorderedListItemType,
     },
     inline::inline_element_container,
-    utils::{beginning_of_line, context, end_of_line_or_input, lc},
+    utils::{beginning_of_line, context, end_of_line_or_input, le},
     Span, VimwikiIResult, LE,
 };
 use nom::{
@@ -60,7 +60,7 @@ pub fn list(input: Span) -> VimwikiIResult<LE<List>> {
         Ok((input, List::new(items).normalize().to_owned()))
     }
 
-    context("List", lc(inner))(input)
+    context("List", le(inner))(input)
 }
 
 /// Parse space/tabs before a list item, followed by the list item
@@ -74,7 +74,7 @@ fn list_item(input: Span) -> VimwikiIResult<(usize, LE<EnhancedListItem>)> {
         let (input, indentation) = indentation_level(true)(input)?;
 
         // 3. Ensure that the item starts with a valid prefix
-        let (input, item) = lc(map(
+        let (input, item) = le(map(
             pair(list_item_prefix, list_item_tail(indentation)),
             |((item_type, item_suffix), (maybe_attr, contents))| {
                 // NOTE: To make things easier, we aren't assigning the index

@@ -1,7 +1,7 @@
 use super::{
     elements::{Cell, Row, Table},
     inline::inline_element_container,
-    utils::{context, end_of_line_or_input, lc, take_line_while1},
+    utils::{context, end_of_line_or_input, le, take_line_while1},
     Span, VimwikiIResult, LE,
 };
 use nom::{
@@ -31,7 +31,7 @@ pub fn table(input: Span) -> VimwikiIResult<LE<Table>> {
     // Parse the table and make sure it isn't comprised entirely of divider rows
     context(
         "Table",
-        lc(verify(inner, |t| {
+        le(verify(inner, |t| {
             !t.rows.iter().all(|r| matches!(r.element, Row::Divider))
         })),
     )(input)
@@ -55,7 +55,7 @@ fn row(input: Span) -> VimwikiIResult<LE<Row>> {
         )(input)
     }
 
-    context("Row", lc(inner))(input)
+    context("Row", le(inner))(input)
 }
 
 #[inline]
@@ -79,7 +79,7 @@ fn cell(input: Span) -> VimwikiIResult<LE<Cell>> {
         ))(input)
     }
 
-    context("Cell", lc(inner))(input)
+    context("Cell", le(inner))(input)
 }
 
 #[inline]

@@ -8,6 +8,7 @@ use nom::{
     },
     multi::{many0, many1},
     sequence::{delimited, pair, preceded, terminated},
+    AsBytes, InputLength, InputTake,
 };
 use std::convert::TryFrom;
 use std::ops::Range;
@@ -63,6 +64,8 @@ pub fn print_timekeeper_report(clear_after_print: bool) {
     }
 }
 
+/// Wraps a parser in a contextual label, which makes it easier to identify
+/// where parsing failures occur
 #[cfg(not(feature = "timekeeper"))]
 pub fn context<T>(
     ctx: &'static str,
@@ -71,6 +74,10 @@ pub fn context<T>(
     nom::error::context(ctx, f)
 }
 
+/// Wraps a parser in a contextual label, which makes it easier to identify
+/// where parsing failures occur. This implementation also logs to a
+/// timekeeper table, which can be printed out to evaluate the time spent
+/// within each parser wrapped in a context.
 #[cfg(feature = "timekeeper")]
 pub fn context<T>(
     ctx: &'static str,
@@ -111,11 +118,11 @@ pub fn context<T>(
 /// Parser that wraps another parser's output in a LocatedElement based on
 /// the consumed input
 #[inline]
-pub fn lc<T>(
+pub fn le<T>(
     parser: impl Fn(Span) -> VimwikiIResult<T>,
 ) -> impl Fn(Span) -> VimwikiIResult<LE<T>> {
     use nom::{Offset, Slice};
-    move |input: Span| {
+    context("LE", move |input: Span| {
         let start_line = input.global_line();
         let start_column = input.global_utf8_column();
 
@@ -132,7 +139,17 @@ pub fn lc<T>(
         let end_column = input.global_utf8_column();
 
         Ok((input2, LE::new(x, Region::from((start_line, start_column, end_line, end_column)))))
-    }
+    })
+}
+
+/// Parser that unwraps another parser's output of LocatedElement into the
+/// underlying element
+pub fn unwrap_le<T>(parser: impl Fn(Span) -> VimwikiIResult<LE<T>>) -> impl Fn(Span) -> VimwikiIResult<T> {
+    context("LE Unwrap", move |input: Span| {
+        let (input, le) = parser(input)?;
+
+        Ok((input, le.element))
+    })
 }
 
 /// Parser that wraps another parser's output in a tuple that also echos out
@@ -260,6 +277,12 @@ pub fn non_blank_line(input: Span) -> VimwikiIResult<String> {
 /// (not including line termination)
 #[inline]
 pub fn any_line(input: Span) -> VimwikiIResult<String> {
+    // TODO: Use memchr to find end of line, split at that point, and return
+    //       it as a span; make a new parser that is any_line_as_string
+    //
+    //       From there, we can use the span version with the blank and
+    //       non_blank parsers above to first verify that there is or is not
+    //       a blank line and then allocate a string
     alt((non_blank_line, blank_line))(input)
 }
 
@@ -373,6 +396,59 @@ pub fn uri(input: Span) -> VimwikiIResult<URI<'static>> {
             },
         ),
     )(input)
+}
+
+/// Counts the spaces & tabs that are trailing in our input
+pub fn count_trailing_whitespace(
+    input: Span
+) -> VimwikiIResult<usize> {
+    let mut cnt = 0;
+
+    // Count whitespace in reverse so we know how many are trailing
+    for b in input.as_bytes().iter().rev() {
+        if !nom::character::is_space(*b) {
+            break;
+        }
+        cnt += 1;
+    }
+
+    Ok((input, cnt))
+}
+
+/// Trims the trailing whitespace from input, essentially working backwards
+/// to cut off part of the input
+pub fn trim_trailing_whitespace(input: Span) -> VimwikiIResult<()> {
+    use nom::Slice;
+    let (input, len) = rest_len(input)?;
+    let (input, cnt) = count_trailing_whitespace(input)?;
+    Ok((input.slice(..(len - cnt)), ()))
+}
+
+/// Trims the leading and trailing whitespace from input
+pub fn trim_whitespace(input: Span) -> VimwikiIResult<()> {
+    let (input, _) = space0(input)?;
+    let (input, _) = trim_trailing_whitespace(input)?;
+    Ok((input, ()))
+}
+
+/// Takes from the end instead of the beginning
+pub fn take_end<C>(count: C) -> impl Fn(Span) -> VimwikiIResult<Span>
+where
+  C: nom::ToUsize,
+{
+    use nom::{Err,error::{ParseError, ErrorKind}};
+  let cnt = count.to_usize();
+  context("Take End", move |input: Span| {
+      let len = input.input_len();
+      if cnt > len {
+          Err(Err::Error(VimwikiNomError::from_error_kind(input, ErrorKind::Eof)))
+      } else {
+      let (end, input) = input.take_split(len - cnt);
+      Ok((input, end))
+      }
+
+  })
+
 }
 
 #[cfg(test)]

@@ -1,7 +1,7 @@
 use super::{
     elements::Divider,
     utils::{
-        beginning_of_line, context, end_of_line_or_input, lc, take_line_while1,
+        beginning_of_line, context, end_of_line_or_input, le, take_line_while1,
     },
     Span, VimwikiIResult, LE,
 };
@@ -19,7 +19,7 @@ pub fn divider(input: Span) -> VimwikiIResult<LE<Divider>> {
         Ok((input, Divider))
     }
 
-    context("Divider", lc(inner))(input)
+    context("Divider", le(inner))(input)
 }
 
 #[cfg(test)]

@@ -1,3 +1,4 @@
+use super::InlineElementContainer;
 use derive_more::Constructor;
 use serde::{Deserialize, Serialize};
 
@@ -6,7 +7,7 @@ use serde::{Deserialize, Serialize};
 )]
 pub struct Header {
     pub level: usize,
-    pub text: String,
+    pub content: InlineElementContainer,
     pub centered: bool,
 }
 

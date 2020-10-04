@@ -1,6 +1,6 @@
 use super::{
     elements::{Tag, Tags},
-    utils::{context, lc, take_line_while1},
+    utils::{context, le, take_line_while1},
     Span, VimwikiIResult, LE,
 };
 use nom::{
@@ -18,7 +18,7 @@ pub fn tags(input: Span) -> VimwikiIResult<LE<Tags>> {
         Ok((input, Tags::new(contents)))
     }
 
-    context("Tags", lc(inner))(input)
+    context("Tags", le(inner))(input)
 }
 
 fn tag_content(input: Span) -> VimwikiIResult<Tag> {

@@ -1,4 +1,4 @@
-use super::Region;
+use super::InlineElement;
 use vimwiki::{elements, LE};
 
 #[derive(Debug)]
@@ -18,22 +18,14 @@ impl DefinitionList {
         self.0
             .element
             .terms()
-            .map(|x| Term {
-                region: Region::from(x.region),
-                text: x.element.to_owned(),
-            })
+            .map(|x| Term::new(x.to_owned()))
             .collect()
     }
 
     /// The definitions for a specific term
     async fn definitions_for_term(&self, term: String) -> Vec<Definition> {
         match self.0.element.defs_for_term(&term) {
-            Some(defs) => defs
-                .map(|x| Definition {
-                    region: Region::from(x.region),
-                    text: x.element.to_owned(),
-                })
-                .collect(),
+            Some(defs) => defs.map(|x| Definition::new(x.to_owned())).collect(),
             None => vec![],
         }
     }
@@ -58,44 +50,66 @@ pub struct TermAndDefinitions {
 impl From<elements::TermAndDefinitions> for TermAndDefinitions {
     fn from(mut td: elements::TermAndDefinitions) -> Self {
         Self {
-            term: Term::from(td.term),
+            term: Term::new(td.term),
             definitions: td
                 .definitions
                 .drain(..)
-                .map(Definition::from)
+                .map(Definition::new)
                 .collect(),
         }
     }
 }
 
-/// Represents a term with one or more definitions
-#[derive(async_graphql::SimpleObject)]
-pub struct Term {
-    region: Region,
-    text: String,
+pub struct Term(elements::Term);
+
+impl Term {
+    pub fn new(term: elements::Term) -> Self {
+        Self(term)
+    }
 }
 
-impl From<elements::Term> for Term {
-    fn from(term: elements::Term) -> Self {
-        Self {
-            region: Region::from(term.region),
-            text: term.element,
-        }
+/// Represents a term with one or more definitions
+#[async_graphql::Object]
+impl Term {
+    /// The content of the term, aka the term as a string as it would be
+    /// read by humans without frills
+    async fn content(&self) -> String {
+        self.0.to_string()
+    }
+
+    /// The content within the term as individual elements
+    async fn content_elements(&self) -> Vec<InlineElement> {
+        self.0
+            .elements
+            .iter()
+            .map(|e| InlineElement::from(e.clone()))
+            .collect()
+    }
+}
+
+pub struct Definition(elements::Definition);
+
+impl Definition {
+    pub fn new(definition: elements::Definition) -> Self {
+        Self(definition)
     }
 }
 
 /// Represents a definition associated with a term
-#[derive(async_graphql::SimpleObject)]
-pub struct Definition {
-    region: Region,
-    text: String,
-}
+#[async_graphql::Object]
+impl Definition {
+    /// The content of the definition, aka the definition as a string as it
+    /// would be read by humans without frills
+    async fn content(&self) -> String {
+        self.0.to_string()
+    }
 
-impl From<elements::Definition> for Definition {
-    fn from(definition: elements::Definition) -> Self {
-        Self {
-            region: Region::from(definition.region),
-            text: definition.element,
-        }
+    /// The content within the definition as individual elements
+    async fn content_elements(&self) -> Vec<InlineElement> {
+        self.0
+            .elements
+            .iter()
+            .map(|e| InlineElement::from(e.clone()))
+            .collect()
     }
 }

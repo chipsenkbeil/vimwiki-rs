@@ -1,6 +1,6 @@
 use super::{
     elements::{Comment, LineComment, MultiLineComment},
-    utils::{context, lc, pstring, take_until_end_of_line_or_input},
+    utils::{context, le, pstring, take_until_end_of_line_or_input},
     Span, VimwikiIResult, LE,
 };
 use nom::{
@@ -29,7 +29,7 @@ pub(crate) fn line_comment(input: Span) -> VimwikiIResult<LE<LineComment>> {
         Ok((input, LineComment(text)))
     }
 
-    context("Line Comment", lc(inner))(input)
+    context("Line Comment", le(inner))(input)
 }
 
 #[inline]
@@ -49,7 +49,7 @@ pub(crate) fn multi_line_comment(
         Ok((input, MultiLineComment(lines)))
     }
 
-    context("Multi Line Comment", lc(inner))(input)
+    context("Multi Line Comment", le(inner))(input)
 }
 
 #[cfg(test)]

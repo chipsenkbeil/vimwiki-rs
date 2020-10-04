@@ -1,8 +1,8 @@
 use super::{
     blockquotes::blockquote,
-    elements::Paragraph,
     definitions::definition_list,
     dividers::divider,
+    elements::Paragraph,
     headers::header,
     inline::inline_element_container,
     lists::list,
@@ -10,7 +10,7 @@ use super::{
     placeholders::placeholder,
     preformatted::preformatted_text,
     tables::table,
-    utils::{beginning_of_line, blank_line, context, end_of_line_or_input, lc},
+    utils::{beginning_of_line, blank_line, context, end_of_line_or_input, le},
     Span, VimwikiIResult, LE,
 };
 use nom::{
@@ -47,7 +47,7 @@ pub fn paragraph(input: Span) -> VimwikiIResult<LE<Paragraph>> {
         Ok((input, paragraph))
     }
 
-    context("Paragraph", lc(inner))(input)
+    context("Paragraph", le(inner))(input)
 }
 
 // TODO: Optimize by adjusting paragraph parser to be a tuple that
@@ -113,9 +113,9 @@ mod tests {
                     Decoration::Bold
                 )),
                 InlineElement::Text(", ".to_string()),
-                InlineElement::Link(Link::from(WikiLink::from(
-                    PathBuf::from("links")
-                ))),
+                InlineElement::Link(Link::from(WikiLink::from(PathBuf::from(
+                    "links"
+                )))),
                 InlineElement::Text(", ".to_string()),
                 InlineElement::Math(MathInline::new("math".to_string())),
                 InlineElement::Text(", and more".to_string()),
@@ -147,9 +147,9 @@ mod tests {
                     Decoration::Bold
                 )),
                 InlineElement::Text(",".to_string()),
-                InlineElement::Link(Link::from(WikiLink::from(
-                    PathBuf::from("links")
-                ))),
+                InlineElement::Link(Link::from(WikiLink::from(PathBuf::from(
+                    "links"
+                )))),
                 InlineElement::Text(", ".to_string()),
                 InlineElement::Math(MathInline::new("math".to_string())),
                 InlineElement::Text(", and more".to_string()),
@@ -183,9 +183,9 @@ mod tests {
                 )),
                 InlineElement::Text(",".to_string()),
                 InlineElement::Text("  ".to_string()),
-                InlineElement::Link(Link::from(WikiLink::from(
-                    PathBuf::from("links")
-                ))),
+                InlineElement::Link(Link::from(WikiLink::from(PathBuf::from(
+                    "links"
+                )))),
                 InlineElement::Text(", ".to_string()),
                 InlineElement::Math(MathInline::new("math".to_string())),
                 InlineElement::Text(", and more".to_string()),
@@ -223,9 +223,9 @@ mod tests {
                     Decoration::Bold
                 )),
                 InlineElement::Text(",".to_string()),
-                InlineElement::Link(Link::from(WikiLink::from(
-                    PathBuf::from("links")
-                ))),
+                InlineElement::Link(Link::from(WikiLink::from(PathBuf::from(
+                    "links"
+                )))),
                 InlineElement::Text(", ".to_string()),
                 InlineElement::Math(MathInline::new("math".to_string())),
                 InlineElement::Text(", and more".to_string()),

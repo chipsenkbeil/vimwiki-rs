@@ -1,6 +1,6 @@
 use super::{
     elements::{self, InlineElement, InlineElementContainer},
-    utils::{self, context, lc, VimwikiIResult},
+    utils::{self, context, le, VimwikiIResult},
     Span, LE,
 };
 use nom::{branch::alt, combinator::map, multi::many1};
@@ -18,7 +18,7 @@ pub fn inline_element_container(
 ) -> VimwikiIResult<LE<InlineElementContainer>> {
     context(
         "Inline Element Container",
-        lc(map(many1(inline_element), InlineElementContainer::from)),
+        le(map(many1(inline_element), InlineElementContainer::from)),
     )(input)
 }
 
