@@ -2,5 +2,5 @@
 members = [
     "vimwiki",
     "vimwiki_macros",
-    "vimwiki_server",
+    "vimwiki-server",
 ]
