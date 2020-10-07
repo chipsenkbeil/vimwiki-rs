@@ -2308,7 +2308,6 @@ dependencies = [
  "snafu",
  "tokio",
  "vimwiki",
- "vimwiki_macros",
  "walkdir",
  "warp",
 ]
