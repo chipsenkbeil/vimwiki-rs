@@ -39,31 +39,26 @@ pub struct ListItem {
     contents: Vec<ListItemContent>,
 
     /// Additional attributes associated with the list item
-    attributes: Vec<ListItemAttribute>,
+    attributes: ListItemAttributes,
 }
 
-impl From<LE<elements::EnhancedListItem>> for ListItem {
-    fn from(lc: LE<elements::EnhancedListItem>) -> Self {
+impl From<LE<elements::ListItem>> for ListItem {
+    fn from(lc: LE<elements::ListItem>) -> Self {
         let region = Region::from(lc.region);
-        let mut element = lc.element;
+        let mut item = lc.element;
 
         Self {
             region,
-            item_type: ListItemType::from(element.item.item_type),
-            suffix: ListItemSuffix::from(element.item.suffix),
-            position: element.item.pos as i32,
-            contents: element
-                .item
+            item_type: ListItemType::from(item.item_type),
+            suffix: ListItemSuffix::from(item.suffix),
+            position: item.pos as i32,
+            contents: item
                 .contents
                 .contents
                 .drain(..)
                 .map(ListItemContent::from)
                 .collect(),
-            attributes: element
-                .attributes
-                .drain()
-                .map(ListItemAttribute::from)
-                .collect(),
+            attributes: ListItemAttributes::from(item.attributes),
         }
     }
 }
@@ -157,48 +152,37 @@ pub struct InlineContent {
     elements: Vec<InlineElement>,
 }
 
-#[derive(async_graphql::Enum, Copy, Clone, Debug, Eq, PartialEq)]
-pub enum ListItemAttribute {
-    /// Flags list item as a TODO item that has not been completed
-    TodoIncomplete,
-
-    /// Flags list item as a TODO item that is partially complete (1-33%)
-    TodoPartiallyComplete1,
-
-    /// Flags list item as a TODO item that is partially complete (34-66%)
-    TodoPartiallyComplete2,
-
-    /// Flags list item as a TODO item that is partially complete (67-99%)
-    TodoPartiallyComplete3,
-
-    /// Flags list item as a TODO item that is complete
-    TodoComplete,
-
-    /// Flags list item as a TODO item that has been rejected
-    TodoRejected,
+#[derive(async_graphql::SimpleObject, Debug)]
+pub struct ListItemAttributes {
+    todo_status: Option<ListItemTodoStatus>,
 }
 
-impl From<elements::EnhancedListItemAttribute> for ListItemAttribute {
-    fn from(a: elements::EnhancedListItemAttribute) -> Self {
-        match a {
-            elements::EnhancedListItemAttribute::TodoIncomplete => {
-                Self::TodoIncomplete
-            }
-            elements::EnhancedListItemAttribute::TodoPartiallyComplete1 => {
-                Self::TodoPartiallyComplete1
-            }
-            elements::EnhancedListItemAttribute::TodoPartiallyComplete2 => {
-                Self::TodoPartiallyComplete2
-            }
-            elements::EnhancedListItemAttribute::TodoPartiallyComplete3 => {
-                Self::TodoPartiallyComplete3
-            }
-            elements::EnhancedListItemAttribute::TodoComplete => {
-                Self::TodoComplete
-            }
-            elements::EnhancedListItemAttribute::TodoRejected => {
-                Self::TodoRejected
-            }
+impl From<elements::ListItemAttributes> for ListItemAttributes {
+    fn from(x: elements::ListItemAttributes) -> Self {
+        Self {
+            todo_status: x.todo_status.map(ListItemTodoStatus::from),
         }
     }
+}
+
+#[derive(async_graphql::Enum, Copy, Clone, Debug, Eq, PartialEq)]
+#[graphql(remote = "vimwiki::elements::ListItemTodoStatus")]
+pub enum ListItemTodoStatus {
+    /// Flags list item as a TODO item that has not been completed
+    Incomplete,
+
+    /// Flags list item as a TODO item that is partially complete (1-33%)
+    PartiallyComplete1,
+
+    /// Flags list item as a TODO item that is partially complete (34-66%)
+    PartiallyComplete2,
+
+    /// Flags list item as a TODO item that is partially complete (67-99%)
+    PartiallyComplete3,
+
+    /// Flags list item as a TODO item that is complete
+    Complete,
+
+    /// Flags list item as a TODO item that has been rejected
+    Rejected,
 }

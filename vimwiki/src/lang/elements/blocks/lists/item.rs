@@ -3,9 +3,6 @@ use derive_more::{Constructor, From};
 use numerals::roman::Roman;
 use serde::{Deserialize, Serialize};
 
-mod enhanced;
-pub use enhanced::*;
-
 /// Represents an item in a list
 #[derive(
     Constructor, Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize,
@@ -15,6 +12,7 @@ pub struct ListItem {
     pub suffix: ListItemSuffix,
     pub pos: usize,
     pub contents: ListItemContents,
+    pub attributes: ListItemAttributes,
 }
 
 impl ListItem {
@@ -31,6 +29,142 @@ impl ListItem {
     /// Allocates a new string to represent the prefix of this list item
     pub fn to_prefix(&self) -> String {
         self.item_type.to_prefix(self.pos, self.suffix)
+    }
+
+    /// Whether or not this list item has TODO information
+    pub fn is_todo(&self) -> bool {
+        self.attributes.todo_status.is_some()
+    }
+
+    /// Returns percent complete in form of 0.0 == 0% and 1.0 == 100%. This
+    /// is a calculated percentage based on the sublist items (if there are
+    /// any) or the item itself.
+    ///
+    /// This will search through all sub list items, check if they have
+    /// todo properties, and calculate a sum. If none of the sublists or
+    /// any series of nested sublists contains todo items that are NOT
+    /// rejected and this item does also not have todo progress,
+    /// None will be returned.
+    pub fn compute_todo_progress(&self) -> Option<f32> {
+        self.contents
+            .iter()
+            .fold(None, |acc, c| match &c.element {
+                ListItemContent::InlineContent(_) => acc,
+                ListItemContent::List(list) => {
+                    let (mut sum, mut count) =
+                        list.items.iter().fold((0.0, 0), |acc, item| {
+                            // NOTE: This is a recursive call that is NOT
+                            //       tail recursive, but I do not want to
+                            //       spend the time needed to translate it
+                            //       into an interative approach given we
+                            //       need to calculate the leaf todos before
+                            //       determining the progress of the current
+                            //       todo list item
+                            if let Some(p) =
+                                item.element.compute_todo_progress()
+                            {
+                                (acc.0 + p, acc.1 + 1)
+                            } else {
+                                acc
+                            }
+                        });
+
+                    if let Some((acc_sum, acc_count)) = acc {
+                        sum += acc_sum;
+                        count += acc_count;
+                    }
+
+                    if count > 0 {
+                        Some((sum, count))
+                    } else {
+                        None
+                    }
+                }
+            })
+            .map(|(sum, count)| sum / count as f32)
+            .or_else(|| self.to_todo_progress())
+    }
+
+    /// Returns progress based on current todo status, or yields None if
+    /// not a todo or is a rejected todo.
+    ///
+    /// Incomplete              == 0%
+    /// Partially Complete 1    == 25%
+    /// Partially Complete 2    == 50%
+    /// Partially Complete 3    == 75%
+    /// Completed               == 100%
+    #[inline]
+    fn to_todo_progress(&self) -> Option<f32> {
+        if self.is_todo() && !self.is_todo_rejected() {
+            Some(if self.is_todo_partially_complete_1() {
+                0.25
+            } else if self.is_todo_partially_complete_2() {
+                0.5
+            } else if self.is_todo_partially_complete_3() {
+                0.75
+            } else if self.is_todo_complete() {
+                1.0
+            } else {
+                0.0
+            })
+        } else {
+            None
+        }
+    }
+
+    /// Indicates whether or not this element is incomplete, meaning no progress
+    pub fn is_todo_incomplete(&self) -> bool {
+        matches!(
+            self.attributes.todo_status,
+            Some(ListItemTodoStatus::Incomplete)
+        )
+    }
+
+    /// Indicates whether or not this element is partially complete (any range)
+    pub fn is_todo_partially_complete(&self) -> bool {
+        self.is_todo_partially_complete_1()
+            || self.is_todo_partially_complete_2()
+            || self.is_todo_partially_complete_3()
+    }
+
+    /// Indicates whether or not this element is partially complete (1-33%)
+    pub fn is_todo_partially_complete_1(&self) -> bool {
+        matches!(
+            self.attributes.todo_status,
+            Some(ListItemTodoStatus::PartiallyComplete1)
+        )
+    }
+
+    /// Indicates whether or not this element is partially complete (34-66%)
+    pub fn is_todo_partially_complete_2(&self) -> bool {
+        matches!(
+            self.attributes.todo_status,
+            Some(ListItemTodoStatus::PartiallyComplete2)
+        )
+    }
+
+    /// Indicates whether or not this element is partially complete (67-99%)
+    pub fn is_todo_partially_complete_3(&self) -> bool {
+        matches!(
+            self.attributes.todo_status,
+            Some(ListItemTodoStatus::PartiallyComplete3)
+        )
+    }
+
+    /// Indicates whether or not this element is complete
+    pub fn is_todo_complete(&self) -> bool {
+        matches!(
+            self.attributes.todo_status,
+            Some(ListItemTodoStatus::Complete)
+        )
+    }
+
+    /// Indicates whether or not this element is rejected
+    pub fn is_todo_rejected(&self) -> bool {
+        matches!(
+            self.attributes.todo_status,
+            Some(ListItemTodoStatus::Rejected)
+        )
     }
 }
 
@@ -210,6 +344,35 @@ fn pos_to_alphabet(pos: usize, to_lower: bool) -> String {
     s.chars().rev().collect()
 }
 
+/// Represents the todo status for a list item
+#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
+pub enum ListItemTodoStatus {
+    /// Flags list item as a TODO item that has not been completed
+    Incomplete,
+
+    /// Flags list item as a TODO item that is partially complete (1-33%)
+    PartiallyComplete1,
+
+    /// Flags list item as a TODO item that is partially complete (34-66%)
+    PartiallyComplete2,
+
+    /// Flags list item as a TODO item that is partially complete (67-99%)
+    PartiallyComplete3,
+
+    /// Flags list item as a TODO item that is complete
+    Complete,
+
+    /// Flags list item as a TODO item that has been rejected
+    Rejected,
+}
+
+/// Represents additional attributes associated with a list item
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+pub struct ListItemAttributes {
+    /// The TODO status for a list item, if it has been associated with TODO
+    pub todo_status: Option<ListItemTodoStatus>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::LE;
@@ -222,6 +385,7 @@ mod tests {
                 ListItemSuffix::default(),
                 $pos,
                 $content.into(),
+                Default::default(),
             )
         };
         ($type:ident, $pos:expr) => {
@@ -230,6 +394,7 @@ mod tests {
                 ListItemSuffix::default(),
                 $pos,
                 vec![].into(),
+                Default::default(),
             )
         };
         ($type:ident) => {
@@ -238,6 +403,7 @@ mod tests {
                 ListItemSuffix::default(),
                 0,
                 vec![].into(),
+                Default::default(),
             )
         };
     }
@@ -249,6 +415,7 @@ mod tests {
                 ListItemSuffix::$suffix,
                 $pos,
                 $content.into(),
+                Default::default(),
             )
         };
         ($type:ident, $suffix:ident, $pos:expr) => {
@@ -257,6 +424,7 @@ mod tests {
                 ListItemSuffix::$suffix,
                 $pos,
                 vec![].into(),
+                Default::default(),
             )
         };
         ($type:ident, $suffix:ident) => {
@@ -265,6 +433,7 @@ mod tests {
                 ListItemSuffix::$suffix,
                 0,
                 vec![].into(),
+                Default::default(),
             )
         };
         ($type:ident) => {
@@ -273,6 +442,7 @@ mod tests {
                 ListItemSuffix::Paren,
                 0,
                 vec![].into(),
+                Default::default(),
             )
         };
     }
@@ -284,6 +454,7 @@ mod tests {
                 ListItemSuffix::$suffix,
                 $pos,
                 $content.into(),
+                Default::default(),
             )
         };
         ($value:expr, $suffix:ident, $pos:expr) => {
@@ -292,6 +463,7 @@ mod tests {
                 ListItemSuffix::$suffix,
                 $pos,
                 vec![].into(),
+                Default::default(),
             )
         };
         ($value:expr, $suffix:ident) => {
@@ -300,6 +472,7 @@ mod tests {
                 ListItemSuffix::$suffix,
                 0,
                 vec![].into(),
+                Default::default(),
             )
         };
         ($value:expr) => {
@@ -308,6 +481,7 @@ mod tests {
                 ListItemSuffix::default(),
                 0,
                 vec![].into(),
+                Default::default(),
             )
         };
         () => {
@@ -316,6 +490,34 @@ mod tests {
                 ListItemSuffix::default(),
                 0,
                 vec![].into(),
+                Default::default(),
+            )
+        };
+    }
+
+    fn todo_list_item(todo_status: ListItemTodoStatus) -> ListItem {
+        let mut item = ListItem::default();
+
+        item.attributes.todo_status = Some(todo_status);
+
+        item
+    }
+
+    macro_rules! todo_list_item {
+        ($type:ident) => {
+            todo_list_item(ListItemTodoStatus::$type)
+        };
+        ($type:ident, $($child:expr),+) => {
+            ListItem::new(
+                Default::default(),
+                Default::default(),
+                0,
+                vec![From::from(super::ListItemContent::List(
+                    super::super::List::new(vec![$($child),+]),
+                ))].into(),
+                ListItemAttributes {
+                    todo_status: Some(ListItemTodoStatus::$type),
+                }
             )
         };
     }
@@ -634,5 +836,227 @@ mod tests {
             other_item!("prefix".to_string(), Paren, 99).to_prefix(),
             "prefix)"
         );
+    }
+
+    #[test]
+    fn is_todo_should_return_true_if_contains_any_todo_attribute() {
+        assert!(todo_list_item!(Incomplete).is_todo());
+        assert!(todo_list_item!(PartiallyComplete1).is_todo());
+        assert!(todo_list_item!(PartiallyComplete2).is_todo());
+        assert!(todo_list_item!(PartiallyComplete3).is_todo());
+        assert!(todo_list_item!(Complete).is_todo());
+        assert!(todo_list_item!(Rejected).is_todo());
+    }
+
+    #[test]
+    fn is_todo_should_return_false_if_does_not_contain_any_todo_attribute() {
+        assert!(!ListItem::default().is_todo());
+    }
+
+    #[test]
+    fn compute_todo_progress_should_use_own_progress_if_no_children() {
+        assert_eq!(
+            Some(0.0),
+            todo_list_item!(Incomplete).compute_todo_progress()
+        );
+        assert_eq!(
+            Some(0.25),
+            todo_list_item!(PartiallyComplete1).compute_todo_progress()
+        );
+        assert_eq!(
+            Some(0.5),
+            todo_list_item!(PartiallyComplete2).compute_todo_progress()
+        );
+        assert_eq!(
+            Some(0.75),
+            todo_list_item!(PartiallyComplete3).compute_todo_progress()
+        );
+        assert_eq!(
+            Some(1.0),
+            todo_list_item!(Complete).compute_todo_progress()
+        );
+        assert_eq!(None, todo_list_item!(Rejected).compute_todo_progress());
+        assert_eq!(None, ListItem::default().compute_todo_progress());
+    }
+
+    #[test]
+    fn compute_todo_progress_should_use_children_progress_if_has_children() {
+        // - [ ] <CALEULATING>
+        //     - [-] N/A
+        //     - [X] 100%
+        //     - [.] 25%
+        //     - [o] 50%
+        //     - [O] 75%
+        //     - [ ] 0%
+        assert_eq!(
+            todo_list_item!(
+                Incomplete,
+                LE::from(todo_list_item!(Rejected)),
+                LE::from(todo_list_item!(Complete)),
+                LE::from(todo_list_item!(PartiallyComplete1)),
+                LE::from(todo_list_item!(PartiallyComplete2)),
+                LE::from(todo_list_item!(PartiallyComplete3)),
+                LE::from(todo_list_item!(Incomplete))
+            )
+            .compute_todo_progress(),
+            Some((1.0 + 0.25 + 0.5 + 0.75 + 0.0) / 5.0)
+        );
+    }
+
+    #[test]
+    fn compute_todo_progress_should_support_deeper_children() {
+        assert_eq!(
+            todo_list_item!(
+                Incomplete,
+                LE::from(todo_list_item!(
+                    Rejected,
+                    LE::from(todo_list_item!(Rejected)),
+                    LE::from(todo_list_item!(Complete)),
+                    LE::from(todo_list_item!(PartiallyComplete1)),
+                    LE::from(todo_list_item!(PartiallyComplete2)),
+                    LE::from(todo_list_item!(PartiallyComplete3)),
+                    LE::from(todo_list_item!(Incomplete))
+                ))
+            )
+            .compute_todo_progress(),
+            Some((1.0 + 0.25 + 0.5 + 0.75 + 0.0) / 5.0)
+        );
+    }
+
+    #[test]
+    fn is_todo_incomplete_should_return_true_if_is_incomplete() {
+        assert!(todo_list_item!(Incomplete).is_todo_incomplete());
+    }
+
+    #[test]
+    fn is_todo_incomplete_should_return_false_if_not_incomplete() {
+        assert!(!todo_list_item!(PartiallyComplete1).is_todo_incomplete());
+        assert!(!todo_list_item!(PartiallyComplete2).is_todo_incomplete());
+        assert!(!todo_list_item!(PartiallyComplete3).is_todo_incomplete());
+        assert!(!todo_list_item!(Complete).is_todo_incomplete());
+        assert!(!todo_list_item!(Rejected).is_todo_incomplete());
+        assert!(!ListItem::default().is_todo_incomplete());
+    }
+
+    #[test]
+    fn is_todo_partially_complete_should_return_true_if_is_any_partially_complete(
+    ) {
+        assert!(
+            todo_list_item!(PartiallyComplete1).is_todo_partially_complete()
+        );
+        assert!(
+            todo_list_item!(PartiallyComplete2).is_todo_partially_complete()
+        );
+        assert!(
+            todo_list_item!(PartiallyComplete3).is_todo_partially_complete()
+        );
+    }
+
+    #[test]
+    fn is_todo_partially_complete_should_return_false_if_not_all_partially_completes(
+    ) {
+        assert!(!todo_list_item!(Incomplete).is_todo_partially_complete());
+        assert!(!todo_list_item!(Complete).is_todo_partially_complete());
+        assert!(!todo_list_item!(Rejected).is_todo_partially_complete());
+        assert!(!ListItem::default().is_todo_partially_complete());
+    }
+
+    #[test]
+    fn is_todo_partially_complete_1_should_return_true_if_is_partially_complete_1(
+    ) {
+        assert!(
+            todo_list_item!(PartiallyComplete1).is_todo_partially_complete_1()
+        );
+    }
+
+    #[test]
+    fn is_todo_partially_complete_1_should_return_false_if_not_partially_complete_1(
+    ) {
+        assert!(!todo_list_item!(Incomplete).is_todo_partially_complete_1());
+        assert!(
+            !todo_list_item!(PartiallyComplete2).is_todo_partially_complete_1()
+        );
+        assert!(
+            !todo_list_item!(PartiallyComplete3).is_todo_partially_complete_1()
+        );
+        assert!(!todo_list_item!(Complete).is_todo_partially_complete_1());
+        assert!(!todo_list_item!(Rejected).is_todo_partially_complete_1());
+        assert!(!ListItem::default().is_todo_partially_complete_1());
+    }
+
+    #[test]
+    fn is_todo_partially_complete_2_should_return_true_if_is_partially_complete_2(
+    ) {
+        assert!(
+            todo_list_item!(PartiallyComplete2).is_todo_partially_complete_2()
+        );
+    }
+
+    #[test]
+    fn is_todo_partially_complete_2_should_return_false_if_not_partially_complete_2(
+    ) {
+        assert!(!todo_list_item!(Incomplete).is_todo_partially_complete_2());
+        assert!(
+            !todo_list_item!(PartiallyComplete1).is_todo_partially_complete_2()
+        );
+        assert!(
+            !todo_list_item!(PartiallyComplete3).is_todo_partially_complete_2()
+        );
+        assert!(!todo_list_item!(Complete).is_todo_partially_complete_2());
+        assert!(!todo_list_item!(Rejected).is_todo_partially_complete_2());
+        assert!(!ListItem::default().is_todo_partially_complete_2());
+    }
+
+    #[test]
+    fn is_todo_partially_complete_3_should_return_true_if_is_partially_complete_3(
+    ) {
+        assert!(
+            todo_list_item!(PartiallyComplete3).is_todo_partially_complete_3()
+        );
+    }
+
+    #[test]
+    fn is_todo_partially_complete_3_should_return_false_if_not_partially_complete_3(
+    ) {
+        assert!(!todo_list_item!(Incomplete).is_todo_partially_complete_3());
+        assert!(
+            !todo_list_item!(PartiallyComplete1).is_todo_partially_complete_3()
+        );
+        assert!(
+            !todo_list_item!(PartiallyComplete2).is_todo_partially_complete_3()
+        );
+        assert!(!todo_list_item!(Complete).is_todo_partially_complete_3());
+        assert!(!todo_list_item!(Rejected).is_todo_partially_complete_3());
+        assert!(!ListItem::default().is_todo_partially_complete_3());
+    }
+
+    #[test]
+    fn is_todo_complete_should_return_true_if_is_complete() {
+        assert!(todo_list_item!(Complete).is_todo_complete());
+    }
+
+    #[test]
+    fn is_todo_complete_should_return_false_if_not_complete() {
+        assert!(!todo_list_item!(Incomplete).is_todo_complete());
+        assert!(!todo_list_item!(PartiallyComplete1).is_todo_complete());
+        assert!(!todo_list_item!(PartiallyComplete2).is_todo_complete());
+        assert!(!todo_list_item!(PartiallyComplete3).is_todo_complete());
+        assert!(!todo_list_item!(Rejected).is_todo_complete());
+        assert!(!ListItem::default().is_todo_complete());
+    }
+
+    #[test]
+    fn is_todo_rejected_should_return_true_if_is_rejected() {
+        assert!(todo_list_item!(Rejected).is_todo_rejected());
+    }
+
+    #[test]
+    fn is_todo_rejected_should_return_false_if_not_rejected() {
+        assert!(!todo_list_item!(Incomplete).is_todo_rejected());
+        assert!(!todo_list_item!(PartiallyComplete1).is_todo_rejected());
+        assert!(!todo_list_item!(PartiallyComplete2).is_todo_rejected());
+        assert!(!todo_list_item!(PartiallyComplete3).is_todo_rejected());
+        assert!(!todo_list_item!(Complete).is_todo_rejected());
+        assert!(!ListItem::default().is_todo_rejected());
     }
 }

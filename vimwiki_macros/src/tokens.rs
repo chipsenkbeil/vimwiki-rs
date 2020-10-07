@@ -1,6 +1,6 @@
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::iter::once;
 use std::path::PathBuf;
 use vimwiki::{
@@ -130,11 +130,6 @@ impl_tokenize!(Anchor, tokenize_anchor);
 
 // Lists
 impl_tokenize!(List, tokenize_list);
-impl_tokenize!(EnhancedListItem, tokenize_enhanced_list_item);
-impl_tokenize!(
-    EnhancedListItemAttribute,
-    tokenize_enhanced_list_item_attribute
-);
 impl_tokenize!(ListItem, tokenize_list_item);
 impl_tokenize!(ListItemContent, tokenize_list_item_content);
 impl_tokenize!(ListItemContents, tokenize_list_item_contents);
@@ -142,6 +137,8 @@ impl_tokenize!(ListItemSuffix, tokenize_list_item_suffix);
 impl_tokenize!(ListItemType, tokenize_list_item_type);
 impl_tokenize!(OrderedListItemType, tokenize_ordered_list_item_type);
 impl_tokenize!(UnorderedListItemType, tokenize_unordered_list_item_type);
+impl_tokenize!(ListItemAttributes, tokenize_list_item_attributes);
+impl_tokenize!(ListItemTodoStatus, tokenize_list_item_todo_status);
 
 // Math
 impl_tokenize!(MathInline, tokenize_math_inline);
@@ -604,54 +601,10 @@ fn tokenize_list(list: &List) -> TokenStream {
     let items = list
         .items
         .iter()
-        .map(|x| tokenize_located_element(x, tokenize_enhanced_list_item));
+        .map(|x| tokenize_located_element(x, tokenize_list_item));
     quote! {
         #root::elements::List {
             items: vec![#(#items),*],
-        }
-    }
-}
-
-fn tokenize_enhanced_list_item(
-    enhanced_list_item: &EnhancedListItem,
-) -> TokenStream {
-    let root = root_crate();
-    let item = tokenize_list_item(&enhanced_list_item.item);
-    let attributes = tokenize_hashset(
-        &enhanced_list_item.attributes,
-        quote! { #root::elements::EnhancedListItemAttribute },
-        tokenize_enhanced_list_item_attribute,
-    );
-    quote! {
-        #root::elements::EnhancedListItem {
-            item: #item,
-            attributes: #attributes,
-        }
-    }
-}
-
-fn tokenize_enhanced_list_item_attribute(
-    enhanced_list_item_attribute: &EnhancedListItemAttribute,
-) -> TokenStream {
-    let root = root_crate();
-    match &enhanced_list_item_attribute {
-        EnhancedListItemAttribute::TodoIncomplete => {
-            quote! { #root::elements::EnhancedListItemAttribute::TodoIncomplete }
-        }
-        EnhancedListItemAttribute::TodoPartiallyComplete1 => {
-            quote! { #root::elements::EnhancedListItemAttribute::TodoPartiallyComplete1 }
-        }
-        EnhancedListItemAttribute::TodoPartiallyComplete2 => {
-            quote! { #root::elements::EnhancedListItemAttribute::TodoPartiallyComplete2 }
-        }
-        EnhancedListItemAttribute::TodoPartiallyComplete3 => {
-            quote! { #root::elements::EnhancedListItemAttribute::TodoPartiallyComplete3 }
-        }
-        EnhancedListItemAttribute::TodoComplete => {
-            quote! { #root::elements::EnhancedListItemAttribute::TodoComplete }
-        }
-        EnhancedListItemAttribute::TodoRejected => {
-            quote! { #root::elements::EnhancedListItemAttribute::TodoRejected }
         }
     }
 }
@@ -663,16 +616,19 @@ fn tokenize_list_item(list_item: &ListItem) -> TokenStream {
         suffix,
         pos,
         contents,
+        attributes,
     } = list_item;
     let item_type_t = tokenize_list_item_type(&item_type);
     let suffix_t = tokenize_list_item_suffix(&suffix);
     let contents_t = tokenize_list_item_contents(&contents);
+    let attributes_t = tokenize_list_item_attributes(&attributes);
     quote! {
         #root::elements::ListItem {
             item_type: #item_type_t,
             suffix: #suffix_t,
             pos: #pos,
             contents: #contents_t,
+            attributes: #attributes_t,
         }
     }
 }
@@ -777,6 +733,47 @@ fn tokenize_unordered_list_item_type(
         UnorderedListItemType::Other(x) => {
             let t = tokenize_string(&x);
             quote! { #root::elements::UnorderedListItemType::Other(#t) }
+        }
+    }
+}
+
+fn tokenize_list_item_attributes(
+    list_item_attributes: &ListItemAttributes,
+) -> TokenStream {
+    let root = root_crate();
+    let todo_status = tokenize_option(
+        &list_item_attributes.todo_status,
+        tokenize_list_item_todo_status,
+    );
+    quote! {
+        #root::elements::ListItemAttributes {
+            todo_status: #todo_status
+        }
+    }
+}
+
+fn tokenize_list_item_todo_status(
+    list_item_todo_status: &ListItemTodoStatus,
+) -> TokenStream {
+    let root = root_crate();
+    match list_item_todo_status {
+        ListItemTodoStatus::Incomplete => {
+            quote! { #root::elements::ListItemTodoStatus::Incomplete }
+        }
+        ListItemTodoStatus::PartiallyComplete1 => {
+            quote! { #root::elements::ListItemTodoStatus::PartiallyComplete1 }
+        }
+        ListItemTodoStatus::PartiallyComplete2 => {
+            quote! { #root::elements::ListItemTodoStatus::PartiallyComplete2 }
+        }
+        ListItemTodoStatus::PartiallyComplete3 => {
+            quote! { #root::elements::ListItemTodoStatus::PartiallyComplete3 }
+        }
+        ListItemTodoStatus::Complete => {
+            quote! { #root::elements::ListItemTodoStatus::Complete }
+        }
+        ListItemTodoStatus::Rejected => {
+            quote! { #root::elements::ListItemTodoStatus::Rejected }
         }
     }
 }
@@ -1080,15 +1077,6 @@ fn tokenize_hashmap<K: Tokenize, V: Tokenize>(
         quote! { (#tk, #tv) }
     });
     quote! { vec![#(#pairs),*].drain(..).collect::<std::collections::HashMap<#kty,#vty>>() }
-}
-
-fn tokenize_hashset<T: Tokenize>(
-    s: &HashSet<T>,
-    tty: TokenStream,
-    f: impl Fn(&T) -> TokenStream,
-) -> TokenStream {
-    let items = s.iter().map(f);
-    quote! { vec![#(#items),*].drain(..).collect::<std::collections::HashSet<#tty>>() }
 }
 
 fn tokenize_option<T: Tokenize>(

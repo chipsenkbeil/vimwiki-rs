@@ -1,7 +1,7 @@
 use super::{
     elements::{
-        EnhancedListItem, EnhancedListItemAttribute, InlineElementContainer,
-        List, ListItem, ListItemContent, ListItemContents, ListItemSuffix,
+        InlineElementContainer, List, ListItem, ListItemAttributes,
+        ListItemContent, ListItemContents, ListItemSuffix, ListItemTodoStatus,
         ListItemType, OrderedListItemType, UnorderedListItemType,
     },
     inline::inline_element_container,
@@ -65,8 +65,8 @@ pub fn list(input: Span) -> VimwikiIResult<LE<List>> {
 
 /// Parse space/tabs before a list item, followed by the list item
 #[inline]
-fn list_item(input: Span) -> VimwikiIResult<(usize, LE<EnhancedListItem>)> {
-    fn inner(input: Span) -> VimwikiIResult<(usize, LE<EnhancedListItem>)> {
+fn list_item(input: Span) -> VimwikiIResult<(usize, LE<ListItem>)> {
+    fn inner(input: Span) -> VimwikiIResult<(usize, LE<ListItem>)> {
         // 1. Start at the beginning of the line
         let (input, _) = beginning_of_line(input)?;
 
@@ -76,15 +76,11 @@ fn list_item(input: Span) -> VimwikiIResult<(usize, LE<EnhancedListItem>)> {
         // 3. Ensure that the item starts with a valid prefix
         let (input, item) = le(map(
             pair(list_item_prefix, list_item_tail(indentation)),
-            |((item_type, item_suffix), (maybe_attr, contents))| {
+            |((item_type, item_suffix), (attrs, contents))| {
                 // NOTE: To make things easier, we aren't assigning the index
                 //       within this parser; rather, we put a filler index and
                 //       will assign the actual index in the parent parser
-                let item = ListItem::new(item_type, item_suffix, 0, contents);
-                match maybe_attr {
-                    Some(attr) => EnhancedListItem::new_with_attr(item, attr),
-                    None => EnhancedListItem::from(item),
-                }
+                ListItem::new(item_type, item_suffix, 0, contents, attrs)
             },
         ))(input)?;
 
@@ -97,13 +93,10 @@ fn list_item(input: Span) -> VimwikiIResult<(usize, LE<EnhancedListItem>)> {
 #[inline]
 fn list_item_tail(
     indentation: usize,
-) -> impl Fn(
-    Span,
-)
-    -> VimwikiIResult<(Option<EnhancedListItemAttribute>, ListItemContents)> {
+) -> impl Fn(Span) -> VimwikiIResult<(ListItemAttributes, ListItemContents)> {
     move |input: Span| {
-        // 4. Check if we have a custom todo attribute
-        let (input, maybe_attr) = opt(todo_attr)(input)?;
+        // 4. Check if we have a todo status attribute
+        let (input, maybe_todo_status) = opt(todo_status)(input)?;
 
         // 5. Parse the rest of the current line
         let (input, content) =
@@ -133,7 +126,15 @@ fn list_item_tail(
 
         contents.insert(0, content);
 
-        Ok((input, (maybe_attr, contents.into())))
+        Ok((
+            input,
+            (
+                ListItemAttributes {
+                    todo_status: maybe_todo_status,
+                },
+                contents.into(),
+            ),
+        ))
     }
 }
 
@@ -160,16 +161,18 @@ fn list_item_line_content(
 }
 
 #[inline]
-fn todo_attr(input: Span) -> VimwikiIResult<EnhancedListItemAttribute> {
-    use EnhancedListItemAttribute as Attr;
-    alt((
-        value(Attr::TodoIncomplete, tag("[ ] ")),
-        value(Attr::TodoPartiallyComplete1, tag("[.] ")),
-        value(Attr::TodoPartiallyComplete2, tag("[o] ")),
-        value(Attr::TodoPartiallyComplete3, tag("[O] ")),
-        value(Attr::TodoComplete, tag("[X] ")),
-        value(Attr::TodoRejected, tag("[-] ")),
-    ))(input)
+fn todo_status(input: Span) -> VimwikiIResult<ListItemTodoStatus> {
+    let (input, _) = tag("[")(input)?;
+    let (input, attr) = alt((
+        value(ListItemTodoStatus::Incomplete, tag(" ")),
+        value(ListItemTodoStatus::PartiallyComplete1, tag(".")),
+        value(ListItemTodoStatus::PartiallyComplete2, tag("o")),
+        value(ListItemTodoStatus::PartiallyComplete3, tag("O")),
+        value(ListItemTodoStatus::Complete, tag("X")),
+        value(ListItemTodoStatus::Rejected, tag("-")),
+    ))(input)?;
+    let (input, _) = tag("] ")(input)?;
+    Ok((input, attr))
 }
 
 #[inline]

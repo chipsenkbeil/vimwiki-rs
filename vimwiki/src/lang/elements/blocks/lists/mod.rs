@@ -12,7 +12,7 @@ pub use item::*;
     Constructor, Clone, Debug, From, Eq, PartialEq, Serialize, Deserialize,
 )]
 pub struct List {
-    pub items: Vec<LE<EnhancedListItem>>,
+    pub items: Vec<LE<ListItem>>,
 }
 
 impl List {
@@ -116,11 +116,9 @@ impl ListItemContents {
     }
 
     pub fn sublist_iter_mut(&mut self) -> impl Iterator<Item = &mut List> + '_ {
-        self.contents
-            .iter_mut()
-            .flat_map(|c| match &mut c.element {
-                ListItemContent::List(x) => Some(x),
-                _ => None,
-            })
+        self.contents.iter_mut().flat_map(|c| match &mut c.element {
+            ListItemContent::List(x) => Some(x),
+            _ => None,
+        })
     }
 }

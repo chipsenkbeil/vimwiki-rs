@@ -27,11 +27,9 @@ fn vimwiki_block_element() {
     let x = vimwiki_block_element!("some text");
     assert_eq!(
         x.element,
-        BlockElement::Paragraph(Paragraph::new(
-            InlineElementContainer::new(vec![LE::from(
-                InlineElement::Text("some text".to_string())
-            )])
-        ))
+        BlockElement::Paragraph(Paragraph::new(InlineElementContainer::new(
+            vec![LE::from(InlineElement::Text("some text".to_string()))]
+        )))
     );
 }
 
@@ -88,8 +86,12 @@ fn vimwiki_definition_list() {
     assert_eq!(
         x.element,
         DefinitionList::from(vec![TermAndDefinitions::new(
-            LE::from("term".to_string()),
-            vec![LE::from("definition".to_string())],
+            InlineElementContainer::new(vec![LE::from(InlineElement::from(
+                "term".to_string()
+            ))]),
+            vec![InlineElementContainer::new(vec![LE::from(
+                InlineElement::from("definition".to_string())
+            )])],
         )])
     );
 }
@@ -103,25 +105,28 @@ fn vimwiki_divider() {
 #[test]
 fn vimwiki_header() {
     let x = vimwiki_header!("= header =");
-    assert_eq!(x.element, Header::new(1, "header".to_string(), false));
+    assert_eq!(
+        x.element,
+        Header::new(
+            1,
+            InlineElementContainer::new(vec![LE::from(InlineElement::from(
+                "header".to_string()
+            ))]),
+            false
+        )
+    );
 }
 
 #[test]
 fn vimwiki_link() {
     let x = vimwiki_link!("[[link]]");
-    assert_eq!(
-        x.element,
-        Link::Wiki(WikiLink::from(PathBuf::from("link")))
-    );
+    assert_eq!(x.element, Link::Wiki(WikiLink::from(PathBuf::from("link"))));
 }
 
 #[test]
 fn vimwiki_diary_link() {
     let x = vimwiki_diary_link!("[[diary:2012-03-05]]");
-    assert_eq!(
-        x.element,
-        DiaryLink::from(NaiveDate::from_ymd(2012, 3, 5))
-    );
+    assert_eq!(x.element, DiaryLink::from(NaiveDate::from_ymd(2012, 3, 5)));
 }
 
 #[test]
@@ -189,75 +194,7 @@ fn vimwiki_list() {
     assert_eq!(
         x.element,
         List::new(vec![
-            LE::from(EnhancedListItem::new(
-                ListItem::new(
-                    ListItemType::Unordered(UnorderedListItemType::Hyphen),
-                    ListItemSuffix::None,
-                    0,
-                    ListItemContents::new(vec![LE::from(
-                        ListItemContent::InlineContent(
-                            InlineElementContainer::new(vec![LE::from(
-                                InlineElement::Text(
-                                    "some list item".to_string()
-                                )
-                            )])
-                        )
-                    )]),
-                ),
-                Default::default(),
-            )),
-            LE::from(EnhancedListItem::new(
-                ListItem::new(
-                    ListItemType::Unordered(UnorderedListItemType::Hyphen),
-                    ListItemSuffix::None,
-                    1,
-                    ListItemContents::new(vec![
-                        LE::from(ListItemContent::InlineContent(
-                            InlineElementContainer::new(vec![LE::from(
-                                InlineElement::Text(
-                                    "some other list item".to_string()
-                                )
-                            )])
-                        )),
-                        LE::from(ListItemContent::List(List::new(vec![
-                            LE::from(EnhancedListItem::new(
-                                ListItem::new(
-                                    ListItemType::Ordered(
-                                        OrderedListItemType::Number
-                                    ),
-                                    ListItemSuffix::Period,
-                                    0,
-                                    ListItemContents::new(vec![LE::from(
-                                        ListItemContent::InlineContent(
-                                            InlineElementContainer::new(
-                                                vec![LE::from(
-                                                    InlineElement::Text(
-                                                        "sub list item"
-                                                            .to_string()
-                                                    )
-                                                )]
-                                            )
-                                        )
-                                    )]),
-                                ),
-                                Default::default(),
-                            )),
-                        ],)))
-                    ]),
-                ),
-                Default::default(),
-            ))
-        ])
-    );
-}
-
-#[test]
-fn vimwiki_list_raw() {
-    let x = vimwiki_list_raw!("- some list item");
-    assert_eq!(
-        x.element,
-        List::new(vec![LE::from(EnhancedListItem::new(
-            ListItem::new(
+            LE::from(ListItem::new(
                 ListItemType::Unordered(UnorderedListItemType::Hyphen),
                 ListItemSuffix::None,
                 0,
@@ -268,8 +205,61 @@ fn vimwiki_list_raw() {
                         )])
                     )
                 )]),
-            ),
-            Default::default(),
+                ListItemAttributes::default(),
+            ),),
+            LE::from(ListItem::new(
+                ListItemType::Unordered(UnorderedListItemType::Hyphen),
+                ListItemSuffix::None,
+                1,
+                ListItemContents::new(vec![
+                    LE::from(ListItemContent::InlineContent(
+                        InlineElementContainer::new(vec![LE::from(
+                            InlineElement::Text(
+                                "some other list item".to_string()
+                            )
+                        )])
+                    )),
+                    LE::from(ListItemContent::List(List::new(vec![LE::from(
+                        ListItem::new(
+                            ListItemType::Ordered(OrderedListItemType::Number),
+                            ListItemSuffix::Period,
+                            0,
+                            ListItemContents::new(vec![LE::from(
+                                ListItemContent::InlineContent(
+                                    InlineElementContainer::new(vec![
+                                        LE::from(InlineElement::Text(
+                                            "sub list item".to_string()
+                                        ))
+                                    ])
+                                )
+                            )]),
+                            ListItemAttributes::default(),
+                        )
+                    )])))
+                ]),
+                ListItemAttributes::default(),
+            ))
+        ])
+    );
+}
+
+#[test]
+fn vimwiki_list_raw() {
+    let x = vimwiki_list_raw!("- some list item");
+    assert_eq!(
+        x.element,
+        List::new(vec![LE::from(ListItem::new(
+            ListItemType::Unordered(UnorderedListItemType::Hyphen),
+            ListItemSuffix::None,
+            0,
+            ListItemContents::new(vec![LE::from(
+                ListItemContent::InlineContent(InlineElementContainer::new(
+                    vec![LE::from(InlineElement::Text(
+                        "some list item".to_string()
+                    ))]
+                ))
+            )]),
+            ListItemAttributes::default(),
         ))])
     );
 }
@@ -318,10 +308,7 @@ fn vimwiki_placeholder() {
         vimwiki_placeholder!("%date 2012-03-05").element,
         Placeholder::Date(NaiveDate::from_ymd(2012, 3, 5)),
     );
-    assert_eq!(
-        vimwiki_placeholder!("%nohtml").element,
-        Placeholder::NoHtml,
-    );
+    assert_eq!(vimwiki_placeholder!("%nohtml").element, Placeholder::NoHtml,);
     assert_eq!(
         vimwiki_placeholder!("%other some text").element,
         Placeholder::Other {
