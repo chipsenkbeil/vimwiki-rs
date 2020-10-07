@@ -28,11 +28,11 @@ pub struct Config {
     #[clap(long, arg_enum, default_value = "http")]
     pub mode: Mode,
 
-    /// Host/IP address of server
+    /// Host/IP address of server in http mode
     #[clap(long, default_value = "localhost")]
     pub host: String,
 
-    /// Port of the server
+    /// Port of the server in http mode
     #[clap(long, default_value = "8000")]
     pub port: u16,
 
