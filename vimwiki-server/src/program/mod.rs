@@ -1,4 +1,4 @@
-mod config;
+pub(crate) mod config;
 mod graphql;
 use config::*;
 mod state;
@@ -6,9 +6,7 @@ use state::*;
 mod server;
 mod stdin;
 
-pub async fn run() -> ProgramResult<()> {
-    use clap::Clap;
-    let config = Config::parse();
+pub async fn run(config: Config) -> ProgramResult<()> {
     let program = Program::load(&config).await?;
 
     match config.mode {

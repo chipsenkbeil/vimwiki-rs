@@ -2,6 +2,7 @@ use clap::Clap;
 use derive_more::{Display, Error};
 use directories::ProjectDirs;
 use lazy_static::lazy_static;
+use log::LevelFilter;
 use std::path::PathBuf;
 
 lazy_static! {
@@ -14,10 +15,6 @@ lazy_static! {
 #[derive(Clap, Debug)]
 #[clap(author, about, version)]
 pub struct Config {
-    /// Activate debug mode
-    #[clap(long)]
-    pub debug: bool,
-
     /// Verbose mode (-v, -vv, -vvv, etc.)
     #[clap(short, long, parse(from_occurrences))]
     pub verbose: u8,
@@ -46,6 +43,23 @@ pub struct Config {
     /// Directory where cache information for use with server will be stored
     #[clap(long, default_value = &DEFAULT_CACHE_DIR)]
     pub cache_dir: PathBuf,
+}
+
+impl Config {
+    /// Loads the configuration for the server
+    pub fn load() -> Self {
+        Config::parse()
+    }
+
+    /// The level to use for logging throughout the server
+    pub fn log_level(&self) -> LevelFilter {
+        match self.verbose {
+            0 => LevelFilter::Warn,
+            1 => LevelFilter::Info,
+            2 => LevelFilter::Debug,
+            _ => LevelFilter::Trace,
+        }
+    }
 }
 
 /// Represents the mode to run the server (input from stdin or HTTP)

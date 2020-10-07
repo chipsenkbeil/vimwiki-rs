@@ -66,13 +66,7 @@ impl Program {
             for (w, paths) in paths.drain() {
                 let started = Instant::now();
                 let wiki = build_wiki(w.clone(), paths).await;
-                if config.verbose > 1 {
-                    eprintln!(
-                        "Parsed {} in {}",
-                        w,
-                        HumanDuration(started.elapsed())
-                    );
-                }
+                debug!("Parsed {} in {}", w, HumanDuration(started.elapsed()));
                 if let Some(name) = wiki.name.as_ref() {
                     program.name_to_index.insert(name.to_string(), wiki.index);
                 }
