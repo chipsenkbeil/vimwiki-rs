@@ -4,3 +4,8 @@ members = [
     "vimwiki_macros",
     "vimwiki-server",
 ]
+
+[profile.release]
+opt-level = 'z'
+lto = true
+codegen-units = 1
