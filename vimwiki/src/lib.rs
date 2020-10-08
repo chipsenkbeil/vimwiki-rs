@@ -1,4 +1,4 @@
-pub mod lang;
+mod lang;
 
 // Export the language elements without dumping them into the top leve
 pub use lang::elements;
@@ -7,7 +7,9 @@ pub use lang::elements;
 pub use lang::{LangParserError, RawStr};
 
 // Dump our utilities (LocatedElement, Region, Point, ...) into top level
-pub use lang::utils::*;
+pub use lang::utils::{
+    LocatedElement, Position, Region, StrictLocatedElement, LE, SLE,
+};
 
 // Re-export the vendor libraries so we're able to reconstruct their
 // structs from macros
