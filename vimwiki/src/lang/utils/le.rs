@@ -1,4 +1,4 @@
-use super::{Region, Span, StrictLocatedElement};
+use super::{Region, Span};
 use derive_more::{AsMut, AsRef, Constructor, Deref, DerefMut};
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
@@ -75,11 +75,6 @@ impl<T> LocatedElement<T> {
         self.region.start.line = line;
         self.region.end.line = line + diff;
         self
-    }
-
-    /// Converts LocatedElement to a strict variant
-    pub fn into_strict(self) -> StrictLocatedElement<T> {
-        self.into()
     }
 }
 
@@ -182,13 +177,5 @@ mod tests {
         let le = m.get(&le4).expect("Failed to retrieve LE with another LE");
         assert_eq!(le.element, 3);
         assert_eq!(le.region, Region::from(((1, 2), (3, 4))));
-    }
-
-    #[test]
-    fn located_element_equality_with_strict_located_element_should_use_inner_element_and_region(
-    ) {
-        let le = LE::new(3, Region::from(((1, 2), (3, 4))));
-        let sle = StrictLocatedElement::new(3, Region::default());
-        assert!(le != sle, "{:?} unexpectedly equaled {:?}", le, sle);
     }
 }

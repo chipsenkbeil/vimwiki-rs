@@ -4,7 +4,5 @@ mod position;
 pub use position::Position;
 mod region;
 pub use region::Region;
-mod sle;
-pub use sle::{StrictLocatedElement, SLE};
 mod span;
 pub use span::Span;
