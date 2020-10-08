@@ -531,8 +531,8 @@ mod tests {
     }
 
     fn make_content(text: &str) -> ListItemContents {
-        let lc_text = LE::from(text.to_string());
-        vec![LE::from(ListItemContent::InlineContent(lc_text.into()))].into()
+        let le_text = LE::from(text.to_string());
+        vec![LE::from(ListItemContent::InlineContent(le_text.into()))].into()
     }
 
     #[test]

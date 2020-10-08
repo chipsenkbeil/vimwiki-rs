@@ -12,10 +12,10 @@ pub struct CodeInline {
 }
 
 impl From<LE<elements::CodeInline>> for CodeInline {
-    fn from(lc: LE<elements::CodeInline>) -> Self {
+    fn from(le: LE<elements::CodeInline>) -> Self {
         Self {
-            region: Region::from(lc.region),
-            code: lc.element.code,
+            region: Region::from(le.region),
+            code: le.element.code,
         }
     }
 }

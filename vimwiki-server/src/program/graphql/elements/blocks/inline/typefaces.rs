@@ -12,10 +12,10 @@ pub struct Text {
 }
 
 impl From<LE<String>> for Text {
-    fn from(lc: LE<String>) -> Self {
+    fn from(le: LE<String>) -> Self {
         Self {
-            region: Region::from(lc.region),
-            content: lc.element,
+            region: Region::from(le.region),
+            content: le.element,
         }
     }
 }
@@ -30,18 +30,18 @@ pub enum DecoratedTextContent {
 }
 
 impl From<LE<elements::DecoratedTextContent>> for DecoratedTextContent {
-    fn from(lc: LE<elements::DecoratedTextContent>) -> Self {
-        match lc.element {
+    fn from(le: LE<elements::DecoratedTextContent>) -> Self {
+        match le.element {
             elements::DecoratedTextContent::Text(content) => Self::from(Text {
-                region: Region::from(lc.region),
+                region: Region::from(le.region),
                 content,
             }),
             elements::DecoratedTextContent::Keyword(x) => Self::from(Keyword {
-                region: Region::from(lc.region),
+                region: Region::from(le.region),
                 r#type: KeywordType::from(x),
             }),
             elements::DecoratedTextContent::Link(x) => {
-                Self::from(Link::from(LE::new(x, lc.region)))
+                Self::from(Link::from(LE::new(x, le.region)))
             }
         }
     }
@@ -139,10 +139,10 @@ pub struct Keyword {
 }
 
 impl From<LE<elements::Keyword>> for Keyword {
-    fn from(lc: LE<elements::Keyword>) -> Self {
+    fn from(le: LE<elements::Keyword>) -> Self {
         Self {
-            region: Region::from(lc.region),
-            r#type: KeywordType::from(lc.element),
+            region: Region::from(le.region),
+            r#type: KeywordType::from(le.element),
         }
     }
 }

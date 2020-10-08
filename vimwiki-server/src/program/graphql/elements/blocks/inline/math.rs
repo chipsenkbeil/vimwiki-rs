@@ -12,10 +12,10 @@ pub struct MathInline {
 }
 
 impl From<LE<elements::MathInline>> for MathInline {
-    fn from(lc: LE<elements::MathInline>) -> Self {
+    fn from(le: LE<elements::MathInline>) -> Self {
         Self {
-            region: Region::from(lc.region),
-            formula: lc.element.formula,
+            region: Region::from(le.region),
+            formula: le.element.formula,
         }
     }
 }

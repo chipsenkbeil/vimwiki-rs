@@ -1079,12 +1079,12 @@ fn tokenize_keyword(keyword: &Keyword) -> TokenStream {
 }
 
 fn tokenize_located_element<T: Tokenize>(
-    lc: &LocatedElement<T>,
+    le: &LocatedElement<T>,
     f: impl Fn(&T) -> TokenStream,
 ) -> TokenStream {
     let root = root_crate();
-    let element = f(&lc.element);
-    let region = tokenize_region(&lc.region);
+    let element = f(&le.element);
+    let region = tokenize_region(&le.region);
     quote! {
         #root::LocatedElement {
             element: #element,

@@ -59,12 +59,12 @@ impl PreformattedText {
 }
 
 impl From<LE<elements::PreformattedText>> for PreformattedText {
-    fn from(lc: LE<elements::PreformattedText>) -> Self {
+    fn from(le: LE<elements::PreformattedText>) -> Self {
         Self {
-            region: Region::from(lc.region),
-            language: lc.element.lang,
-            metadata: lc.element.metadata,
-            lines: lc.element.lines,
+            region: Region::from(le.region),
+            language: le.element.lang,
+            metadata: le.element.metadata,
+            lines: le.element.lines,
         }
     }
 }

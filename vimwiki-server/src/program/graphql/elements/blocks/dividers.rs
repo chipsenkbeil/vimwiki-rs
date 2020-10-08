@@ -9,8 +9,8 @@ pub struct Divider {
 }
 
 impl From<LE<elements::Divider>> for Divider {
-    fn from(lc: LE<elements::Divider>) -> Self {
-        let region = Region::from(lc.region);
+    fn from(le: LE<elements::Divider>) -> Self {
+        let region = Region::from(le.region);
         Self { region }
     }
 }

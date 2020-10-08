@@ -59,9 +59,9 @@ impl MultiLineComment {
 }
 
 impl From<LE<elements::Comment>> for Comment {
-    fn from(lc: LE<elements::Comment>) -> Self {
-        let region = Region::from(lc.region);
-        match lc.element {
+    fn from(le: LE<elements::Comment>) -> Self {
+        let region = Region::from(le.region);
+        match le.element {
             elements::Comment::Line(x) => {
                 Self::from(LineComment { region, line: x.0 })
             }

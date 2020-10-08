@@ -12,10 +12,10 @@ pub struct List {
 }
 
 impl From<LE<elements::List>> for List {
-    fn from(mut lc: LE<elements::List>) -> Self {
+    fn from(mut le: LE<elements::List>) -> Self {
         Self {
-            region: Region::from(lc.region),
-            items: lc.element.items.drain(..).map(ListItem::from).collect(),
+            region: Region::from(le.region),
+            items: le.element.items.drain(..).map(ListItem::from).collect(),
         }
     }
 }
@@ -43,9 +43,9 @@ pub struct ListItem {
 }
 
 impl From<LE<elements::ListItem>> for ListItem {
-    fn from(lc: LE<elements::ListItem>) -> Self {
-        let region = Region::from(lc.region);
-        let mut item = lc.element;
+    fn from(le: LE<elements::ListItem>) -> Self {
+        let region = Region::from(le.region);
+        let mut item = le.element;
 
         Self {
             region,
@@ -129,8 +129,8 @@ pub enum ListItemContent {
 }
 
 impl From<LE<elements::ListItemContent>> for ListItemContent {
-    fn from(lc: LE<elements::ListItemContent>) -> Self {
-        match lc.element {
+    fn from(le: LE<elements::ListItemContent>) -> Self {
+        match le.element {
             elements::ListItemContent::InlineContent(mut x) => {
                 Self::InlineContent(InlineContent {
                     elements: x
@@ -141,7 +141,7 @@ impl From<LE<elements::ListItemContent>> for ListItemContent {
                 })
             }
             elements::ListItemContent::List(x) => {
-                Self::List(List::from(LE::new(x.into_list(), lc.region)))
+                Self::List(List::from(LE::new(x.into_list(), le.region)))
             }
         }
     }

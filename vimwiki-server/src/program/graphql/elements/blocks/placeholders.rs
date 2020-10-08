@@ -11,9 +11,9 @@ pub enum Placeholder {
 }
 
 impl From<LE<elements::Placeholder>> for Placeholder {
-    fn from(lc: LE<elements::Placeholder>) -> Self {
-        let region = Region::from(lc.region);
-        match lc.element {
+    fn from(le: LE<elements::Placeholder>) -> Self {
+        let region = Region::from(le.region);
+        match le.element {
             elements::Placeholder::Title(title) => {
                 Self::from(PlaceholderTitle { region, title })
             }

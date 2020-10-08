@@ -76,14 +76,14 @@ impl<T> StrictLocatedElement<T> {
 pub type SLE<T> = StrictLocatedElement<T>;
 
 impl<T> From<LocatedElement<T>> for StrictLocatedElement<T> {
-    fn from(lc: LocatedElement<T>) -> Self {
-        Self::new(lc.element, lc.region)
+    fn from(le: LocatedElement<T>) -> Self {
+        Self::new(le.element, le.region)
     }
 }
 
 impl<T> From<StrictLocatedElement<T>> for LocatedElement<T> {
-    fn from(slc: StrictLocatedElement<T>) -> Self {
-        Self::new(slc.element, slc.region)
+    fn from(sle: StrictLocatedElement<T>) -> Self {
+        Self::new(sle.element, sle.region)
     }
 }
 

@@ -12,10 +12,10 @@ pub struct Tags {
 }
 
 impl From<LE<elements::Tags>> for Tags {
-    fn from(mut lc: LE<elements::Tags>) -> Self {
+    fn from(mut le: LE<elements::Tags>) -> Self {
         Self {
-            region: Region::from(lc.region),
-            names: lc.element.0.drain(..).map(|x| x.0).collect(),
+            region: Region::from(le.region),
+            names: le.element.0.drain(..).map(|x| x.0).collect(),
         }
     }
 }

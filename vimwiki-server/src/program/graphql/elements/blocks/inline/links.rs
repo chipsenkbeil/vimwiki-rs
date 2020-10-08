@@ -17,28 +17,28 @@ pub enum Link {
 }
 
 impl From<LE<elements::Link>> for Link {
-    fn from(lc: LE<elements::Link>) -> Self {
-        match lc.element {
+    fn from(le: LE<elements::Link>) -> Self {
+        match le.element {
             elements::Link::Wiki(x) => {
-                Self::from(WikiLink::from(LE::new(x, lc.region)))
+                Self::from(WikiLink::from(LE::new(x, le.region)))
             }
             elements::Link::InterWiki(elements::InterWikiLink::Indexed(x)) => {
-                Self::from(IndexedInterWikiLink::from(LE::new(x, lc.region)))
+                Self::from(IndexedInterWikiLink::from(LE::new(x, le.region)))
             }
             elements::Link::InterWiki(elements::InterWikiLink::Named(x)) => {
-                Self::from(NamedInterWikiLink::from(LE::new(x, lc.region)))
+                Self::from(NamedInterWikiLink::from(LE::new(x, le.region)))
             }
             elements::Link::Diary(x) => {
-                Self::from(DiaryLink::from(LE::new(x, lc.region)))
+                Self::from(DiaryLink::from(LE::new(x, le.region)))
             }
             elements::Link::Raw(x) => {
-                Self::from(RawLink::from(LE::new(x, lc.region)))
+                Self::from(RawLink::from(LE::new(x, le.region)))
             }
             elements::Link::ExternalFile(x) => {
-                Self::from(ExternalFileLink::from(LE::new(x, lc.region)))
+                Self::from(ExternalFileLink::from(LE::new(x, le.region)))
             }
             elements::Link::Transclusion(x) => {
-                Self::from(TransclusionLink::from(LE::new(x, lc.region)))
+                Self::from(TransclusionLink::from(LE::new(x, le.region)))
             }
         }
     }
@@ -68,14 +68,14 @@ pub struct WikiLink {
 }
 
 impl From<LE<elements::WikiLink>> for WikiLink {
-    fn from(lc: LE<elements::WikiLink>) -> Self {
+    fn from(le: LE<elements::WikiLink>) -> Self {
         Self {
-            region: Region::from(lc.region),
-            is_dir: lc.element.is_path_dir(),
-            is_local_anchor: lc.element.is_local_anchor(),
-            path: lc.element.path.to_string_lossy().to_string(),
-            description: lc.element.description.map(Description::from),
-            anchor: lc.element.anchor.map(Anchor::from),
+            region: Region::from(le.region),
+            is_dir: le.element.is_path_dir(),
+            is_local_anchor: le.element.is_local_anchor(),
+            path: le.element.path.to_string_lossy().to_string(),
+            description: le.element.description.map(Description::from),
+            anchor: le.element.anchor.map(Anchor::from),
         }
     }
 }
@@ -108,15 +108,15 @@ pub struct IndexedInterWikiLink {
 }
 
 impl From<LE<elements::IndexedInterWikiLink>> for IndexedInterWikiLink {
-    fn from(lc: LE<elements::IndexedInterWikiLink>) -> Self {
+    fn from(le: LE<elements::IndexedInterWikiLink>) -> Self {
         Self {
-            region: Region::from(lc.region),
-            index: lc.element.index as i32,
-            is_dir: lc.element.link.is_path_dir(),
-            is_local_anchor: lc.element.link.is_local_anchor(),
-            path: lc.element.link.path.to_string_lossy().to_string(),
-            description: lc.element.link.description.map(Description::from),
-            anchor: lc.element.link.anchor.map(Anchor::from),
+            region: Region::from(le.region),
+            index: le.element.index as i32,
+            is_dir: le.element.link.is_path_dir(),
+            is_local_anchor: le.element.link.is_local_anchor(),
+            path: le.element.link.path.to_string_lossy().to_string(),
+            description: le.element.link.description.map(Description::from),
+            anchor: le.element.link.anchor.map(Anchor::from),
         }
     }
 }
@@ -149,15 +149,15 @@ pub struct NamedInterWikiLink {
 }
 
 impl From<LE<elements::NamedInterWikiLink>> for NamedInterWikiLink {
-    fn from(lc: LE<elements::NamedInterWikiLink>) -> Self {
+    fn from(le: LE<elements::NamedInterWikiLink>) -> Self {
         Self {
-            region: Region::from(lc.region),
-            name: lc.element.name,
-            is_dir: lc.element.link.is_path_dir(),
-            is_local_anchor: lc.element.link.is_local_anchor(),
-            path: lc.element.link.path.to_string_lossy().to_string(),
-            description: lc.element.link.description.map(Description::from),
-            anchor: lc.element.link.anchor.map(Anchor::from),
+            region: Region::from(le.region),
+            name: le.element.name,
+            is_dir: le.element.link.is_path_dir(),
+            is_local_anchor: le.element.link.is_local_anchor(),
+            path: le.element.link.path.to_string_lossy().to_string(),
+            description: le.element.link.description.map(Description::from),
+            anchor: le.element.link.anchor.map(Anchor::from),
         }
     }
 }
@@ -179,12 +179,12 @@ pub struct DiaryLink {
 }
 
 impl From<LE<elements::DiaryLink>> for DiaryLink {
-    fn from(lc: LE<elements::DiaryLink>) -> Self {
+    fn from(le: LE<elements::DiaryLink>) -> Self {
         Self {
-            region: Region::from(lc.region),
-            date: lc.element.date,
-            description: lc.element.description.map(Description::from),
-            anchor: lc.element.anchor.map(Anchor::from),
+            region: Region::from(le.region),
+            date: le.element.date,
+            description: le.element.description.map(Description::from),
+            anchor: le.element.anchor.map(Anchor::from),
         }
     }
 }
@@ -206,12 +206,12 @@ pub struct ExternalFileLink {
 }
 
 impl From<LE<elements::ExternalFileLink>> for ExternalFileLink {
-    fn from(lc: LE<elements::ExternalFileLink>) -> Self {
+    fn from(le: LE<elements::ExternalFileLink>) -> Self {
         Self {
-            region: Region::from(lc.region),
-            scheme: ExternalFileLinkScheme::from(lc.element.scheme),
-            path: lc.element.path.to_string_lossy().to_string(),
-            description: lc.element.description.map(Description::from),
+            region: Region::from(le.region),
+            scheme: ExternalFileLinkScheme::from(le.element.scheme),
+            path: le.element.path.to_string_lossy().to_string(),
+            description: le.element.description.map(Description::from),
         }
     }
 }
@@ -245,10 +245,10 @@ pub struct RawLink {
 }
 
 impl From<LE<elements::RawLink>> for RawLink {
-    fn from(lc: LE<elements::RawLink>) -> Self {
+    fn from(le: LE<elements::RawLink>) -> Self {
         Self {
-            region: Region::from(lc.region),
-            uri: Uri(lc.element.uri),
+            region: Region::from(le.region),
+            uri: Uri(le.element.uri),
         }
     }
 }
@@ -270,12 +270,12 @@ pub struct TransclusionLink {
 }
 
 impl From<LE<elements::TransclusionLink>> for TransclusionLink {
-    fn from(mut lc: LE<elements::TransclusionLink>) -> Self {
+    fn from(mut le: LE<elements::TransclusionLink>) -> Self {
         Self {
-            region: Region::from(lc.region),
-            uri: Uri(lc.element.uri),
-            description: lc.element.description.map(Description::from),
-            properties: lc
+            region: Region::from(le.region),
+            uri: Uri(le.element.uri),
+            description: le.element.description.map(Description::from),
+            properties: le
                 .element
                 .properties
                 .drain()

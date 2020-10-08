@@ -15,18 +15,18 @@ pub struct Table {
 }
 
 impl From<LE<elements::Table>> for Table {
-    fn from(mut lc: LE<elements::Table>) -> Self {
-        let region = Region::from(lc.region);
+    fn from(mut le: LE<elements::Table>) -> Self {
+        let region = Region::from(le.region);
         Self {
             region,
-            rows: lc
+            rows: le
                 .element
                 .rows
                 .drain(..)
                 .enumerate()
                 .map(|(pos, row)| Row::from_at_pos(pos as i32, row))
                 .collect(),
-            centered: lc.element.centered,
+            centered: le.element.centered,
         }
     }
 }
@@ -39,10 +39,10 @@ pub enum Row {
 }
 
 impl Row {
-    fn from_at_pos(position: i32, lc: LE<elements::Row>) -> Self {
-        let region = Region::from(lc.region);
+    fn from_at_pos(position: i32, le: LE<elements::Row>) -> Self {
+        let region = Region::from(le.region);
 
-        match lc.element {
+        match le.element {
             elements::Row::Content { mut cells } => Self::from(ContentRow {
                 region,
                 position,
@@ -97,11 +97,11 @@ impl Cell {
     fn from_at_pos(
         row_position: i32,
         position: i32,
-        lc: LE<elements::Cell>,
+        le: LE<elements::Cell>,
     ) -> Self {
-        let region = Region::from(lc.region);
+        let region = Region::from(le.region);
 
-        match lc.element {
+        match le.element {
             elements::Cell::Content(mut x) => Self::from(ContentCell {
                 region,
                 row_position,

@@ -21,16 +21,16 @@ pub struct Page {
 }
 
 impl From<LE<elements::Page>> for Page {
-    fn from(mut lc: LE<elements::Page>) -> Self {
-        let elements = lc
+    fn from(mut le: LE<elements::Page>) -> Self {
+        let elements = le
             .element
             .elements
             .drain(..)
             .map(BlockElement::from)
             .collect();
         let comments =
-            lc.element.comments.drain(..).map(Comment::from).collect();
-        let region = Region::from(lc.region);
+            le.element.comments.drain(..).map(Comment::from).collect();
+        let region = Region::from(le.region);
 
         Self {
             elements,

@@ -5,8 +5,8 @@ use vimwiki::{elements, LE};
 pub struct DefinitionList(LE<elements::DefinitionList>);
 
 impl From<LE<elements::DefinitionList>> for DefinitionList {
-    fn from(lc: LE<elements::DefinitionList>) -> Self {
-        Self(lc)
+    fn from(le: LE<elements::DefinitionList>) -> Self {
+        Self(le)
     }
 }
 

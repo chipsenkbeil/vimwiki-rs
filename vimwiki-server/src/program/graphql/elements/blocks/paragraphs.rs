@@ -8,10 +8,10 @@ pub struct Paragraph {
 }
 
 impl From<LE<elements::Paragraph>> for Paragraph {
-    fn from(mut lc: LE<elements::Paragraph>) -> Self {
+    fn from(mut le: LE<elements::Paragraph>) -> Self {
         Self {
-            region: Region::from(lc.region),
-            elements: lc
+            region: Region::from(le.region),
+            elements: le
                 .element
                 .content
                 .elements

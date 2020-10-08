@@ -27,11 +27,11 @@ impl Blockquote {
 }
 
 impl From<LE<elements::Blockquote>> for Blockquote {
-    fn from(lc: LE<elements::Blockquote>) -> Self {
-        let region = Region::from(lc.region);
+    fn from(le: LE<elements::Blockquote>) -> Self {
+        let region = Region::from(le.region);
         Self {
             region,
-            lines: lc.element.lines,
+            lines: le.element.lines,
         }
     }
 }

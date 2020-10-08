@@ -25,28 +25,28 @@ pub enum InlineElement {
 }
 
 impl From<LE<elements::InlineElement>> for InlineElement {
-    fn from(lc: LE<elements::InlineElement>) -> Self {
-        match lc.element {
+    fn from(le: LE<elements::InlineElement>) -> Self {
+        match le.element {
             elements::InlineElement::Text(x) => {
-                Self::from(Text::from(LE::new(x, lc.region)))
+                Self::from(Text::from(LE::new(x, le.region)))
             }
             elements::InlineElement::DecoratedText(x) => {
-                Self::from(DecoratedText::from(LE::new(x, lc.region)))
+                Self::from(DecoratedText::from(LE::new(x, le.region)))
             }
             elements::InlineElement::Keyword(x) => {
-                Self::from(Keyword::from(LE::new(x, lc.region)))
+                Self::from(Keyword::from(LE::new(x, le.region)))
             }
             elements::InlineElement::Link(x) => {
-                Self::from(Link::from(LE::new(x, lc.region)))
+                Self::from(Link::from(LE::new(x, le.region)))
             }
             elements::InlineElement::Tags(x) => {
-                Self::from(Tags::from(LE::new(x, lc.region)))
+                Self::from(Tags::from(LE::new(x, le.region)))
             }
             elements::InlineElement::Code(x) => {
-                Self::from(CodeInline::from(LE::new(x, lc.region)))
+                Self::from(CodeInline::from(LE::new(x, le.region)))
             }
             elements::InlineElement::Math(x) => {
-                Self::from(MathInline::from(LE::new(x, lc.region)))
+                Self::from(MathInline::from(LE::new(x, le.region)))
             }
         }
     }

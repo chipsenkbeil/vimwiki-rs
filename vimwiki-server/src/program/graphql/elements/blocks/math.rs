@@ -33,11 +33,11 @@ impl MathBlock {
 }
 
 impl From<LE<elements::MathBlock>> for MathBlock {
-    fn from(lc: LE<elements::MathBlock>) -> Self {
+    fn from(le: LE<elements::MathBlock>) -> Self {
         Self {
-            region: Region::from(lc.region),
-            lines: lc.element.lines,
-            environment: lc.element.environment,
+            region: Region::from(le.region),
+            lines: le.element.lines,
+            environment: le.element.environment,
         }
     }
 }

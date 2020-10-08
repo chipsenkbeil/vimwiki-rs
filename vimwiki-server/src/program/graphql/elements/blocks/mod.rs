@@ -43,9 +43,9 @@ pub enum BlockElement {
 }
 
 impl From<LE<elements::BlockElement>> for BlockElement {
-    fn from(lc: LE<elements::BlockElement>) -> Self {
-        let region = lc.region;
-        match lc.element {
+    fn from(le: LE<elements::BlockElement>) -> Self {
+        let region = le.region;
+        match le.element {
             elements::BlockElement::Header(x) => {
                 Self::from(Header::from(LE::new(x, region)))
             }
