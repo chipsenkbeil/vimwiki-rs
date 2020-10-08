@@ -1,25 +1,14 @@
 use super::{Region, Span};
-use derive_more::{AsMut, AsRef, Constructor, Deref, DerefMut};
+use derive_more::{Constructor, Deref, DerefMut};
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 
 /// Represents an encapsulation of a language element and its location
 /// within some string/file
 #[derive(
-    AsRef,
-    AsMut,
-    Constructor,
-    Clone,
-    Debug,
-    Deref,
-    DerefMut,
-    Eq,
-    Serialize,
-    Deserialize,
+    Constructor, Clone, Debug, Deref, DerefMut, Eq, Serialize, Deserialize,
 )]
 pub struct LocatedElement<T> {
-    #[as_ref]
-    #[as_mut]
     #[deref]
     #[deref_mut]
     pub element: T,
@@ -75,6 +64,37 @@ impl<T> LocatedElement<T> {
         self.region.start.line = line;
         self.region.end.line = line + diff;
         self
+    }
+
+    /// Converts from `&LocatedElement<T>` to `LocatedElement<&T>`
+    pub fn as_ref(&self) -> LE<&T> {
+        LocatedElement {
+            element: &self.element,
+            region: self.region,
+        }
+    }
+
+    /// Converts from `&mut LocatedElement<T>` to `LocatedElement<&mut T>`
+    pub fn as_mut(&mut self) -> LE<&mut T> {
+        LocatedElement {
+            element: &mut self.element,
+            region: self.region,
+        }
+    }
+
+    /// Converts from `&LocatedElement<T>` to `&T`
+    pub fn as_inner(&self) -> &T {
+        &self.element
+    }
+
+    /// Converts from `&mut LocatedElement<T>` to `&mut T`
+    pub fn as_mut_inner(&mut self) -> &mut T {
+        &mut self.element
+    }
+
+    /// Converts from `LocatedElement<T>` to `T`
+    pub fn into_inner(self) -> T {
+        self.element
     }
 }
 
@@ -177,5 +197,66 @@ mod tests {
         let le = m.get(&le4).expect("Failed to retrieve LE with another LE");
         assert_eq!(le.element, 3);
         assert_eq!(le.region, Region::from(((1, 2), (3, 4))));
+    }
+
+    #[test]
+    fn located_element_as_ref_should_return_new_element_with_ref_and_same_region(
+    ) {
+        #[derive(Debug, PartialEq, Eq)]
+        struct Test(usize);
+
+        let le = LE::new(Test(5), Region::from(((1, 2), (3, 4))));
+        let le_ref = le.as_ref();
+
+        assert_eq!(le_ref.element, &Test(5));
+        assert_eq!(le_ref.region, Region::from(((1, 2), (3, 4))));
+    }
+
+    #[test]
+    fn located_element_as_mut_should_return_new_element_with_mut_and_same_region(
+    ) {
+        #[derive(Debug, PartialEq, Eq)]
+        struct Test(usize);
+
+        let mut le = LE::new(Test(5), Region::from(((1, 2), (3, 4))));
+        let le_mut = le.as_mut();
+
+        assert_eq!(le_mut.element, &mut Test(5));
+        assert_eq!(le_mut.region, Region::from(((1, 2), (3, 4))));
+    }
+
+    #[test]
+    fn located_element_as_inner_should_return_new_element_with_ref_to_inner_and_same_region(
+    ) {
+        #[derive(Debug, PartialEq, Eq)]
+        struct Test(usize);
+
+        let le = LE::new(Test(5), Region::from(((1, 2), (3, 4))));
+        let inner = le.as_inner();
+
+        assert_eq!(inner, &Test(5));
+    }
+
+    #[test]
+    fn located_element_as_mut_inner_should_return_new_element_with_mut_ref_to_inner_and_same_region(
+    ) {
+        #[derive(Debug, PartialEq, Eq)]
+        struct Test(usize);
+
+        let mut le = LE::new(Test(5), Region::from(((1, 2), (3, 4))));
+        let inner = le.as_mut_inner();
+
+        assert_eq!(inner, &mut Test(5));
+    }
+
+    #[test]
+    fn located_element_into_inner_should_return_inner_element_as_owned() {
+        #[derive(Debug, PartialEq, Eq)]
+        struct Test(usize);
+
+        let le = LE::new(Test(5), Region::from(((1, 2), (3, 4))));
+        let inner = le.into_inner();
+
+        assert_eq!(inner, Test(5));
     }
 }
