@@ -86,7 +86,7 @@ impl<T: Element> TypedBlockElement<T> {
         &self.inner
     }
 
-    pub fn as_inner_mut(&mut self) -> &mut BlockElement {
+    pub fn as_mut_inner(&mut self) -> &mut BlockElement {
         &mut self.inner
     }
 }
@@ -116,7 +116,7 @@ macro_rules! typed_block_element_impl {
                     }
                 }
 
-                pub fn [<as_ $name _mut>](&mut self) -> &mut $type {
+                pub fn [<as_mut_ $name>](&mut self) -> &mut $type {
                     match self.inner {
                         BlockElement::$variant(ref mut x) => x,
                         _ => unreachable!(),
