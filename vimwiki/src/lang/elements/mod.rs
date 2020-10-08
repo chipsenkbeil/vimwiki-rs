@@ -18,3 +18,6 @@ pub struct Page {
     /// Comprised of the comments within a page
     pub comments: Vec<LE<Comment>>,
 }
+
+/// Represents an arbitrary element for a language
+pub trait Element {}

@@ -1,3 +1,4 @@
+use super::Element;
 use derive_more::Constructor;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -8,3 +9,5 @@ pub struct PreformattedText {
     pub metadata: HashMap<String, String>,
     pub lines: Vec<String>,
 }
+
+impl Element for PreformattedText {}

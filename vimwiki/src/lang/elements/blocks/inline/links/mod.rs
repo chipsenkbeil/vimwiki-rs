@@ -1,3 +1,4 @@
+use super::Element;
 use derive_more::{
     Constructor, Deref, DerefMut, Display, From, Index, IndexMut, Into,
     IntoIterator, TryInto,
@@ -103,6 +104,8 @@ pub enum Link {
     ExternalFile(ExternalFileLink),
     Transclusion(TransclusionLink),
 }
+
+impl Element for Link {}
 
 impl Link {
     pub fn description(&self) -> Option<&Description> {

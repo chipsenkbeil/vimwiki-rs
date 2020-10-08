@@ -1,4 +1,4 @@
-use super::{InlineElementContainer, LE};
+use super::{Element, InlineElementContainer, LE};
 use derive_more::{Constructor, From};
 use serde::{Deserialize, Serialize};
 
@@ -9,6 +9,8 @@ pub struct Table {
     pub rows: Vec<LE<Row>>,
     pub centered: bool,
 }
+
+impl Element for Table {}
 
 impl Table {
     pub fn get_cell(&self, row: usize, col: usize) -> Option<&LE<Cell>> {

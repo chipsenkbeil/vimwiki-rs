@@ -1,4 +1,4 @@
-use super::{Link, LE};
+use super::{Element, Link, LE};
 use derive_more::{Constructor, Display, From};
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -35,6 +35,8 @@ pub struct DecoratedText {
     pub decoration: Decoration,
 }
 
+impl Element for DecoratedText {}
+
 impl fmt::Display for DecoratedText {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for content in self.contents.iter() {
@@ -56,3 +58,5 @@ pub enum Keyword {
     FIXED,
     XXX,
 }
+
+impl Element for Keyword {}

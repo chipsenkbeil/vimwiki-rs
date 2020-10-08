@@ -643,7 +643,7 @@ fn tokenize_list_item_content(
             quote! { #root::elements::ListItemContent::InlineContent(#t) }
         }
         ListItemContent::List(x) => {
-            let t = tokenize_list(&x);
+            let t = tokenize_typed_block_element_of_list(&x);
             quote! { #root::elements::ListItemContent::List(#t) }
         }
     }
@@ -1037,6 +1037,16 @@ fn tokenize_located_element<T: Tokenize>(
             element: #element,
             region: #region,
         }
+    }
+}
+
+fn tokenize_typed_block_element_of_list(
+    typed_block_element: &TypedBlockElement<List>,
+) -> TokenStream {
+    let root = root_crate();
+    let inner = tokenize_list(typed_block_element.as_list());
+    quote! {
+        #root::elements::TypedBlockElement::from_list(#inner)
     }
 }
 

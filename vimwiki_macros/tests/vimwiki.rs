@@ -219,23 +219,27 @@ fn vimwiki_list() {
                             )
                         )])
                     )),
-                    LE::from(ListItemContent::List(List::new(vec![LE::from(
-                        ListItem::new(
-                            ListItemType::Ordered(OrderedListItemType::Number),
-                            ListItemSuffix::Period,
-                            0,
-                            ListItemContents::new(vec![LE::from(
-                                ListItemContent::InlineContent(
-                                    InlineElementContainer::new(vec![
-                                        LE::from(InlineElement::Text(
-                                            "sub list item".to_string()
-                                        ))
-                                    ])
-                                )
-                            )]),
-                            ListItemAttributes::default(),
-                        )
-                    )])))
+                    LE::from(ListItemContent::List(
+                        TypedBlockElement::from_list(List::new(vec![
+                            LE::from(ListItem::new(
+                                ListItemType::Ordered(
+                                    OrderedListItemType::Number
+                                ),
+                                ListItemSuffix::Period,
+                                0,
+                                ListItemContents::new(vec![LE::from(
+                                    ListItemContent::InlineContent(
+                                        InlineElementContainer::new(vec![
+                                            LE::from(InlineElement::Text(
+                                                "sub list item".to_string()
+                                            ))
+                                        ])
+                                    )
+                                )]),
+                                ListItemAttributes::default(),
+                            ))
+                        ]))
+                    ))
                 ]),
                 ListItemAttributes::default(),
             ))

@@ -1,4 +1,6 @@
-use super::{InlineElement, InlineElementContainer, LE};
+use super::{
+    Element, InlineElement, InlineElementContainer, TypedBlockElement, LE,
+};
 use derive_more::{
     Constructor, Deref, DerefMut, From, Index, IndexMut, Into, IntoIterator,
 };
@@ -14,6 +16,8 @@ pub use item::*;
 pub struct List {
     pub items: Vec<LE<ListItem>>,
 }
+
+impl Element for List {}
 
 impl List {
     /// Normalizes the list by standardizing the item types based on the
@@ -54,7 +58,7 @@ impl List {
 #[derive(Clone, Debug, From, Eq, PartialEq, Serialize, Deserialize)]
 pub enum ListItemContent {
     InlineContent(InlineElementContainer),
-    List(List),
+    List(TypedBlockElement<List>),
 }
 
 /// Represents a collection of list item content
@@ -110,14 +114,14 @@ impl ListItemContents {
 
     pub fn sublist_iter(&self) -> impl Iterator<Item = &List> + '_ {
         self.contents.iter().flat_map(|c| match &c.element {
-            ListItemContent::List(x) => Some(x),
+            ListItemContent::List(x) => Some(x.as_list()),
             _ => None,
         })
     }
 
     pub fn sublist_iter_mut(&mut self) -> impl Iterator<Item = &mut List> + '_ {
         self.contents.iter_mut().flat_map(|c| match &mut c.element {
-            ListItemContent::List(x) => Some(x),
+            ListItemContent::List(x) => Some(x.as_list_mut()),
             _ => None,
         })
     }

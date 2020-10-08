@@ -1,3 +1,4 @@
+use super::Element;
 use derive_more::{Constructor, Display};
 use serde::{Deserialize, Serialize};
 
@@ -15,3 +16,5 @@ use serde::{Deserialize, Serialize};
 pub struct MathInline {
     pub formula: String,
 }
+
+impl Element for MathInline {}

@@ -1,3 +1,4 @@
+use super::Element;
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
@@ -9,3 +10,5 @@ pub enum Placeholder {
     Date(NaiveDate),
     Other { name: String, value: String },
 }
+
+impl Element for Placeholder {}

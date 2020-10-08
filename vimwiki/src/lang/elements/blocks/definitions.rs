@@ -1,4 +1,4 @@
-use super::{InlineElementContainer, LE};
+use super::{Element, InlineElementContainer, LE};
 use derive_more::Constructor;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -57,6 +57,8 @@ impl Hash for TermAndDefinitions {
 pub struct DefinitionList {
     terms_and_definitions: HashSet<TermAndDefinitions>,
 }
+
+impl Element for DefinitionList {}
 
 impl DefinitionList {
     /// Retrieves a term and its associated definitions

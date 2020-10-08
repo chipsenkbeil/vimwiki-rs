@@ -28,6 +28,8 @@ pub enum InlineElement {
     Math(MathInline),
 }
 
+impl Element for InlineElement {}
+
 /// Represents a convenience wrapper around a series of inline elements
 #[derive(
     Constructor,
