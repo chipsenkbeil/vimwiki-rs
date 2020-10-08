@@ -1,6 +1,8 @@
 use super::Region;
 use vimwiki::{elements, LE};
 
+mod code;
+pub use code::*;
 mod links;
 pub use links::*;
 mod math;
@@ -18,6 +20,7 @@ pub enum InlineElement {
     #[graphql(flatten)]
     Link(Link),
     Tags(Tags),
+    Code(CodeInline),
     Math(MathInline),
 }
 
@@ -38,6 +41,9 @@ impl From<LE<elements::InlineElement>> for InlineElement {
             }
             elements::InlineElement::Tags(x) => {
                 Self::from(Tags::from(LE::new(x, lc.region)))
+            }
+            elements::InlineElement::Code(x) => {
+                Self::from(CodeInline::from(LE::new(x, lc.region)))
             }
             elements::InlineElement::Math(x) => {
                 Self::from(MathInline::from(LE::new(x, lc.region)))

@@ -140,6 +140,9 @@ impl_tokenize!(UnorderedListItemType, tokenize_unordered_list_item_type);
 impl_tokenize!(ListItemAttributes, tokenize_list_item_attributes);
 impl_tokenize!(ListItemTodoStatus, tokenize_list_item_todo_status);
 
+// Code
+impl_tokenize!(CodeInline, tokenize_code_inline);
+
 // Math
 impl_tokenize!(MathInline, tokenize_math_inline);
 impl_tokenize!(MathBlock, tokenize_math_block);
@@ -163,7 +166,6 @@ impl_tokenize!(Tags, tokenize_tags);
 impl_tokenize!(Tag, tokenize_tag);
 
 // Typefaces
-impl_tokenize!(Decoration, tokenize_decoration);
 impl_tokenize!(DecoratedTextContent, tokenize_decorated_text_content);
 impl_tokenize!(DecoratedText, tokenize_decorated_text);
 impl_tokenize!(Keyword, tokenize_keyword);
@@ -276,6 +278,10 @@ fn tokenize_inline_element(inline_element: &InlineElement) -> TokenStream {
         InlineElement::Tags(x) => {
             let t = tokenize_tags(&x);
             quote! { #root::elements::InlineElement::Tags(#t) }
+        }
+        InlineElement::Code(x) => {
+            let t = tokenize_code_inline(&x);
+            quote! { #root::elements::InlineElement::Code(#t) }
         }
         InlineElement::Math(x) => {
             let t = tokenize_math_inline(&x);
@@ -778,6 +784,18 @@ fn tokenize_list_item_todo_status(
     }
 }
 
+// Code
+
+fn tokenize_code_inline(code_inline: &CodeInline) -> TokenStream {
+    let root = root_crate();
+    let code = tokenize_string(&code_inline.code);
+    quote! {
+        #root::elements::CodeInline {
+            code: #code,
+        }
+    }
+}
+
 // Math
 
 fn tokenize_math_inline(math_inline: &MathInline) -> TokenStream {
@@ -939,38 +957,11 @@ fn tokenize_tag(tag: &Tag) -> TokenStream {
 
 // Typefaces
 
-fn tokenize_decoration(decoration: &Decoration) -> TokenStream {
-    let root = root_crate();
-    match &decoration {
-        Decoration::Bold => quote! { #root::elements::Decoration::Bold },
-        Decoration::BoldItalic => {
-            quote! { #root::elements::Decoration::BoldItalic }
-        }
-        Decoration::Code => quote! { #root::elements::Decoration::Code },
-        Decoration::Italic => {
-            quote! { #root::elements::Decoration::Italic }
-        }
-        Decoration::Strikeout => {
-            quote! { #root::elements::Decoration::Strikeout }
-        }
-        Decoration::Subscript => {
-            quote! { #root::elements::Decoration::Subscript }
-        }
-        Decoration::Superscript => {
-            quote! { #root::elements::Decoration::Superscript }
-        }
-    }
-}
-
 fn tokenize_decorated_text_content(
     decorated_text_content: &DecoratedTextContent,
 ) -> TokenStream {
     let root = root_crate();
     match &decorated_text_content {
-        DecoratedTextContent::DecoratedText(x) => {
-            let t = tokenize_decorated_text(&x);
-            quote! { #root::elements::DecoratedTextContent::DecoratedText(#t) }
-        }
         DecoratedTextContent::Keyword(x) => {
             let t = tokenize_keyword(&x);
             quote! { #root::elements::DecoratedTextContent::Keyword(#t) }
@@ -988,15 +979,77 @@ fn tokenize_decorated_text_content(
 
 fn tokenize_decorated_text(decorated_text: &DecoratedText) -> TokenStream {
     let root = root_crate();
-    let contents = decorated_text
-        .contents
-        .iter()
-        .map(|x| tokenize_located_element(x, tokenize_decorated_text_content));
-    let decoration = tokenize_decoration(&decorated_text.decoration);
-    quote! {
-        #root::elements::DecoratedText {
-            contents: vec![#(#contents),*],
-            decoration: #decoration,
+
+    match decorated_text {
+        DecoratedText::Bold(x) => {
+            let contents = x.iter().map(|x| {
+                tokenize_located_element(x, tokenize_decorated_text_content)
+            });
+            quote! {
+                #root::elements::DecoratedText::Bold(
+                    vec![#(#contents),*],
+                )
+            }
+        }
+        DecoratedText::BoldItalic(x) => {
+            let contents = x.iter().map(|x| {
+                tokenize_located_element(x, tokenize_decorated_text_content)
+            });
+            {
+                quote! {
+                    #root::elements::DecoratedText::BoldItalic(
+                        vec![#(#contents),*],
+                    )
+                }
+            }
+        }
+        DecoratedText::Italic(x) => {
+            let contents = x.iter().map(|x| {
+                tokenize_located_element(x, tokenize_decorated_text_content)
+            });
+            {
+                quote! {
+                    #root::elements::DecoratedText::Italic(
+                        vec![#(#contents),*],
+                    )
+                }
+            }
+        }
+        DecoratedText::Strikeout(x) => {
+            let contents = x.iter().map(|x| {
+                tokenize_located_element(x, tokenize_decorated_text_content)
+            });
+            {
+                quote! {
+                    #root::elements::DecoratedText::Strikeout(
+                        vec![#(#contents),*],
+                    )
+                }
+            }
+        }
+        DecoratedText::Subscript(x) => {
+            let contents = x.iter().map(|x| {
+                tokenize_located_element(x, tokenize_decorated_text_content)
+            });
+            {
+                quote! {
+                    #root::elements::DecoratedText::Subscript(
+                        vec![#(#contents),*],
+                    )
+                }
+            }
+        }
+        DecoratedText::Superscript(x) => {
+            let contents = x.iter().map(|x| {
+                tokenize_located_element(x, tokenize_decorated_text_content)
+            });
+            {
+                quote! {
+                    #root::elements::DecoratedText::Superscript(
+                        vec![#(#contents),*],
+                    )
+                }
+            }
         }
     }
 }

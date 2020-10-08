@@ -5,6 +5,7 @@ use super::{
 };
 use nom::{branch::alt, combinator::map, multi::many1};
 
+pub mod code;
 pub mod links;
 pub mod math;
 pub mod tags;
@@ -32,6 +33,7 @@ pub fn inline_element(input: Span) -> VimwikiIResult<LE<InlineElement>> {
         "Inline Element",
         alt((
             map(math::math_inline, |c| c.map(InlineElement::from)),
+            map(code::code_inline, |c| c.map(InlineElement::from)),
             map(tags::tags, |c| c.map(InlineElement::from)),
             map(links::link, |c| c.map(InlineElement::from)),
             map(typefaces::decorated_text, |c| c.map(InlineElement::from)),
@@ -46,7 +48,7 @@ mod tests {
     use super::*;
     use crate::{
         elements::{
-            DecoratedText, DecoratedTextContent, Decoration, InlineElement,
+            CodeInline, DecoratedText, DecoratedTextContent, InlineElement,
             Keyword, Link, MathInline, Tags, WikiLink,
         },
         lang::utils::Span,
@@ -56,7 +58,7 @@ mod tests {
     #[test]
     fn inline_element_container_should_correctly_identify_elements() {
         let input = Span::from(
-            "*item 1* has a [[link]] with :tag: and $formula$ is DONE",
+            "*item 1* has a [[link]] with `code` and :tag: and $formula$ is DONE",
         );
         let (input, mut container) = inline_element_container(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume all of input");
@@ -67,17 +69,16 @@ mod tests {
                 .map(|c| c.element)
                 .collect::<Vec<InlineElement>>(),
             vec![
-                InlineElement::DecoratedText(DecoratedText::new(
-                    vec![LE::from(DecoratedTextContent::Text(
-                        "item 1".to_string()
-                    ))],
-                    Decoration::Bold
-                )),
+                InlineElement::DecoratedText(DecoratedText::Bold(vec![
+                    LE::from(DecoratedTextContent::Text("item 1".to_string()))
+                ],)),
                 InlineElement::Text(" has a ".to_string()),
                 InlineElement::Link(Link::from(WikiLink::from(PathBuf::from(
                     "link"
                 )))),
                 InlineElement::Text(" with ".to_string()),
+                InlineElement::Code(CodeInline::new("code".to_string())),
+                InlineElement::Text(" and ".to_string()),
                 InlineElement::Tags(Tags::from("tag")),
                 InlineElement::Text(" and ".to_string()),
                 InlineElement::Math(MathInline::new("formula".to_string())),

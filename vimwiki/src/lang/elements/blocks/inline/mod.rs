@@ -6,6 +6,8 @@ use derive_more::{
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
+mod code;
+pub use code::*;
 mod links;
 pub use links::*;
 mod math;
@@ -25,6 +27,7 @@ pub enum InlineElement {
     Keyword(Keyword),
     Link(Link),
     Tags(Tags),
+    Code(CodeInline),
     Math(MathInline),
 }
 
@@ -89,6 +92,7 @@ macro_rules! container_mapping {
     };
 }
 
+container_mapping!(LE<CodeInline>);
 container_mapping!(LE<MathInline>);
 container_mapping!(LE<String>);
 container_mapping!(LE<DecoratedText>);

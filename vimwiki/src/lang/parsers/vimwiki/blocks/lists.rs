@@ -344,8 +344,8 @@ fn list_item_suffix_none(input: Span) -> VimwikiIResult<ListItemSuffix> {
 #[cfg(test)]
 mod tests {
     use super::super::elements::{
-        DecoratedText, DecoratedTextContent, Decoration, InlineElement,
-        Keyword, Link, MathInline, Tags, WikiLink,
+        DecoratedText, DecoratedTextContent, InlineElement, Keyword, Link,
+        MathInline, Tags, WikiLink,
     };
     use super::*;
     use crate::lang::utils::Span;
@@ -540,12 +540,9 @@ mod tests {
                 .collect::<Vec<&InlineElement>>(),
             vec![
                 &InlineElement::Text("list ".to_string()),
-                &InlineElement::DecoratedText(DecoratedText::new(
-                    vec![LE::from(DecoratedTextContent::Text(
-                        "item 1".to_string()
-                    ))],
-                    Decoration::Bold
-                )),
+                &InlineElement::DecoratedText(DecoratedText::Bold(vec![
+                    LE::from(DecoratedTextContent::Text("item 1".to_string()))
+                ])),
                 &InlineElement::Text(" has a ".to_string()),
                 &InlineElement::Link(Link::from(WikiLink::from(
                     PathBuf::from("link")

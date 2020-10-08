@@ -1,5 +1,6 @@
 use super::{
-    elements::{DecoratedText, DecoratedTextContent, Decoration, Keyword},
+    code::code_inline,
+    elements::{DecoratedText, DecoratedTextContent, Keyword},
     links::link,
     math::math_inline,
     tags::tags,
@@ -17,6 +18,7 @@ use nom::{
 #[inline]
 pub fn text(input: Span) -> VimwikiIResult<LE<String>> {
     fn is_text(input: Span) -> VimwikiIResult<()> {
+        let (input, _) = not(code_inline)(input)?;
         let (input, _) = not(math_inline)(input)?;
         let (input, _) = not(tags)(input)?;
         let (input, _) = not(link)(input)?;
@@ -30,12 +32,11 @@ pub fn text(input: Span) -> VimwikiIResult<LE<String>> {
 
 #[inline]
 pub fn decorated_text(input: Span) -> VimwikiIResult<LE<DecoratedText>> {
-    #[inline]
-    fn dt(
+    /// Parses inner content of decorated text
+    fn dtc(
         start: &'static str,
         end: &'static str,
-        decoration: Decoration,
-    ) -> impl Fn(Span) -> VimwikiIResult<DecoratedText> {
+    ) -> impl Fn(Span) -> VimwikiIResult<Vec<LE<DecoratedTextContent>>> {
         move |input: Span| {
             fn is_other(
                 end: &'static str,
@@ -43,7 +44,6 @@ pub fn decorated_text(input: Span) -> VimwikiIResult<LE<DecoratedText>> {
                 move |input: Span| {
                     let (input, _) = not(link)(input)?;
                     let (input, _) = not(keyword)(input)?;
-                    let (input, _) = not(decorated_text)(input)?;
                     let (input, _) = not(tag(end))(input)?;
                     Ok((input, ()))
                 }
@@ -59,28 +59,23 @@ pub fn decorated_text(input: Span) -> VimwikiIResult<LE<DecoratedText>> {
             let (input, contents) = many1(alt((
                 map(link, |c| c.map(DecoratedTextContent::from)),
                 map(keyword, |c| c.map(DecoratedTextContent::from)),
-                map(decorated_text, |c| c.map(DecoratedTextContent::from)),
                 map(other(end), |c| c.map(DecoratedTextContent::from)),
             )))(input)?;
             let (input, _) = tag(end)(input)?;
-            Ok((input, DecoratedText::new(contents, decoration)))
+            Ok((input, contents))
         }
     }
 
-    // TODO: Code is special in that we don't need to check for links, decorations,
-    //       or anything else. Rather, we can just take all content as one
-    //       text object instead
     context(
         "Decorated Text",
         le(alt((
-            dt("_*", "*_", Decoration::BoldItalic),
-            dt("*_", "_*", Decoration::BoldItalic),
-            dt("*", "*", Decoration::Bold),
-            dt("_", "_", Decoration::Italic),
-            dt("~~", "~~", Decoration::Strikeout),
-            dt("`", "`", Decoration::Code),
-            dt("^", "^", Decoration::Superscript),
-            dt(",,", ",,", Decoration::Subscript),
+            map(dtc("_*", "*_"), DecoratedText::BoldItalic),
+            map(dtc("*_", "_*"), DecoratedText::BoldItalic),
+            map(dtc("*", "*"), DecoratedText::Bold),
+            map(dtc("_", "_"), DecoratedText::Italic),
+            map(dtc("~~", "~~"), DecoratedText::Strikeout),
+            map(dtc("^", "^"), DecoratedText::Superscript),
+            map(dtc(",,", ",,"), DecoratedText::Subscript),
         ))),
     )(input)
 }
@@ -220,12 +215,9 @@ mod tests {
         );
         assert_eq!(
             dt.element,
-            DecoratedText::new(
-                vec![LE::from(DecoratedTextContent::Text(
-                    "bold text".to_string()
-                ))],
-                Decoration::Bold
-            )
+            DecoratedText::Bold(vec![LE::from(DecoratedTextContent::Text(
+                "bold text".to_string()
+            ))])
         );
     }
 
@@ -239,12 +231,9 @@ mod tests {
         );
         assert_eq!(
             dt.element,
-            DecoratedText::new(
-                vec![LE::from(DecoratedTextContent::Text(
-                    "italic text".to_string()
-                ))],
-                Decoration::Italic
-            )
+            DecoratedText::Italic(vec![LE::from(DecoratedTextContent::Text(
+                "italic text".to_string()
+            ))])
         );
     }
 
@@ -258,12 +247,9 @@ mod tests {
         );
         assert_eq!(
             dt.element,
-            DecoratedText::new(
-                vec![LE::from(DecoratedTextContent::Text(
-                    "bold italic text".to_string()
-                ))],
-                Decoration::BoldItalic
-            )
+            DecoratedText::BoldItalic(vec![LE::from(
+                DecoratedTextContent::Text("bold italic text".to_string())
+            )])
         );
     }
 
@@ -277,12 +263,9 @@ mod tests {
         );
         assert_eq!(
             dt.element,
-            DecoratedText::new(
-                vec![LE::from(DecoratedTextContent::Text(
-                    "bold italic text".to_string()
-                ))],
-                Decoration::BoldItalic
-            )
+            DecoratedText::BoldItalic(vec![LE::from(
+                DecoratedTextContent::Text("bold italic text".to_string())
+            )])
         );
     }
 
@@ -296,31 +279,9 @@ mod tests {
         );
         assert_eq!(
             dt.element,
-            DecoratedText::new(
-                vec![LE::from(DecoratedTextContent::Text(
-                    "strikeout text".to_string()
-                ))],
-                Decoration::Strikeout
-            )
-        );
-    }
-
-    #[test]
-    fn decorated_text_should_support_code() {
-        let input = Span::from("`code text`");
-        let (input, dt) = decorated_text(input).unwrap();
-        assert!(
-            input.fragment().is_empty(),
-            "Did not consume decorated text"
-        );
-        assert_eq!(
-            dt.element,
-            DecoratedText::new(
-                vec![LE::from(DecoratedTextContent::Text(
-                    "code text".to_string()
-                ))],
-                Decoration::Code
-            )
+            DecoratedText::Strikeout(vec![LE::from(
+                DecoratedTextContent::Text("strikeout text".to_string())
+            )])
         );
     }
 
@@ -334,12 +295,9 @@ mod tests {
         );
         assert_eq!(
             dt.element,
-            DecoratedText::new(
-                vec![LE::from(DecoratedTextContent::Text(
-                    "superscript text".to_string()
-                ))],
-                Decoration::Superscript
-            )
+            DecoratedText::Superscript(vec![LE::from(
+                DecoratedTextContent::Text("superscript text".to_string())
+            )])
         );
     }
 
@@ -353,12 +311,9 @@ mod tests {
         );
         assert_eq!(
             dt.element,
-            DecoratedText::new(
-                vec![LE::from(DecoratedTextContent::Text(
-                    "subscript text".to_string()
-                ))],
-                Decoration::Subscript
-            )
+            DecoratedText::Subscript(vec![LE::from(
+                DecoratedTextContent::Text("subscript text".to_string())
+            )])
         );
     }
 
@@ -372,12 +327,9 @@ mod tests {
         );
         assert_eq!(
             dt.element,
-            DecoratedText::new(
-                vec![LE::from(DecoratedTextContent::Link(Link::Wiki(
-                    WikiLink::from(PathBuf::from("some link"))
-                )))],
-                Decoration::Bold
-            )
+            DecoratedText::Bold(vec![LE::from(DecoratedTextContent::Link(
+                Link::Wiki(WikiLink::from(PathBuf::from("some link")))
+            ))])
         );
     }
 
@@ -391,39 +343,9 @@ mod tests {
         );
         assert_eq!(
             dt.element,
-            DecoratedText::new(
-                vec![LE::from(DecoratedTextContent::Keyword(Keyword::TODO))],
-                Decoration::Bold
-            )
-        );
-    }
-
-    #[test]
-    fn decorated_text_should_support_nested_decorations() {
-        let input = Span::from("*Bold Text ~~Bold Strikeout Text~~*");
-        let (input, dt) = decorated_text(input).unwrap();
-        assert!(
-            input.fragment().is_empty(),
-            "Did not consume decorated text"
-        );
-        assert_eq!(
-            dt.element,
-            DecoratedText::new(
-                vec![
-                    LE::from(DecoratedTextContent::Text(
-                        "Bold Text ".to_string()
-                    )),
-                    LE::from(DecoratedTextContent::DecoratedText(
-                        DecoratedText::new(
-                            vec![LE::from(DecoratedTextContent::Text(
-                                "Bold Strikeout Text".to_string()
-                            ))],
-                            Decoration::Strikeout
-                        )
-                    ))
-                ],
-                Decoration::Bold
-            )
+            DecoratedText::Bold(vec![LE::from(DecoratedTextContent::Keyword(
+                Keyword::TODO
+            ))])
         );
     }
 

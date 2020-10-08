@@ -269,6 +269,12 @@ fn vimwiki_list_raw() {
 }
 
 #[test]
+fn vimwiki_code_inline() {
+    let x = vimwiki_code_inline!("`code`");
+    assert_eq!(x.element, CodeInline::new("code".to_string()));
+}
+
+#[test]
 fn vimwiki_math_inline() {
     let x = vimwiki_math_inline!("$math$");
     assert_eq!(x.element, MathInline::new("math".to_string()));
@@ -393,16 +399,79 @@ fn vimwiki_string() {
 }
 
 #[test]
-fn vimwiki_decorated_text() {
+fn vimwiki_decorated_text_bold() {
     let x = vimwiki_decorated_text!("*some text*");
     assert_eq!(
         x.element,
-        DecoratedText::new(
-            vec![LE::from(DecoratedTextContent::Text(
-                "some text".to_string()
-            ))],
-            Decoration::Bold
-        )
+        DecoratedText::Bold(vec![LE::from(DecoratedTextContent::Text(
+            "some text".to_string()
+        ))],)
+    );
+}
+
+#[test]
+fn vimwiki_decorated_text_bolditalic_1() {
+    let x = vimwiki_decorated_text!("*_some text_*");
+    assert_eq!(
+        x.element,
+        DecoratedText::BoldItalic(vec![LE::from(DecoratedTextContent::Text(
+            "some text".to_string()
+        ))],)
+    );
+}
+
+#[test]
+fn vimwiki_decorated_text_bolditalic_2() {
+    let x = vimwiki_decorated_text!("_*some text*_");
+    assert_eq!(
+        x.element,
+        DecoratedText::BoldItalic(vec![LE::from(DecoratedTextContent::Text(
+            "some text".to_string()
+        ))],)
+    );
+}
+
+#[test]
+fn vimwiki_decorated_text_italic() {
+    let x = vimwiki_decorated_text!("_some text_");
+    assert_eq!(
+        x.element,
+        DecoratedText::Italic(vec![LE::from(DecoratedTextContent::Text(
+            "some text".to_string()
+        ))],)
+    );
+}
+
+#[test]
+fn vimwiki_decorated_text_strikeout() {
+    let x = vimwiki_decorated_text!("~~some text~~");
+    assert_eq!(
+        x.element,
+        DecoratedText::Strikeout(vec![LE::from(DecoratedTextContent::Text(
+            "some text".to_string()
+        ))],)
+    );
+}
+
+#[test]
+fn vimwiki_decorated_text_superscript() {
+    let x = vimwiki_decorated_text!("^some text^");
+    assert_eq!(
+        x.element,
+        DecoratedText::Superscript(vec![LE::from(DecoratedTextContent::Text(
+            "some text".to_string()
+        ))],)
+    );
+}
+
+#[test]
+fn vimwiki_decorated_text_subscript() {
+    let x = vimwiki_decorated_text!(",,some text,,");
+    assert_eq!(
+        x.element,
+        DecoratedText::Subscript(vec![LE::from(DecoratedTextContent::Text(
+            "some text".to_string()
+        ))],)
     );
 }
 

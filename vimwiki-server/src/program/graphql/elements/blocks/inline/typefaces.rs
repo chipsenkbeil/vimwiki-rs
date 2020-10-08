@@ -20,37 +20,10 @@ impl From<LE<String>> for Text {
     }
 }
 
-/// Represents a typeface decoration that can be applied to text
-#[derive(async_graphql::Enum, Copy, Clone, Debug, Eq, PartialEq)]
-pub enum Decoration {
-    Bold,
-    Italic,
-    BoldItalic,
-    Strikeout,
-    Code,
-    Superscript,
-    Subscript,
-}
-
-impl From<elements::Decoration> for Decoration {
-    fn from(d: elements::Decoration) -> Self {
-        match d {
-            elements::Decoration::Bold => Self::Bold,
-            elements::Decoration::Italic => Self::Italic,
-            elements::Decoration::BoldItalic => Self::BoldItalic,
-            elements::Decoration::Strikeout => Self::Strikeout,
-            elements::Decoration::Code => Self::Code,
-            elements::Decoration::Superscript => Self::Superscript,
-            elements::Decoration::Subscript => Self::Subscript,
-        }
-    }
-}
-
 /// Represents content that can be contained within a decoration
 #[derive(async_graphql::Union, Debug)]
 pub enum DecoratedTextContent {
     Text(Text),
-    DecoratedText(DecoratedText),
     Keyword(Keyword),
     #[graphql(flatten)]
     Link(Link),
@@ -63,9 +36,6 @@ impl From<LE<elements::DecoratedTextContent>> for DecoratedTextContent {
                 region: Region::from(lc.region),
                 content,
             }),
-            elements::DecoratedTextContent::DecoratedText(x) => {
-                Self::from(DecoratedText::from(LE::new(x, lc.region)))
-            }
             elements::DecoratedTextContent::Keyword(x) => Self::from(Keyword {
                 region: Region::from(lc.region),
                 r#type: KeywordType::from(x),
@@ -77,32 +47,61 @@ impl From<LE<elements::DecoratedTextContent>> for DecoratedTextContent {
     }
 }
 
-/// Represents text (series of content) with a typeface decoration
-#[derive(async_graphql::SimpleObject, Debug)]
-pub struct DecoratedText {
-    /// The segment of the document this decorated text covers
-    region: Region,
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DecoratedText(LE<elements::DecoratedText>);
 
-    /// The contents within the decoration
-    contents: Vec<DecoratedTextContent>,
+/// Represents some text (or series of inline content) that has a decoration
+/// applied to it
+#[async_graphql::Object]
+impl DecoratedText {
+    /// The segment of the document this header covers
+    async fn region(&self) -> Region {
+        Region::from(self.0.region)
+    }
 
-    /// The decoration applied to the contents
-    decoration: Decoration,
+    /// The content within the decoration as individual elements
+    async fn content_elements(&self) -> Vec<DecoratedTextContent> {
+        self.0
+            .as_contents()
+            .iter()
+            .map(|e| DecoratedTextContent::from(e.clone()))
+            .collect()
+    }
+
+    /// The content within the decoration as it would be read by humans
+    /// without frills
+    async fn content(&self) -> String {
+        self.0.to_string()
+    }
+
+    /// Represents the decoration applied to some text
+    async fn decoration(&self) -> Decoration {
+        match self.0.element {
+            elements::DecoratedText::Bold(_) => Decoration::Bold,
+            elements::DecoratedText::Italic(_) => Decoration::Italic,
+            elements::DecoratedText::BoldItalic(_) => Decoration::BoldItalic,
+            elements::DecoratedText::Strikeout(_) => Decoration::Strikeout,
+            elements::DecoratedText::Superscript(_) => Decoration::Superscript,
+            elements::DecoratedText::Subscript(_) => Decoration::Subscript,
+        }
+    }
 }
 
 impl From<LE<elements::DecoratedText>> for DecoratedText {
-    fn from(mut lc: LE<elements::DecoratedText>) -> Self {
-        Self {
-            region: Region::from(lc.region),
-            contents: lc
-                .element
-                .contents
-                .drain(..)
-                .map(DecoratedTextContent::from)
-                .collect(),
-            decoration: Decoration::from(lc.element.decoration),
-        }
+    fn from(le: LE<elements::DecoratedText>) -> Self {
+        Self(le)
     }
+}
+
+/// Represents the type of decoration to apply to some text
+#[derive(async_graphql::Enum, Copy, Clone, Debug, Eq, PartialEq)]
+pub enum Decoration {
+    Bold,
+    Italic,
+    BoldItalic,
+    Strikeout,
+    Superscript,
+    Subscript,
 }
 
 /// Represents type of special keywords that have unique syntax highlighting

@@ -93,6 +93,7 @@ impl_macro_vimwiki!(transclusion_link, LE<elements::TransclusionLink>);
 impl_macro_vimwiki!(wiki_link, LE<elements::WikiLink>);
 impl_macro_vimwiki!(inter_wiki_link, LE<elements::InterWikiLink>);
 impl_macro_vimwiki!(list, LE<elements::List>);
+impl_macro_vimwiki!(code_inline, LE<elements::CodeInline>);
 impl_macro_vimwiki!(math_inline, LE<elements::MathInline>);
 impl_macro_vimwiki!(math_block, LE<elements::MathBlock>);
 impl_macro_vimwiki!(paragraph, LE<elements::Paragraph>);

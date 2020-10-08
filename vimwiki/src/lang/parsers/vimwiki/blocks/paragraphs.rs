@@ -70,8 +70,8 @@ fn continue_paragraph(input: Span) -> VimwikiIResult<()> {
 #[cfg(test)]
 mod tests {
     use super::super::elements::{
-        DecoratedText, DecoratedTextContent, Decoration, InlineElement, Link,
-        MathInline, WikiLink,
+        DecoratedText, DecoratedTextContent, InlineElement, Link, MathInline,
+        WikiLink,
     };
     use super::*;
     use crate::lang::utils::Span;
@@ -106,12 +106,11 @@ mod tests {
                 .collect::<Vec<InlineElement>>(),
             vec![
                 InlineElement::Text("Some paragraph with ".to_string()),
-                InlineElement::DecoratedText(DecoratedText::new(
-                    vec![LE::from(DecoratedTextContent::Text(
+                InlineElement::DecoratedText(DecoratedText::Bold(vec![
+                    LE::from(DecoratedTextContent::Text(
                         "decorations".to_string()
-                    ))],
-                    Decoration::Bold
-                )),
+                    ))
+                ])),
                 InlineElement::Text(", ".to_string()),
                 InlineElement::Link(Link::from(WikiLink::from(PathBuf::from(
                     "links"
@@ -140,12 +139,11 @@ mod tests {
                 .collect::<Vec<InlineElement>>(),
             vec![
                 InlineElement::Text("Some paragraph with ".to_string()),
-                InlineElement::DecoratedText(DecoratedText::new(
-                    vec![LE::from(DecoratedTextContent::Text(
+                InlineElement::DecoratedText(DecoratedText::Bold(vec![
+                    LE::from(DecoratedTextContent::Text(
                         "decorations".to_string()
-                    ))],
-                    Decoration::Bold
-                )),
+                    ))
+                ])),
                 InlineElement::Text(",".to_string()),
                 InlineElement::Link(Link::from(WikiLink::from(PathBuf::from(
                     "links"
@@ -175,12 +173,11 @@ mod tests {
                 .collect::<Vec<InlineElement>>(),
             vec![
                 InlineElement::Text("Some paragraph with ".to_string()),
-                InlineElement::DecoratedText(DecoratedText::new(
-                    vec![LE::from(DecoratedTextContent::Text(
+                InlineElement::DecoratedText(DecoratedText::Bold(vec![
+                    LE::from(DecoratedTextContent::Text(
                         "decorations".to_string()
-                    ))],
-                    Decoration::Bold
-                )),
+                    ))
+                ])),
                 InlineElement::Text(",".to_string()),
                 InlineElement::Text("  ".to_string()),
                 InlineElement::Link(Link::from(WikiLink::from(PathBuf::from(
@@ -216,12 +213,11 @@ mod tests {
                 .collect::<Vec<InlineElement>>(),
             vec![
                 InlineElement::Text("Some paragraph with ".to_string()),
-                InlineElement::DecoratedText(DecoratedText::new(
-                    vec![LE::from(DecoratedTextContent::Text(
+                InlineElement::DecoratedText(DecoratedText::Bold(vec![
+                    LE::from(DecoratedTextContent::Text(
                         "decorations".to_string()
-                    ))],
-                    Decoration::Bold
-                )),
+                    ))
+                ],)),
                 InlineElement::Text(",".to_string()),
                 InlineElement::Link(Link::from(WikiLink::from(PathBuf::from(
                     "links"

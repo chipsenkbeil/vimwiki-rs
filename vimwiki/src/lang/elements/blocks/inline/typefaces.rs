@@ -1,19 +1,7 @@
 use super::{Element, Link, LE};
-use derive_more::{Constructor, Display, From};
+use derive_more::{Display, From};
 use serde::{Deserialize, Serialize};
 use std::fmt;
-
-/// Represents a typeface decoration that can be applied to text
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub enum Decoration {
-    Bold,
-    Italic,
-    BoldItalic,
-    Strikeout,
-    Code,
-    Superscript,
-    Subscript,
-}
 
 /// Represents content that can be contained within a decoration
 #[derive(
@@ -21,25 +9,40 @@ pub enum Decoration {
 )]
 pub enum DecoratedTextContent {
     Text(String),
-    DecoratedText(DecoratedText),
     Keyword(Keyword),
     Link(Link),
 }
 
 /// Represents text (series of content) with a typeface decoration
-#[derive(
-    Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
-)]
-pub struct DecoratedText {
-    pub contents: Vec<LE<DecoratedTextContent>>,
-    pub decoration: Decoration,
+#[derive(Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub enum DecoratedText {
+    Bold(Vec<LE<DecoratedTextContent>>),
+    Italic(Vec<LE<DecoratedTextContent>>),
+    BoldItalic(Vec<LE<DecoratedTextContent>>),
+    Strikeout(Vec<LE<DecoratedTextContent>>),
+    Superscript(Vec<LE<DecoratedTextContent>>),
+    Subscript(Vec<LE<DecoratedTextContent>>),
 }
 
 impl Element for DecoratedText {}
 
+impl DecoratedText {
+    /// Converts to the underlying decorated text contents
+    pub fn as_contents(&self) -> &[LE<DecoratedTextContent>] {
+        match self {
+            Self::Bold(ref x) => x.as_slice(),
+            Self::Italic(ref x) => x.as_slice(),
+            Self::BoldItalic(ref x) => x.as_slice(),
+            Self::Strikeout(ref x) => x.as_slice(),
+            Self::Superscript(ref x) => x.as_slice(),
+            Self::Subscript(ref x) => x.as_slice(),
+        }
+    }
+}
+
 impl fmt::Display for DecoratedText {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for content in self.contents.iter() {
+        for content in self.as_contents().iter() {
             write!(f, "{}", content.element.to_string())?;
         }
         Ok(())

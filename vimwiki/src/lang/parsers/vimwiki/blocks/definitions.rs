@@ -95,7 +95,7 @@ mod tests {
     use super::*;
     use crate::{
         elements::{
-            DecoratedText, DecoratedTextContent, Decoration, InlineElement,
+            DecoratedText, DecoratedTextContent, InlineElement,
             InlineElementContainer, Link, MathInline, WikiLink,
         },
         lang::utils::Span,
@@ -275,11 +275,10 @@ mod tests {
         assert_eq!(
             terms,
             vec![&InlineElementContainer::new(vec![
-                LE::from(InlineElement::DecoratedText(DecoratedText::new(
+                LE::from(InlineElement::DecoratedText(DecoratedText::Bold(
                     vec![LE::from(DecoratedTextContent::Text(
                         "term".to_string()
-                    ))],
-                    Decoration::Bold
+                    ))]
                 ))),
                 LE::from(InlineElement::Text(" 1".to_string())),
             ])]
