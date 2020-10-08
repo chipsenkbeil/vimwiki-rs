@@ -52,7 +52,7 @@ pub enum DecoratedTextContent {
     Text(Text),
     DecoratedText(DecoratedText),
     Keyword(Keyword),
-    #[item(flatten)]
+    #[graphql(flatten)]
     Link(Link),
 }
 

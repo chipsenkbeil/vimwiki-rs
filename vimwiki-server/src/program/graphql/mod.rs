@@ -7,7 +7,7 @@ pub struct Query;
 
 #[async_graphql::Object]
 impl Query {
-    #[field(desc = "Returns a wiki using its index")]
+    /// Returns a wiki using its index
     async fn wiki_at_index<'a>(
         &'a self,
         ctx: &'a async_graphql::Context<'_>,
@@ -16,7 +16,7 @@ impl Query {
         ctx.data_unchecked::<Program>().wiki_by_index(index)
     }
 
-    #[field(desc = "Returns a wiki using its name")]
+    /// Returns a wiki using its name
     async fn wiki_with_name<'a>(
         &'a self,
         ctx: &'a async_graphql::Context<'_>,

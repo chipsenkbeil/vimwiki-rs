@@ -15,7 +15,7 @@ pub enum InlineElement {
     Text(Text),
     DecoratedText(DecoratedText),
     Keyword(Keyword),
-    #[item(flatten)]
+    #[graphql(flatten)]
     Link(Link),
     Tags(Tags),
     Math(MathInline),

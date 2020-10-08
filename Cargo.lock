@@ -11,6 +11,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "ahash"
+version = "0.3.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e8fd72866655d1904d6b0997d0b07ba561047d070fbe29de039031c641b61217"
+
+[[package]]
 name = "aho-corasick"
 version = "0.7.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -62,9 +68,9 @@ dependencies = [
 
 [[package]]
 name = "async-graphql"
-version = "2.0.0-alpha.20"
+version = "2.0.0-alpha.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9beab7a46fe680f0b530940ae0a94bcc63b769c89e63dd6d8c822190c8c9ca51"
+checksum = "f69618dcf859c79f45c4411b8c9d287096e8c2f59a5a75401f940f7def300639"
 dependencies = [
  "async-graphql-derive",
  "async-graphql-parser",
@@ -80,6 +86,7 @@ dependencies = [
  "indexmap",
  "itertools",
  "log",
+ "lru",
  "multer",
  "num-traits",
  "once_cell",
@@ -98,24 +105,26 @@ dependencies = [
 
 [[package]]
 name = "async-graphql-derive"
-version = "2.0.0-alpha.20"
+version = "2.0.0-alpha.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61ac647caed7f056b0bb8c7ac01e2bc977b64066b9d7fd7c58311bd11661606e"
+checksum = "d52a6ae5a0ca2816bd537fa68ae75c3e1abede38f941dc4687a0511a16c60323"
 dependencies = [
  "Inflector",
  "async-graphql-parser",
+ "darling",
  "itertools",
  "proc-macro-crate",
  "proc-macro2",
  "quote",
  "syn",
+ "thiserror",
 ]
 
 [[package]]
 name = "async-graphql-parser"
-version = "2.0.0-alpha.20"
+version = "2.0.0-alpha.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f7efc99b0eef13adeebf297a6345b42d3f9a8d93264a0afa83364a45851129cb"
+checksum = "6f414e9b7045c030286c08be30ca42418c372799e7c34823afdee4bdd6337438"
 dependencies = [
  "pest",
  "pest_derive",
@@ -125,9 +134,9 @@ dependencies = [
 
 [[package]]
 name = "async-graphql-warp"
-version = "2.0.0-alpha.20"
+version = "2.0.0-alpha.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c57cc7abb6b9c4dd1f2aa0dc9e007edab4c99999168832415f23287587334889"
+checksum = "fbefdfe0c55da045b3982e9cc505c83ce0d3bf3d781d1feb2384fcb3ce34ea91"
 dependencies = [
  "anyhow",
  "async-graphql",
@@ -363,7 +372,7 @@ dependencies = [
  "indexmap",
  "lazy_static",
  "os_str_bytes",
- "strsim",
+ "strsim 0.10.0",
  "termcolor",
  "textwrap",
  "unicode-width",
@@ -449,6 +458,41 @@ dependencies = [
  "autocfg 1.0.0",
  "cfg-if",
  "lazy_static",
+]
+
+[[package]]
+name = "darling"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0d706e75d87e35569db781a9b5e2416cff1236a47ed380831f959382ccd5f858"
+dependencies = [
+ "darling_core",
+ "darling_macro",
+]
+
+[[package]]
+name = "darling_core"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f0c960ae2da4de88a91b2d920c2a7233b400bc33cb28453a2987822d8392519b"
+dependencies = [
+ "fnv",
+ "ident_case",
+ "proc-macro2",
+ "quote",
+ "strsim 0.9.3",
+ "syn",
+]
+
+[[package]]
+name = "darling_macro"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d9b5a2f4ac4969822c62224815d069952656cadc7084fdca9751e6d959189b72"
+dependencies = [
+ "darling_core",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -803,6 +847,7 @@ version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e91b62f79061a0bc2e046024cb7ba44b08419ed238ecbd9adbd787434b9e8c25"
 dependencies = [
+ "ahash",
  "autocfg 1.0.0",
 ]
 
@@ -905,6 +950,12 @@ dependencies = [
  "tracing",
  "want",
 ]
+
+[[package]]
+name = "ident_case"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
 
 [[package]]
 name = "idna"
@@ -1055,6 +1106,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4fabed175da42fed1fa0746b0ea71f412aa9d35e76e95e59b192c64b9dc2bf8b"
 dependencies = [
  "cfg-if",
+]
+
+[[package]]
+name = "lru"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "111b945ac72ec09eb7bc62a0fbdc3cc6e80555a7245f52a69d3921a75b53b153"
+dependencies = [
+ "hashbrown",
 ]
 
 [[package]]
@@ -1868,6 +1928,12 @@ name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
+
+[[package]]
+name = "strsim"
+version = "0.9.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6446ced80d6c486436db5c078dde11a9f73d42b57fb273121e160b84f63d894c"
 
 [[package]]
 name = "strsim"
