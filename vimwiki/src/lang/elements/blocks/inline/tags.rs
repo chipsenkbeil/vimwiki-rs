@@ -1,4 +1,3 @@
-use super::Element;
 use derive_more::{
     Constructor, Deref, DerefMut, Display, From, Index, IndexMut, Into,
     IntoIterator,
@@ -34,8 +33,6 @@ use std::fmt;
     Deserialize,
 )]
 pub struct Tags(pub Vec<Tag>);
-
-impl Element for Tags {}
 
 impl fmt::Display for Tags {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

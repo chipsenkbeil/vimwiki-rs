@@ -1,6 +1,4 @@
-use super::{
-    Element, InlineElement, InlineElementContainer, TypedBlockElement, LE,
-};
+use super::{InlineElement, InlineElementContainer, TypedBlockElement, LE};
 use derive_more::{
     Constructor, Deref, DerefMut, From, Index, IndexMut, Into, IntoIterator,
 };
@@ -16,8 +14,6 @@ pub use item::*;
 pub struct List {
     pub items: Vec<LE<ListItem>>,
 }
-
-impl Element for List {}
 
 impl List {
     /// Normalizes the list by standardizing the item types based on the

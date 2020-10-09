@@ -1,4 +1,3 @@
-use super::Element;
 use derive_more::Constructor;
 use serde::{Deserialize, Serialize};
 
@@ -8,5 +7,3 @@ use serde::{Deserialize, Serialize};
 pub struct Blockquote {
     pub lines: Vec<String>,
 }
-
-impl Element for Blockquote {}

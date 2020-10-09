@@ -1,4 +1,3 @@
-use super::Element;
 use derive_more::{Constructor, Display};
 use serde::{Deserialize, Serialize};
 
@@ -16,5 +15,3 @@ use serde::{Deserialize, Serialize};
 pub struct CodeInline {
     pub code: String,
 }
-
-impl Element for CodeInline {}

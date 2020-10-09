@@ -1,4 +1,4 @@
-use super::{Element, LE};
+use super::LE;
 use derive_more::From;
 use paste::paste;
 use serde::{Deserialize, Serialize};
@@ -44,8 +44,6 @@ pub enum BlockElement {
     Table(Table),
 }
 
-impl Element for BlockElement {}
-
 macro_rules! le_mapping {
     ($type:ty) => {
         impl From<LE<$type>> for LE<BlockElement> {
@@ -72,12 +70,12 @@ le_mapping!(String);
 /// type it will be and can therefore convert to either the `BlockElement`
 /// or the inner type
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct TypedBlockElement<T: Element> {
+pub struct TypedBlockElement<T> {
     inner: BlockElement,
     phantom: PhantomData<T>,
 }
 
-impl<T: Element> TypedBlockElement<T> {
+impl<T> TypedBlockElement<T> {
     pub fn into_inner(self) -> BlockElement {
         self.inner
     }

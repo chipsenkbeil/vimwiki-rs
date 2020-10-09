@@ -1,4 +1,4 @@
-use super::{Element, InlineElementContainer};
+use super::InlineElementContainer;
 use derive_more::Constructor;
 use serde::{Deserialize, Serialize};
 
@@ -10,8 +10,6 @@ pub struct Header {
     pub content: InlineElementContainer,
     pub centered: bool,
 }
-
-impl Element for Header {}
 
 impl Header {
     /// Represents the smallest a header's level can be

@@ -1,4 +1,4 @@
-use super::{Element, Link, LE};
+use super::{Link, LE};
 use derive_more::{Display, From};
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -23,8 +23,6 @@ pub enum DecoratedText {
     Superscript(Vec<LE<DecoratedTextContent>>),
     Subscript(Vec<LE<DecoratedTextContent>>),
 }
-
-impl Element for DecoratedText {}
 
 impl DecoratedText {
     /// Converts to the underlying decorated text contents
@@ -61,5 +59,3 @@ pub enum Keyword {
     FIXED,
     XXX,
 }
-
-impl Element for Keyword {}
