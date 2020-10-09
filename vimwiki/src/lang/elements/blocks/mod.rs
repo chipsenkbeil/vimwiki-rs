@@ -30,14 +30,12 @@ pub use tables::*;
 /// Represents elements that are standalone (metaphorically a block element in CSS)
 #[derive(Clone, Debug, From, Eq, PartialEq, Serialize, Deserialize)]
 pub enum BlockElement {
-    BlankLine,
     Blockquote(Blockquote),
     DefinitionList(DefinitionList),
     Divider(Divider),
     Header(Header),
     List(List),
     Math(MathBlock),
-    NonBlankLine(String),
     Paragraph(Paragraph),
     Placeholder(Placeholder),
     PreformattedText(PreformattedText),
@@ -64,7 +62,6 @@ le_mapping!(MathBlock);
 le_mapping!(Blockquote);
 le_mapping!(Divider);
 le_mapping!(Placeholder);
-le_mapping!(String);
 
 /// Represents a wrapper around a `BlockElement` where we already know the
 /// type it will be and can therefore convert to either the `BlockElement`

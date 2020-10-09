@@ -1,9 +1,15 @@
 use super::{
-    elements::{self, Page},
-    utils::{self, context, le, range, scan, VimwikiIResult},
+    elements::{self, BlockElement, Comment, Page},
+    utils::{self, blank_line, context, le, range, scan, VimwikiIResult},
     Span, LE,
 };
-use nom::{combinator::all_consuming, multi::many0, InputLength, Slice};
+use nom::{
+    branch::alt,
+    combinator::{all_consuming, map, value},
+    multi::many0,
+    InputLength, Slice,
+};
+use std::ops::Range;
 
 pub mod blocks;
 pub mod comments;
@@ -17,8 +23,7 @@ pub fn page(input: Span) -> VimwikiIResult<LE<Page>> {
 
         // First, parse the page for comments and remove all from input,
         // skipping over any character that is not a comment
-        let (input, mut ranges_and_comments) =
-            context("Page Comments", scan(range(comments::comment)))(input)?;
+        let (input, mut ranges_and_comments) = page_comments(input)?;
 
         // Second, produce a new custom span that skips over commented regions
         let segments =
@@ -27,11 +32,7 @@ pub fn page(input: Span) -> VimwikiIResult<LE<Page>> {
 
         // Third, continuously parse input for new block elements until we
         // have nothing left (or we fail)
-        let (_, elements) = context(
-            "Page Elements",
-            // NOTE: all_consuming will yield an Eof error if input len != 0
-            all_consuming(many0(blocks::block_element)),
-        )(input_2)?;
+        let (_, elements) = page_elements(input_2)?;
 
         // Fourth, return a page wrapped in a location that comprises the
         // entire input
@@ -41,6 +42,32 @@ pub fn page(input: Span) -> VimwikiIResult<LE<Page>> {
     }
 
     context("Page", le(inner))(input)
+}
+
+fn page_comments(
+    input: Span,
+) -> VimwikiIResult<Vec<(Range<usize>, LE<Comment>)>> {
+    context("Page Comments", scan(range(comments::comment)))(input)
+}
+
+fn page_elements(input: Span) -> VimwikiIResult<Vec<LE<BlockElement>>> {
+    fn inner(input: Span) -> VimwikiIResult<Vec<LE<BlockElement>>> {
+        // Parses one or more lines, either eating blank lines or producing
+        // a block element
+        fn maybe_block_element(
+            input: Span,
+        ) -> VimwikiIResult<Option<LE<BlockElement>>> {
+            alt((value(None, blank_line), map(blocks::block_element, Some)))(
+                input,
+            )
+        }
+
+        map(all_consuming(many0(maybe_block_element)), |mut elements| {
+            elements.drain(..).flatten().collect()
+        })(input)
+    }
+
+    context("Page Elements", inner)(input)
 }
 
 #[cfg(test)]
@@ -56,15 +83,12 @@ mod tests {
     };
 
     #[test]
-    fn page_should_support_blank_lines() {
+    fn page_should_skip_blank_lines_not_within_block_elements() {
         let input = Span::from("\n\n");
         let (input, page) = page(input).unwrap();
         assert!(input.fragment().is_empty(), "Did not consume all of input");
         assert!(page.comments.is_empty());
-        assert_eq!(
-            page.elements,
-            vec![BlockElement::BlankLine, BlockElement::BlankLine]
-        );
+        assert!(page.elements.is_empty());
     }
 
     #[test]
@@ -80,10 +104,7 @@ mod tests {
                 Comment::from(LineComment("comment3".to_string())),
             ],
         );
-        assert_eq!(
-            page.elements,
-            vec![BlockElement::BlankLine, BlockElement::BlankLine]
-        );
+        assert!(page.elements.is_empty());
     }
 
     #[test]
@@ -133,10 +154,6 @@ mod tests {
         assert_eq!(comment.region, Region::from((2, 23, 3, 10)));
 
         let element = &page.elements[0];
-        assert_eq!(element.element, BlockElement::BlankLine);
-        assert_eq!(element.region, Region::from((1, 10, 1, 10)));
-
-        let element = &page.elements[1];
         assert_eq!(
             element.element,
             BlockElement::from(Paragraph::from(vec![LE::from(

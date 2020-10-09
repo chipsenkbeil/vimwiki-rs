@@ -2,7 +2,7 @@ use super::{
     blockquotes::blockquote,
     definitions::definition_list,
     dividers::divider,
-    elements::Paragraph,
+    elements::{InlineElementContainer, Paragraph},
     headers::header,
     inline::inline_element_container,
     lists::list,
@@ -14,7 +14,7 @@ use super::{
     Span, VimwikiIResult, LE,
 };
 use nom::{
-    character::complete::space1,
+    character::complete::space0,
     combinator::{map, not},
     multi::many1,
     sequence::delimited,
@@ -27,16 +27,13 @@ pub fn paragraph(input: Span) -> VimwikiIResult<LE<Paragraph>> {
         // Ensure that we are starting at the beginning of a line
         let (input, _) = beginning_of_line(input)?;
 
-        // Paragraph has NO indentation
-        let (input, _) = not(space1)(input)?;
-
         // Continuously take content until we encounter another type of
         // element
         let (input, elements) = context(
             "Paragraph",
             many1(delimited(
                 continue_paragraph,
-                map(inline_element_container, |c| c.element),
+                paragraph_line,
                 end_of_line_or_input,
             )),
         )(input)?;
@@ -48,6 +45,12 @@ pub fn paragraph(input: Span) -> VimwikiIResult<LE<Paragraph>> {
     }
 
     context("Paragraph", le(inner))(input)
+}
+
+fn paragraph_line(input: Span) -> VimwikiIResult<InlineElementContainer> {
+    let (input, _) = space0(input)?;
+
+    map(inline_element_container, |c| c.element)(input)
 }
 
 // TODO: Optimize by adjusting paragraph parser to be a tuple that
@@ -81,12 +84,6 @@ mod tests {
     #[test]
     fn paragraph_should_fail_if_on_blank_line() {
         let input = Span::from(" ");
-        assert!(paragraph(input).is_err());
-    }
-
-    #[test]
-    fn paragraph_should_fail_if_line_indented() {
-        let input = Span::from(" some text");
         assert!(paragraph(input).is_err());
     }
 
@@ -179,7 +176,6 @@ mod tests {
                     )))
                 ])),
                 InlineElement::Text(Text::from(",")),
-                InlineElement::Text(Text::from("  ")),
                 InlineElement::Link(Link::from(WikiLink::from(PathBuf::from(
                     "links"
                 )))),

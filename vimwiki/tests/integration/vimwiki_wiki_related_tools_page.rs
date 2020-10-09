@@ -1,7 +1,4 @@
-use super::{
-    fixtures::VimwikiFile,
-    utils::{blank_line, compare_page_elements},
-};
+use super::{fixtures::VimwikiFile, utils::compare_page_elements};
 use std::convert::TryInto;
 use vimwiki::{elements::*, RawStr, Region, LE};
 use vimwiki_macros::*;
@@ -16,8 +13,6 @@ fn test() {
         vimwiki_header!("= Related Tools =")
             .take_with_region(Region::from((1, 1, 1, 18)))
             .into(),
-        blank_line()
-            .take_with_region(Region::from((2, 1, 2, 1))),
         vimwiki_paragraph! {r#"
             This page contains Vim plugins and external tools that can be used with Vimwiki.
             These lists are incomplete so please _help update them_ if you know of something
@@ -25,13 +20,9 @@ fn test() {
         "#}
             .take_with_region(Region::from((3, 1, 5, 17)))
             .into(),
-        blank_line()
-            .take_with_region(Region::from((6, 1, 6, 1))),
         vimwiki_header!("== Vim Plugins ==")
             .take_with_region(Region::from((7, 1, 7, 18)))
             .into(),
-        blank_line()
-            .take_with_region(Region::from((8, 1, 8, 1))),
         vimwiki_list! {r#"
             - [[https://github.com/mattn/calendar-vim|calendar-vim]]
                 - Select a date to open a diary page.
@@ -58,13 +49,9 @@ fn test() {
         "#}
             .take_with_region(Region::from((9, 1, 30, 71)))
             .into(),
-        blank_line()
-            .take_with_region(Region::from((31, 1, 31, 1))),
         vimwiki_header!("== External Tools ==")
             .take_with_region(Region::from((32, 1, 32, 21)))
             .into(),
-        blank_line()
-            .take_with_region(Region::from((33, 1, 33, 1))),
         vimwiki_list! {r#"
             - [[https://github.com/vimwiki/vimwiki/blob/master/autoload/vimwiki/customwiki2html.sh|customwiki2html.sh]]
                 - Script available in the official repository to convert Markdown to HTML.

@@ -1,10 +1,5 @@
 use vimwiki::{elements::BlockElement, LE};
 
-#[inline]
-pub fn blank_line() -> LE<BlockElement> {
-    LE::from(BlockElement::BlankLine)
-}
-
 /// Compares top-level block elements from a page against an expected set
 pub fn compare_page_elements(
     actual: &[LE<BlockElement>],

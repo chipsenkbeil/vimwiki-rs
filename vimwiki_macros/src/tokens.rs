@@ -190,9 +190,6 @@ fn tokenize_page(page: &Page) -> TokenStream {
 fn tokenize_block_element(block_element: &BlockElement) -> TokenStream {
     let root = root_crate();
     match block_element {
-        BlockElement::BlankLine => {
-            quote! { #root::elements::BlockElement::BlankLine}
-        }
         BlockElement::Blockquote(x) => {
             let t = tokenize_blockquote(&x);
             quote! { #root::elements::BlockElement::Blockquote(#t) }
@@ -216,10 +213,6 @@ fn tokenize_block_element(block_element: &BlockElement) -> TokenStream {
         BlockElement::Math(x) => {
             let t = tokenize_math_block(&x);
             quote! { #root::elements::BlockElement::Math(#t) }
-        }
-        BlockElement::NonBlankLine(x) => {
-            let t = quote! { #x.quote() };
-            quote! { #root::elements::BlockElement::NonBlankLine(#t) }
         }
         BlockElement::Paragraph(x) => {
             let t = tokenize_paragraph(&x);

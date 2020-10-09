@@ -1,7 +1,4 @@
-use super::{
-    fixtures::VimwikiFile,
-    utils::{blank_line, compare_page_elements},
-};
+use super::{fixtures::VimwikiFile, utils::compare_page_elements};
 use std::convert::TryInto;
 use vimwiki::{elements::*, RawStr, Region, LE};
 use vimwiki_macros::*;
@@ -17,21 +14,15 @@ fn test() {
         vimwiki_header!("= Troubleshooting =")
             .take_with_region(Region::from((1, 1, 1, 20)))
             .into(),
-        blank_line()
-            .take_with_region(Region::from((2, 1, 2, 1))),
         vimwiki_header!("== Minimal Vimrc ==")
             .take_with_region(Region::from((3, 1, 3, 20)))
             .into(),
-        blank_line()
-            .take_with_region(Region::from((4, 1, 4, 1))),
         vimwiki_paragraph! {r#"
             These steps might help to determine if an issue is related to your
             setup/configuration or if the problem is a bug in Vimwiki.
         "#}
             .take_with_region(Region::from((5, 1, 6, 59)))
             .into(),
-        blank_line()
-            .take_with_region(Region::from((7, 1, 7, 1))),
         vimwiki_list! {r#"
             1. Clone a fresh copy of the `dev` branch.
                 {{{sh
