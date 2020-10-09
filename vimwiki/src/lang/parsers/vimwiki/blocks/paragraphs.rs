@@ -69,11 +69,11 @@ fn continue_paragraph(input: Span) -> VimwikiIResult<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::super::elements::{
-        DecoratedText, DecoratedTextContent, InlineElement, Link, MathInline,
-        WikiLink,
-    };
     use super::*;
+    use crate::elements::{
+        DecoratedText, DecoratedTextContent, InlineElement, Link, MathInline,
+        Text, WikiLink,
+    };
     use crate::lang::utils::Span;
     use indoc::indoc;
     use std::path::PathBuf;
@@ -105,19 +105,19 @@ mod tests {
                 .map(|c| c.element)
                 .collect::<Vec<InlineElement>>(),
             vec![
-                InlineElement::Text("Some paragraph with ".to_string()),
+                InlineElement::Text(Text::from("Some paragraph with ")),
                 InlineElement::DecoratedText(DecoratedText::Bold(vec![
-                    LE::from(DecoratedTextContent::Text(
-                        "decorations".to_string()
-                    ))
+                    LE::from(DecoratedTextContent::Text(Text::from(
+                        "decorations"
+                    )))
                 ])),
-                InlineElement::Text(", ".to_string()),
+                InlineElement::Text(Text::from(", ")),
                 InlineElement::Link(Link::from(WikiLink::from(PathBuf::from(
                     "links"
                 )))),
-                InlineElement::Text(", ".to_string()),
+                InlineElement::Text(Text::from(", ")),
                 InlineElement::Math(MathInline::new("math".to_string())),
-                InlineElement::Text(", and more".to_string()),
+                InlineElement::Text(Text::from(", and more")),
             ],
         );
     }
@@ -138,19 +138,19 @@ mod tests {
                 .map(|c| c.element)
                 .collect::<Vec<InlineElement>>(),
             vec![
-                InlineElement::Text("Some paragraph with ".to_string()),
+                InlineElement::Text(Text::from("Some paragraph with ")),
                 InlineElement::DecoratedText(DecoratedText::Bold(vec![
-                    LE::from(DecoratedTextContent::Text(
-                        "decorations".to_string()
-                    ))
+                    LE::from(DecoratedTextContent::Text(Text::from(
+                        "decorations"
+                    )))
                 ])),
-                InlineElement::Text(",".to_string()),
+                InlineElement::Text(Text::from(",")),
                 InlineElement::Link(Link::from(WikiLink::from(PathBuf::from(
                     "links"
                 )))),
-                InlineElement::Text(", ".to_string()),
+                InlineElement::Text(Text::from(", ")),
                 InlineElement::Math(MathInline::new("math".to_string())),
-                InlineElement::Text(", and more".to_string()),
+                InlineElement::Text(Text::from(", and more")),
             ],
         );
     }
@@ -172,20 +172,20 @@ mod tests {
                 .map(|c| c.element)
                 .collect::<Vec<InlineElement>>(),
             vec![
-                InlineElement::Text("Some paragraph with ".to_string()),
+                InlineElement::Text(Text::from("Some paragraph with ")),
                 InlineElement::DecoratedText(DecoratedText::Bold(vec![
-                    LE::from(DecoratedTextContent::Text(
-                        "decorations".to_string()
-                    ))
+                    LE::from(DecoratedTextContent::Text(Text::from(
+                        "decorations"
+                    )))
                 ])),
-                InlineElement::Text(",".to_string()),
-                InlineElement::Text("  ".to_string()),
+                InlineElement::Text(Text::from(",")),
+                InlineElement::Text(Text::from("  ")),
                 InlineElement::Link(Link::from(WikiLink::from(PathBuf::from(
                     "links"
                 )))),
-                InlineElement::Text(", ".to_string()),
+                InlineElement::Text(Text::from(", ")),
                 InlineElement::Math(MathInline::new("math".to_string())),
-                InlineElement::Text(", and more".to_string()),
+                InlineElement::Text(Text::from(", and more")),
             ],
         );
     }
@@ -212,19 +212,19 @@ mod tests {
                 .map(|c| c.element)
                 .collect::<Vec<InlineElement>>(),
             vec![
-                InlineElement::Text("Some paragraph with ".to_string()),
+                InlineElement::Text(Text::from("Some paragraph with ")),
                 InlineElement::DecoratedText(DecoratedText::Bold(vec![
-                    LE::from(DecoratedTextContent::Text(
-                        "decorations".to_string()
-                    ))
+                    LE::from(DecoratedTextContent::Text(Text::from(
+                        "decorations"
+                    )))
                 ],)),
-                InlineElement::Text(",".to_string()),
+                InlineElement::Text(Text::from(",")),
                 InlineElement::Link(Link::from(WikiLink::from(PathBuf::from(
                     "links"
                 )))),
-                InlineElement::Text(", ".to_string()),
+                InlineElement::Text(Text::from(", ")),
                 InlineElement::Math(MathInline::new("math".to_string())),
-                InlineElement::Text(", and more".to_string()),
+                InlineElement::Text(Text::from(", and more")),
             ],
         );
     }

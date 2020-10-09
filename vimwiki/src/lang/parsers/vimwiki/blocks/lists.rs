@@ -343,11 +343,11 @@ fn list_item_suffix_none(input: Span) -> VimwikiIResult<ListItemSuffix> {
 
 #[cfg(test)]
 mod tests {
-    use super::super::elements::{
-        DecoratedText, DecoratedTextContent, InlineElement, Keyword, Link,
-        MathInline, Tags, WikiLink,
-    };
     use super::*;
+    use crate::elements::{
+        DecoratedText, DecoratedTextContent, InlineElement, Keyword, Link,
+        MathInline, Tags, Text, WikiLink,
+    };
     use crate::lang::utils::Span;
     use indoc::indoc;
     use std::path::PathBuf;
@@ -367,7 +367,7 @@ mod tests {
             ListItemContent::InlineContent(c) => &c.elements[0].element,
             x => panic!("Unexpected list item content: {:?}", x),
         };
-        assert_eq!(element, &InlineElement::Text(text.to_string()));
+        assert_eq!(element, &InlineElement::Text(Text::from(text)));
     }
 
     #[test]
@@ -539,19 +539,19 @@ mod tests {
                 .inline_content_iter()
                 .collect::<Vec<&InlineElement>>(),
             vec![
-                &InlineElement::Text("list ".to_string()),
+                &InlineElement::Text(Text::from("list ")),
                 &InlineElement::DecoratedText(DecoratedText::Bold(vec![
-                    LE::from(DecoratedTextContent::Text("item 1".to_string()))
+                    LE::from(DecoratedTextContent::Text(Text::from("item 1")))
                 ])),
-                &InlineElement::Text(" has a ".to_string()),
+                &InlineElement::Text(Text::from(" has a ")),
                 &InlineElement::Link(Link::from(WikiLink::from(
                     PathBuf::from("link")
                 ))),
-                &InlineElement::Text(" with ".to_string()),
+                &InlineElement::Text(Text::from(" with ")),
                 &InlineElement::Tags(Tags::from("tag")),
-                &InlineElement::Text(" and ".to_string()),
+                &InlineElement::Text(Text::from(" and ")),
                 &InlineElement::Math(MathInline::new("formula".to_string())),
-                &InlineElement::Text(" is ".to_string()),
+                &InlineElement::Text(Text::from(" is ")),
                 &InlineElement::Keyword(Keyword::DONE),
             ]
         );
@@ -575,9 +575,9 @@ mod tests {
                 .inline_content_iter()
                 .collect::<Vec<&InlineElement>>(),
             vec![
-                &InlineElement::Text("list item 1".to_string()),
-                &InlineElement::Text("has extra content".to_string()),
-                &InlineElement::Text("on multiple lines".to_string()),
+                &InlineElement::Text(Text::from("list item 1")),
+                &InlineElement::Text(Text::from("has extra content")),
+                &InlineElement::Text(Text::from("on multiple lines")),
             ]
         );
     }
@@ -604,9 +604,9 @@ mod tests {
                 .inline_content_iter()
                 .collect::<Vec<&InlineElement>>(),
             vec![
-                &InlineElement::Text("list item 1".to_string()),
-                &InlineElement::Text("has extra content".to_string()),
-                &InlineElement::Text("on multiple lines".to_string()),
+                &InlineElement::Text(Text::from("list item 1")),
+                &InlineElement::Text(Text::from("has extra content")),
+                &InlineElement::Text(Text::from("on multiple lines")),
             ]
         );
 
@@ -620,8 +620,8 @@ mod tests {
                 .inline_content_iter()
                 .collect::<Vec<&InlineElement>>(),
             vec![
-                &InlineElement::Text("sublist item 1".to_string()),
-                &InlineElement::Text("has content".to_string()),
+                &InlineElement::Text(Text::from("sublist item 1")),
+                &InlineElement::Text(Text::from("has content")),
             ]
         );
 
@@ -630,7 +630,7 @@ mod tests {
                 .contents
                 .inline_content_iter()
                 .collect::<Vec<&InlineElement>>(),
-            vec![&InlineElement::Text("sublist item 2".to_string()),]
+            vec![&InlineElement::Text(Text::from("sublist item 2")),]
         );
     }
 
@@ -651,37 +651,37 @@ mod tests {
         assert!(l.items[0].is_todo_incomplete());
         assert_eq!(
             l.items[0].contents.inline_content_iter().next(),
-            Some(&InlineElement::Text("list item 1".to_string())),
+            Some(&InlineElement::Text(Text::from("list item 1"))),
         );
 
         assert!(l.items[1].is_todo_partially_complete_1());
         assert_eq!(
             l.items[1].contents.inline_content_iter().next(),
-            Some(&InlineElement::Text("list item 2".to_string())),
+            Some(&InlineElement::Text(Text::from("list item 2"))),
         );
 
         assert!(l.items[2].is_todo_partially_complete_2());
         assert_eq!(
             l.items[2].contents.inline_content_iter().next(),
-            Some(&InlineElement::Text("list item 3".to_string())),
+            Some(&InlineElement::Text(Text::from("list item 3"))),
         );
 
         assert!(l.items[3].is_todo_partially_complete_3());
         assert_eq!(
             l.items[3].contents.inline_content_iter().next(),
-            Some(&InlineElement::Text("list item 4".to_string())),
+            Some(&InlineElement::Text(Text::from("list item 4"))),
         );
 
         assert!(l.items[4].is_todo_complete());
         assert_eq!(
             l.items[4].contents.inline_content_iter().next(),
-            Some(&InlineElement::Text("list item 5".to_string())),
+            Some(&InlineElement::Text(Text::from("list item 5"))),
         );
 
         assert!(l.items[5].is_todo_rejected());
         assert_eq!(
             l.items[5].contents.inline_content_iter().next(),
-            Some(&InlineElement::Text("list item 6".to_string())),
+            Some(&InlineElement::Text(Text::from("list item 6"))),
         );
     }
 }

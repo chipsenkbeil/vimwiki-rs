@@ -11,11 +11,11 @@ pub struct Text {
     content: String,
 }
 
-impl From<LE<String>> for Text {
-    fn from(le: LE<String>) -> Self {
+impl From<LE<elements::Text>> for Text {
+    fn from(le: LE<elements::Text>) -> Self {
         Self {
             region: Region::from(le.region),
-            content: le.element,
+            content: le.element.into(),
         }
     }
 }
@@ -32,9 +32,9 @@ pub enum DecoratedTextContent {
 impl From<LE<elements::DecoratedTextContent>> for DecoratedTextContent {
     fn from(le: LE<elements::DecoratedTextContent>) -> Self {
         match le.element {
-            elements::DecoratedTextContent::Text(content) => Self::from(Text {
+            elements::DecoratedTextContent::Text(x) => Self::from(Text {
                 region: Region::from(le.region),
-                content,
+                content: x.into(),
             }),
             elements::DecoratedTextContent::Keyword(x) => Self::from(Keyword {
                 region: Region::from(le.region),

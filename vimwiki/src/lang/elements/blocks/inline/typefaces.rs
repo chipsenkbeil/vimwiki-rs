@@ -1,14 +1,37 @@
 use super::{Link, LE};
-use derive_more::{Display, From};
+use derive_more::{AsMut, AsRef, Constructor, Display, From, Into};
 use serde::{Deserialize, Serialize};
 use std::fmt;
+
+/// Represents plain text with no decorations or inline elements
+#[derive(
+    AsMut,
+    AsRef,
+    Constructor,
+    Clone,
+    Debug,
+    Display,
+    Into,
+    Eq,
+    PartialEq,
+    Hash,
+    Serialize,
+    Deserialize,
+)]
+pub struct Text(String);
+
+impl From<&str> for Text {
+    fn from(s: &str) -> Self {
+        Self::new(s.to_string())
+    }
+}
 
 /// Represents content that can be contained within a decoration
 #[derive(
     Clone, Debug, Display, From, Eq, PartialEq, Hash, Serialize, Deserialize,
 )]
 pub enum DecoratedTextContent {
-    Text(String),
+    Text(Text),
     Keyword(Keyword),
     Link(Link),
 }

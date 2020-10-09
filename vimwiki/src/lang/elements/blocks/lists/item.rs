@@ -380,7 +380,7 @@ pub struct ListItemAttributes {
 mod tests {
     use super::*;
     use crate::{
-        elements::{List, ListItemContent, TypedBlockElement},
+        elements::{List, ListItemContent, Text, TypedBlockElement},
         LE,
     };
 
@@ -531,7 +531,7 @@ mod tests {
     }
 
     fn make_content(text: &str) -> ListItemContents {
-        let le_text = LE::from(text.to_string());
+        let le_text = LE::from(Text::from(text));
         vec![LE::from(ListItemContent::InlineContent(le_text.into()))].into()
     }
 

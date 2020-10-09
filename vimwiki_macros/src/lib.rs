@@ -103,4 +103,4 @@ impl_macro_vimwiki!(table, LE<elements::Table>);
 impl_macro_vimwiki!(tags, LE<elements::Tags>);
 impl_macro_vimwiki!(decorated_text, LE<elements::DecoratedText>);
 impl_macro_vimwiki!(keyword, LE<elements::Keyword>);
-impl_macro_vimwiki!(string, LE<String>);
+impl_macro_vimwiki!(text, LE<elements::Text>);

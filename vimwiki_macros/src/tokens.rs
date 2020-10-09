@@ -1,8 +1,6 @@
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
-use std::collections::HashMap;
-use std::iter::once;
-use std::path::PathBuf;
+use std::{collections::HashMap, iter::once, path::PathBuf};
 use vimwiki::{
     elements::*,
     vendor::{chrono::NaiveDate, uriparse::URI},
@@ -166,6 +164,7 @@ impl_tokenize!(Tags, tokenize_tags);
 impl_tokenize!(Tag, tokenize_tag);
 
 // Typefaces
+impl_tokenize!(Text, tokenize_text);
 impl_tokenize!(DecoratedTextContent, tokenize_decorated_text_content);
 impl_tokenize!(DecoratedText, tokenize_decorated_text);
 impl_tokenize!(Keyword, tokenize_keyword);
@@ -260,7 +259,7 @@ fn tokenize_inline_element(inline_element: &InlineElement) -> TokenStream {
     let root = root_crate();
     match inline_element {
         InlineElement::Text(x) => {
-            let t = tokenize_string(&x);
+            let t = tokenize_text(&x);
             quote! { #root::elements::InlineElement::Text(#t) }
         }
         InlineElement::DecoratedText(x) => {
@@ -957,6 +956,14 @@ fn tokenize_tag(tag: &Tag) -> TokenStream {
 
 // Typefaces
 
+fn tokenize_text(text: &Text) -> TokenStream {
+    let root = root_crate();
+    let inner = tokenize_string(text.as_ref());
+    quote! {
+        #root::elements::Text::new(#inner)
+    }
+}
+
 fn tokenize_decorated_text_content(
     decorated_text_content: &DecoratedTextContent,
 ) -> TokenStream {
@@ -971,7 +978,7 @@ fn tokenize_decorated_text_content(
             quote! { #root::elements::DecoratedTextContent::Link(#t) }
         }
         DecoratedTextContent::Text(x) => {
-            let t = tokenize_string(&x);
+            let t = tokenize_text(&x);
             quote! { #root::elements::DecoratedTextContent::Text(#t) }
         }
     }

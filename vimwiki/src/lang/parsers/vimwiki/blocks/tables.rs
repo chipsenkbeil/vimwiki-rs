@@ -94,15 +94,15 @@ fn cell_span_above(input: Span) -> VimwikiIResult<Cell> {
 
 #[cfg(test)]
 mod tests {
-    use super::super::elements::{InlineElement, Link, WikiLink};
     use super::*;
+    use crate::elements::{InlineElement, Link, Text, WikiLink};
     use crate::lang::utils::Span;
     use indoc::indoc;
     use std::path::PathBuf;
 
     fn check_cell_text_value(cell: &Cell, value: &str) {
         check_cell_value(cell, |c| {
-            assert_eq!(c, &InlineElement::Text(value.to_string()));
+            assert_eq!(c, &InlineElement::Text(Text::from(value)));
         });
     }
 

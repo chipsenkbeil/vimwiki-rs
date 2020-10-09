@@ -101,7 +101,9 @@ impl From<Vec<TermAndDefinitions>> for DefinitionList {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::elements::{DecoratedText, DecoratedTextContent, InlineElement};
+    use crate::elements::{
+        DecoratedText, DecoratedTextContent, InlineElement, Text,
+    };
 
     #[test]
     fn term_and_definitions_should_equal_other_instance_if_names_are_same() {
@@ -212,11 +214,11 @@ mod tests {
         let dl = DefinitionList::from(vec![TermAndDefinitions::new(
             Term::new(vec![
                 LE::from(InlineElement::DecoratedText(DecoratedText::Bold(
-                    vec![LE::from(DecoratedTextContent::Text(
-                        "term".to_string(),
-                    ))],
+                    vec![LE::from(DecoratedTextContent::Text(Text::from(
+                        "term",
+                    )))],
                 ))),
-                LE::from(InlineElement::Text(" 1".to_string())),
+                LE::from(InlineElement::Text(Text::from(" 1"))),
             ]),
             vec![Definition::from(LE::from("definition"))],
         )]);

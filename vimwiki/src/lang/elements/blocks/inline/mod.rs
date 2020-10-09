@@ -22,7 +22,7 @@ pub use typefaces::*;
     Clone, Debug, Display, From, Eq, PartialEq, Hash, Serialize, Deserialize,
 )]
 pub enum InlineElement {
-    Text(String),
+    Text(Text),
     DecoratedText(DecoratedText),
     Keyword(Keyword),
     Link(Link),
@@ -76,7 +76,7 @@ impl From<LE<InlineElement>> for InlineElementContainer {
 
 impl From<LE<&str>> for InlineElementContainer {
     fn from(element: LE<&str>) -> Self {
-        Self::from(element.map(|x| x.to_string()))
+        Self::from(element.map(|x| Text::new(x.to_string())))
     }
 }
 
@@ -92,7 +92,7 @@ macro_rules! container_mapping {
 
 container_mapping!(LE<CodeInline>);
 container_mapping!(LE<MathInline>);
-container_mapping!(LE<String>);
+container_mapping!(LE<Text>);
 container_mapping!(LE<DecoratedText>);
 container_mapping!(LE<Keyword>);
 container_mapping!(LE<Link>);

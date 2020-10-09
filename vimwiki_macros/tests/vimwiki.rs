@@ -14,7 +14,7 @@ fn vimwiki_page() {
         Page::new(
             vec![LE::from(BlockElement::Paragraph(Paragraph::new(
                 InlineElementContainer::new(vec![LE::from(
-                    InlineElement::Text("some text".to_string())
+                    InlineElement::Text(Text::from("some text"))
                 )])
             )))],
             vec![]
@@ -28,7 +28,7 @@ fn vimwiki_block_element() {
     assert_eq!(
         x.element,
         BlockElement::Paragraph(Paragraph::new(InlineElementContainer::new(
-            vec![LE::from(InlineElement::Text("some text".to_string()))]
+            vec![LE::from(InlineElement::Text(Text::from("some text")))]
         )))
     );
 }
@@ -39,7 +39,7 @@ fn vimwiki_inline_element_container() {
     assert_eq!(
         x.element,
         InlineElementContainer::new(vec![LE::from(InlineElement::Text(
-            "some text".to_string()
+            Text::from("some text")
         ))])
     );
 }
@@ -47,7 +47,7 @@ fn vimwiki_inline_element_container() {
 #[test]
 fn vimwiki_inline_element() {
     let x = vimwiki_inline_element!("some text");
-    assert_eq!(x.element, InlineElement::Text("some text".to_string()));
+    assert_eq!(x.element, InlineElement::Text(Text::from("some text")));
 }
 
 #[test]
@@ -87,10 +87,10 @@ fn vimwiki_definition_list() {
         x.element,
         DefinitionList::from(vec![TermAndDefinitions::new(
             InlineElementContainer::new(vec![LE::from(InlineElement::from(
-                "term".to_string()
+                Text::from("term")
             ))]),
             vec![InlineElementContainer::new(vec![LE::from(
-                InlineElement::from("definition".to_string())
+                InlineElement::from(Text::from("definition"))
             )])],
         )])
     );
@@ -110,7 +110,7 @@ fn vimwiki_header() {
         Header::new(
             1,
             InlineElementContainer::new(vec![LE::from(InlineElement::from(
-                "header".to_string()
+                Text::from("header")
             ))]),
             false
         )
@@ -201,7 +201,7 @@ fn vimwiki_list() {
                 ListItemContents::new(vec![LE::from(
                     ListItemContent::InlineContent(
                         InlineElementContainer::new(vec![LE::from(
-                            InlineElement::Text("some list item".to_string())
+                            InlineElement::Text(Text::from("some list item"))
                         )])
                     )
                 )]),
@@ -214,9 +214,9 @@ fn vimwiki_list() {
                 ListItemContents::new(vec![
                     LE::from(ListItemContent::InlineContent(
                         InlineElementContainer::new(vec![LE::from(
-                            InlineElement::Text(
-                                "some other list item".to_string()
-                            )
+                            InlineElement::Text(Text::from(
+                                "some other list item"
+                            ))
                         )])
                     )),
                     LE::from(ListItemContent::List(
@@ -231,7 +231,7 @@ fn vimwiki_list() {
                                     ListItemContent::InlineContent(
                                         InlineElementContainer::new(vec![
                                             LE::from(InlineElement::Text(
-                                                "sub list item".to_string()
+                                                Text::from("sub list item")
                                             ))
                                         ])
                                     )
@@ -258,9 +258,9 @@ fn vimwiki_list_raw() {
             0,
             ListItemContents::new(vec![LE::from(
                 ListItemContent::InlineContent(InlineElementContainer::new(
-                    vec![LE::from(InlineElement::Text(
-                        "some list item".to_string()
-                    ))]
+                    vec![LE::from(InlineElement::Text(Text::from(
+                        "some list item"
+                    )))]
                 ))
             )]),
             ListItemAttributes::default(),
@@ -307,7 +307,7 @@ fn vimwiki_paragraph() {
     assert_eq!(
         x.element,
         Paragraph::new(InlineElementContainer::new(vec![LE::from(
-            InlineElement::Text("some text".to_string())
+            InlineElement::Text(Text::from("some text"))
         )]))
     );
 }
@@ -377,7 +377,7 @@ fn vimwiki_table() {
             vec![LE::from(Row::Content {
                 cells: vec![LE::from(Cell::Content(
                     InlineElementContainer::new(vec![LE::from(
-                        InlineElement::Text("cell".to_string())
+                        InlineElement::Text(Text::from("cell"))
                     )])
                 ))],
             })],
@@ -393,9 +393,9 @@ fn vimwiki_tags() {
 }
 
 #[test]
-fn vimwiki_string() {
-    let x = vimwiki_string!("some text");
-    assert_eq!(x.element, "some text".to_string());
+fn vimwiki_text() {
+    let x = vimwiki_text!("some text");
+    assert_eq!(x.element, Text::from("some text"));
 }
 
 #[test]
@@ -404,7 +404,7 @@ fn vimwiki_decorated_text_bold() {
     assert_eq!(
         x.element,
         DecoratedText::Bold(vec![LE::from(DecoratedTextContent::Text(
-            "some text".to_string()
+            Text::from("some text")
         ))],)
     );
 }
@@ -415,7 +415,7 @@ fn vimwiki_decorated_text_bolditalic_1() {
     assert_eq!(
         x.element,
         DecoratedText::BoldItalic(vec![LE::from(DecoratedTextContent::Text(
-            "some text".to_string()
+            Text::from("some text")
         ))],)
     );
 }
@@ -426,7 +426,7 @@ fn vimwiki_decorated_text_bolditalic_2() {
     assert_eq!(
         x.element,
         DecoratedText::BoldItalic(vec![LE::from(DecoratedTextContent::Text(
-            "some text".to_string()
+            Text::from("some text")
         ))],)
     );
 }
@@ -437,7 +437,7 @@ fn vimwiki_decorated_text_italic() {
     assert_eq!(
         x.element,
         DecoratedText::Italic(vec![LE::from(DecoratedTextContent::Text(
-            "some text".to_string()
+            Text::from("some text")
         ))],)
     );
 }
@@ -448,7 +448,7 @@ fn vimwiki_decorated_text_strikeout() {
     assert_eq!(
         x.element,
         DecoratedText::Strikeout(vec![LE::from(DecoratedTextContent::Text(
-            "some text".to_string()
+            Text::from("some text")
         ))],)
     );
 }
@@ -459,7 +459,7 @@ fn vimwiki_decorated_text_superscript() {
     assert_eq!(
         x.element,
         DecoratedText::Superscript(vec![LE::from(DecoratedTextContent::Text(
-            "some text".to_string()
+            Text::from("some text")
         ))],)
     );
 }
@@ -470,7 +470,7 @@ fn vimwiki_decorated_text_subscript() {
     assert_eq!(
         x.element,
         DecoratedText::Subscript(vec![LE::from(DecoratedTextContent::Text(
-            "some text".to_string()
+            Text::from("some text")
         ))],)
     );
 }

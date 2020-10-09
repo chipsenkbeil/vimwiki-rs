@@ -1,6 +1,6 @@
 use super::{
     code::code_inline,
-    elements::{DecoratedText, DecoratedTextContent, Keyword},
+    elements::{DecoratedText, DecoratedTextContent, Keyword, Text},
     links::link,
     math::math_inline,
     tags::tags,
@@ -16,7 +16,7 @@ use nom::{
 };
 
 #[inline]
-pub fn text(input: Span) -> VimwikiIResult<LE<String>> {
+pub fn text(input: Span) -> VimwikiIResult<LE<Text>> {
     fn is_text(input: Span) -> VimwikiIResult<()> {
         let (input, _) = not(code_inline)(input)?;
         let (input, _) = not(math_inline)(input)?;
@@ -27,7 +27,10 @@ pub fn text(input: Span) -> VimwikiIResult<LE<String>> {
         Ok((input, ()))
     }
 
-    context("Text", le(pstring(take_line_while1(is_text))))(input)
+    context(
+        "Text",
+        le(map(pstring(take_line_while1(is_text)), Text::new)),
+    )(input)
 }
 
 #[inline]
@@ -51,8 +54,8 @@ pub fn decorated_text(input: Span) -> VimwikiIResult<LE<DecoratedText>> {
 
             fn other(
                 end: &'static str,
-            ) -> impl Fn(Span) -> VimwikiIResult<LE<String>> {
-                le(pstring(take_line_while1(is_other(end))))
+            ) -> impl Fn(Span) -> VimwikiIResult<LE<Text>> {
+                le(map(pstring(take_line_while1(is_other(end))), Text::new))
             }
 
             let (input, _) = tag(start)(input)?;
@@ -122,7 +125,7 @@ mod tests {
             "$math$",
             "Unexpected input consumption"
         );
-        assert_eq!(&t.element, "abc123");
+        assert_eq!(t.element, Text::from("abc123"));
     }
 
     #[test]
@@ -134,7 +137,7 @@ mod tests {
             ":tag:",
             "Unexpected input consumption"
         );
-        assert_eq!(&t.element, "abc123");
+        assert_eq!(t.element, Text::from("abc123"));
     }
 
     #[test]
@@ -146,7 +149,7 @@ mod tests {
             "[[some link]]",
             "Unexpected input consumption"
         );
-        assert_eq!(&t.element, "abc123");
+        assert_eq!(t.element, Text::from("abc123"));
     }
 
     #[test]
@@ -158,7 +161,7 @@ mod tests {
             "*bold text*",
             "Unexpected input consumption"
         );
-        assert_eq!(&t.element, "abc123");
+        assert_eq!(t.element, Text::from("abc123"));
     }
 
     #[test]
@@ -170,7 +173,7 @@ mod tests {
             "TODO",
             "Unexpected input consumption"
         );
-        assert_eq!(&t.element, "abc123 ");
+        assert_eq!(t.element, Text::from("abc123 "));
     }
 
     #[test]
@@ -182,7 +185,7 @@ mod tests {
             "\nsome other text",
             "Unexpected input consumption"
         );
-        assert_eq!(&t.element, "abc123");
+        assert_eq!(t.element, Text::from("abc123"));
     }
 
     #[test]
@@ -190,7 +193,7 @@ mod tests {
         let input = Span::from("abc123");
         let (input, t) = text(input).unwrap();
         assert_eq!(input.fragment_str(), "", "Unexpected input consumption");
-        assert_eq!(&t.element, "abc123");
+        assert_eq!(t.element, Text::from("abc123"));
     }
 
     #[test]
@@ -216,7 +219,7 @@ mod tests {
         assert_eq!(
             dt.element,
             DecoratedText::Bold(vec![LE::from(DecoratedTextContent::Text(
-                "bold text".to_string()
+                Text::from("bold text")
             ))])
         );
     }
@@ -232,7 +235,7 @@ mod tests {
         assert_eq!(
             dt.element,
             DecoratedText::Italic(vec![LE::from(DecoratedTextContent::Text(
-                "italic text".to_string()
+                Text::from("italic text")
             ))])
         );
     }
@@ -248,7 +251,7 @@ mod tests {
         assert_eq!(
             dt.element,
             DecoratedText::BoldItalic(vec![LE::from(
-                DecoratedTextContent::Text("bold italic text".to_string())
+                DecoratedTextContent::Text(Text::from("bold italic text"))
             )])
         );
     }
@@ -264,7 +267,7 @@ mod tests {
         assert_eq!(
             dt.element,
             DecoratedText::BoldItalic(vec![LE::from(
-                DecoratedTextContent::Text("bold italic text".to_string())
+                DecoratedTextContent::Text(Text::from("bold italic text"))
             )])
         );
     }
@@ -280,7 +283,7 @@ mod tests {
         assert_eq!(
             dt.element,
             DecoratedText::Strikeout(vec![LE::from(
-                DecoratedTextContent::Text("strikeout text".to_string())
+                DecoratedTextContent::Text(Text::from("strikeout text"))
             )])
         );
     }
@@ -296,7 +299,7 @@ mod tests {
         assert_eq!(
             dt.element,
             DecoratedText::Superscript(vec![LE::from(
-                DecoratedTextContent::Text("superscript text".to_string())
+                DecoratedTextContent::Text(Text::from("superscript text"))
             )])
         );
     }
@@ -312,7 +315,7 @@ mod tests {
         assert_eq!(
             dt.element,
             DecoratedText::Subscript(vec![LE::from(
-                DecoratedTextContent::Text("subscript text".to_string())
+                DecoratedTextContent::Text(Text::from("subscript text"))
             )])
         );
     }

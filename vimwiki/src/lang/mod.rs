@@ -138,7 +138,7 @@ impl_try_from!(LE<Table>, vimwiki::blocks::tables::table);
 impl_try_from!(LE<Tags>, vimwiki::blocks::inline::tags::tags);
 
 // Typefaces
-impl_try_from!(LE<String>, vimwiki::blocks::inline::typefaces::text);
+impl_try_from!(LE<Text>, vimwiki::blocks::inline::typefaces::text);
 impl_try_from!(
     LE<DecoratedText>,
     vimwiki::blocks::inline::typefaces::decorated_text
@@ -339,10 +339,9 @@ mod tests {
         }
 
         #[test]
-        fn try_from_raw_str_to_le_string() {
+        fn try_from_raw_str_to_le_text() {
             let input = RawStr::Vimwiki("some text");
-            let _result: LE<String> =
-                input.try_into().expect("Failed to parse");
+            let _result: LE<Text> = input.try_into().expect("Failed to parse");
         }
 
         #[test]

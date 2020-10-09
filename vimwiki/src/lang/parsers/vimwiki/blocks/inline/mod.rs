@@ -49,7 +49,7 @@ mod tests {
     use crate::{
         elements::{
             CodeInline, DecoratedText, DecoratedTextContent, InlineElement,
-            Keyword, Link, MathInline, Tags, WikiLink,
+            Keyword, Link, MathInline, Tags, Text, WikiLink,
         },
         lang::utils::Span,
     };
@@ -70,19 +70,19 @@ mod tests {
                 .collect::<Vec<InlineElement>>(),
             vec![
                 InlineElement::DecoratedText(DecoratedText::Bold(vec![
-                    LE::from(DecoratedTextContent::Text("item 1".to_string()))
+                    LE::from(DecoratedTextContent::Text(Text::from("item 1")))
                 ],)),
-                InlineElement::Text(" has a ".to_string()),
+                InlineElement::Text(Text::from(" has a ")),
                 InlineElement::Link(Link::from(WikiLink::from(PathBuf::from(
                     "link"
                 )))),
-                InlineElement::Text(" with ".to_string()),
+                InlineElement::Text(Text::from(" with ")),
                 InlineElement::Code(CodeInline::new("code".to_string())),
-                InlineElement::Text(" and ".to_string()),
+                InlineElement::Text(Text::from(" and ")),
                 InlineElement::Tags(Tags::from("tag")),
-                InlineElement::Text(" and ".to_string()),
+                InlineElement::Text(Text::from(" and ")),
                 InlineElement::Math(MathInline::new("formula".to_string())),
-                InlineElement::Text(" is ".to_string()),
+                InlineElement::Text(Text::from(" is ")),
                 InlineElement::Keyword(Keyword::DONE),
             ]
         );

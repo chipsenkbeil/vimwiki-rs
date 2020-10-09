@@ -49,7 +49,7 @@ mod tests {
     use crate::{
         elements::{
             BlockElement, Comment, InlineElement, LineComment,
-            MultiLineComment, Paragraph,
+            MultiLineComment, Paragraph, Text,
         },
         lang::utils::Span,
         Region,
@@ -95,7 +95,7 @@ mod tests {
         assert_eq!(
             page.elements,
             vec![BlockElement::from(Paragraph::from(vec![LE::from(
-                InlineElement::Text("some text with % signs".to_string())
+                InlineElement::Text(Text::from("some text with % signs"))
             )]))]
         );
     }
@@ -140,7 +140,7 @@ mod tests {
         assert_eq!(
             element.element,
             BlockElement::from(Paragraph::from(vec![LE::from(
-                InlineElement::Text("Some more text".to_string())
+                InlineElement::Text(Text::from("Some more text"))
             )]))
         );
         assert_eq!(element.region, Region::from((2, 1, 3, 15)));
