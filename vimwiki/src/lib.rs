@@ -1,7 +1,7 @@
 mod lang;
-mod search;
+mod tree;
 
-pub use search::{ElementNode, ElementRef};
+pub use tree::{ElementNode, ElementRef, ElementTree};
 
 // Export the language elements without dumping them into the top leve
 pub use lang::elements;
