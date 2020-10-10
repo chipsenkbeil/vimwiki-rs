@@ -70,7 +70,7 @@ mod tests {
                 .collect::<Vec<InlineElement>>(),
             vec![
                 InlineElement::DecoratedText(DecoratedText::Bold(vec![
-                    LE::from(DecoratedTextContent::Text(Text::from("item 1")))
+                    LE::from(DecoratedTextContent::from(Text::from("item 1")))
                 ],)),
                 InlineElement::Text(Text::from(" has a ")),
                 InlineElement::Link(Link::from(WikiLink::from(PathBuf::from(

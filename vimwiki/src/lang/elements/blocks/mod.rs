@@ -97,21 +97,21 @@ macro_rules! typed_block_element_impl {
                     }
                 }
 
-                pub fn [<into_ $name>](self) -> $type {
+                pub fn into_typed(self) -> $type {
                     match self.inner {
                         BlockElement::$variant(x) => x,
                         _ => unreachable!(),
                     }
                 }
 
-                pub fn [<as_ $name>](&self) -> &$type {
+                pub fn as_typed(&self) -> &$type {
                     match self.inner {
                         BlockElement::$variant(ref x) => x,
                         _ => unreachable!(),
                     }
                 }
 
-                pub fn [<as_mut_ $name>](&mut self) -> &mut $type {
+                pub fn as_mut_typed(&mut self) -> &mut $type {
                     match self.inner {
                         BlockElement::$variant(ref mut x) => x,
                         _ => unreachable!(),

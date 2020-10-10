@@ -110,14 +110,14 @@ impl ListItemContents {
 
     pub fn sublist_iter(&self) -> impl Iterator<Item = &List> + '_ {
         self.contents.iter().flat_map(|c| match &c.element {
-            ListItemContent::List(x) => Some(x.as_list()),
+            ListItemContent::List(x) => Some(x.as_typed()),
             _ => None,
         })
     }
 
     pub fn sublist_iter_mut(&mut self) -> impl Iterator<Item = &mut List> + '_ {
         self.contents.iter_mut().flat_map(|c| match &mut c.element {
-            ListItemContent::List(x) => Some(x.as_mut_list()),
+            ListItemContent::List(x) => Some(x.as_mut_typed()),
             _ => None,
         })
     }

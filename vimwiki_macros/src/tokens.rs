@@ -282,6 +282,36 @@ fn tokenize_inline_element(inline_element: &InlineElement) -> TokenStream {
     }
 }
 
+fn tokenize_typed_inline_element_of_text(
+    typed_inline_element: &TypedInlineElement<Text>,
+) -> TokenStream {
+    let root = root_crate();
+    let inner = tokenize_text(typed_inline_element.as_typed());
+    quote! {
+        #root::elements::TypedInlineElement::from_text(#inner)
+    }
+}
+
+fn tokenize_typed_inline_element_of_keyword(
+    typed_inline_element: &TypedInlineElement<Keyword>,
+) -> TokenStream {
+    let root = root_crate();
+    let inner = tokenize_keyword(typed_inline_element.as_typed());
+    quote! {
+        #root::elements::TypedInlineElement::from_keyword(#inner)
+    }
+}
+
+fn tokenize_typed_inline_element_of_link(
+    typed_inline_element: &TypedInlineElement<Link>,
+) -> TokenStream {
+    let root = root_crate();
+    let inner = tokenize_link(typed_inline_element.as_typed());
+    quote! {
+        #root::elements::TypedInlineElement::from_link(#inner)
+    }
+}
+
 // Blockquotes
 fn tokenize_blockquote(blockquote: &Blockquote) -> TokenStream {
     let root = root_crate();
@@ -963,15 +993,15 @@ fn tokenize_decorated_text_content(
     let root = root_crate();
     match &decorated_text_content {
         DecoratedTextContent::Keyword(x) => {
-            let t = tokenize_keyword(&x);
+            let t = tokenize_typed_inline_element_of_keyword(&x);
             quote! { #root::elements::DecoratedTextContent::Keyword(#t) }
         }
         DecoratedTextContent::Link(x) => {
-            let t = tokenize_link(&x);
+            let t = tokenize_typed_inline_element_of_link(&x);
             quote! { #root::elements::DecoratedTextContent::Link(#t) }
         }
         DecoratedTextContent::Text(x) => {
-            let t = tokenize_text(&x);
+            let t = tokenize_typed_inline_element_of_text(&x);
             quote! { #root::elements::DecoratedTextContent::Text(#t) }
         }
     }
@@ -1097,7 +1127,7 @@ fn tokenize_typed_block_element_of_list(
     typed_block_element: &TypedBlockElement<List>,
 ) -> TokenStream {
     let root = root_crate();
-    let inner = tokenize_list(typed_block_element.as_list());
+    let inner = tokenize_list(typed_block_element.as_typed());
     quote! {
         #root::elements::TypedBlockElement::from_list(#inner)
     }

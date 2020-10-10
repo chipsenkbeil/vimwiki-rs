@@ -1,4 +1,4 @@
-use super::{Link, LE};
+use super::{InlineElement, Link, TypedInlineElement, LE};
 use derive_more::{AsMut, AsRef, Constructor, Display, From, Into};
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -31,9 +31,53 @@ impl From<&str> for Text {
     Clone, Debug, Display, From, Eq, PartialEq, Hash, Serialize, Deserialize,
 )]
 pub enum DecoratedTextContent {
-    Text(Text),
-    Keyword(Keyword),
-    Link(Link),
+    Text(TypedInlineElement<Text>),
+    Keyword(TypedInlineElement<Keyword>),
+    Link(TypedInlineElement<Link>),
+}
+
+impl DecoratedTextContent {
+    pub fn as_inline_element(&self) -> &InlineElement {
+        match self {
+            Self::Text(ref x) => x.as_inner(),
+            Self::Keyword(ref x) => x.as_inner(),
+            Self::Link(ref x) => x.as_inner(),
+        }
+    }
+
+    pub fn as_mut_inline_element(&mut self) -> &mut InlineElement {
+        match self {
+            Self::Text(ref mut x) => x.as_mut_inner(),
+            Self::Keyword(ref mut x) => x.as_mut_inner(),
+            Self::Link(ref mut x) => x.as_mut_inner(),
+        }
+    }
+
+    pub fn into_inline_element(self) -> InlineElement {
+        match self {
+            Self::Text(x) => x.into_inner(),
+            Self::Keyword(x) => x.into_inner(),
+            Self::Link(x) => x.into_inner(),
+        }
+    }
+}
+
+impl From<Text> for DecoratedTextContent {
+    fn from(text: Text) -> Self {
+        Self::from(TypedInlineElement::from_text(text))
+    }
+}
+
+impl From<Keyword> for DecoratedTextContent {
+    fn from(keyword: Keyword) -> Self {
+        Self::from(TypedInlineElement::from_keyword(keyword))
+    }
+}
+
+impl From<Link> for DecoratedTextContent {
+    fn from(link: Link) -> Self {
+        Self::from(TypedInlineElement::from_link(link))
+    }
 }
 
 /// Represents text (series of content) with a typeface decoration
@@ -64,7 +108,7 @@ impl DecoratedText {
 impl fmt::Display for DecoratedText {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for content in self.as_contents().iter() {
-            write!(f, "{}", content.element.to_string())?;
+            write!(f, "{}", content.to_string())?;
         }
         Ok(())
     }

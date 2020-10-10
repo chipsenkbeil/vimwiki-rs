@@ -141,7 +141,7 @@ impl From<LE<elements::ListItemContent>> for ListItemContent {
                 })
             }
             elements::ListItemContent::List(x) => {
-                Self::List(List::from(LE::new(x.into_list(), le.region)))
+                Self::List(List::from(LE::new(x.into_typed(), le.region)))
             }
         }
     }

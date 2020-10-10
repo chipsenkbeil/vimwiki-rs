@@ -1,13 +1,22 @@
 use super::{Region, Span};
-use derive_more::{Constructor, Deref, DerefMut};
+use derive_more::{Constructor, Deref, DerefMut, Display};
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 
 /// Represents an encapsulation of a language element and its location
 /// within some string/file
 #[derive(
-    Constructor, Clone, Debug, Deref, DerefMut, Eq, Serialize, Deserialize,
+    Constructor,
+    Clone,
+    Debug,
+    Display,
+    Deref,
+    DerefMut,
+    Eq,
+    Serialize,
+    Deserialize,
 )]
+#[display(fmt = "{}", element)]
 pub struct LocatedElement<T> {
     #[deref]
     #[deref_mut]

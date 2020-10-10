@@ -218,7 +218,7 @@ mod tests {
         );
         assert_eq!(
             dt.element,
-            DecoratedText::Bold(vec![LE::from(DecoratedTextContent::Text(
+            DecoratedText::Bold(vec![LE::from(DecoratedTextContent::from(
                 Text::from("bold text")
             ))])
         );
@@ -234,7 +234,7 @@ mod tests {
         );
         assert_eq!(
             dt.element,
-            DecoratedText::Italic(vec![LE::from(DecoratedTextContent::Text(
+            DecoratedText::Italic(vec![LE::from(DecoratedTextContent::from(
                 Text::from("italic text")
             ))])
         );
@@ -251,7 +251,7 @@ mod tests {
         assert_eq!(
             dt.element,
             DecoratedText::BoldItalic(vec![LE::from(
-                DecoratedTextContent::Text(Text::from("bold italic text"))
+                DecoratedTextContent::from(Text::from("bold italic text"))
             )])
         );
     }
@@ -267,7 +267,7 @@ mod tests {
         assert_eq!(
             dt.element,
             DecoratedText::BoldItalic(vec![LE::from(
-                DecoratedTextContent::Text(Text::from("bold italic text"))
+                DecoratedTextContent::from(Text::from("bold italic text"))
             )])
         );
     }
@@ -283,7 +283,7 @@ mod tests {
         assert_eq!(
             dt.element,
             DecoratedText::Strikeout(vec![LE::from(
-                DecoratedTextContent::Text(Text::from("strikeout text"))
+                DecoratedTextContent::from(Text::from("strikeout text"))
             )])
         );
     }
@@ -299,7 +299,7 @@ mod tests {
         assert_eq!(
             dt.element,
             DecoratedText::Superscript(vec![LE::from(
-                DecoratedTextContent::Text(Text::from("superscript text"))
+                DecoratedTextContent::from(Text::from("superscript text"))
             )])
         );
     }
@@ -315,7 +315,7 @@ mod tests {
         assert_eq!(
             dt.element,
             DecoratedText::Subscript(vec![LE::from(
-                DecoratedTextContent::Text(Text::from("subscript text"))
+                DecoratedTextContent::from(Text::from("subscript text"))
             )])
         );
     }
@@ -330,7 +330,7 @@ mod tests {
         );
         assert_eq!(
             dt.element,
-            DecoratedText::Bold(vec![LE::from(DecoratedTextContent::Link(
+            DecoratedText::Bold(vec![LE::from(DecoratedTextContent::from(
                 Link::Wiki(WikiLink::from(PathBuf::from("some link")))
             ))])
         );
@@ -346,7 +346,7 @@ mod tests {
         );
         assert_eq!(
             dt.element,
-            DecoratedText::Bold(vec![LE::from(DecoratedTextContent::Keyword(
+            DecoratedText::Bold(vec![LE::from(DecoratedTextContent::from(
                 Keyword::TODO
             ))])
         );

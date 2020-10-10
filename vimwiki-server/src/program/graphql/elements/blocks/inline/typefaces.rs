@@ -34,14 +34,14 @@ impl From<LE<elements::DecoratedTextContent>> for DecoratedTextContent {
         match le.element {
             elements::DecoratedTextContent::Text(x) => Self::from(Text {
                 region: Region::from(le.region),
-                content: x.into(),
+                content: x.into_typed().into(),
             }),
             elements::DecoratedTextContent::Keyword(x) => Self::from(Keyword {
                 region: Region::from(le.region),
-                r#type: KeywordType::from(x),
+                r#type: KeywordType::from(x.into_typed()),
             }),
             elements::DecoratedTextContent::Link(x) => {
-                Self::from(Link::from(LE::new(x, le.region)))
+                Self::from(Link::from(LE::new(x.into_typed(), le.region)))
             }
         }
     }

@@ -104,7 +104,7 @@ mod tests {
             vec![
                 InlineElement::Text(Text::from("Some paragraph with ")),
                 InlineElement::DecoratedText(DecoratedText::Bold(vec![
-                    LE::from(DecoratedTextContent::Text(Text::from(
+                    LE::from(DecoratedTextContent::from(Text::from(
                         "decorations"
                     )))
                 ])),
@@ -137,7 +137,7 @@ mod tests {
             vec![
                 InlineElement::Text(Text::from("Some paragraph with ")),
                 InlineElement::DecoratedText(DecoratedText::Bold(vec![
-                    LE::from(DecoratedTextContent::Text(Text::from(
+                    LE::from(DecoratedTextContent::from(Text::from(
                         "decorations"
                     )))
                 ])),
@@ -171,7 +171,7 @@ mod tests {
             vec![
                 InlineElement::Text(Text::from("Some paragraph with ")),
                 InlineElement::DecoratedText(DecoratedText::Bold(vec![
-                    LE::from(DecoratedTextContent::Text(Text::from(
+                    LE::from(DecoratedTextContent::from(Text::from(
                         "decorations"
                     )))
                 ])),
@@ -210,7 +210,7 @@ mod tests {
             vec![
                 InlineElement::Text(Text::from("Some paragraph with ")),
                 InlineElement::DecoratedText(DecoratedText::Bold(vec![
-                    LE::from(DecoratedTextContent::Text(Text::from(
+                    LE::from(DecoratedTextContent::from(Text::from(
                         "decorations"
                     )))
                 ],)),

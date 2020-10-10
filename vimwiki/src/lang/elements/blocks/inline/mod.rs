@@ -3,8 +3,9 @@ use derive_more::{
     Constructor, Deref, DerefMut, Display, From, Index, IndexMut, Into,
     IntoIterator,
 };
+use paste::paste;
 use serde::{Deserialize, Serialize};
-use std::fmt;
+use std::{fmt, marker::PhantomData};
 
 mod code;
 pub use code::*;
@@ -30,6 +31,74 @@ pub enum InlineElement {
     Code(CodeInline),
     Math(MathInline),
 }
+
+/// Represents a wrapper around a `InlineElement` where we already know the
+/// type it will be and can therefore convert to either the `InlineElement`
+/// or the inner type
+#[derive(Clone, Debug, Display, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[display(fmt = "{}", inner)]
+pub struct TypedInlineElement<T> {
+    inner: InlineElement,
+    phantom: PhantomData<T>,
+}
+
+impl<T> TypedInlineElement<T> {
+    pub fn into_inner(self) -> InlineElement {
+        self.inner
+    }
+
+    pub fn as_inner(&self) -> &InlineElement {
+        &self.inner
+    }
+
+    pub fn as_mut_inner(&mut self) -> &mut InlineElement {
+        &mut self.inner
+    }
+}
+
+macro_rules! typed_inline_element_impl {
+    ($type:ty, $variant:ident, $name:ident) => {
+        paste! {
+            impl TypedInlineElement<$type> {
+                pub fn [<from_ $name>](x: $type) -> Self {
+                    Self {
+                        inner: InlineElement::from(x),
+                        phantom: PhantomData,
+                    }
+                }
+
+                pub fn into_typed(self) -> $type {
+                    match self.inner {
+                        InlineElement::$variant(x) => x,
+                        _ => unreachable!(),
+                    }
+                }
+
+                pub fn as_typed(&self) -> &$type {
+                    match self.inner {
+                        InlineElement::$variant(ref x) => x,
+                        _ => unreachable!(),
+                    }
+                }
+
+                pub fn as_mut_typed(&mut self) -> &mut $type {
+                    match self.inner {
+                        InlineElement::$variant(ref mut x) => x,
+                        _ => unreachable!(),
+                    }
+                }
+            }
+        }
+    };
+}
+
+typed_inline_element_impl!(Text, Text, text);
+typed_inline_element_impl!(DecoratedText, DecoratedText, decorated_text);
+typed_inline_element_impl!(Keyword, Keyword, keyword);
+typed_inline_element_impl!(Link, Link, link);
+typed_inline_element_impl!(Tags, Tags, tags);
+typed_inline_element_impl!(CodeInline, Code, code_inline);
+typed_inline_element_impl!(MathInline, Math, math_inline);
 
 /// Represents a convenience wrapper around a series of inline elements
 #[derive(

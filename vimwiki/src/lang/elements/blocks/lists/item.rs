@@ -52,7 +52,7 @@ impl ListItem {
                 ListItemContent::InlineContent(_) => acc,
                 ListItemContent::List(list) => {
                     let (mut sum, mut count) = list
-                        .as_list()
+                        .as_typed()
                         .items
                         .iter()
                         .fold((0.0, 0), |acc, item| {

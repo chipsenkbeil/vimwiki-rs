@@ -276,7 +276,7 @@ mod tests {
             terms,
             vec![&InlineElementContainer::new(vec![
                 LE::from(InlineElement::DecoratedText(DecoratedText::Bold(
-                    vec![LE::from(DecoratedTextContent::Text(Text::from(
+                    vec![LE::from(DecoratedTextContent::from(Text::from(
                         "term"
                     )))]
                 ))),
