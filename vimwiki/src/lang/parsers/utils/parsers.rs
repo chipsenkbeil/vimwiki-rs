@@ -93,15 +93,16 @@ pub fn range<T>(
 /// the input is empty
 #[inline]
 pub fn end_of_line_or_input(input: Span) -> VimwikiIResult<()> {
-    context(
-        "End of Line/Input",
+    fn inner(input: Span) -> VimwikiIResult<()> {
         value(
             (),
             verify(pair(opt(line_ending), rest_len), |(end_of_line, len)| {
                 *len == 0 || end_of_line.is_some()
             }),
-        ),
-    )(input)
+        )(input)
+    }
+
+    context("End of Line/Input", inner)(input)
 }
 
 /// Parser that consumes input inside the surrounding left and right sides,
