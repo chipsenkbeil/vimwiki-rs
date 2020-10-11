@@ -11,7 +11,7 @@ readme = "README.md"
 license = "MIT OR Apache-2.0"
 
 [features]
-default = []
+default = ["timekeeper"]
 timekeeper = ["lazy_static"]
 
 [dependencies]
