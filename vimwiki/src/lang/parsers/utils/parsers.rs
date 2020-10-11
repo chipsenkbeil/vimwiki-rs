@@ -1,10 +1,12 @@
 use super::{Region, Span, VimwikiIResult, VimwikiNomError, LE};
-use memchr::memchr2_iter;
+use memchr::{memchr, memchr2_iter};
 use nom::{
     branch::alt,
     bytes::complete::{tag, take, take_while},
     character::complete::{anychar, crlf, line_ending, space0, space1},
-    combinator::{map, map_res, not, opt, recognize, rest_len, value, verify},
+    combinator::{
+        map, map_res, not, opt, recognize, rest, rest_len, value, verify,
+    },
     multi::{many0, many1},
     sequence::{delimited, pair, preceded, terminated},
     AsBytes, InputLength, InputTake,
@@ -135,7 +137,7 @@ pub fn surround_in_line1(
                     continue;
                 }
 
-                // Grab everything but either the possible start of the right
+                // Grab everything but the possible start of the right
                 let (input, content) = input.take_split(pos);
 
                 // Verify that the right would be next, and if so return our
@@ -197,7 +199,14 @@ pub fn take_line_while1<T>(
 /// Parser that will consume the remainder of a line (or end of input)
 #[inline]
 pub fn take_until_end_of_line_or_input(input: Span) -> VimwikiIResult<Span> {
-    context("Take Until End of Line or Input", take_line_while(anychar))(input)
+    fn inner(input: Span) -> VimwikiIResult<Span> {
+        match memchr(b'\n', input.as_bytes()) {
+            Some(pos) => Ok(input.take_split(pos)),
+            _ => rest(input),
+        }
+    }
+
+    context("Take Until End of Line or Input", inner)(input)
 }
 
 /// Parser that will report the total columns consumed since the beginning of
