@@ -39,3 +39,13 @@ impl From<LE<elements::Page>> for Page {
         }
     }
 }
+
+/// Represents some element in a document page
+#[derive(async_graphql::Union, Debug)]
+pub enum Element {
+    #[graphql(flatten)]
+    Block(BlockElement),
+
+    #[graphql(flatten)]
+    Inline(InlineElement),
+}

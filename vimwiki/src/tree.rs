@@ -453,7 +453,7 @@ mod tests {
         assert_eq!(
             tree.root_nodes()
                 .drain(..)
-                .map(|node| node.as_inner().to_owned())
+                .map(|node| node.as_inner().clone())
                 .collect::<Vec<ElementRef<'_>>>(),
             vec![
                 ElementRef::from(page.elements[0].as_inner()),
@@ -507,7 +507,7 @@ mod tests {
         let children = tree
             .children_for(tree.root_nodes()[1])
             .drain(..)
-            .map(|node| node.as_inner().to_owned())
+            .map(|node| node.as_inner().clone())
             .collect::<Vec<ElementRef<'_>>>();
 
         assert_eq!(
@@ -533,7 +533,7 @@ mod tests {
         let siblings = tree
             .siblings_for(node)
             .drain(..)
-            .map(|node| node.as_inner().to_owned())
+            .map(|node| node.as_inner().clone())
             .collect::<Vec<ElementRef<'_>>>();
 
         assert_eq!(
@@ -554,7 +554,7 @@ mod tests {
         let siblings = tree
             .siblings_for(tree.root_nodes()[1])
             .drain(..)
-            .map(|node| node.as_inner().to_owned())
+            .map(|node| node.as_inner().clone())
             .collect::<Vec<ElementRef<'_>>>();
 
         assert_eq!(

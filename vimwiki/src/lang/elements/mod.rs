@@ -109,6 +109,13 @@ impl<'a> ElementRef<'a> {
             _ => None,
         }
     }
+
+    pub fn to_owned(&self) -> Element {
+        match self {
+            Self::Block(x) => Element::from((*x).clone()),
+            Self::Inline(x) => Element::from((*x).clone()),
+        }
+    }
 }
 
 /// Represents a mutable reference to either a `BlockElement` or `InlineElement`

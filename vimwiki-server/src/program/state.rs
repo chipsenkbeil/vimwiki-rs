@@ -5,7 +5,10 @@ use snafu::{ResultExt, Snafu};
 use std::{
     collections::HashMap, convert::TryInto, path::PathBuf, time::Instant,
 };
-use vimwiki::{elements::Page, RawStr, LE};
+use vimwiki::{
+    elements::{ElementRef, Page},
+    ElementTree, Position, RawStr, LE,
+};
 
 /// Contains the state of the program while it is running
 #[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
@@ -144,6 +147,41 @@ impl Wiki {
         self.files
             .get(&self.path.join(path))
             .map(|x| super::graphql::elements::Page::from(x.clone()))
+    }
+
+    async fn element_in_page_at_pos(
+        &self,
+        path: String,
+        line: i32,
+        column: i32,
+    ) -> Option<super::graphql::elements::Element> {
+        self.files.get(&self.path.join(path)).and_then(|page| {
+            // TODO: Pre-compute the tree so we don't have to regenerate it on
+            //       every request
+            let tree = ElementTree::from_page(page);
+            match tree.find_deepest_at(Position::from((
+                line as usize,
+                column as usize,
+            ))) {
+                Some(node) => {
+                    Some(match node.as_inner() {
+                        ElementRef::Block(x) => {
+                            super::graphql::elements::BlockElement::from(
+                                LE::new((*x).clone(), *node.region()),
+                            )
+                            .into()
+                        }
+                        ElementRef::Inline(x) => {
+                            super::graphql::elements::InlineElement::from(
+                                LE::new((*x).clone(), *node.region()),
+                            )
+                            .into()
+                        }
+                    })
+                }
+                _ => None,
+            }
+        })
     }
 }
 
