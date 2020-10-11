@@ -1,7 +1,7 @@
 mod lang;
 mod tree;
 
-pub use tree::{ElementNode, ElementRef, ElementTree};
+pub use tree::{ElementNode, ElementTree};
 
 // Export the language elements without dumping them into the top leve
 pub use lang::elements;

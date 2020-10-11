@@ -4,38 +4,8 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-#[derive(Clone, Debug)]
-pub enum ElementRef<'a> {
-    Block(&'a BlockElement),
-    Inline(&'a InlineElement),
-}
-
-impl<'a> ElementRef<'a> {
-    pub fn is_block_element(&self) -> bool {
-        matches!(self, Self::Block(_))
-    }
-
-    pub fn is_inline_element(&self) -> bool {
-        matches!(self, Self::Inline(_))
-    }
-
-    pub fn as_block_element(&self) -> Option<&'a BlockElement> {
-        match self {
-            Self::Block(ref x) => Some(x),
-            _ => None,
-        }
-    }
-
-    pub fn as_inline_element(&self) -> Option<&'a InlineElement> {
-        match self {
-            Self::Inline(ref x) => Some(x),
-            _ => None,
-        }
-    }
-}
-
 /// Represents an immutable tree containing references to elements within a page
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ElementTree<'a> {
     page: &'a Page,
     root_nodes: Vec<usize>,
@@ -119,6 +89,25 @@ impl<'a> ElementTree<'a> {
             .iter()
             .flat_map(|id| self.nodes.get(id))
             .collect()
+    }
+
+    /// Retrieve the sibling nodes for the given node (does not include self)
+    pub fn siblings_for<'b>(
+        &'b self,
+        node: &'b ElementNode<'a>,
+    ) -> Vec<&'b ElementNode<'a>> {
+        let node_id = node.id();
+
+        // Check if we have a parent and, if we do, gather its children to
+        // return as siblings; otherwise, we are a root node and need to
+        // check against all root nodes instead
+        match self.parent_for(node) {
+            Some(parent) => self.children_for(parent),
+            _ => self.root_nodes(),
+        }
+        .drain(..)
+        .filter(|sibling| sibling.id() != node_id)
+        .collect()
     }
 
     /// Constructs a tree based on the top-level elements
@@ -332,7 +321,9 @@ impl<'a> ElementTree<'a> {
     }
 }
 
-#[derive(Clone, Debug)]
+/// A node within an `ElementTree` that points to either a `BlockElement` or
+/// an `InlineElement`
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ElementNode<'a> {
     root_id: usize,
     parent_id: Option<usize>,
@@ -348,11 +339,288 @@ impl<'a> ElementNode<'a> {
         self.element_id
     }
 
+    /// Whether or not the node represents a root-level element
     pub fn is_root(&self) -> bool {
         self.root_id == self.element_id
     }
 
+    /// The region of the element referenced by the node
     pub fn region(&self) -> &Region {
         &self.region
+    }
+
+    /// Converts to ref of inner `ElementRef`
+    pub fn as_inner(&self) -> &ElementRef<'a> {
+        &self.element
+    }
+
+    /// Converts to inner `ElementRef`
+    pub fn into_inner(self) -> ElementRef<'a> {
+        self.element
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::LE;
+
+    fn test_page() -> Page {
+        Page::new(
+            vec![
+                LE::new(
+                    BlockElement::from(Divider),
+                    Region::from((1, 1, 1, 3)),
+                ),
+                LE::new(
+                    BlockElement::from(Paragraph::from(vec![
+                        LE::new(
+                            InlineElement::from(Text::from("abc")),
+                            Region::from((2, 1, 2, 3)),
+                        ),
+                        LE::new(
+                            InlineElement::from(DecoratedText::Bold(vec![
+                                LE::new(
+                                    Text::from("bold").into(),
+                                    Region::from((2, 4, 2, 7)),
+                                ),
+                            ])),
+                            Region::from((2, 4, 2, 7)),
+                        ),
+                    ])),
+                    Region::from((2, 1, 2, 7)),
+                ),
+            ],
+            vec![],
+        )
+    }
+
+    #[test]
+    fn find_deepest_at_should_return_deepest_node_at_position() {
+        let page = test_page();
+        let tree = ElementTree::from_page(&page);
+
+        // Cursor on top of bold text in paragraph
+        let node = tree.find_deepest_at(Position::from((2, 4))).unwrap();
+        assert_eq!(
+            node.to_owned().into_inner(),
+            ElementRef::from(match page.elements[1].as_inner() {
+                BlockElement::Paragraph(ref x) => match x.content[1].as_inner()
+                {
+                    InlineElement::DecoratedText(ref x) =>
+                        x.as_contents()[0].as_inline_element(),
+                    _ => unreachable!(),
+                },
+                _ => unreachable!(),
+            })
+        );
+    }
+
+    #[test]
+    fn find_deepest_at_should_return_none_if_no_node_at_position() {
+        let page = test_page();
+        let tree = ElementTree::from_page(&page);
+
+        assert_eq!(tree.find_deepest_at(Position::from((999, 999))), None);
+    }
+
+    #[test]
+    fn find_root_at_should_return_root_node_at_position() {
+        let page = test_page();
+        let tree = ElementTree::from_page(&page);
+
+        // Cursor on top of paragraph
+        let node = tree.find_root_at(Position::from((2, 4))).unwrap();
+        assert_eq!(
+            node.to_owned().into_inner(),
+            ElementRef::from(page.elements[1].as_inner())
+        );
+    }
+
+    #[test]
+    fn find_root_at_should_return_none_if_no_root_node_at_position() {
+        let page = test_page();
+        let tree = ElementTree::from_page(&page);
+
+        assert_eq!(tree.find_root_at(Position::from((999, 999))), None);
+    }
+
+    #[test]
+    fn root_nodes_should_return_all_root_level_nodes() {
+        let page = test_page();
+        let tree = ElementTree::from_page(&page);
+
+        assert_eq!(
+            tree.root_nodes()
+                .drain(..)
+                .map(|node| node.as_inner().to_owned())
+                .collect::<Vec<ElementRef<'_>>>(),
+            vec![
+                ElementRef::from(page.elements[0].as_inner()),
+                ElementRef::from(page.elements[1].as_inner()),
+            ],
+        );
+    }
+
+    #[test]
+    fn root_for_should_return_root_of_given_node() {
+        let page = test_page();
+        let tree = ElementTree::from_page(&page);
+
+        // Get a child at the very bottom of paragraph -> bold -> text
+        let node = tree.find_deepest_at(Position::from((2, 4))).unwrap();
+
+        // Verify root node loaded (this is the paragraph)
+        let root = tree.root_for(node);
+
+        assert_eq!(root, tree.root_nodes()[1]);
+    }
+
+    #[test]
+    fn parent_for_should_return_parent_of_given_node() {
+        let page = test_page();
+        let tree = ElementTree::from_page(&page);
+
+        // Get a child at the very bottom of paragraph -> bold -> text
+        let node = tree.find_deepest_at(Position::from((2, 4))).unwrap();
+
+        // Verify parent node loaded (this is the bold text container)
+        let parent = tree.parent_for(node).expect("Missing parent");
+
+        assert_eq!(parent, tree.children_for(tree.root_nodes()[1])[1]);
+    }
+
+    #[test]
+    fn parent_for_should_return_none_if_given_node_is_root() {
+        let page = test_page();
+        let tree = ElementTree::from_page(&page);
+
+        assert_eq!(tree.parent_for(tree.root_nodes()[1]), None);
+    }
+
+    #[test]
+    fn children_for_should_return_all_children_of_given_node() {
+        let page = test_page();
+        let tree = ElementTree::from_page(&page);
+
+        // Load paragraph children, which should be text and bold text
+        let children = tree
+            .children_for(tree.root_nodes()[1])
+            .drain(..)
+            .map(|node| node.as_inner().to_owned())
+            .collect::<Vec<ElementRef<'_>>>();
+
+        assert_eq!(
+            children,
+            match page.elements[1].as_inner() {
+                BlockElement::Paragraph(ref x) => vec![
+                    ElementRef::from(x.content[0].as_inner()),
+                    ElementRef::from(x.content[1].as_inner()),
+                ],
+                _ => unreachable!(),
+            },
+        );
+    }
+
+    #[test]
+    fn siblings_for_should_return_all_siblings_of_given_node() {
+        let page = test_page();
+        let tree = ElementTree::from_page(&page);
+
+        // Get paragraph -> text, which has a sibling of paragraph -> bold text
+        let node = tree.find_deepest_at(Position::from((2, 2))).unwrap();
+
+        let siblings = tree
+            .siblings_for(node)
+            .drain(..)
+            .map(|node| node.as_inner().to_owned())
+            .collect::<Vec<ElementRef<'_>>>();
+
+        assert_eq!(
+            siblings,
+            match page.elements[1].as_inner() {
+                BlockElement::Paragraph(ref x) =>
+                    vec![ElementRef::from(x.content[1].as_inner())],
+                _ => unreachable!(),
+            },
+        );
+    }
+
+    #[test]
+    fn siblings_for_should_return_all_root_sibling_nodes_of_given_root_node() {
+        let page = test_page();
+        let tree = ElementTree::from_page(&page);
+
+        let siblings = tree
+            .siblings_for(tree.root_nodes()[1])
+            .drain(..)
+            .map(|node| node.as_inner().to_owned())
+            .collect::<Vec<ElementRef<'_>>>();
+
+        assert_eq!(
+            siblings,
+            vec![ElementRef::from(page.elements[0].as_inner())]
+        );
+    }
+
+    mod node {
+        use super::*;
+
+        #[test]
+        fn id_should_return_element_id_for_node() {
+            let node = ElementNode {
+                root_id: 0,
+                parent_id: None,
+                element_id: 999,
+                element: ElementRef::from(&BlockElement::Divider(Divider)),
+                region: Region::default(),
+                children_ids: vec![],
+            };
+
+            assert_eq!(node.id(), 999);
+        }
+
+        #[test]
+        fn is_root_should_return_true_if_node_represents_root_element() {
+            let node = ElementNode {
+                root_id: 999,
+                parent_id: None,
+                element_id: 999,
+                element: ElementRef::from(&BlockElement::Divider(Divider)),
+                region: Region::default(),
+                children_ids: vec![],
+            };
+
+            assert!(node.is_root());
+        }
+
+        #[test]
+        fn is_root_should_return_false_if_node_does_not_represent_root_element()
+        {
+            let node = ElementNode {
+                root_id: 0,
+                parent_id: None,
+                element_id: 999,
+                element: ElementRef::from(&BlockElement::Divider(Divider)),
+                region: Region::default(),
+                children_ids: vec![],
+            };
+
+            assert!(!node.is_root());
+        }
+
+        #[test]
+        fn region_should_return_region_of_underlying_element() {
+            let node = ElementNode {
+                root_id: 0,
+                parent_id: None,
+                element_id: 0,
+                element: ElementRef::from(&BlockElement::Divider(Divider)),
+                region: Region::from((1, 2, 3, 4)),
+                children_ids: vec![],
+            };
+
+            assert_eq!(*node.region(), Region::from((1, 2, 3, 4)));
+        }
     }
 }

@@ -10,7 +10,7 @@ use vimwiki::{
 #[inline]
 fn root_crate() -> TokenStream {
     // TODO: Support detecting if we're within the vimwiki crate
-    //       (for unit tests)
+    //       (for unit tests only, not integration tests)
     quote! { ::vimwiki }
 }
 

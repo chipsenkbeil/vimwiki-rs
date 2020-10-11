@@ -15,3 +15,9 @@ use serde::{Deserialize, Serialize};
 pub struct CodeInline {
     pub code: String,
 }
+
+impl From<&str> for CodeInline {
+    fn from(s: &str) -> Self {
+        Self::new(s.to_string())
+    }
+}
