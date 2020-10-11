@@ -275,16 +275,16 @@ pub fn non_blank_line(input: Span) -> VimwikiIResult<String> {
 }
 
 /// Parser that will consume any line, returning the line's content as output
-/// (not including line termination)
 #[inline]
 pub fn any_line(input: Span) -> VimwikiIResult<String> {
-    // TODO: Use memchr to find end of line, split at that point, and return
-    //       it as a span; make a new parser that is any_line_as_string
-    //
-    //       From there, we can use the span version with the blank and
-    //       non_blank parsers above to first verify that there is or is not
-    //       a blank line and then allocate a string
-    context("Any Line", alt((non_blank_line, blank_line)))(input)
+    fn inner(input: Span) -> VimwikiIResult<String> {
+        let (input, _) = beginning_of_line(input)?;
+        let (input, content) = pstring(take_until_end_of_line_or_input)(input)?;
+        let (input, _) = end_of_line_or_input(input)?;
+        Ok((input, content))
+    }
+
+    context("Any Line", inner)(input)
 }
 
 /// Parser that consumes a single multispace that could be \r\n, \n, \t, or
