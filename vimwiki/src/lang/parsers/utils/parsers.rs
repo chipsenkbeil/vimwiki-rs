@@ -1,5 +1,5 @@
 use super::{Region, Span, VimwikiIResult, VimwikiNomError, LE};
-use memchr::{memchr, memchr2_iter};
+use memchr::{memchr, memchr_iter};
 use nom::{
     branch::alt,
     bytes::complete::{tag, take, take_while},
@@ -121,13 +121,23 @@ pub fn surround_in_line1(
         move |input: Span| {
             let (input, _) = tag(left)(input)?;
             let input_bytes = input.as_bytes();
-            for pos in memchr2_iter(b'\n', right.as_bytes()[0], input_bytes) {
+
+            // First, figure out where our next line will be
+            let maybe_newline_pos = memchr(b'\n', input_bytes);
+
+            // Second, look for the starting byte of the right side of our
+            // surround wrapper
+            for pos in memchr_iter(right.as_bytes()[0], input_bytes) {
                 // If we've reached the end of the line, return an error
-                if input_bytes[pos] == b'\n' {
-                    return Err(nom::Err::Error(VimwikiNomError::from_ctx(
-                        &input,
-                        "end of line reached before right side",
-                    )));
+                if let Some(newline_pos) = maybe_newline_pos {
+                    if pos >= newline_pos {
+                        return Err(nom::Err::Error(
+                            VimwikiNomError::from_ctx(
+                                &input,
+                                "end of line reached before right side",
+                            ),
+                        ));
+                    }
                 }
 
                 // If there would be nothing in the surroundings, continue
