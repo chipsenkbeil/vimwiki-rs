@@ -1,6 +1,9 @@
 mod lang;
 mod tree;
 
+#[cfg(feature = "timekeeper")]
+pub mod timekeeper;
+
 pub use tree::{ElementNode, ElementTree};
 
 // Export the language elements without dumping them into the top leve

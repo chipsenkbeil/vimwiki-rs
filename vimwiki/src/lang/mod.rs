@@ -23,14 +23,7 @@ macro_rules! parse {
         match &$raw_str {
             RawStr::Vimwiki(s) => {
                 let input = Span::from(*s);
-                let result = $f(input)?.1;
-
-                // For debugging purposes, we will print out a report of what
-                // parts of our parsers took the longest
-                #[cfg(feature = "timekeeper")]
-                parsers::print_timekeeper_report(true);
-
-                Ok(result)
+                Ok($f(input)?.1)
             }
             RawStr::Markdown(_) => {
                 Err(nom::Err::Failure(LangParserError::unsupported()))

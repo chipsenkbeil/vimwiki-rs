@@ -16,10 +16,14 @@ fn adjust(le: impl Into<LE<BlockElement>>, line: usize) -> LE<BlockElement> {
 
 #[test]
 fn test() {
+    vimwiki::timekeeper::enable();
     let page: LE<Page> =
         RawStr::Vimwiki(&VimwikiFile::PandocVimwikiReader.load().unwrap())
             .try_into()
             .unwrap();
+    vimwiki::timekeeper::print_report(true);
+    vimwiki::timekeeper::disable();
+
     let expected = vec![
         adjust(vimwiki_header!("= _*implemented*_ ="), 1),
         adjust(vimwiki_header!("= header ="), 2),

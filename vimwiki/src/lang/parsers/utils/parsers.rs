@@ -14,56 +14,6 @@ use std::convert::TryFrom;
 use std::ops::Range;
 use uriparse::URI;
 
-#[cfg(feature = "timekeeper")]
-lazy_static::lazy_static! {
-    static ref TIMEKEEPER: Mutex<std::collections::HashMap<&'static str, (usize, u128)>> =
-        std::sync::Mutex::new(std::collections::HashMap::new());
-}
-
-#[cfg(feature = "timekeeper")]
-pub fn print_timekeeper_report(clear_after_print: bool) {
-    let mut results: Vec<(&'static str, (usize, u128))> = TIMEKEEPER
-        .lock()
-        .unwrap()
-        .iter()
-        .map(|(k, v)| (*k, *v))
-        .collect();
-
-    // Sort with most expensive average item first
-    results.sort_unstable_by_key(|k| (k.1.1 as f64 / k.1.0 as f64) as u128);
-    results.reverse();
-
-    fn time_to_str(x: u128) -> String {
-        if x >= 10_u128.pow(9) {
-            format!("{}s", (x as f64) / 10_f64.powi(9))
-        } else if x >= 10_u128.pow(6) {
-            format!("{}ms", (x as f64) / 10_f64.powi(6))
-        } else if x >= 10_u128.pow(3) {
-            format!("{}μs", (x as f64) / 10_f64.powi(3))
-        } else {
-            format!("{}ns", x)
-        }
-    }
-
-    println!("====== TIMEKEEPER REPORT ======");
-    println!();
-    for (ctx, (cnt, nanos)) in results.drain(..) {
-        println!(
-            "- {}: ({} calls, total {}, average {})", 
-            ctx, 
-            cnt, 
-            time_to_str(nanos), 
-            time_to_str((nanos as f64 / cnt as f64) as u128),
-        );
-    }
-    println!();
-    println!("===============================");
-
-    if clear_after_print {
-        TIMEKEEPER.lock().unwrap().clear();
-    }
-}
-
 /// Wraps a parser in a contextual label, which makes it easier to identify
 /// where parsing failures occur
 #[cfg(not(feature = "timekeeper"))]
@@ -73,7 +23,6 @@ pub fn context<T>(
 ) -> impl Fn(Span) -> VimwikiIResult<T> {
     nom::error::context(ctx, f)
 }
-
 /// Wraps a parser in a contextual label, which makes it easier to identify
 /// where parsing failures occur. This implementation also logs to a
 /// timekeeper table, which can be printed out to evaluate the time spent
@@ -83,36 +32,7 @@ pub fn context<T>(
     ctx: &'static str,
     f: impl Fn(Span) -> VimwikiIResult<T>,
 ) -> impl Fn(Span) -> VimwikiIResult<T> {
-    use nom::error::ParseError;
-    move |input: Span| {
-        let start = std::time::Instant::now();
-
-        // NOTE: Following is the code found in nom's context parser, but due
-        //       to issues with wrapping a function like above in a parser,
-        //       we have to explicitly call the f parser on its own
-        let result = match f(input.clone()) {
-            Ok(o) => Ok(o),
-            Err(nom::Err::Incomplete(i)) => Err(nom::Err::Incomplete(i)),
-            Err(nom::Err::Error(e)) => Err(nom::Err::Error(
-                VimwikiNomError::add_context(input, ctx, e),
-            )),
-            Err(nom::Err::Failure(e)) => Err(nom::Err::Failure(
-                VimwikiNomError::add_context(input, ctx, e),
-            )),
-        };
-
-        let x = start.elapsed().as_nanos();
-        TIMEKEEPER
-            .lock()
-            .unwrap()
-            .entry(ctx)
-            .and_modify(move |e| {
-                *e = (e.0 + 1, e.1 + x);
-            })
-            .or_insert((1, x));
-
-        result
-    }
+    crate::timekeeper::parsers::context(ctx, f)
 }
 
 /// Parser that wraps another parser's output in a LocatedElement based on
@@ -138,13 +58,21 @@ pub fn le<T>(
         let end_line = input.global_line();
         let end_column = input.global_utf8_column();
 
-        Ok((input2, LE::new(x, Region::from((start_line, start_column, end_line, end_column)))))
+        Ok((
+            input2,
+            LE::new(
+                x,
+                Region::from((start_line, start_column, end_line, end_column)),
+            ),
+        ))
     })
 }
 
 /// Parser that unwraps another parser's output of LocatedElement into the
 /// underlying element
-pub fn unwrap_le<T>(parser: impl Fn(Span) -> VimwikiIResult<LE<T>>) -> impl Fn(Span) -> VimwikiIResult<T> {
+pub fn unwrap_le<T>(
+    parser: impl Fn(Span) -> VimwikiIResult<LE<T>>,
+) -> impl Fn(Span) -> VimwikiIResult<T> {
     context("LE Unwrap", move |input: Span| {
         let (input, le) = parser(input)?;
 
@@ -399,9 +327,7 @@ pub fn uri(input: Span) -> VimwikiIResult<URI<'static>> {
 }
 
 /// Counts the spaces & tabs that are trailing in our input
-pub fn count_trailing_whitespace(
-    input: Span
-) -> VimwikiIResult<usize> {
+pub fn count_trailing_whitespace(input: Span) -> VimwikiIResult<usize> {
     let mut cnt = 0;
 
     // Count whitespace in reverse so we know how many are trailing
@@ -434,21 +360,25 @@ pub fn trim_whitespace(input: Span) -> VimwikiIResult<()> {
 /// Takes from the end instead of the beginning
 pub fn take_end<C>(count: C) -> impl Fn(Span) -> VimwikiIResult<Span>
 where
-  C: nom::ToUsize,
+    C: nom::ToUsize,
 {
-    use nom::{Err,error::{ParseError, ErrorKind}};
-  let cnt = count.to_usize();
-  context("Take End", move |input: Span| {
-      let len = input.input_len();
-      if cnt > len {
-          Err(Err::Error(VimwikiNomError::from_error_kind(input, ErrorKind::Eof)))
-      } else {
-      let (end, input) = input.take_split(len - cnt);
-      Ok((input, end))
-      }
-
-  })
-
+    use nom::{
+        error::{ErrorKind, ParseError},
+        Err,
+    };
+    let cnt = count.to_usize();
+    context("Take End", move |input: Span| {
+        let len = input.input_len();
+        if cnt > len {
+            Err(Err::Error(VimwikiNomError::from_error_kind(
+                input,
+                ErrorKind::Eof,
+            )))
+        } else {
+            let (end, input) = input.take_split(len - cnt);
+            Ok((input, end))
+        }
+    })
 }
 
 #[cfg(test)]
@@ -476,8 +406,8 @@ mod tests {
 
     #[test]
     fn count_from_beginning_of_line_should_yield_0_if_at_beginning_of_line() {
-        let (_, count) =
-            count_from_beginning_of_line(Span::from("")).expect("Parser failed");
+        let (_, count) = count_from_beginning_of_line(Span::from(""))
+            .expect("Parser failed");
         assert_eq!(count, 0);
 
         let (_, count) = count_from_beginning_of_line(Span::from("some text"))
