@@ -4,11 +4,9 @@ use nom::{
     branch::alt,
     bytes::complete::{tag, take, take_while},
     character::complete::{anychar, crlf, line_ending, space0, space1},
-    combinator::{
-        map, map_res, not, opt, recognize, rest, rest_len, value, verify,
-    },
+    combinator::{map_res, not, opt, recognize, rest, rest_len, value, verify},
     multi::{many0, many1},
-    sequence::{delimited, pair, preceded, terminated},
+    sequence::{pair, preceded, terminated},
     AsBytes, InputLength, InputTake,
 };
 use std::convert::TryFrom;
@@ -251,26 +249,6 @@ pub fn blank_line(input: Span) -> VimwikiIResult<String> {
                 terminated(space0, line_ending),
             )),
         )),
-    )(input)
-}
-
-/// Parser that will consume a line if it is not blank, which means that it is
-/// comprised of more than just whitespace and line termination
-#[inline]
-pub fn non_blank_line(input: Span) -> VimwikiIResult<String> {
-    context(
-        "Non Blank Line",
-        verify(
-            map(
-                delimited(
-                    beginning_of_line,
-                    recognize(many1(pair(not(end_of_line_or_input), anychar))),
-                    end_of_line_or_input,
-                ),
-                |s: Span| s.fragment_str().to_string(),
-            ),
-            |s: &str| !s.trim().is_empty(),
-        ),
     )(input)
 }
 
@@ -592,33 +570,36 @@ mod tests {
     }
 
     #[test]
-    fn non_blank_line_should_fail_if_input_empty_and_at_beginning_of_line() {
-        let input = Span::from("");
-        assert!(non_blank_line(input).is_err());
+    fn any_line_should_fail_if_not_at_beginning_of_line() {
+        let input = Span::from("abc");
+        let (input, _) =
+            take_and_toss(1)(input).expect("Failed to take a character");
+        assert!(any_line(input).is_err());
     }
 
     #[test]
-    fn non_blank_line_should_fail_if_line_is_empty() {
+    fn any_line_should_return_empty_if_nothing_in_line() {
         let input = Span::from("\nabcd");
-        assert!(non_blank_line(input).is_err());
-    }
-
-    #[test]
-    fn non_blank_line_should_succeed_if_line_has_more_than_whitespace() {
-        let input = Span::from("  a  \nabcd");
-        let (input, line) =
-            non_blank_line(input).expect("Failed to parse non blank line");
+        let (input, content) =
+            any_line(input).expect("Failed to parse any line");
         assert_eq!(input.fragment_str(), "abcd");
-        assert_eq!(line, "  a  ");
+        assert!(content.is_empty());
     }
 
     #[test]
-    fn non_blank_line_should_succeed_if_on_last_line_and_not_only_whitespace() {
-        let input = Span::from("  a  ");
-        let (input, line) =
-            non_blank_line(input).expect("Failed to parse non blank line");
+    fn any_line_should_return_all_content_update_to_newline() {
+        let input = Span::from("test\nabcd");
+        let (input, line) = any_line(input).expect("Failed to parse any line");
+        assert_eq!(input.fragment_str(), "abcd");
+        assert_eq!(line, "test");
+    }
+
+    #[test]
+    fn any_line_should_return_all_content_remaining_if_no_more_newline() {
+        let input = Span::from("test");
+        let (input, line) = any_line(input).expect("Failed to parse any line");
         assert_eq!(input.fragment_str(), "");
-        assert_eq!(line, "  a  ");
+        assert_eq!(line, "test");
     }
 
     #[test]
