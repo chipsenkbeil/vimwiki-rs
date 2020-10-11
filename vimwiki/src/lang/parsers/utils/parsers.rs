@@ -17,12 +17,8 @@ use uriparse::URI;
 /// Wraps a parser in a contextual label, which makes it easier to identify
 /// where parsing failures occur
 #[cfg(not(feature = "timekeeper"))]
-pub fn context<T>(
-    ctx: &'static str,
-    f: impl Fn(Span) -> VimwikiIResult<T>,
-) -> impl Fn(Span) -> VimwikiIResult<T> {
-    nom::error::context(ctx, f)
-}
+pub use nom::error::context;
+
 /// Wraps a parser in a contextual label, which makes it easier to identify
 /// where parsing failures occur. This implementation also logs to a
 /// timekeeper table, which can be printed out to evaluate the time spent
