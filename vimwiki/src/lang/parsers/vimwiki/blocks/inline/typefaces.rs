@@ -4,19 +4,21 @@ use super::{
     links::link,
     math::math_inline,
     tags::tags,
-    utils::{context, le, pstring, take_line_while1},
+    utils::{context, le, pstring, surround_in_line1, take_line_while1},
     Span, VimwikiIResult, LE,
 };
 
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    combinator::{map, not},
+    combinator::{map, map_parser, not},
     multi::many1,
 };
 
 #[inline]
 pub fn text(input: Span) -> VimwikiIResult<LE<Text>> {
+    // Uses combination of short-circuiting and full checks to ensure we
+    // can continue consuming text
     fn is_text(input: Span) -> VimwikiIResult<()> {
         let (input, _) = not(code_inline)(input)?;
         let (input, _) = not(math_inline)(input)?;
@@ -35,52 +37,102 @@ pub fn text(input: Span) -> VimwikiIResult<LE<Text>> {
 
 #[inline]
 pub fn decorated_text(input: Span) -> VimwikiIResult<LE<DecoratedText>> {
-    /// Parses inner content of decorated text
-    fn dtc(
-        start: &'static str,
-        end: &'static str,
-    ) -> impl Fn(Span) -> VimwikiIResult<Vec<LE<DecoratedTextContent>>> {
-        move |input: Span| {
-            fn is_other(
-                end: &'static str,
-            ) -> impl Fn(Span) -> VimwikiIResult<()> {
-                move |input: Span| {
-                    let (input, _) = not(link)(input)?;
-                    let (input, _) = not(keyword)(input)?;
-                    let (input, _) = not(tag(end))(input)?;
-                    Ok((input, ()))
-                }
-            }
-
-            fn other(
-                end: &'static str,
-            ) -> impl Fn(Span) -> VimwikiIResult<LE<Text>> {
-                le(map(pstring(take_line_while1(is_other(end))), Text::new))
-            }
-
-            let (input, _) = tag(start)(input)?;
-            let (input, contents) = many1(alt((
-                map(link, |c| c.map(DecoratedTextContent::from)),
-                map(keyword, |c| c.map(DecoratedTextContent::from)),
-                map(other(end), |c| c.map(DecoratedTextContent::from)),
-            )))(input)?;
-            let (input, _) = tag(end)(input)?;
-            Ok((input, contents))
-        }
-    }
-
     context(
         "Decorated Text",
         le(alt((
-            map(dtc("_*", "*_"), DecoratedText::BoldItalic),
-            map(dtc("*_", "_*"), DecoratedText::BoldItalic),
-            map(dtc("*", "*"), DecoratedText::Bold),
-            map(dtc("_", "_"), DecoratedText::Italic),
-            map(dtc("~~", "~~"), DecoratedText::Strikeout),
-            map(dtc("^", "^"), DecoratedText::Superscript),
-            map(dtc(",,", ",,"), DecoratedText::Subscript),
+            bold_italic_text_1,
+            bold_italic_text_2,
+            bold_text,
+            italic_text,
+            strikeout_text,
+            superscript_text,
+            subscript_text,
         ))),
     )(input)
+}
+
+fn bold_italic_text_1(input: Span) -> VimwikiIResult<DecoratedText> {
+    context(
+        "Bold Italic 1 Decorated Text",
+        map(
+            map_parser(surround_in_line1("_*", "*_"), decorated_text_contents),
+            DecoratedText::BoldItalic,
+        ),
+    )(input)
+}
+
+fn bold_italic_text_2(input: Span) -> VimwikiIResult<DecoratedText> {
+    context(
+        "Bold Italic 2 Decorated Text",
+        map(
+            map_parser(surround_in_line1("*_", "_*"), decorated_text_contents),
+            DecoratedText::BoldItalic,
+        ),
+    )(input)
+}
+
+fn italic_text(input: Span) -> VimwikiIResult<DecoratedText> {
+    context(
+        "Italic Decorated Text",
+        map(
+            map_parser(surround_in_line1("_", "_"), decorated_text_contents),
+            DecoratedText::Italic,
+        ),
+    )(input)
+}
+
+fn bold_text(input: Span) -> VimwikiIResult<DecoratedText> {
+    context(
+        "Bold Decorated Text",
+        map(
+            map_parser(surround_in_line1("*", "*"), decorated_text_contents),
+            DecoratedText::Bold,
+        ),
+    )(input)
+}
+
+fn strikeout_text(input: Span) -> VimwikiIResult<DecoratedText> {
+    context(
+        "Strikeout Decorated Text",
+        map(
+            map_parser(surround_in_line1("~~", "~~"), decorated_text_contents),
+            DecoratedText::Strikeout,
+        ),
+    )(input)
+}
+
+fn superscript_text(input: Span) -> VimwikiIResult<DecoratedText> {
+    context(
+        "Superscript Decorated Text",
+        map(
+            map_parser(surround_in_line1("^", "^"), decorated_text_contents),
+            DecoratedText::Superscript,
+        ),
+    )(input)
+}
+
+fn subscript_text(input: Span) -> VimwikiIResult<DecoratedText> {
+    context(
+        "Subscript Decorated Text",
+        map(
+            map_parser(surround_in_line1(",,", ",,"), decorated_text_contents),
+            DecoratedText::Subscript,
+        ),
+    )(input)
+}
+
+fn decorated_text_contents(
+    input: Span,
+) -> VimwikiIResult<Vec<LE<DecoratedTextContent>>> {
+    fn inner(input: Span) -> VimwikiIResult<Vec<LE<DecoratedTextContent>>> {
+        many1(alt((
+            map(link, |c| c.map(DecoratedTextContent::from)),
+            map(keyword, |c| c.map(DecoratedTextContent::from)),
+            map(text, |c| c.map(DecoratedTextContent::from)),
+        )))(input)
+    }
+
+    context("Decorated Text Contents", inner)(input)
 }
 
 #[inline]

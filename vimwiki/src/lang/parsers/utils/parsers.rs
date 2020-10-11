@@ -1,11 +1,10 @@
 use super::{Region, Span, VimwikiIResult, VimwikiNomError, LE};
+use memchr::memchr2_iter;
 use nom::{
     branch::alt,
     bytes::complete::{tag, take, take_while},
     character::complete::{anychar, crlf, line_ending, space0, space1},
-    combinator::{
-        map, map_res, not, opt, peek, recognize, rest_len, value, verify,
-    },
+    combinator::{map, map_res, not, opt, recognize, rest_len, value, verify},
     multi::{many0, many1},
     sequence::{delimited, pair, preceded, terminated},
     AsBytes, InputLength, InputTake,
@@ -105,16 +104,82 @@ pub fn end_of_line_or_input(input: Span) -> VimwikiIResult<()> {
     )(input)
 }
 
+/// Parser that consumes input inside the surrounding left and right sides,
+/// failing if not starting with the left or if the right is not found prior
+/// to the end of a line. The result is the content WITHIN the surroundings.
+/// Will not match right side if it follows immediately from the left.
+///
+/// Note that the left and right must be non-empty.
+pub fn surround_in_line1(
+    left: &'static str,
+    right: &'static str,
+) -> impl Fn(Span) -> VimwikiIResult<Span> {
+    fn inner(
+        left: &'static str,
+        right: &'static str,
+    ) -> impl Fn(Span) -> VimwikiIResult<Span> {
+        move |input: Span| {
+            let (input, _) = tag(left)(input)?;
+            let input_bytes = input.as_bytes();
+            for pos in memchr2_iter(b'\n', right.as_bytes()[0], input_bytes) {
+                // If we've reached the end of the line, return an error
+                if input_bytes[pos] == b'\n' {
+                    return Err(nom::Err::Error(VimwikiNomError::from_ctx(
+                        &input,
+                        "end of line reached before right side",
+                    )));
+                }
+
+                // If there would be nothing in the surroundings, continue
+                if pos == 0 {
+                    continue;
+                }
+
+                // Grab everything but either the possible start of the right
+                let (input, content) = input.take_split(pos);
+
+                // Verify that the right would be next, and if so return our
+                // result, otherwise continue
+                let (input, right_span) = take(right.len())(input)?;
+                if right_span.as_bytes() == right.as_bytes() {
+                    return Ok((input, content));
+                } else {
+                    continue;
+                }
+            }
+
+            // There was no match of the right side
+            Err(nom::Err::Error(VimwikiNomError::from_ctx(
+                &input,
+                "right side not found",
+            )))
+        }
+    }
+
+    context("Surround in Line", inner(left, right))
+}
+
 /// Parser that consumes input while the pattern succeeds or we reach the
 /// end of the line. Note that this does NOT consume the line termination.
 #[inline]
 pub fn take_line_while<T>(
     parser: impl Fn(Span) -> VimwikiIResult<T>,
 ) -> impl Fn(Span) -> VimwikiIResult<Span> {
-    recognize(many0(preceded(
-        pair(not(end_of_line_or_input), peek(parser)),
-        anychar,
-    )))
+    fn single_char<T>(
+        parser: impl Fn(Span) -> VimwikiIResult<T>,
+    ) -> impl Fn(Span) -> VimwikiIResult<char> {
+        move |input: Span| {
+            let (input, _) = not(end_of_line_or_input)(input)?;
+
+            // NOTE: This is the same as peek(parser), but avoids the issue
+            //       of variable being moved out of captured Fn(...)
+            let (_, _) = parser(input.clone())?;
+
+            anychar(input)
+        }
+    }
+
+    context("Take Line While", recognize(many0(single_char(parser))))
 }
 
 /// Parser that consumes input while the pattern succeeds or we reach the
@@ -123,13 +188,16 @@ pub fn take_line_while<T>(
 pub fn take_line_while1<T>(
     parser: impl Fn(Span) -> VimwikiIResult<T>,
 ) -> impl Fn(Span) -> VimwikiIResult<Span> {
-    verify(take_line_while(parser), |s| !s.fragment().is_empty())
+    context(
+        "Take Line While 1",
+        verify(take_line_while(parser), |s| !s.fragment().is_empty()),
+    )
 }
 
 /// Parser that will consume the remainder of a line (or end of input)
 #[inline]
 pub fn take_until_end_of_line_or_input(input: Span) -> VimwikiIResult<Span> {
-    take_line_while(anychar)(input)
+    context("Take Until End of Line or Input", take_line_while(anychar))(input)
 }
 
 /// Parser that will report the total columns consumed since the beginning of
@@ -207,14 +275,17 @@ pub fn any_line(input: Span) -> VimwikiIResult<String> {
     //       From there, we can use the span version with the blank and
     //       non_blank parsers above to first verify that there is or is not
     //       a blank line and then allocate a string
-    alt((non_blank_line, blank_line))(input)
+    context("Any Line", alt((non_blank_line, blank_line)))(input)
 }
 
 /// Parser that consumes a single multispace that could be \r\n, \n, \t, or
 /// a space character
 #[inline]
 pub fn single_multispace(input: Span) -> VimwikiIResult<()> {
-    value((), alt((crlf, tag("\n"), tag("\t"), tag(" "))))(input)
+    context(
+        "Single Multispace",
+        value((), alt((crlf, tag("\n"), tag("\t"), tag(" ")))),
+    )(input)
 }
 
 /// Parser that transforms the output of a parser into an allocated string
@@ -222,7 +293,10 @@ pub fn single_multispace(input: Span) -> VimwikiIResult<()> {
 pub fn pstring(
     parser: impl Fn(Span) -> VimwikiIResult<Span>,
 ) -> impl Fn(Span) -> VimwikiIResult<String> {
-    map(parser, |s: Span| s.fragment_str().to_string())
+    context("Pstring", move |input: Span| {
+        let (input, result) = parser(input)?;
+        Ok((input, result.fragment_str().to_string()))
+    })
 }
 
 /// Parser that scans through the entire input, applying the provided parser
@@ -324,33 +398,45 @@ pub fn uri(input: Span) -> VimwikiIResult<URI<'static>> {
 
 /// Counts the spaces & tabs that are trailing in our input
 pub fn count_trailing_whitespace(input: Span) -> VimwikiIResult<usize> {
-    let mut cnt = 0;
+    fn inner(input: Span) -> VimwikiIResult<usize> {
+        let mut cnt = 0;
 
-    // Count whitespace in reverse so we know how many are trailing
-    for b in input.as_bytes().iter().rev() {
-        if !nom::character::is_space(*b) {
-            break;
+        // Count whitespace in reverse so we know how many are trailing
+        for b in input.as_bytes().iter().rev() {
+            if !nom::character::is_space(*b) {
+                break;
+            }
+            cnt += 1;
         }
-        cnt += 1;
+
+        Ok((input, cnt))
     }
 
-    Ok((input, cnt))
+    context("Count Trailing Whitespace", inner)(input)
 }
 
 /// Trims the trailing whitespace from input, essentially working backwards
 /// to cut off part of the input
 pub fn trim_trailing_whitespace(input: Span) -> VimwikiIResult<()> {
-    use nom::Slice;
-    let (input, len) = rest_len(input)?;
-    let (input, cnt) = count_trailing_whitespace(input)?;
-    Ok((input.slice(..(len - cnt)), ()))
+    fn inner(input: Span) -> VimwikiIResult<()> {
+        use nom::Slice;
+        let (input, len) = rest_len(input)?;
+        let (input, cnt) = count_trailing_whitespace(input)?;
+        Ok((input.slice(..(len - cnt)), ()))
+    }
+
+    context("Trim Trailing Whitespace", inner)(input)
 }
 
 /// Trims the leading and trailing whitespace from input
 pub fn trim_whitespace(input: Span) -> VimwikiIResult<()> {
-    let (input, _) = space0(input)?;
-    let (input, _) = trim_trailing_whitespace(input)?;
-    Ok((input, ()))
+    fn inner(input: Span) -> VimwikiIResult<()> {
+        let (input, _) = space0(input)?;
+        let (input, _) = trim_trailing_whitespace(input)?;
+        Ok((input, ()))
+    }
+
+    context("Trim Whitespace", inner)(input)
 }
 
 /// Takes from the end instead of the beginning
