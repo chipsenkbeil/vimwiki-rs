@@ -68,12 +68,13 @@ dependencies = [
 
 [[package]]
 name = "async-graphql"
-version = "2.0.0-alpha.24"
+version = "2.0.0-alpha.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2e70bd6921da18d6a8f0e68ccf3de66e27d1765d560e653a3f09603492f57d1e"
+checksum = "675398bd662bfe7c4d706e6ef386d2e51e9c9a1e5a7360611f1a92d42ab87141"
 dependencies = [
  "async-graphql-derive",
  "async-graphql-parser",
+ "async-graphql-value",
  "async-stream",
  "async-trait",
  "blocking",
@@ -105,9 +106,9 @@ dependencies = [
 
 [[package]]
 name = "async-graphql-derive"
-version = "2.0.0-alpha.24"
+version = "2.0.0-alpha.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ebf077e554ee3b75721a8f26831edc724a76b29ea8404cfbddfcb36462b6097"
+checksum = "c6ac138e068cdc7382a52128e847a9ab1af5c1b9c0c59ac0ac31b028e0194427"
 dependencies = [
  "Inflector",
  "async-graphql-parser",
@@ -122,10 +123,11 @@ dependencies = [
 
 [[package]]
 name = "async-graphql-parser"
-version = "2.0.0-alpha.24"
+version = "2.0.0-alpha.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f71c55b4f6f20e2da6050876614fd81894ecaecec4fdabe1a8587bbbf2f807e3"
+checksum = "a597396e1053df12abae6979c8990e7230cbbdc73c1f3c6c65466df8ea6e62b2"
 dependencies = [
+ "async-graphql-value",
  "pest",
  "pest_derive",
  "serde",
@@ -133,10 +135,20 @@ dependencies = [
 ]
 
 [[package]]
-name = "async-graphql-warp"
-version = "2.0.0-alpha.24"
+name = "async-graphql-value"
+version = "2.0.0-alpha.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "86def830d8f1c24a99ae7bec9923f5eee4c4b63b7ff451be16199f636cccfc88"
+checksum = "0fde221ec5bd609b04eeee3316149b95e2491aee85338851b61596a6ba8c2cae"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "async-graphql-warp"
+version = "2.0.0-alpha.28"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "98f5319770cf1ee0099f8bc44c70ec8f132847db4c6f511d216f406f1f25e1a4"
 dependencies = [
  "anyhow",
  "async-graphql",
