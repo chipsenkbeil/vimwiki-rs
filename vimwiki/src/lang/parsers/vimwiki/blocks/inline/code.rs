@@ -1,25 +1,14 @@
 use super::{
     elements::CodeInline,
-    utils::{context, le, pstring, take_line_while1},
+    utils::{context, le, pstring, surround_in_line1},
     Span, VimwikiIResult, LE,
 };
-use nom::{
-    character::complete::char,
-    combinator::{map, not},
-    sequence::delimited,
-};
+use nom::combinator::map;
 
 #[inline]
 pub fn code_inline(input: Span) -> VimwikiIResult<LE<CodeInline>> {
     fn inner(input: Span) -> VimwikiIResult<CodeInline> {
-        map(
-            pstring(delimited(
-                char('`'),
-                take_line_while1(not(char('`'))),
-                char('`'),
-            )),
-            CodeInline::new,
-        )(input)
+        map(pstring(surround_in_line1("`", "`")), CodeInline::new)(input)
     }
 
     context("Code Inline", le(inner))(input)

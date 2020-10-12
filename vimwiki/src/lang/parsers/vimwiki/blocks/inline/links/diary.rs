@@ -1,13 +1,10 @@
 use super::{
     elements::DiaryLink,
-    utils::{context, take_line_while1, VimwikiNomError},
+    utils::{context, VimwikiNomError},
     wiki::wiki_link,
     Span, VimwikiIResult, LE,
 };
 use chrono::NaiveDate;
-use nom::{
-    bytes::complete::tag, character::complete::anychar, sequence::preceded,
-};
 
 #[inline]
 pub fn diary_link(input: Span) -> VimwikiIResult<LE<DiaryLink>> {
@@ -38,13 +35,9 @@ pub fn diary_link(input: Span) -> VimwikiIResult<LE<DiaryLink>> {
 
 #[inline]
 fn parse_date_from_path(path: &str) -> Option<NaiveDate> {
-    preceded(tag("diary:"), take_line_while1(anychar))(Span::from(path))
-        .ok()
-        .map(|x| {
-            let date_str = x.1.fragment_str();
-            NaiveDate::parse_from_str(date_str, "%Y-%m-%d").ok()
-        })
-        .flatten()
+    path.strip_prefix("diary:").and_then(|date_str| {
+        NaiveDate::parse_from_str(date_str, "%Y-%m-%d").ok()
+    })
 }
 
 #[cfg(test)]

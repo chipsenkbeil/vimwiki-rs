@@ -94,12 +94,13 @@ pub fn range<T>(
 #[inline]
 pub fn end_of_line_or_input(input: Span) -> VimwikiIResult<()> {
     fn inner(input: Span) -> VimwikiIResult<()> {
-        value(
-            (),
-            verify(pair(opt(line_ending), rest_len), |(end_of_line, len)| {
-                *len == 0 || end_of_line.is_some()
-            }),
-        )(input)
+        let (input, len) = rest_len(input)?;
+        if len == 0 {
+            return Ok((input, ()));
+        }
+
+        let (input, _) = line_ending(input)?;
+        Ok((input, ()))
     }
 
     context("End of Line/Input", inner)(input)
