@@ -22,8 +22,7 @@ pub fn header(input: Span) -> VimwikiIResult<LE<Header>> {
         let (input, _) = beginning_of_line(input)?;
 
         // First, check if the header is indented at all; if so, then it is centered
-        let (input, centered) =
-            map(space0, |s: Span| !s.is_empty())(input)?;
+        let (input, centered) = map(space0, |s: Span| !s.is_empty())(input)?;
 
         // Second, determine the potential level of the header (the number of =)
         let (input, level) = verify(

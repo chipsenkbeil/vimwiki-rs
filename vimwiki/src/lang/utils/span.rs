@@ -28,15 +28,18 @@ impl<'a> Span<'a> {
     }
 
     /// Creates a copy of the span starting at the new offset relative to
-    /// its existing offset
+    /// its existing offset. If start exceeds end, then start will be set
+    /// to end.
     ///
     /// e.g. start = 2, end = 4, starting_at(1) yields start = 3
     pub fn starting_at(&self, start: usize) -> Self {
-        Self::new(self.inner, self.start + start, self.end)
+        let start = self.start + start;
+        let end = self.end;
+        Self::new(self.inner, if start > end { end } else { start }, end)
     }
 
     /// Creates a copy of the span ending at the new offset (exclusive)
-    /// relative to its existing offset
+    /// relative to its existing offset.
     ///
     /// e.g. start = 2, end = 4, ending_at(1) yields end = 3
     pub fn ending_at(&self, end: usize) -> Self {
@@ -143,12 +146,11 @@ impl<'a> Span<'a> {
         // which is just after a newline or the beginning of the entire inner
         // slice if we are on the first line
         let start_of_line = memrchr(b'\n', self.as_consumed())
-            .map(|pos| self.start - pos)
+            .map(|pos| pos + 1)
             .unwrap_or_default();
 
-        // Get a slice for the line starting at the beginning up to and
-        // including the current position
-        let line_up_to_offset = &self.inner[start_of_line..=self.start];
+        // Get a slice for the line starting at the beginning
+        let line_up_to_offset = &self.inner[start_of_line..self.start];
 
         // Count the codepoints thus far and increment by 1 since our first
         // column is 1, not 0 (meaning if we are within the first code point,
@@ -221,7 +223,7 @@ impl<'a> DoubleEndedIterator for SpanIterator<'a> {
 
 impl<'a> From<&'a [u8]> for Span<'a> {
     fn from(inner: &'a [u8]) -> Self {
-        Self::new(inner, 0, inner.len() - 1)
+        Self::new(inner, 0, inner.len())
     }
 }
 
@@ -494,31 +496,19 @@ impl<'a> Offset for Span<'a> {
 
 impl<'a> Slice<Range<usize>> for Span<'a> {
     fn slice(&self, range: Range<usize>) -> Self {
-        Self {
-            inner: self.inner,
-            start: self.start + range.start,
-            end: self.start + range.end,
-        }
+        self.ending_at(range.end).starting_at(range.start)
     }
 }
 
 impl<'a> Slice<RangeTo<usize>> for Span<'a> {
     fn slice(&self, range: RangeTo<usize>) -> Self {
-        Self {
-            inner: self.inner,
-            start: self.start,
-            end: self.start + range.end,
-        }
+        self.ending_at(range.end)
     }
 }
 
 impl<'a> Slice<RangeFrom<usize>> for Span<'a> {
     fn slice(&self, range: RangeFrom<usize>) -> Self {
-        Self {
-            inner: self.inner,
-            start: self.start + range.start,
-            end: self.end,
-        }
+        self.starting_at(range.start)
     }
 }
 
@@ -552,7 +542,7 @@ mod tests {
 
         #[test]
         fn compare_should_yield_error_if_remaining_bytes_are_not_equal() {
-            let span1 = Span::from(b"abcdef").starting_at(2);
+            let span1 = Span::from(b"abcdef").starting_at(4);
             let span2 = Span::from(b"defabc").starting_at(4);
             assert_eq!(span1.compare(span2), CompareResult::Error);
             assert_eq!(span1.compare("defabc"), CompareResult::Error);
@@ -562,8 +552,8 @@ mod tests {
         #[test]
         fn compare_should_yield_incomplete_if_remaining_bytes_length_is_smaller_than_other(
         ) {
-            let span1 = Span::from(b"abcdef").starting_at(4);
-            let span2 = Span::from(b"abcdef").starting_at(2);
+            let span1 = Span::from(b"abcdef").with_length(2);
+            let span2 = Span::from(b"abcdef").with_length(4);
             assert_eq!(span1.compare(span2), CompareResult::Incomplete);
             assert_eq!(span1.compare("abcdef"), CompareResult::Incomplete);
             assert_eq!(
@@ -594,8 +584,8 @@ mod tests {
         #[test]
         fn compare_no_case_should_yield_incomplete_if_remaining_bytes_length_is_smaller_than_other(
         ) {
-            let span1 = Span::from("abcdef").starting_at(4);
-            let span2 = Span::from("AbCdEf").starting_at(2);
+            let span1 = Span::from("abcdef").with_length(2);
+            let span2 = Span::from("AbCdEf").with_length(4);
             assert_eq!(span1.compare_no_case(span2), CompareResult::Incomplete);
             assert_eq!(
                 span1.compare_no_case("AbCdEf"),
@@ -730,7 +720,7 @@ mod tests {
 
         #[test]
         fn slice_index_should_yield_none_if_unavailable_in_remaining_bytes() {
-            let span = Span::from(b"abc123").starting_at(2);
+            let span = Span::from(b"abc123").starting_at(3);
             assert_eq!(span.slice_index(4), None);
         }
 
@@ -842,7 +832,7 @@ mod tests {
             let span = Span::from(b"abc123").starting_at(2);
             assert_eq!(
                 span.split_at_position_complete::<_, ()>(|_| false),
-                Ok((Span::from(b"abc123").starting_at(2), span))
+                Ok((Span::from(b"abc123").starting_at(6), span))
             );
         }
 
@@ -877,7 +867,7 @@ mod tests {
                     |_| false,
                     ErrorKind::Alpha
                 ),
-                Ok((Span::from(b"abc123").starting_at(2), span))
+                Ok((Span::from(b"abc123").starting_at(6), span))
             );
         }
 
@@ -966,8 +956,8 @@ mod tests {
             assert_eq!(span2.as_bytes(), b"");
 
             let span2 = span1.slice(11..);
-            assert_eq!(span2.start_offset(), 13);
-            assert_eq!(span2.end_offset(), 2);
+            assert_eq!(span2.start_offset(), 6);
+            assert_eq!(span2.end_offset(), 6);
             assert_eq!(span2.as_bytes(), b"");
 
             let span2 = span1.slice(..0);
