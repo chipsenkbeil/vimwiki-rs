@@ -31,7 +31,7 @@ pub(super) fn wiki_link_internal(input: Span) -> VimwikiIResult<WikiLink> {
         not(tag("#")),
         map(
             take_line_while1(not(alt((tag("|"), tag("#"), tag("]]"))))),
-            |s: Span| PathBuf::from(s.fragment_str()),
+            |s: Span| PathBuf::from(s.as_unsafe_remaining_str()),
         ),
     ))(input)?;
 
@@ -89,7 +89,7 @@ fn description(input: Span) -> VimwikiIResult<Description> {
             take_line_while1(not(tag("]]"))),
             alt((
                 description_from_uri,
-                map(rest, |s: Span| Description::from(s.fragment_str())),
+                map(rest, |s: Span| Description::from(s.as_unsafe_remaining_str())),
             )),
         ),
     )(input)
@@ -142,7 +142,7 @@ mod tests {
             wiki_link(input).expect("Parser unexpectedly failed");
 
         // Link should be consumed
-        assert!(input.fragment().is_empty());
+        assert!(input.is_empty());
 
         assert!(link.path.is_relative(), "Not detected as relative");
         assert_eq!(link.path.to_str().unwrap(), "This is a link");
@@ -158,7 +158,7 @@ mod tests {
             wiki_link(input).expect("Parser unexpectedly failed");
 
         // Link should be consumed
-        assert!(input.fragment().is_empty());
+        assert!(input.is_empty());
 
         assert!(link.path.is_relative(), "Not detected as relative");
         assert_eq!(link.path.to_str().unwrap(), "This is a link source");
@@ -178,7 +178,7 @@ mod tests {
             wiki_link(input).expect("Parser unexpectedly failed");
 
         // Link should be consumed
-        assert!(input.fragment().is_empty());
+        assert!(input.is_empty());
 
         assert!(link.path.is_relative(), "Not detected as relative");
         assert_eq!(link.path.to_str().unwrap(), "This is a link source");
@@ -200,7 +200,7 @@ mod tests {
             wiki_link(input).expect("Parser unexpectedly failed");
 
         // Link should be consumed
-        assert!(input.fragment().is_empty());
+        assert!(input.is_empty());
 
         assert!(link.path.is_relative(), "Not detected as relative");
         assert_eq!(link.path.to_str().unwrap(), "projects/Important Project 1");
@@ -215,7 +215,7 @@ mod tests {
             wiki_link(input).expect("Parser unexpectedly failed");
 
         // Link should be consumed
-        assert!(input.fragment().is_empty());
+        assert!(input.is_empty());
 
         assert!(link.path.is_relative(), "Not detected as relative");
         assert_eq!(link.path.to_str().unwrap(), "../index");
@@ -230,7 +230,7 @@ mod tests {
             wiki_link(input).expect("Parser unexpectedly failed");
 
         // Link should be consumed
-        assert!(input.fragment().is_empty());
+        assert!(input.is_empty());
 
         assert!(link.path.is_absolute(), "Not detected as absolute");
         assert_eq!(link.path.to_str().unwrap(), "/index");
@@ -245,7 +245,7 @@ mod tests {
             wiki_link(input).expect("Parser unexpectedly failed");
 
         // Link should be consumed
-        assert!(input.fragment().is_empty());
+        assert!(input.is_empty());
 
         assert!(link.is_path_dir(), "Not detected as subdirectory");
         assert_eq!(link.path.to_str().unwrap(), "a subdirectory/");
@@ -263,7 +263,7 @@ mod tests {
             wiki_link(input).expect("Parser unexpectedly failed");
 
         // Link should be consumed
-        assert!(input.fragment().is_empty());
+        assert!(input.is_empty());
 
         assert_eq!(link.path.to_str().unwrap(), "Todo List");
         assert_eq!(link.description, None);
@@ -280,7 +280,7 @@ mod tests {
             wiki_link(input).expect("Parser unexpectedly failed");
 
         // Link should be consumed
-        assert!(input.fragment().is_empty());
+        assert!(input.is_empty());
 
         assert_eq!(link.path.to_str().unwrap(), "Todo List");
         assert_eq!(link.description, None);
@@ -300,7 +300,7 @@ mod tests {
             wiki_link(input).expect("Parser unexpectedly failed");
 
         // Link should be consumed
-        assert!(input.fragment().is_empty());
+        assert!(input.is_empty());
 
         assert_eq!(link.path.to_str().unwrap(), "Todo List");
         assert_eq!(
@@ -321,7 +321,7 @@ mod tests {
             wiki_link(input).expect("Parser unexpectedly failed");
 
         // Link should be consumed
-        assert!(input.fragment().is_empty());
+        assert!(input.is_empty());
 
         assert_eq!(link.path.to_str().unwrap(), "Todo List");
         assert_eq!(
@@ -344,7 +344,7 @@ mod tests {
             wiki_link(input).expect("Parser unexpectedly failed");
 
         // Link should be consumed
-        assert!(input.fragment().is_empty());
+        assert!(input.is_empty());
 
         assert!(link.is_local_anchor(), "Not detected as local anchor");
         assert_eq!(link.path.to_str().unwrap(), "");

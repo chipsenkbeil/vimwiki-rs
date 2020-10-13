@@ -45,16 +45,16 @@ impl LangParserError {
     }
 
     pub fn from_ctx(input: &Span, ctx: &'static str) -> Self {
-        let line = input.global_line();
-        let column = input.global_utf8_column();
+        let line = input.line();
+        let column = input.column();
         Self {
             ctx: ctx.to_string(),
             sample: input
-                .fragment_str()
+                .as_unsafe_remaining_str()
                 .get(..16)
                 .map(|x| x.to_string())
                 .unwrap_or_default(),
-            offset: input.global_offset(),
+            offset: input.start_offset(),
             line,
             column,
             next: None,
@@ -62,18 +62,18 @@ impl LangParserError {
     }
 }
 
-impl ParseError<Span> for LangParserError {
+impl ParseError<Span<'_>> for LangParserError {
     fn from_error_kind(input: Span, kind: ErrorKind) -> Self {
-        let line = input.global_line();
-        let column = input.global_utf8_column();
+        let line = input.line();
+        let column = input.column();
         Self {
             ctx: kind.description().to_string(),
             sample: input
-                .fragment_str()
+                .as_unsafe_remaining_str()
                 .get(..16)
                 .map(|x| x.to_string())
                 .unwrap_or_default(),
-            offset: input.global_offset(),
+            offset: input.start_offset(),
             line,
             column,
             next: None,
@@ -87,16 +87,16 @@ impl ParseError<Span> for LangParserError {
     }
 
     fn from_char(input: Span, c: char) -> Self {
-        let line = input.global_line();
-        let column = input.global_utf8_column();
+        let line = input.line();
+        let column = input.column();
         Self {
             ctx: format!("Char {}", c),
             sample: input
-                .fragment_str()
+                .as_unsafe_remaining_str()
                 .get(..16)
                 .map(|x| x.to_string())
                 .unwrap_or_default(),
-            offset: input.global_offset(),
+            offset: input.start_offset(),
             line,
             column,
             next: None,
@@ -113,16 +113,16 @@ impl ParseError<Span> for LangParserError {
     }
 
     fn add_context(input: Span, ctx: &'static str, other: Self) -> Self {
-        let line = input.global_line();
-        let column = input.global_utf8_column();
+        let line = input.line();
+        let column = input.column();
         Self {
             ctx: ctx.to_string(),
             sample: input
-                .fragment_str()
+                .as_unsafe_remaining_str()
                 .get(..16)
                 .map(|x| x.to_string())
                 .unwrap_or_default(),
-            offset: input.global_offset(),
+            offset: input.start_offset(),
             line,
             column,
             next: Some(Box::new(other)),

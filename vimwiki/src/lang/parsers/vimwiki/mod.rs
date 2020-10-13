@@ -26,9 +26,9 @@ pub fn page(input: Span) -> VimwikiIResult<LE<Page>> {
         let (input, mut ranges_and_comments) = page_comments(input)?;
 
         // Second, produce a new custom span that skips over commented regions
-        let segments =
-            ranges_and_comments.iter().map(|x| x.0.to_owned()).collect();
-        let input_2 = input_2.without_segments(segments);
+        // let segments =
+        //     ranges_and_comments.iter().map(|x| x.0.to_owned()).collect();
+        // let input_2 = input_2.without_segments(segments);
 
         // Third, continuously parse input for new block elements until we
         // have nothing left (or we fail)
@@ -86,7 +86,7 @@ mod tests {
     fn page_should_skip_blank_lines_not_within_block_elements() {
         let input = Span::from("\n\n");
         let (input, page) = page(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume all of input");
+        assert!(input.is_empty(), "Did not consume all of input");
         assert!(page.comments.is_empty());
         assert!(page.elements.is_empty());
     }
@@ -95,7 +95,7 @@ mod tests {
     fn page_should_parse_comments() {
         let input = Span::from("%%comment\n%%+comment2+%%\n%%comment3");
         let (input, page) = page(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume all of input");
+        assert!(input.is_empty(), "Did not consume all of input");
         assert_eq!(
             page.comments,
             vec![
@@ -111,7 +111,7 @@ mod tests {
     fn page_should_parse_blocks() {
         let input = Span::from("some text with % signs");
         let (input, page) = page(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume all of input");
+        assert!(input.is_empty(), "Did not consume all of input");
         assert!(page.comments.is_empty(), "Unexpected parsed comment");
         assert_eq!(
             page.elements,
@@ -127,7 +127,7 @@ mod tests {
         let input =
             Span::from("%%comment\nSome %%+comment+%%more%%+\ncomment+%% text");
         let (input, page) = page(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume all of input");
+        assert!(input.is_empty(), "Did not consume all of input");
 
         let comment = &page.comments[0];
         assert_eq!(

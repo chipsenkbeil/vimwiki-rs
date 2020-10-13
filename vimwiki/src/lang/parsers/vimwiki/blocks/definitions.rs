@@ -162,7 +162,7 @@ mod tests {
     fn definition_list_should_succeed_if_one_term_and_inline_def() {
         let input = Span::from("term 1:: def 1");
         let (input, l) = definition_list(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume def list");
+        assert!(input.is_empty(), "Did not consume def list");
 
         let defs = l.defs_for_term("term 1").unwrap().collect();
         check_text_defs(defs, vec!["def 1"]);
@@ -175,7 +175,7 @@ mod tests {
             :: def 1
         "#});
         let (input, l) = definition_list(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume def list");
+        assert!(input.is_empty(), "Did not consume def list");
 
         let defs = l.defs_for_term("term 1").unwrap().collect();
         check_text_defs(defs, vec!["def 1"]);
@@ -189,7 +189,7 @@ mod tests {
             :: def 2
         "#});
         let (input, l) = definition_list(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume def list");
+        assert!(input.is_empty(), "Did not consume def list");
 
         let defs = l.defs_for_term("term 1").unwrap().collect();
         check_text_defs(defs, vec!["def 1", "def 2"]);
@@ -203,7 +203,7 @@ mod tests {
             :: def 2
         "#});
         let (input, l) = definition_list(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume def list");
+        assert!(input.is_empty(), "Did not consume def list");
 
         let defs = l.defs_for_term("term 1").unwrap().collect();
         check_text_defs(defs, vec!["def 1", "def 2"]);
@@ -216,7 +216,7 @@ mod tests {
             term 2:: def 2
         "#});
         let (input, l) = definition_list(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume def list");
+        assert!(input.is_empty(), "Did not consume def list");
 
         let defs = l.defs_for_term("term 1").unwrap().collect();
         check_text_defs(defs, vec!["def 1"]);
@@ -234,7 +234,7 @@ mod tests {
             :: def 2
         "#});
         let (input, l) = definition_list(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume def list");
+        assert!(input.is_empty(), "Did not consume def list");
 
         let defs = l.defs_for_term("term 1").unwrap().collect();
         check_text_defs(defs, vec!["def 1"]);
@@ -252,7 +252,7 @@ mod tests {
             :: def 4
         "#});
         let (input, l) = definition_list(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume def list");
+        assert!(input.is_empty(), "Did not consume def list");
 
         let defs = l.defs_for_term("term 1").unwrap().collect();
         check_text_defs(defs, vec!["def 1", "def 2"]);
@@ -269,7 +269,7 @@ mod tests {
             :: def $2+2$
         "#});
         let (input, l) = definition_list(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume def list");
+        assert!(input.is_empty(), "Did not consume def list");
 
         let terms: Vec<&Term> = l.terms().collect();
         assert_eq!(

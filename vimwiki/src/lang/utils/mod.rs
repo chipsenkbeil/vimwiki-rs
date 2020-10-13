@@ -5,4 +5,4 @@ pub use position::Position;
 mod region;
 pub use region::Region;
 mod span;
-pub use span::Span;
+pub use span::{Span, SpanIterator};

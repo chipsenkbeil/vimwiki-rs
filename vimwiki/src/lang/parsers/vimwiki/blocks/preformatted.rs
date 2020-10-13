@@ -43,7 +43,7 @@ fn preformatted_text_start(
     // e.g. {{{c++ -> Some("c++")
     let (input, maybe_lang) = opt(terminated(
         pstring(verify(take_line_while1(not(char(';'))), |s: &Span| {
-            !s.fragment_str().contains('=')
+            !s.as_unsafe_remaining_str().contains('=')
         })),
         opt(char(';')),
     ))(input)?;
@@ -62,7 +62,7 @@ fn preformatted_text_start(
                 ),
             ),
             |(k, v): (Span, Span)| {
-                (k.fragment_str().to_string(), v.fragment_str().to_string())
+                (k.as_unsafe_remaining_str().to_string(), v.as_unsafe_remaining_str().to_string())
             },
         ),
     )(input)?;
@@ -150,7 +150,7 @@ mod tests {
         "});
         let (input, p) = preformatted_text(input).unwrap();
         assert!(
-            input.fragment().is_empty(),
+            input.is_empty(),
             "Did not consume preformatted block"
         );
         assert_eq!(p.lang, Some("c++".to_string()));
@@ -167,7 +167,7 @@ mod tests {
         "#});
         let (input, p) = preformatted_text(input).unwrap();
         assert!(
-            input.fragment().is_empty(),
+            input.is_empty(),
             "Did not consume preformatted block"
         );
         assert_eq!(p.lang, Some("c++".to_string()));
@@ -191,7 +191,7 @@ mod tests {
         "});
         let (input, p) = preformatted_text(input).unwrap();
         assert!(
-            input.fragment().is_empty(),
+            input.is_empty(),
             "Did not consume preformatted block"
         );
         assert_eq!(
@@ -222,7 +222,7 @@ mod tests {
         "#});
         let (input, p) = preformatted_text(input).unwrap();
         assert!(
-            input.fragment().is_empty(),
+            input.is_empty(),
             "Did not consume preformatted block"
         );
         assert_eq!(
@@ -247,7 +247,7 @@ mod tests {
         "#});
         let (input, p) = preformatted_text(input).unwrap();
         assert!(
-            input.fragment().is_empty(),
+            input.is_empty(),
             "Did not consume preformatted block"
         );
         assert_eq!(

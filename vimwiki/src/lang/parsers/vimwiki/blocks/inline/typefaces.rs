@@ -173,7 +173,7 @@ mod tests {
         let input = Span::from("abc123$math$");
         let (input, t) = text(input).unwrap();
         assert_eq!(
-            input.fragment_str(),
+            input.as_unsafe_remaining_str(),
             "$math$",
             "Unexpected input consumption"
         );
@@ -185,7 +185,7 @@ mod tests {
         let input = Span::from("abc123:tag:");
         let (input, t) = text(input).unwrap();
         assert_eq!(
-            input.fragment_str(),
+            input.as_unsafe_remaining_str(),
             ":tag:",
             "Unexpected input consumption"
         );
@@ -197,7 +197,7 @@ mod tests {
         let input = Span::from("abc123[[some link]]");
         let (input, t) = text(input).unwrap();
         assert_eq!(
-            input.fragment_str(),
+            input.as_unsafe_remaining_str(),
             "[[some link]]",
             "Unexpected input consumption"
         );
@@ -209,7 +209,7 @@ mod tests {
         let input = Span::from("abc123*bold text*");
         let (input, t) = text(input).unwrap();
         assert_eq!(
-            input.fragment_str(),
+            input.as_unsafe_remaining_str(),
             "*bold text*",
             "Unexpected input consumption"
         );
@@ -221,7 +221,7 @@ mod tests {
         let input = Span::from("abc123 TODO");
         let (input, t) = text(input).unwrap();
         assert_eq!(
-            input.fragment_str(),
+            input.as_unsafe_remaining_str(),
             "TODO",
             "Unexpected input consumption"
         );
@@ -233,7 +233,7 @@ mod tests {
         let input = Span::from("abc123\nsome other text");
         let (input, t) = text(input).unwrap();
         assert_eq!(
-            input.fragment_str(),
+            input.as_unsafe_remaining_str(),
             "\nsome other text",
             "Unexpected input consumption"
         );
@@ -244,7 +244,7 @@ mod tests {
     fn text_should_consume_until_reaching_end_of_input() {
         let input = Span::from("abc123");
         let (input, t) = text(input).unwrap();
-        assert_eq!(input.fragment_str(), "", "Unexpected input consumption");
+        assert_eq!(input.as_unsafe_remaining_str(), "", "Unexpected input consumption");
         assert_eq!(t.element, Text::from("abc123"));
     }
 
@@ -265,7 +265,7 @@ mod tests {
         let input = Span::from("*bold text*");
         let (input, dt) = decorated_text(input).unwrap();
         assert!(
-            input.fragment().is_empty(),
+            input.is_empty(),
             "Did not consume decorated text"
         );
         assert_eq!(
@@ -281,7 +281,7 @@ mod tests {
         let input = Span::from("_italic text_");
         let (input, dt) = decorated_text(input).unwrap();
         assert!(
-            input.fragment().is_empty(),
+            input.is_empty(),
             "Did not consume decorated text"
         );
         assert_eq!(
@@ -297,7 +297,7 @@ mod tests {
         let input = Span::from("_*bold italic text*_");
         let (input, dt) = decorated_text(input).unwrap();
         assert!(
-            input.fragment().is_empty(),
+            input.is_empty(),
             "Did not consume decorated text"
         );
         assert_eq!(
@@ -313,7 +313,7 @@ mod tests {
         let input = Span::from("*_bold italic text_*");
         let (input, dt) = decorated_text(input).unwrap();
         assert!(
-            input.fragment().is_empty(),
+            input.is_empty(),
             "Did not consume decorated text"
         );
         assert_eq!(
@@ -329,7 +329,7 @@ mod tests {
         let input = Span::from("~~strikeout text~~");
         let (input, dt) = decorated_text(input).unwrap();
         assert!(
-            input.fragment().is_empty(),
+            input.is_empty(),
             "Did not consume decorated text"
         );
         assert_eq!(
@@ -345,7 +345,7 @@ mod tests {
         let input = Span::from("^superscript text^");
         let (input, dt) = decorated_text(input).unwrap();
         assert!(
-            input.fragment().is_empty(),
+            input.is_empty(),
             "Did not consume decorated text"
         );
         assert_eq!(
@@ -361,7 +361,7 @@ mod tests {
         let input = Span::from(",,subscript text,,");
         let (input, dt) = decorated_text(input).unwrap();
         assert!(
-            input.fragment().is_empty(),
+            input.is_empty(),
             "Did not consume decorated text"
         );
         assert_eq!(
@@ -377,7 +377,7 @@ mod tests {
         let input = Span::from("*[[some link]]*");
         let (input, dt) = decorated_text(input).unwrap();
         assert!(
-            input.fragment().is_empty(),
+            input.is_empty(),
             "Did not consume decorated text"
         );
         assert_eq!(
@@ -393,7 +393,7 @@ mod tests {
         let input = Span::from("*TODO*");
         let (input, dt) = decorated_text(input).unwrap();
         assert!(
-            input.fragment().is_empty(),
+            input.is_empty(),
             "Did not consume decorated text"
         );
         assert_eq!(

@@ -51,9 +51,9 @@ pub fn blockquote(input: Span) -> VimwikiIResult<LE<Blockquote>> {
 #[inline]
 fn blockquote_line_1(input: Span) -> VimwikiIResult<String> {
     let (input, _) = beginning_of_line(input)?;
-    let (input, _) = verify(space0, |s: &Span| s.fragment_len() >= 4)(input)?;
+    let (input, _) = verify(space0, |s: &Span| s.remaining_len() >= 4)(input)?;
     let (input, text) = verify(
-        map(not_line_ending, |s: Span| s.fragment_str().to_string()),
+        map(not_line_ending, |s: Span| s.as_unsafe_remaining_str().to_string()),
         |s: &str| !s.trim().is_empty(),
     )(input)?;
     let (input, _) = end_of_line_or_input(input)?;
@@ -67,7 +67,7 @@ fn blockquote_line_2(input: Span) -> VimwikiIResult<String> {
     let (input, _) = beginning_of_line(input)?;
     let (input, _) = tag("> ")(input)?;
     let (input, text) =
-        map(not_line_ending, |s: Span| s.fragment_str().to_string())(input)?;
+        map(not_line_ending, |s: Span| s.as_unsafe_remaining_str().to_string())(input)?;
     let (input, _) = end_of_line_or_input(input)?;
 
     Ok((input, text))
@@ -118,7 +118,7 @@ mod tests {
 
         // Verify that only the first blockquote was consumed
         assert_eq!(
-            input.fragment_str(),
+            input.as_unsafe_remaining_str(),
             indoc! {"
 
                 This is another blockquote
@@ -147,7 +147,7 @@ mod tests {
 
         // Verify that only the first blockquote was consumed
         assert_eq!(
-            input.fragment_str(),
+            input.as_unsafe_remaining_str(),
             indoc! {"
             regular line starts here and is needed for indoc to have a baseline
                 This is another blockquote
@@ -179,7 +179,7 @@ mod tests {
         // Verify blank lines BETWEEN block quotes are consumed, but not those
         // after no more block quotes
         assert_eq!(
-            input.fragment_str(),
+            input.as_unsafe_remaining_str(),
             indoc! {"
 
             this is a regular line

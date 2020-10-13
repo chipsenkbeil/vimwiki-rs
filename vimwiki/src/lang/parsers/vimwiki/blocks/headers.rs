@@ -23,11 +23,11 @@ pub fn header(input: Span) -> VimwikiIResult<LE<Header>> {
 
         // First, check if the header is indented at all; if so, then it is centered
         let (input, centered) =
-            map(space0, |s: Span| !s.fragment().is_empty())(input)?;
+            map(space0, |s: Span| !s.is_empty())(input)?;
 
         // Second, determine the potential level of the header (the number of =)
         let (input, level) = verify(
-            map(take_line_while1(char('=')), |s: Span| s.fragment_len()),
+            map(take_line_while1(char('=')), |s: Span| s.remaining_len()),
             |level| *level >= Header::MIN_LEVEL && *level <= Header::MAX_LEVEL,
         )(input)?;
 
@@ -103,14 +103,14 @@ mod tests {
     fn header_should_parse_level_1_header() {
         let input = Span::from("=test header=");
         let (input, h) = header(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume header");
+        assert!(input.is_empty(), "Did not consume header");
         assert_eq!(h.level, 1, "Wrong header level");
         assert_eq!(h.content.to_string(), "test header", "Wrong header text");
         assert_eq!(h.centered, false, "Wrong centered status");
 
         let input = Span::from(" =test header= ");
         let (input, h) = header(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume header");
+        assert!(input.is_empty(), "Did not consume header");
         assert_eq!(h.level, 1, "Wrong header level");
         assert_eq!(h.content.to_string(), "test header", "Wrong header text");
         assert_eq!(h.centered, true, "Wrong centered status");
@@ -120,14 +120,14 @@ mod tests {
     fn header_should_parse_level_2_header() {
         let input = Span::from("==test header==");
         let (input, h) = header(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume header");
+        assert!(input.is_empty(), "Did not consume header");
         assert_eq!(h.level, 2, "Wrong header level");
         assert_eq!(h.content.to_string(), "test header", "Wrong header text");
         assert_eq!(h.centered, false, "Wrong centered status");
 
         let input = Span::from(" ==test header== ");
         let (input, h) = header(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume header");
+        assert!(input.is_empty(), "Did not consume header");
         assert_eq!(h.level, 2, "Wrong header level");
         assert_eq!(h.content.to_string(), "test header", "Wrong header text");
         assert_eq!(h.centered, true, "Wrong centered status");
@@ -137,14 +137,14 @@ mod tests {
     fn header_should_parse_level_3_header() {
         let input = Span::from("===test header===");
         let (input, h) = header(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume header");
+        assert!(input.is_empty(), "Did not consume header");
         assert_eq!(h.level, 3, "Wrong header level");
         assert_eq!(h.content.to_string(), "test header", "Wrong header text");
         assert_eq!(h.centered, false, "Wrong centered status");
 
         let input = Span::from(" ===test header=== ");
         let (input, h) = header(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume header");
+        assert!(input.is_empty(), "Did not consume header");
         assert_eq!(h.level, 3, "Wrong header level");
         assert_eq!(h.content.to_string(), "test header", "Wrong header text");
         assert_eq!(h.centered, true, "Wrong centered status");
@@ -154,14 +154,14 @@ mod tests {
     fn header_should_parse_level_4_header() {
         let input = Span::from("====test header====");
         let (input, h) = header(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume header");
+        assert!(input.is_empty(), "Did not consume header");
         assert_eq!(h.level, 4, "Wrong header level");
         assert_eq!(h.content.to_string(), "test header", "Wrong header text");
         assert_eq!(h.centered, false, "Wrong centered status");
 
         let input = Span::from(" ====test header==== ");
         let (input, h) = header(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume header");
+        assert!(input.is_empty(), "Did not consume header");
         assert_eq!(h.level, 4, "Wrong header level");
         assert_eq!(h.content.to_string(), "test header", "Wrong header text");
         assert_eq!(h.centered, true, "Wrong centered status");
@@ -171,14 +171,14 @@ mod tests {
     fn header_should_parse_level_5_header() {
         let input = Span::from("=====test header=====");
         let (input, h) = header(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume header");
+        assert!(input.is_empty(), "Did not consume header");
         assert_eq!(h.level, 5, "Wrong header level");
         assert_eq!(h.content.to_string(), "test header", "Wrong header text");
         assert_eq!(h.centered, false, "Wrong centered status");
 
         let input = Span::from(" =====test header===== ");
         let (input, h) = header(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume header");
+        assert!(input.is_empty(), "Did not consume header");
         assert_eq!(h.level, 5, "Wrong header level");
         assert_eq!(h.content.to_string(), "test header", "Wrong header text");
         assert_eq!(h.centered, true, "Wrong centered status");
@@ -188,14 +188,14 @@ mod tests {
     fn header_should_parse_level_6_header() {
         let input = Span::from("======test header======");
         let (input, h) = header(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume header");
+        assert!(input.is_empty(), "Did not consume header");
         assert_eq!(h.level, 6, "Wrong header level");
         assert_eq!(h.content.to_string(), "test header", "Wrong header text");
         assert_eq!(h.centered, false, "Wrong centered status");
 
         let input = Span::from(" ======test header====== ");
         let (input, h) = header(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume header");
+        assert!(input.is_empty(), "Did not consume header");
         assert_eq!(h.level, 6, "Wrong header level");
         assert_eq!(h.content.to_string(), "test header", "Wrong header text");
         assert_eq!(h.centered, true, "Wrong centered status");
@@ -214,7 +214,7 @@ mod tests {
     fn header_should_trim_whitespace_around_text() {
         let input = Span::from("= test header\t=");
         let (input, h) = header(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume header");
+        assert!(input.is_empty(), "Did not consume header");
         assert_eq!(h.content.to_string(), "test header", "Wrong header text");
     }
 
@@ -222,7 +222,7 @@ mod tests {
     fn header_should_support_equals_signs_within_content() {
         let input = Span::from("=test =header=");
         let (input, h) = header(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume header");
+        assert!(input.is_empty(), "Did not consume header");
         assert_eq!(h.content.to_string(), "test =header", "Wrong header text");
     }
 
@@ -231,7 +231,7 @@ mod tests {
         let input =
             Span::from("=*bold* header TODO [[link]] :tag1:tag2: $math$=");
         let (input, h) = header(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume header");
+        assert!(input.is_empty(), "Did not consume header");
 
         check!(h, 0, DecoratedText, "bold");
         check!(h, 1, Text, " header ");

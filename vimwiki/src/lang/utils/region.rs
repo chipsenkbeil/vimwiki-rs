@@ -76,10 +76,10 @@ impl From<(usize, usize, usize, usize)> for Region {
     }
 }
 
-impl<'a> From<(Span, Span)> for Region {
+impl<'a, 'b> From<(Span<'a>, Span<'b>)> for Region {
     /// Converts a start and end span into a region that they represent,
     /// assuming that the end span is non-inclusive (one step past end)
-    fn from((start, end): (Span, Span)) -> Self {
+    fn from((start, end): (Span<'a>, Span<'b>)) -> Self {
         use nom::Offset;
         let mut offset = start.offset(&end);
 
@@ -93,8 +93,8 @@ impl<'a> From<(Span, Span)> for Region {
     }
 }
 
-impl<'a> From<(Span, usize)> for Region {
-    fn from((span, offset): (Span, usize)) -> Self {
+impl<'a> From<(Span<'a>, usize)> for Region {
+    fn from((span, offset): (Span<'a>, usize)) -> Self {
         use nom::Slice;
         let start = Position::from(span.clone());
         let end = Position::from(span.slice(offset..));
@@ -138,8 +138,8 @@ mod tests {
         let (start, _) = take1(input).unwrap();
 
         // Start span should be at (1, 2), which is (0, 1) in our coord space
-        assert_eq!(start.local_line(), 1);
-        assert_eq!(start.local_utf8_column(), 2);
+        assert_eq!(start.line(), 1);
+        assert_eq!(start.column(), 2);
 
         let region = Region::from((start.clone(), start));
         assert_eq!(region, Region::from((0, 1, 0, 1)));
@@ -158,8 +158,8 @@ mod tests {
         let (start, _) = take1(input).unwrap();
 
         // Start span should be at (1, 2), which is (0, 1) in our coord space
-        assert_eq!(start.local_line(), 1);
-        assert_eq!(start.local_utf8_column(), 2);
+        assert_eq!(start.line(), 1);
+        assert_eq!(start.column(), 2);
 
         // End at line 1, column 3
         let (end, _) = take1(start.clone()).unwrap();
@@ -170,8 +170,8 @@ mod tests {
         let (end, _) = take1(end).unwrap();
 
         // Span should now be at (2, 4), which is (1, 3) in our coord space
-        assert_eq!(end.local_line(), 2);
-        assert_eq!(end.local_utf8_column(), 4);
+        assert_eq!(end.line(), 2);
+        assert_eq!(end.column(), 4);
 
         // region should start at (0, 1) and end at (1, 3-1)
         let region = Region::from((start, end));

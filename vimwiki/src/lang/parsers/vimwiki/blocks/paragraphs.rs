@@ -93,7 +93,7 @@ mod tests {
         Some paragraph with *decorations*, [[links]], $math$, and more
         "});
         let (input, mut p) = paragraph(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume paragraph");
+        assert!(input.is_empty(), "Did not consume paragraph");
 
         assert_eq!(
             p.content
@@ -126,7 +126,7 @@ mod tests {
         [[links]], $math$, and more
         "});
         let (input, mut p) = paragraph(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume paragraph");
+        assert!(input.is_empty(), "Did not consume paragraph");
 
         assert_eq!(
             p.content
@@ -160,7 +160,7 @@ mod tests {
           [[links]], $math$, and more
         "});
         let (input, mut p) = paragraph(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume paragraph");
+        assert!(input.is_empty(), "Did not consume paragraph");
 
         assert_eq!(
             p.content
@@ -196,7 +196,7 @@ mod tests {
         "});
         let (input, mut p) = paragraph(input).unwrap();
         assert_eq!(
-            input.fragment_str(),
+            input.as_unsafe_remaining_str(),
             "\nAnd this would be a second paragraph\n",
             "Unexpected consumption of input"
         );

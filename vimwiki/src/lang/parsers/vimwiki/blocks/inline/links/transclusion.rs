@@ -21,7 +21,7 @@ pub fn transclusion_link(input: Span) -> VimwikiIResult<LE<TransclusionLink>> {
         let (input, link_uri) = map_res(
             take_line_while1(not(alt((tag("|"), tag("}}"))))),
             |s: Span| {
-                URI::try_from(s.fragment_str()).map(|uri| uri.into_owned())
+                URI::try_from(s.as_unsafe_remaining_str()).map(|uri| uri.into_owned())
             },
         )(input)?;
         let (input, maybe_description) = opt(map(
@@ -29,7 +29,7 @@ pub fn transclusion_link(input: Span) -> VimwikiIResult<LE<TransclusionLink>> {
                 tag("|"),
                 take_line_while(not(alt((tag("|"), tag("}}"))))),
             ),
-            |s: Span| Description::from(s.fragment_str()),
+            |s: Span| Description::from(s.as_unsafe_remaining_str()),
         ))(input)?;
         let (input, maybe_properties) =
             opt(preceded(tag("|"), transclusion_properties))(input)?;
@@ -62,7 +62,7 @@ fn transclusion_properties(
                 take_line_while1(not(alt((tag("|"), tag("}}"))))),
                 separated_pair(
                     map(take_line_while1(not(tag("="))), |s: Span| {
-                        s.fragment_str().to_string()
+                        s.as_unsafe_remaining_str().to_string()
                     }),
                     tag("="),
                     map(
@@ -71,7 +71,7 @@ fn transclusion_properties(
                             take_line_while(not(tag("\""))),
                             tag("\""),
                         ),
-                        |s: Span| s.fragment_str().to_string(),
+                        |s: Span| s.as_unsafe_remaining_str().to_string(),
                     ),
                 ),
             ),
@@ -88,7 +88,7 @@ mod tests {
     fn transclusion_link_should_support_local_relative_uri() {
         let input = Span::from("{{file:../../images/vimwiki_logo.png}}");
         let (input, link) = transclusion_link(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume link");
+        assert!(input.is_empty(), "Did not consume link");
         assert_eq!(link.uri.scheme().as_str(), "file");
         assert_eq!(link.uri.path(), "../../images/vimwiki_logo.png");
         assert_eq!(link.description, None);
@@ -99,7 +99,7 @@ mod tests {
     fn transclusion_link_should_support_local_absolute_uri() {
         let input = Span::from("{{file:/some/path/images/vimwiki_logo.png}}");
         let (input, link) = transclusion_link(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume link");
+        assert!(input.is_empty(), "Did not consume link");
         assert_eq!(link.uri.scheme().as_str(), "file");
         assert_eq!(link.uri.path(), "/some/path/images/vimwiki_logo.png");
         assert_eq!(link.description, None);
@@ -112,7 +112,7 @@ mod tests {
             "{{http://vimwiki.googlecode.com/hg/images/vimwiki_logo.png}}",
         );
         let (input, link) = transclusion_link(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume link");
+        assert!(input.is_empty(), "Did not consume link");
         assert_eq!(link.uri.scheme().as_str(), "http");
         assert_eq!(
             link.uri.host().unwrap().to_string(),
@@ -132,7 +132,7 @@ mod tests {
         //
         let input = Span::from("{{http://vimwiki.googlecode.com/hg/images/vimwiki_logo.png|Vimwiki}}");
         let (input, link) = transclusion_link(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume link");
+        assert!(input.is_empty(), "Did not consume link");
         assert_eq!(link.uri.scheme().as_str(), "http");
         assert_eq!(
             link.uri.host().unwrap().to_string(),
@@ -152,7 +152,7 @@ mod tests {
         //
         let input = Span::from("{{http://vimwiki.googlecode.com/vimwiki_logo.png|cool stuff|style=\"width:150px;height:120px;\"}}");
         let (input, link) = transclusion_link(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume link");
+        assert!(input.is_empty(), "Did not consume link");
         assert_eq!(link.uri.scheme().as_str(), "http");
         assert_eq!(
             link.uri.host().unwrap().to_string(),
@@ -182,7 +182,7 @@ mod tests {
             "{{http://vimwiki.googlecode.com/vimwiki_logo.png||class=\"center flow blabla\"}}",
         );
         let (input, link) = transclusion_link(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume link");
+        assert!(input.is_empty(), "Did not consume link");
         assert_eq!(link.uri.scheme().as_str(), "http");
         assert_eq!(
             link.uri.host().unwrap().to_string(),

@@ -85,12 +85,12 @@ pub mod parsers {
     use super::*;
         
     type VimwikiNomError = crate::LangParserError;
-    type VimwikiIResult<O> = Result<(Span, O), nom::Err<VimwikiNomError>>;
+    type VimwikiIResult<'a, O> = Result<(Span<'a>, O), nom::Err<VimwikiNomError>>;
 
-    pub fn context<T>(
+    pub fn context<'a, T>(
         ctx: &'static str,
-        f: impl Fn(Span) -> VimwikiIResult<T>,
-    ) -> impl Fn(Span) -> VimwikiIResult<T> {
+        f: impl Fn(Span<'a>) -> VimwikiIResult<T>,
+    ) -> impl Fn(Span<'a>) -> VimwikiIResult<T> {
         use nom::error::ParseError;
         move |input: Span| {
             let start = std::time::Instant::now();

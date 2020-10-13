@@ -38,7 +38,7 @@ fn placeholder_title(input: Span) -> VimwikiIResult<Placeholder> {
         let (input, _) = space1(input)?;
         let (input, text) =
             pstring(verify(take_until_end_of_line_or_input, |s: &Span| {
-                !s.fragment_str().trim().is_empty()
+                !s.as_unsafe_remaining_str().trim().is_empty()
             }))(input)?;
         Ok((input, Placeholder::Title(text)))
     }
@@ -62,7 +62,7 @@ fn placeholder_template(input: Span) -> VimwikiIResult<Placeholder> {
         let (input, _) = space1(input)?;
         let (input, text) =
             pstring(verify(take_until_end_of_line_or_input, |s: &Span| {
-                !s.fragment_str().trim().is_empty()
+                !s.as_unsafe_remaining_str().trim().is_empty()
             }))(input)?;
         Ok((input, Placeholder::Template(text)))
     }
@@ -76,7 +76,7 @@ fn placeholder_date(input: Span) -> VimwikiIResult<Placeholder> {
         let (input, _) = space1(input)?;
         let (input, date) =
             map_res(take_until_end_of_line_or_input, |s: Span| {
-                NaiveDate::parse_from_str(s.fragment_str(), "%Y-%m-%d")
+                NaiveDate::parse_from_str(s.as_unsafe_remaining_str(), "%Y-%m-%d")
             })(input)?;
         Ok((input, Placeholder::Date(date)))
     }
@@ -100,7 +100,7 @@ fn placeholder_other(input: Span) -> VimwikiIResult<Placeholder> {
         let (input, _) = space1(input)?;
         let (input, value) =
             pstring(verify(take_until_end_of_line_or_input, |s: &Span| {
-                !s.fragment_str().trim().is_empty()
+                !s.as_unsafe_remaining_str().trim().is_empty()
             }))(input)?;
         Ok((input, Placeholder::Other { name, value }))
     }
@@ -129,7 +129,7 @@ mod tests {
     fn placeholder_should_succeed_if_title_with_text_input() {
         let input = Span::from("%title some title");
         let (input, placeholder) = placeholder(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume placeholder");
+        assert!(input.is_empty(), "Did not consume placeholder");
         assert_eq!(placeholder, Placeholder::Title("some title".to_string()));
     }
 
@@ -143,7 +143,7 @@ mod tests {
     fn placeholder_should_succeed_if_nohtml_with_no_text_input() {
         let input = Span::from("%nohtml");
         let (input, placeholder) = placeholder(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume placeholder");
+        assert!(input.is_empty(), "Did not consume placeholder");
         assert_eq!(placeholder, Placeholder::NoHtml);
     }
 
@@ -157,7 +157,7 @@ mod tests {
     fn placeholder_should_succeed_if_template_with_text_input() {
         let input = Span::from("%template my_template");
         let (input, placeholder) = placeholder(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume placeholder");
+        assert!(input.is_empty(), "Did not consume placeholder");
         assert_eq!(
             placeholder,
             Placeholder::Template("my_template".to_string()),
@@ -180,7 +180,7 @@ mod tests {
     fn placeholder_should_succeed_if_date_with_date_input() {
         let input = Span::from("%date 2012-03-05");
         let (input, placeholder) = placeholder(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume placeholder");
+        assert!(input.is_empty(), "Did not consume placeholder");
         assert_eq!(
             placeholder,
             Placeholder::Date(NaiveDate::from_ymd(2012, 3, 5)),
@@ -228,7 +228,7 @@ mod tests {
     ) {
         let input = Span::from("%other something else");
         let (input, placeholder) = placeholder(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume placeholder");
+        assert!(input.is_empty(), "Did not consume placeholder");
         assert_eq!(
             placeholder,
             Placeholder::Other {

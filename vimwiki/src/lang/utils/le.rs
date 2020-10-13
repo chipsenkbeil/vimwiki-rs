@@ -132,9 +132,9 @@ impl<T> From<T> for LocatedElement<T> {
     }
 }
 
-impl<T> From<(T, Span, Span)> for LocatedElement<T> {
+impl<'a, 'b, T> From<(T, Span<'a>, Span<'b>)> for LocatedElement<T> {
     /// Creates a new located element around `T`, using a default location
-    fn from((element, start, end): (T, Span, Span)) -> Self {
+    fn from((element, start, end): (T, Span<'a>, Span<'b>)) -> Self {
         Self::new(element, Region::from((start, end)))
     }
 }

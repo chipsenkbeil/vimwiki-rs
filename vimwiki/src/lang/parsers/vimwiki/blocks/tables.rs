@@ -18,7 +18,7 @@ pub fn table(input: Span) -> VimwikiIResult<LE<Table>> {
     fn inner(input: Span) -> VimwikiIResult<Table> {
         // Assume a table is centered if the first row is indented
         let (input, (table_header, centered)) =
-            map(pair(space0, row), |x| (x.1, !x.0.fragment().is_empty()))(
+            map(pair(space0, row), |x| (x.1, !x.0.is_empty()))(
                 input,
             )?;
 
@@ -164,7 +164,7 @@ mod tests {
         |ijkl|4444|
         "});
         let (input, t) = table(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume table");
+        assert!(input.is_empty(), "Did not consume table");
         assert!(!t.centered, "Table unexpectedly centered");
 
         let cell = &t.get_cell(0, 0).unwrap().element;
@@ -201,7 +201,7 @@ mod tests {
     fn table_should_support_single_row_with_single_cell() {
         let input = Span::from("|value1|");
         let (input, t) = table(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume table");
+        assert!(input.is_empty(), "Did not consume table");
         assert!(!t.centered, "Table unexpectedly centered");
 
         let cell = &t.get_cell(0, 0).unwrap().element;
@@ -212,7 +212,7 @@ mod tests {
     fn table_should_support_single_row_with_multiple_cells() {
         let input = Span::from("|value1|value2|");
         let (input, t) = table(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume table");
+        assert!(input.is_empty(), "Did not consume table");
         assert!(!t.centered, "Table unexpectedly centered");
 
         let cell = &t.get_cell(0, 0).unwrap().element;
@@ -229,7 +229,7 @@ mod tests {
         |value2|
         "});
         let (input, t) = table(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume table");
+        assert!(input.is_empty(), "Did not consume table");
         assert!(!t.centered, "Table unexpectedly centered");
 
         let cell = &t.get_cell(0, 0).unwrap().element;
@@ -246,7 +246,7 @@ mod tests {
         |value3|value4|
         "});
         let (input, t) = table(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume table");
+        assert!(input.is_empty(), "Did not consume table");
         assert!(!t.centered, "Table unexpectedly centered");
 
         let cell = &t.get_cell(0, 0).unwrap().element;
@@ -270,9 +270,9 @@ mod tests {
         "});
         let (input, t) = table(input).unwrap();
         assert!(
-            input.fragment().is_empty(),
+            input.is_empty(),
             "Did not consume table: '{}'",
-            input.fragment_str()
+            input.as_unsafe_remaining_str()
         );
         assert!(!t.centered, "Table unexpectedly centered");
 
@@ -290,9 +290,9 @@ mod tests {
         "});
         let (input, t) = table(input).unwrap();
         assert!(
-            input.fragment().is_empty(),
+            input.is_empty(),
             "Did not consume table: '{}'",
-            input.fragment_str()
+            input.as_unsafe_remaining_str()
         );
         assert!(!t.centered, "Table unexpectedly centered");
 
@@ -309,7 +309,7 @@ mod tests {
     fn table_should_support_span_left_cell() {
         let input = Span::from("|>|");
         let (input, t) = table(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume table");
+        assert!(input.is_empty(), "Did not consume table");
         assert!(!t.centered, "Table unexpectedly centered");
 
         let cell = &t.get_cell(0, 0).unwrap().element;
@@ -320,7 +320,7 @@ mod tests {
     fn table_should_support_span_above_cell() {
         let input = Span::from(r"|\/|");
         let (input, t) = table(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume table");
+        assert!(input.is_empty(), "Did not consume table");
         assert!(!t.centered, "Table unexpectedly centered");
 
         let cell = &t.get_cell(0, 0).unwrap().element;
@@ -331,7 +331,7 @@ mod tests {
     fn table_should_support_centering_through_indentation() {
         let input = Span::from(" |value1|");
         let (input, t) = table(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume table");
+        assert!(input.is_empty(), "Did not consume table");
         assert!(t.centered, "Table unexpectedly not centered");
 
         let cell = &t.get_cell(0, 0).unwrap().element;
@@ -342,7 +342,7 @@ mod tests {
     fn table_should_support_inline_content_in_cells() {
         let input = Span::from("|[[some link]]|");
         let (input, t) = table(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume table");
+        assert!(input.is_empty(), "Did not consume table");
         assert!(!t.centered, "Table unexpectedly centered");
 
         let cell = &t.get_cell(0, 0).unwrap().element;

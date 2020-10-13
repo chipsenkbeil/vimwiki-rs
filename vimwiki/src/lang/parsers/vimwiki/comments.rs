@@ -41,7 +41,7 @@ pub(crate) fn multi_line_comment(
 
         // Capture all content between comments as individual lines
         let (input, lines) = map(take_until("+%%"), |s: Span| {
-            s.fragment_str().lines().map(String::from).collect()
+            s.as_unsafe_remaining_str().lines().map(String::from).collect()
         })(input)?;
 
         let (input, _) = tag("+%%")(input)?;
@@ -82,7 +82,7 @@ mod tests {
         }
         let (input, _) = advance(input).unwrap();
         let (input, c) = comment(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume comment");
+        assert!(input.is_empty(), "Did not consume comment");
         assert_eq!(
             c.element,
             Comment::from(LineComment(" comment".to_string()))
@@ -93,7 +93,7 @@ mod tests {
     fn comment_should_parse_line_comment() {
         let input = Span::from("%% comment");
         let (input, c) = comment(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume comment");
+        assert!(input.is_empty(), "Did not consume comment");
         assert_eq!(
             c.element,
             Comment::from(LineComment(" comment".to_string()))
@@ -103,7 +103,7 @@ mod tests {
         let input = Span::from("%% comment\nnext line");
         let (input, c) = comment(input).unwrap();
         assert_eq!(
-            input.fragment_str(),
+            input.as_unsafe_remaining_str(),
             "\nnext line",
             "Unexpected input consumed"
         );
@@ -118,7 +118,7 @@ mod tests {
     fn comment_should_parse_multi_line_comment() {
         let input = Span::from("%%+ comment +%%");
         let (input, c) = comment(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume comment");
+        assert!(input.is_empty(), "Did not consume comment");
         assert_eq!(
             c.element,
             Comment::from(MultiLineComment(vec![" comment ".to_string()]))
@@ -127,7 +127,7 @@ mod tests {
 
         let input = Span::from("%%+ comment\nnext line +%%");
         let (input, c) = comment(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume comment");
+        assert!(input.is_empty(), "Did not consume comment");
         assert_eq!(
             c.element,
             Comment::from(MultiLineComment(vec![
@@ -139,7 +139,7 @@ mod tests {
 
         let input = Span::from("%%+ comment\nnext line +%%after");
         let (input, c) = comment(input).unwrap();
-        assert_eq!(input.fragment_str(), "after", "Unexpected input consumed");
+        assert_eq!(input.as_unsafe_remaining_str(), "after", "Unexpected input consumed");
         assert_eq!(
             c.element,
             Comment::from(MultiLineComment(vec![

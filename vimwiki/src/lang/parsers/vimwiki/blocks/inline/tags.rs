@@ -30,7 +30,7 @@ fn tag_content(input: Span) -> VimwikiIResult<Tag> {
     }
 
     let (input, s) = take_line_while1(has_more)(input)?;
-    Ok((input, Tag::from(s.fragment_str())))
+    Ok((input, Tag::from(s.as_unsafe_remaining_str())))
 }
 
 #[cfg(test)]
@@ -65,7 +65,7 @@ mod tests {
     fn tags_should_yield_a_single_tag_if_one_pair_of_colons_with_text() {
         let input = Span::from(":tag-example:");
         let (input, tags) = tags(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume tags");
+        assert!(input.is_empty(), "Did not consume tags");
         assert_eq!(tags.0, vec![Tag::from("tag-example")]);
     }
 
@@ -75,7 +75,7 @@ mod tests {
         let input = Span::from(":tag-example:and other text");
         let (input, tags) = tags(input).unwrap();
         assert_eq!(
-            input.fragment_str(),
+            input.as_unsafe_remaining_str(),
             "and other text",
             "Unexpected input consumed"
         );
@@ -86,7 +86,7 @@ mod tests {
     fn tags_should_yield_multiple_tags_if_many_colons_with_text() {
         let input = Span::from(":tag-one:tag-two:");
         let (input, tags) = tags(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume tags");
+        assert!(input.is_empty(), "Did not consume tags");
         assert_eq!(tags.0, vec![Tag::from("tag-one"), Tag::from("tag-two")]);
     }
 }

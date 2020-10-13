@@ -32,7 +32,7 @@ mod tests {
         let (input, link) = raw_link(input).expect("Failed to parse uri");
 
         // Link should be consumed
-        assert!(input.fragment().is_empty());
+        assert!(input.is_empty());
 
         assert_eq!(link.uri.scheme(), "http");
         assert_eq!(link.uri.host().unwrap().to_string(), "example.com");
@@ -44,7 +44,7 @@ mod tests {
         let (input, link) = raw_link(input).expect("Failed to parse uri");
 
         // Link should be consumed
-        assert!(input.fragment().is_empty());
+        assert!(input.is_empty());
 
         assert_eq!(link.uri.scheme(), "https");
         assert_eq!(link.uri.host().unwrap().to_string(), "example.com");
@@ -56,7 +56,7 @@ mod tests {
         let (input, link) = raw_link(input).expect("Failed to parse uri");
 
         // Link should be consumed
-        assert!(input.fragment().is_empty());
+        assert!(input.is_empty());
 
         assert_eq!(link.uri.scheme(), "https");
         assert_eq!(link.uri.host().unwrap().to_string(), "www.example.com");
@@ -68,7 +68,7 @@ mod tests {
         let (input, link) = raw_link(input).expect("Failed to parse uri");
 
         // Link should be consumed
-        assert!(input.fragment().is_empty());
+        assert!(input.is_empty());
 
         assert_eq!(link.uri.scheme(), "ftp");
         assert_eq!(link.uri.host().unwrap().to_string(), "example.com");
@@ -80,7 +80,7 @@ mod tests {
         let (input, link) = raw_link(input).expect("Failed to parse uri");
 
         // Link should be consumed
-        assert!(input.fragment().is_empty());
+        assert!(input.is_empty());
 
         assert_eq!(link.uri.scheme(), "file");
         assert_eq!(link.uri.path(), "/some/path");
@@ -92,7 +92,7 @@ mod tests {
         let (input, link) = raw_link(input).expect("Failed to parse uri");
 
         // Link should be consumed
-        assert!(input.fragment().is_empty());
+        assert!(input.is_empty());
 
         assert_eq!(link.uri.scheme(), "local");
         assert_eq!(link.uri.path(), "/some/path");
@@ -104,7 +104,7 @@ mod tests {
         let (input, link) = raw_link(input).expect("Failed to parse uri");
 
         // Link should be consumed
-        assert!(input.fragment().is_empty());
+        assert!(input.is_empty());
 
         assert_eq!(link.uri.scheme(), "mailto");
         assert_eq!(link.uri.path(), "person@example.com");

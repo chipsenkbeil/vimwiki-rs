@@ -8,4 +8,4 @@ pub use parsers::*;
 pub type VimwikiNomError = LangParserError;
 
 /// Alias to an IResult using VimwikiNomError
-pub type VimwikiIResult<O> = Result<(Span, O), Err<VimwikiNomError>>;
+pub type VimwikiIResult<'a, O> = Result<(Span<'a>, O), Err<VimwikiNomError>>;

@@ -149,9 +149,9 @@ fn list_item_tail(
 fn indentation_level(consume: bool) -> impl Fn(Span) -> VimwikiIResult<usize> {
     move |input: Span| {
         if consume {
-            map(space0, |s: Span| s.fragment_len())(input)
+            map(space0, |s: Span| s.remaining_len())(input)
         } else {
-            map(peek(space0), |s: Span| s.fragment_len())(input)
+            map(peek(space0), |s: Span| s.remaining_len())(input)
         }
     }
 }
@@ -393,7 +393,7 @@ mod tests {
     fn list_should_succeed_for_single_unordered_hyphen_item() {
         let input = Span::from("- list item 1");
         let (input, l) = list(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume list");
+        assert!(input.is_empty(), "Did not consume list");
         assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
@@ -408,7 +408,7 @@ mod tests {
     fn list_should_succeed_for_single_unordered_asterisk_item() {
         let input = Span::from("* list item 1");
         let (input, l) = list(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume list");
+        assert!(input.is_empty(), "Did not consume list");
         assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
@@ -423,7 +423,7 @@ mod tests {
     fn list_should_succeed_for_single_ordered_pound_item() {
         let input = Span::from("# list item 1");
         let (input, l) = list(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume list");
+        assert!(input.is_empty(), "Did not consume list");
         assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
@@ -438,7 +438,7 @@ mod tests {
     fn list_should_succeed_for_single_ordered_number_period_item() {
         let input = Span::from("1. list item 1");
         let (input, l) = list(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume list");
+        assert!(input.is_empty(), "Did not consume list");
         assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
@@ -453,7 +453,7 @@ mod tests {
     fn list_should_succeed_for_single_ordered_number_paren_item() {
         let input = Span::from("1) list item 1");
         let (input, l) = list(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume list");
+        assert!(input.is_empty(), "Did not consume list");
         assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
@@ -468,7 +468,7 @@ mod tests {
     fn list_should_succeed_for_single_ordered_lowercase_alphabet_paren_item() {
         let input = Span::from("a) list item 1");
         let (input, l) = list(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume list");
+        assert!(input.is_empty(), "Did not consume list");
         assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
@@ -483,7 +483,7 @@ mod tests {
     fn list_should_succeed_for_single_ordered_uppercase_alphabet_paren_item() {
         let input = Span::from("A) list item 1");
         let (input, l) = list(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume list");
+        assert!(input.is_empty(), "Did not consume list");
         assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
@@ -498,7 +498,7 @@ mod tests {
     fn list_should_succeed_for_single_ordered_lowercase_roman_paren_item() {
         let input = Span::from("i) list item 1");
         let (input, l) = list(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume list");
+        assert!(input.is_empty(), "Did not consume list");
         assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
@@ -513,7 +513,7 @@ mod tests {
     fn list_should_succeed_for_single_ordered_uppercase_roman_paren_item() {
         let input = Span::from("I) list item 1");
         let (input, l) = list(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume list");
+        assert!(input.is_empty(), "Did not consume list");
         assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
@@ -530,7 +530,7 @@ mod tests {
             - list *item 1* has a [[link]] with :tag: and $formula$ is DONE
         "#});
         let (input, l) = list(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume list item");
+        assert!(input.is_empty(), "Did not consume list item");
         assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         assert_eq!(
@@ -566,7 +566,7 @@ mod tests {
             not a list item
         "});
         let (input, l) = list(input).unwrap();
-        assert_eq!(input.fragment_str(), "not a list item\n");
+        assert_eq!(input.as_unsafe_remaining_str(), "not a list item\n");
         assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         assert_eq!(
@@ -594,7 +594,7 @@ mod tests {
             not a list item
         "});
         let (input, l) = list(input).unwrap();
-        assert_eq!(input.fragment_str(), "not a list item\n");
+        assert_eq!(input.as_unsafe_remaining_str(), "not a list item\n");
         assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         // Should only have three lines of inline content
@@ -645,7 +645,7 @@ mod tests {
             - [-] list item 6
         "});
         let (input, l) = list(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume list");
+        assert!(input.is_empty(), "Did not consume list");
         assert_eq!(l.items.len(), 6, "Unexpected number of list items");
 
         assert!(l.items[0].is_todo_incomplete());

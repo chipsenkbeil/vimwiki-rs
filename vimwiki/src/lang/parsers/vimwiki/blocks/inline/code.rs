@@ -51,7 +51,7 @@ mod tests {
     fn code_inline_should_consume_all_text_between_backticks_as_code() {
         let input = Span::from(r"`some code`");
         let (input, m) = code_inline(input).unwrap();
-        assert!(input.fragment().is_empty(), "Code inline not consumed");
+        assert!(input.is_empty(), "Code inline not consumed");
         assert_eq!(m.code, r"some code");
     }
 }

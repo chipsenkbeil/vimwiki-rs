@@ -64,7 +64,7 @@ mod tests {
     fn math_inline_should_consume_all_text_between_dollar_signs_as_formula() {
         let input = Span::from(r"$\sum_i a_i^2 = 1$");
         let (input, m) = math_inline(input).unwrap();
-        assert!(input.fragment().is_empty(), "Math inline not consumed");
+        assert!(input.is_empty(), "Math inline not consumed");
         assert_eq!(m.formula, r"\sum_i a_i^2 = 1");
     }
 }

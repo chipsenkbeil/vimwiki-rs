@@ -64,7 +64,7 @@ mod tests {
             diary_link(input).expect("Parser unexpectedly failed");
 
         // Link should be consumed
-        assert!(input.fragment().is_empty());
+        assert!(input.is_empty());
 
         assert_eq!(link.date, NaiveDate::from_ymd(2012, 03, 05));
         assert_eq!(link.description, None);
@@ -78,7 +78,7 @@ mod tests {
             diary_link(input).expect("Parser unexpectedly failed");
 
         // Link should be consumed
-        assert!(input.fragment().is_empty());
+        assert!(input.is_empty());
 
         assert_eq!(link.date, NaiveDate::from_ymd(2012, 03, 05));
         assert_eq!(
@@ -95,7 +95,7 @@ mod tests {
             diary_link(input).expect("Parser unexpectedly failed");
 
         // Link should be consumed
-        assert!(input.fragment().is_empty());
+        assert!(input.is_empty());
 
         assert_eq!(link.date, NaiveDate::from_ymd(2012, 03, 05));
         assert_eq!(link.description, None,);
@@ -113,7 +113,7 @@ mod tests {
             diary_link(input).expect("Parser unexpectedly failed");
 
         // Link should be consumed
-        assert!(input.fragment().is_empty());
+        assert!(input.is_empty());
 
         assert_eq!(link.date, NaiveDate::from_ymd(2012, 03, 05));
         assert_eq!(

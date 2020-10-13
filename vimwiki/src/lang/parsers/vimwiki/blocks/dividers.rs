@@ -12,7 +12,7 @@ pub fn divider(input: Span) -> VimwikiIResult<LE<Divider>> {
     fn inner(input: Span) -> VimwikiIResult<Divider> {
         let (input, _) = beginning_of_line(input)?;
         let (input, _) = verify(take_line_while1(char('-')), |s: &Span| {
-            s.fragment().len() >= 4
+            s.remaining_len() >= 4
         })(input)?;
         let (input, _) = end_of_line_or_input(input)?;
 
@@ -49,7 +49,7 @@ mod tests {
     fn divider_should_succeed_if_four_hyphens_at_start_of_line() {
         let input = Span::from("----");
         let (input, d) = divider(input).unwrap();
-        assert!(input.fragment().is_empty(), "Divider not consumed");
+        assert!(input.is_empty(), "Divider not consumed");
         assert_eq!(d.region.start.line, 1);
         assert_eq!(d.region.start.column, 1);
         assert_eq!(d.region.end.line, 1);
@@ -60,7 +60,7 @@ mod tests {
     fn divider_should_succeed_if_more_than_four_hyphens_at_start_of_line() {
         let input = Span::from("-----");
         let (input, d) = divider(input).unwrap();
-        assert!(input.fragment().is_empty(), "Divider not consumed");
+        assert!(input.is_empty(), "Divider not consumed");
         assert_eq!(d.region.start.line, 1);
         assert_eq!(d.region.start.column, 1);
         assert_eq!(d.region.end.line, 1);
@@ -71,7 +71,7 @@ mod tests {
     fn divider_should_consume_end_of_line() {
         let input = Span::from("----\nabcd");
         let (input, d) = divider(input).unwrap();
-        assert_eq!(input.fragment_str(), "abcd");
+        assert_eq!(input.as_unsafe_remaining_str(), "abcd");
         assert_eq!(d.region.start.line, 1);
         assert_eq!(d.region.start.column, 1);
         assert_eq!(d.region.end.line, 1);

@@ -51,14 +51,14 @@ impl Position {
     }
 }
 
-impl From<Span> for Position {
+impl<'a> From<Span<'a>> for Position {
     /// Constructs a position based on the start of a span
     fn from(span: Span) -> Self {
         // NOTE: Span from nom_locate has base 1 for line/col
         // TODO: Compare performance of naive_get_utf8_column, which is
         //       supposedly better for shorter lines (100 or less), which
         //       I imagine is more common for vimwiki
-        let (line, column) = (span.global_line(), span.global_utf8_column());
+        let (line, column) = (span.line(), span.column());
 
         Self::new(line - 1, column - 1)
     }

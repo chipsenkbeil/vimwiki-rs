@@ -61,7 +61,7 @@ mod tests {
             "*item 1* has a [[link]] with `code` and :tag: and $formula$ is DONE",
         );
         let (input, mut container) = inline_element_container(input).unwrap();
-        assert!(input.fragment().is_empty(), "Did not consume all of input");
+        assert!(input.is_empty(), "Did not consume all of input");
         assert_eq!(
             container
                 .elements
