@@ -5,10 +5,11 @@ use vimwiki_macros::*;
 
 #[test]
 fn test() {
-    let page: LE<Page> =
-        RawStr::Vimwiki(&VimwikiFile::VimwikiWikiIndex.load().unwrap())
-            .try_into()
-            .unwrap();
+    let page: LE<Page> = RawStr::from_vimwiki_string(
+        VimwikiFile::VimwikiWikiIndex.load().unwrap(),
+    )
+    .try_into()
+    .unwrap();
     let expected = vec![
         vimwiki_header!("= Vimwiki Wiki =")
             .take_with_region(Region::from((1, 1, 1, 17)))

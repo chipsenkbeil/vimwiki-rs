@@ -12,7 +12,7 @@ use tokens::Tokenize;
 mod utils;
 
 macro_rules! impl_macro {
-    ($name:ident, $raw_str:ident, $type:ty, $raw_mode:expr) => {
+    ($name:ident, $from_str:ident, $type:ty, $raw_mode:expr) => {
         #[proc_macro]
         pub fn $name(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let input = TokenStream::from(input);
@@ -28,7 +28,7 @@ macro_rules! impl_macro {
                 })?;
 
                 let raw_source = utils::input_to_string(first, $raw_mode)?;
-                let element: $type = RawStr::$raw_str(&raw_source)
+                let element: $type = RawStr::$from_str(raw_source)
                     .try_into()
                     .map_err(|x| Error::new(Span::call_site(), &format!("{}", x)))?;
 
@@ -62,8 +62,8 @@ macro_rules! impl_macro {
 macro_rules! impl_macro_vimwiki {
     ($suffix:ident, $type:ty) => {
         paste! {
-            impl_macro!([<vimwiki_ $suffix>], Vimwiki, $type, false);
-            impl_macro!([<vimwiki_ $suffix _raw>], Vimwiki, $type, true);
+            impl_macro!([<vimwiki_ $suffix>], from_vimwiki_string, $type, false);
+            impl_macro!([<vimwiki_ $suffix _raw>], from_vimwiki_string, $type, true);
         }
     };
 }

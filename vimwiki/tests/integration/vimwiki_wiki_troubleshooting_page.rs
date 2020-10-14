@@ -5,8 +5,8 @@ use vimwiki_macros::*;
 
 #[test]
 fn test() {
-    let page: LE<Page> = RawStr::Vimwiki(
-        &VimwikiFile::VimwikiWikiTroubleshooting.load().unwrap(),
+    let page: LE<Page> = RawStr::from_vimwiki_string(
+        VimwikiFile::VimwikiWikiTroubleshooting.load().unwrap(),
     )
     .try_into()
     .unwrap();
