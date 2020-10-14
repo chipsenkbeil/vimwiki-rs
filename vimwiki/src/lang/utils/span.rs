@@ -12,6 +12,8 @@ use std::{
     str::FromStr,
 };
 
+/// Represents a span across some input, which is passed around to various
+/// parser combinators to examine and process
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Span<'a> {
     inner: &'a [u8],
@@ -55,7 +57,7 @@ impl<'a> Span<'a> {
         if len < self.remaining_len() {
             Self::new(self.inner, self.start, self.start + len)
         } else {
-            self.clone()
+            *self
         }
     }
 
@@ -447,7 +449,7 @@ where
         P: Fn(Self::Item) -> bool,
     {
         match self.as_bytes().position(predicate) {
-            Some(0) => Err(Err::Error(E::from_error_kind(self.clone(), e))),
+            Some(0) => Err(Err::Error(E::from_error_kind(*self, e))),
             Some(n) => Ok(self.take_split(n)),
             None => Err(Err::Incomplete(nom::Needed::Size(1))),
         }
@@ -462,11 +464,11 @@ where
         P: Fn(Self::Item) -> bool,
     {
         match self.as_bytes().position(predicate) {
-            Some(0) => Err(Err::Error(E::from_error_kind(self.clone(), e))),
+            Some(0) => Err(Err::Error(E::from_error_kind(*self, e))),
             Some(n) => Ok(self.take_split(n)),
             None => {
                 if self.as_bytes().input_len() == 0 {
-                    Err(Err::Error(E::from_error_kind(self.clone(), e)))
+                    Err(Err::Error(E::from_error_kind(*self, e)))
                 } else {
                     Ok(self.take_split(self.input_len()))
                 }
@@ -514,7 +516,7 @@ impl<'a> Slice<RangeFrom<usize>> for Span<'a> {
 
 impl<'a> Slice<RangeFull> for Span<'a> {
     fn slice(&self, _range: RangeFull) -> Self {
-        self.clone()
+        *self
     }
 }
 

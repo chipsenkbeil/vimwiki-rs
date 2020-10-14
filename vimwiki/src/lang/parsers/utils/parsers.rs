@@ -41,7 +41,7 @@ pub fn le<'a, T>(
         let start_line = input.line();
         let start_column = input.column();
 
-        let (input2, x) = parser(input.clone())?;
+        let (input2, x) = parser(input)?;
 
         // Get offset at end (new start - 1)
         let mut offset = input.offset(&input2);
@@ -185,7 +185,7 @@ pub fn take_line_while<'a, T>(
 
             // NOTE: This is the same as peek(parser), but avoids the issue
             //       of variable being moved out of captured Fn(...)
-            let (_, _) = parser(input.clone())?;
+            let (_, _) = parser(input)?;
 
             anychar(input)
         }
@@ -299,7 +299,8 @@ pub fn pstring<'a>(
 }
 
 /// Parser that scans through the entire input, applying the provided parser
-/// and returning a series of results whenever a parser succeeds
+/// and returning a series of results whenever a parser succeeds; does not
+/// consume the input
 #[inline]
 pub fn scan<'a, T>(
     parser: impl Fn(Span<'a>) -> VimwikiIResult<T>,
@@ -310,9 +311,10 @@ pub fn scan<'a, T>(
         }
 
         let mut output = Vec::new();
+        let original_input = input;
 
         loop {
-            if let Ok((i, item)) = parser(input.clone()) {
+            if let Ok((i, item)) = parser(input) {
                 // No advancement happened, so error to prevent infinite loop
                 if i == input {
                     return Err(nom::Err::Error(VimwikiNomError::from_ctx(
@@ -326,13 +328,13 @@ pub fn scan<'a, T>(
                 continue;
             }
 
-            match advance(input.clone()) {
+            match advance(input) {
                 Ok((i, _)) => input = i,
                 _ => break,
             }
         }
 
-        Ok((input, output))
+        Ok((original_input, output))
     }
 }
 
