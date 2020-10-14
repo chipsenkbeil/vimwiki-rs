@@ -1,12 +1,14 @@
 use super::{
     elements::{self, BlockElement, Comment, Page},
     utils::{
-        self, blank_line, context, range, scan, VimwikiIResult, VimwikiNomError,
+        self, blank_line, context, range, scan_with_step, take_until_byte1,
+        VimwikiIResult, VimwikiNomError,
     },
     Span, LE,
 };
 use nom::{
     branch::alt,
+    bytes::complete::take,
     combinator::{all_consuming, map, value},
     multi::many0,
 };
@@ -42,7 +44,13 @@ pub fn page(mut s: String) -> Result<LE<Page>, nom::Err<VimwikiNomError>> {
 fn page_comments(
     input: Span,
 ) -> VimwikiIResult<Vec<(Range<usize>, LE<Comment>)>> {
-    context("Page Comments", scan(range(comments::comment)))(input)
+    context(
+        "Page Comments",
+        scan_with_step(
+            range(comments::comment),
+            value((), alt((take_until_byte1(b'%'), take(1usize)))),
+        ),
+    )(input)
 }
 
 fn page_elements(input: Span) -> VimwikiIResult<Vec<LE<BlockElement>>> {

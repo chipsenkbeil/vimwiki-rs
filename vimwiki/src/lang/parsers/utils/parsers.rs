@@ -218,6 +218,34 @@ pub fn take_until_end_of_line_or_input(input: Span) -> VimwikiIResult<Span> {
     context("Take Until End of Line or Input", inner)(input)
 }
 
+/// Parser that will consume input until the specified byte is found,
+/// consuming the entire input if the byte is not found
+#[inline]
+pub fn take_until_byte<'a>(
+    byte: u8,
+) -> impl Fn(Span<'a>) -> VimwikiIResult<Span<'a>> {
+    move |input: Span| {
+        if let Some(pos) = memchr(byte, input.as_bytes()) {
+            Ok(input.take_split(pos))
+        } else {
+            rest(input)
+        }
+    }
+}
+
+/// Parser that will consume input until the specified byte is found,
+/// consuming the entire input if the byte is not found; fails if does
+/// not consume at least 1 byte
+#[inline]
+pub fn take_until_byte1<'a>(
+    byte: u8,
+) -> impl Fn(Span<'a>) -> VimwikiIResult<Span<'a>> {
+    context(
+        "Take Until Byte 1",
+        verify(take_until_byte(byte), |output| !output.is_empty()),
+    )
+}
+
 /// Parser that will report the total columns consumed since the beginning of
 /// the line (0 being none); input will not be consumed
 #[inline]
@@ -297,18 +325,16 @@ pub fn pstring<'a>(
     })
 }
 
-/// Parser that scans through the entire input, applying the provided parser
+/// Parser that scans through the entire input, stepping N across the input
+/// using the given step function, applying the provided parser
 /// and returning a series of results whenever a parser succeeds; does not
 /// consume the input
 #[inline]
-pub fn scan<'a, T>(
+pub fn scan_with_step<'a, T, U>(
     parser: impl Fn(Span<'a>) -> VimwikiIResult<T>,
+    step: impl Fn(Span<'a>) -> VimwikiIResult<U>,
 ) -> impl Fn(Span<'a>) -> VimwikiIResult<Vec<T>> {
     move |mut input: Span| {
-        fn advance(input: Span) -> VimwikiIResult<()> {
-            value((), take(1usize))(input)
-        }
-
         let mut output = Vec::new();
         let original_input = input;
 
@@ -327,7 +353,7 @@ pub fn scan<'a, T>(
                 continue;
             }
 
-            match advance(input) {
+            match step(input) {
                 Ok((i, _)) => input = i,
                 _ => break,
             }
@@ -335,6 +361,15 @@ pub fn scan<'a, T>(
 
         Ok((original_input, output))
     }
+}
+
+/// Parser that scans through the entire input one character at a time,
+/// applying the provided parser and returning a series of results whenever
+/// a parser succeeds; does not consume the input
+pub fn scan<'a, T>(
+    parser: impl Fn(Span<'a>) -> VimwikiIResult<T>,
+) -> impl Fn(Span<'a>) -> VimwikiIResult<Vec<T>> {
+    scan_with_step(parser, value((), take(1usize)))
 }
 
 /// Parser for a general purpose URI.
