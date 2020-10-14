@@ -56,6 +56,16 @@ impl<'a> RawStr<'a> {
 
     /// Converts into a str slice
     pub fn as_str(&self) -> &str {
+        self.as_inner()
+    }
+
+    /// Converts into a mut str slice
+    pub fn as_mut_str(&mut self) -> &mut str {
+        self.as_mut_inner().to_mut()
+    }
+
+    /// Converts into ref to inner `Cow<'_, str>` type
+    pub fn as_inner(&self) -> &Cow<'a, str> {
         match self {
             Self::Vimwiki(ref x) => x,
             Self::Markdown(ref x) => x,
@@ -63,12 +73,12 @@ impl<'a> RawStr<'a> {
         }
     }
 
-    /// Converts into a mut str slice
-    pub fn as_mut_str(&mut self) -> &mut str {
+    /// Converts into mut ref to inner `Cow<'_, str>` type
+    pub fn as_mut_inner(&mut self) -> &mut Cow<'a, str> {
         match self {
-            Self::Vimwiki(ref mut x) => x.to_mut(),
-            Self::Markdown(ref mut x) => x.to_mut(),
-            Self::Mediawiki(ref mut x) => x.to_mut(),
+            Self::Vimwiki(ref mut x) => x,
+            Self::Markdown(ref mut x) => x,
+            Self::Mediawiki(ref mut x) => x,
         }
     }
 
@@ -96,6 +106,16 @@ impl RawStr<'_> {
     /// Whether or not this represents a mediawiki format
     pub fn is_mediawiki(&self) -> bool {
         matches!(self, Self::Mediawiki(_))
+    }
+
+    /// Whether or not this `RawStr` is only borrowing the underlying data
+    pub fn is_borrowed(&self) -> bool {
+        matches!(self.as_inner(), Cow::Borrowed(_))
+    }
+
+    /// Whether or not this `RawStr` owns the underlying data
+    pub fn is_owned(&self) -> bool {
+        matches!(self.as_inner(), Cow::Owned(_))
     }
 
     /// Converts `RawStr` into owned version, allocating a new string if
@@ -130,6 +150,18 @@ impl RawStr<'_> {
     }
 }
 
+impl<'a> TryFrom<RawStr<'a>> for LE<Page> {
+    type Error = nom::Err<LangParserError>;
+
+    fn try_from(s: RawStr<'a>) -> Result<Self, Self::Error> {
+        if s.is_vimwiki() {
+            vimwiki::page(s.into_inner().into_owned())
+        } else {
+            Err(nom::Err::Failure(LangParserError::unsupported()))
+        }
+    }
+}
+
 macro_rules! impl_try_from {
     ($t:ty, $f:expr) => {
         impl<'a> TryFrom<RawStr<'a>> for $t {
@@ -148,7 +180,6 @@ macro_rules! impl_try_from {
 }
 
 // Top-level types
-impl_try_from!(LE<Page>, vimwiki::page);
 impl_try_from!(LE<BlockElement>, vimwiki::blocks::block_element);
 impl_try_from!(
     LE<InlineElementContainer>,

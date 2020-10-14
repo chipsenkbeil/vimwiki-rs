@@ -94,8 +94,7 @@ pub fn range<'a, T>(
 #[inline]
 pub fn end_of_line_or_input(input: Span) -> VimwikiIResult<()> {
     fn inner(input: Span) -> VimwikiIResult<()> {
-        let (input, len) = rest_len(input)?;
-        if len == 0 {
+        if input.is_empty() {
             return Ok((input, ()));
         }
 

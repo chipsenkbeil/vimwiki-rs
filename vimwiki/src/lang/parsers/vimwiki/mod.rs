@@ -1,13 +1,14 @@
 use super::{
     elements::{self, BlockElement, Comment, Page},
-    utils::{self, blank_line, context, le, range, scan, VimwikiIResult},
+    utils::{
+        self, blank_line, context, range, scan, VimwikiIResult, VimwikiNomError,
+    },
     Span, LE,
 };
 use nom::{
     branch::alt,
     combinator::{all_consuming, map, value},
     multi::many0,
-    InputLength, Slice,
 };
 use std::ops::Range;
 
@@ -15,29 +16,27 @@ pub mod blocks;
 pub mod comments;
 
 /// Parses entire vimwiki page
-pub fn page(input: Span) -> VimwikiIResult<LE<Page>> {
-    fn inner(input: Span) -> VimwikiIResult<Page> {
-        // First, parse the page for comments and remove all from input,
-        // skipping over any character that is not a comment
-        let (input, mut ranges_and_comments) = page_comments(input)?;
+pub fn page(mut s: String) -> Result<LE<Page>, nom::Err<VimwikiNomError>> {
+    // First, parse the page for comments and remove all from input,
+    // skipping over any character that is not a comment
+    let mut ranges_and_comments = {
+        let input = Span::from(s.as_bytes());
+        page_comments(input)?.1
+    };
 
-        // Second, produce a new custom span that skips over commented regions
-        // let segments =
-        //     ranges_and_comments.iter().map(|x| x.0.to_owned()).collect();
-        // let input_2 = input_2.without_segments(segments);
-
-        // Third, continuously parse input for new block elements until we
-        // have nothing left (or we fail)
-        let (_, elements) = page_elements(input)?;
-
-        // Fourth, return a page wrapped in a location that comprises the
-        // entire input
-        let comments = ranges_and_comments.drain(..).map(|x| x.1).collect();
-        let input = input.slice(input.input_len()..);
-        Ok((input, Page::new(elements, comments)))
+    // Second, modify our original input to remove the comments
+    for segment in ranges_and_comments.iter().map(|x| x.0.to_owned()).rev() {
+        s.replace_range(segment, "");
     }
 
-    context("Page", le(inner))(input)
+    // Third, continuously parse input for new block elements until we
+    // have nothing left (or we fail)
+    let (_, elements) = page_elements(Span::from(s.as_bytes()))?;
+
+    // Fourth, return a page wrapped in a location that comprises the
+    // entire input
+    let comments = ranges_and_comments.drain(..).map(|x| x.1).collect();
+    Ok(LE::from(Page::new(elements, comments)))
 }
 
 fn page_comments(
@@ -80,9 +79,7 @@ mod tests {
 
     #[test]
     fn page_should_skip_blank_lines_not_within_block_elements() {
-        let input = Span::from("\n\n");
-        let (input, page) = page(input).unwrap();
-        assert!(input.is_empty(), "Did not consume all of input");
+        let page = page(String::from("\n\n")).unwrap();
         assert!(page.comments.is_empty());
         assert!(page.elements.is_empty());
     }
@@ -90,9 +87,8 @@ mod tests {
     #[test]
     #[ignore]
     fn page_should_parse_comments() {
-        let input = Span::from("%%comment\n%%+comment2+%%\n%%comment3");
-        let (input, page) = page(input).unwrap();
-        assert!(input.is_empty(), "Did not consume all of input");
+        let page = page(String::from("%%comment\n%%+comment2+%%\n%%comment3"))
+            .unwrap();
         assert_eq!(
             page.comments,
             vec![
@@ -106,9 +102,7 @@ mod tests {
 
     #[test]
     fn page_should_parse_blocks() {
-        let input = Span::from("some text with % signs");
-        let (input, page) = page(input).unwrap();
-        assert!(input.is_empty(), "Did not consume all of input");
+        let page = page(String::from("some text with % signs")).unwrap();
         assert!(page.comments.is_empty(), "Unexpected parsed comment");
         assert_eq!(
             page.elements,
@@ -122,10 +116,10 @@ mod tests {
     #[ignore]
     fn page_should_properly_translate_line_and_column_of_blocks_with_comments()
     {
-        let input =
-            Span::from("%%comment\nSome %%+comment+%%more%%+\ncomment+%% text");
-        let (input, page) = page(input).unwrap();
-        assert!(input.is_empty(), "Did not consume all of input");
+        let page = page(String::from(
+            "%%comment\nSome %%+comment+%%more%%+\ncomment+%% text",
+        ))
+        .unwrap();
 
         let comment = &page.comments[0];
         assert_eq!(
