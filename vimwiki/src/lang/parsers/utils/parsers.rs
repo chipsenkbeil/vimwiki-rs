@@ -246,25 +246,26 @@ pub fn take_until_byte1<'a>(
     )
 }
 
-/// Parser that will report the total columns consumed since the beginning of
-/// the line (0 being none); input will not be consumed
-#[inline]
-pub fn count_from_beginning_of_line(input: Span) -> VimwikiIResult<usize> {
-    let column = input.column() - 1;
-    Ok((input, column))
-}
-
 /// Parser that will succeed if input is at the beginning of a line; input
 /// will not be consumed
 #[inline]
 pub fn beginning_of_line(input: Span) -> VimwikiIResult<()> {
-    context(
-        "Beginning of Line",
-        value(
-            (),
-            verify(count_from_beginning_of_line, |count| *count == 0),
-        ),
-    )(input)
+    fn inner(input: Span) -> VimwikiIResult<()> {
+        let l = input.consumed_len();
+
+        // If we have consumed nothing or the last consumed byte was a newline,
+        // we are at the beginning of the line now
+        if l == 0 || input.as_consumed()[l - 1] == b'\n' {
+            Ok((input, ()))
+        } else {
+            Err(nom::Err::Error(VimwikiNomError::from_ctx(
+                &input,
+                "Not at beginning of line",
+            )))
+        }
+    }
+
+    context("Beginning of Line", inner)(input)
 }
 
 /// Parser that will consume a line if it is blank, which means that it is
@@ -524,38 +525,6 @@ mod tests {
     }
 
     #[test]
-    fn count_from_beginning_of_line_should_yield_0_if_at_beginning_of_line() {
-        let (_, count) = count_from_beginning_of_line(Span::from(""))
-            .expect("Parser failed");
-        assert_eq!(count, 0);
-
-        let (_, count) = count_from_beginning_of_line(Span::from("some text"))
-            .expect("Parser failed");
-        assert_eq!(count, 0);
-    }
-
-    #[test]
-    fn count_from_beginning_of_line_should_yield_n_where_n_is_characters_from_beginning_of_line(
-    ) {
-        let input = Span::from("some text");
-        let (input, _) =
-            take_and_toss(4)(input).expect("Failed to take N characters");
-        let (_, count) = count_from_beginning_of_line(input)
-            .expect("Failed to count characters");
-        assert_eq!(count, 4);
-    }
-
-    #[test]
-    fn count_from_beginning_of_line_should_use_only_current_line_progress() {
-        let input = Span::from("1234\n1234");
-        let (input, _) =
-            take_and_toss(5)(input).expect("Failed to take first line");
-        let (_, count) = count_from_beginning_of_line(input)
-            .expect("Failed to count characters");
-        assert_eq!(count, 0);
-    }
-
-    #[test]
     fn beginning_of_line_should_fail_if_not_at_beginning_of_line() {
         let input = Span::from("1234");
         let (input, _) =
@@ -564,8 +533,20 @@ mod tests {
     }
 
     #[test]
-    fn beginning_of_line_should_succeed_if_at_beginning_of_line() {
+    fn beginning_of_line_should_succeed_if_at_beginning_of_first_line() {
         let input = Span::from("1234");
+        let (input, _) = beginning_of_line(input)
+            .expect("Unexpectedly think not at beginning of line");
+
+        // Input shouldn't be consumed
+        assert_eq!(input.as_unsafe_remaining_str(), "1234");
+    }
+
+    #[test]
+    fn beginning_of_line_should_succeed_if_at_beginning_of_any_line() {
+        let input = Span::from("abc\n1234");
+        let (input, _) =
+            take_and_toss(4)(input).expect("Failed to take a character");
         let (input, _) = beginning_of_line(input)
             .expect("Unexpectedly think not at beginning of line");
 
