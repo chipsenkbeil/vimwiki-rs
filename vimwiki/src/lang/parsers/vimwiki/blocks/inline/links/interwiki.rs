@@ -1,26 +1,27 @@
-use super::{
-    elements::{IndexedInterWikiLink, InterWikiLink, NamedInterWikiLink},
-    utils::{context, take_line_while1, Error},
-    wiki::wiki_link,
-    Span, IResult, LE,
+use super::wiki::wiki_link;
+use crate::lang::{
+    elements::{
+        IndexedInterWikiLink, InterWikiLink, Located, NamedInterWikiLink,
+    },
+    parsers::{
+        utils::{context, take_line_while1},
+        Error, IResult, Span,
+    },
 };
 use nom::{bytes::complete::tag, combinator::not, sequence::delimited};
-use std::path::PathBuf;
+use std::borrow::Cow;
 
 #[inline]
-pub fn inter_wiki_link(input: Span) -> IResult<LE<InterWikiLink>> {
-    fn inner(input: Span) -> IResult<LE<InterWikiLink>> {
+pub fn inter_wiki_link(input: Span) -> IResult<Located<InterWikiLink>> {
+    fn inner(input: Span) -> IResult<Located<InterWikiLink>> {
         let (input, mut link) = wiki_link(input)?;
         let path = link.path.to_str().ok_or_else(|| {
-            nom::Err::Error(Error::from_ctx(
-                &input,
-                "Not interwiki link",
-            ))
+            nom::Err::Error(Error::from_ctx(&input, "Not interwiki link"))
         })?;
 
         if let Some((path, index)) = parse_index_from_path(path) {
             // Update path of link after removal of prefix
-            link.path = PathBuf::from(path.as_unsafe_remaining_str());
+            link.path = path.into();
 
             return Ok((
                 input,
@@ -32,7 +33,7 @@ pub fn inter_wiki_link(input: Span) -> IResult<LE<InterWikiLink>> {
 
         if let Some((path, name)) = parse_name_from_path(path) {
             // Update path of link after removal of prefix
-            link.path = PathBuf::from(path.as_unsafe_remaining_str());
+            link.path = path.into();
 
             return Ok((
                 input,
@@ -66,18 +67,19 @@ fn parse_index_from_path(path: &str) -> Option<(Span, u32)> {
     .flatten()
 }
 
-fn parse_name_from_path(path: &str) -> Option<(Span, String)> {
+fn parse_name_from_path<'a>(path: &'a str) -> Option<(Span<'a>, Cow<'a, str>)> {
     delimited(tag("wn."), take_line_while1(not(tag(":"))), tag(":"))(
         Span::from(path),
     )
     .ok()
-    .map(|(path, name)| (path, name.as_unsafe_remaining_str().to_string()))
+    .map(|(path, name)| (path, Cow::from(name.as_unsafe_remaining_str())))
 }
 
 #[cfg(test)]
 mod tests {
-    use super::super::elements::{Anchor, Description};
     use super::*;
+    use crate::lang::elements::{Anchor, Description};
+    use std::path::PathBuf;
 
     #[test]
     fn inter_wiki_link_with_index_should_support_numbered_prefix() {

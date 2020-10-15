@@ -1,7 +1,6 @@
-use super::{
-    elements::{self, Link},
-    utils::{self, context},
-    Span, IResult, LE,
+use crate::lang::{
+    elements::{Link, Located},
+    parsers::{utils::context, IResult, Span},
 };
 use nom::{branch::alt, combinator::map};
 
@@ -38,7 +37,7 @@ pub(crate) mod wiki;
 /// [[#a1#a2]]                   -> <a href="#a1-a2">#a1#a2</a>
 ///
 #[inline]
-pub fn link(input: Span) -> IResult<LE<Link>> {
+pub fn link(input: Span) -> IResult<Located<Link>> {
     context(
         "Link",
         alt((
@@ -64,7 +63,6 @@ pub fn link(input: Span) -> IResult<LE<Link>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lang::utils::Span;
 
     #[test]
     fn link_should_return_external_link_where_appropriate() {

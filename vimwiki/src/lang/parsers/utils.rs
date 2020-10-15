@@ -12,7 +12,7 @@ use nom::{
     sequence::{pair, preceded, terminated},
     AsBytes, InputLength, InputTake,
 };
-use std::{borrow::Cow, convert::TryFrom, ops::Range};
+use std::{borrow::Cow, convert::TryFrom, ops::Range, path::Path};
 use uriparse::URI;
 
 /// Wraps a parser in a contextual label, which makes it easier to identify
@@ -79,6 +79,14 @@ pub fn cow_str<'a>(
     parser: impl Fn(Span<'a>) -> IResult<Span<'a>>,
 ) -> impl Fn(Span<'a>) -> IResult<Cow<'a, str>> {
     context("Cow Str", map(parser, |s: Span<'a>| s.into()))
+}
+
+/// Parser that transforms the result of one parser to that of `Cow<'a, Path>`
+/// where the lifetime is bound to the resulting `Span<'a>`
+pub fn cow_path<'a>(
+    parser: impl Fn(Span<'a>) -> IResult<Span<'a>>,
+) -> impl Fn(Span<'a>) -> IResult<Cow<'a, Path>> {
+    context("Cow Path", map(parser, |s: Span<'a>| s.into()))
 }
 
 /// Parser that wraps another parser's output in a tuple that also echos out
@@ -369,7 +377,7 @@ pub fn scan<'a, T>(
 ///
 /// 1. www (www.example.com) -> (https://www.example.com)
 /// 2. // (//some/abs/path) -> (file:/some/abs/path)
-pub fn uri(input: Span) -> IResult<URI<'static>> {
+pub fn uri<'a>(input: Span<'a>) -> IResult<URI<'a>> {
     // URI = scheme:[//authority]path[?query][#fragment]
     // scheme = sequence of characters beginning with a letter and followed
     //          by any combination of letters, digits, plus (+), period (.),
@@ -394,19 +402,23 @@ pub fn uri(input: Span) -> IResult<URI<'static>> {
                 many1(pair(not(single_multispace), anychar)),
             )),
             |s| {
-                URI::try_from(
-                    match s.as_unsafe_remaining_str() {
-                        text if text.starts_with("www.") => {
-                            ["https://", text].join("")
-                        }
-                        text if text.starts_with("//") => {
-                            ["file:/", text].join("")
-                        }
-                        text => text.to_string(),
-                    }
-                    .as_str(),
-                )
-                .map(|uri| uri.into_owned())
+                // TODO: Can we do anything to not need the allocation here?
+                if s.as_bytes().starts_with(b"www.") {
+                    URI::try_from(
+                        ["https://", s.as_unsafe_remaining_str()]
+                            .join("")
+                            .as_str(),
+                    )
+                // TODO: Can we do anything to not need the allocation here?
+                } else if s.as_bytes().starts_with(b"//") {
+                    URI::try_from(
+                        ["file:/", s.as_unsafe_remaining_str()]
+                            .join("")
+                            .as_str(),
+                    )
+                } else {
+                    URI::try_from(s.as_bytes())
+                }
             },
         ),
     )(input)

@@ -1,14 +1,13 @@
-use super::{
-    elements::DiaryLink,
-    utils::{context, Error},
-    wiki::wiki_link,
-    Span, IResult, LE,
+use super::wiki::wiki_link;
+use crate::lang::{
+    elements::{DiaryLink, Located},
+    parsers::{utils::context, Error, IResult, Span},
 };
 use chrono::NaiveDate;
 
 #[inline]
-pub fn diary_link(input: Span) -> IResult<LE<DiaryLink>> {
-    fn inner(input: Span) -> IResult<LE<DiaryLink>> {
+pub fn diary_link(input: Span) -> IResult<Located<DiaryLink>> {
+    fn inner(input: Span) -> IResult<Located<DiaryLink>> {
         // First, parse as a standard wiki link, which should stash the potential
         // diary as the path
         let (input, link) = wiki_link(input)?;
@@ -23,10 +22,9 @@ pub fn diary_link(input: Span) -> IResult<LE<DiaryLink>> {
                 input,
                 link.map(|c| DiaryLink::new(date, c.description, c.anchor)),
             )),
-            _ => Err(nom::Err::Error(Error::from_ctx(
-                &input,
-                "Not diary link",
-            ))),
+            _ => {
+                Err(nom::Err::Error(Error::from_ctx(&input, "Not diary link")))
+            }
         }
     }
 
@@ -42,8 +40,8 @@ fn parse_date_from_path(path: &str) -> Option<NaiveDate> {
 
 #[cfg(test)]
 mod tests {
-    use super::super::elements::{Anchor, Description};
     use super::*;
+    use crate::lang::elements::{Anchor, Description};
 
     #[test]
     fn diary_link_should_fail_if_not_using_diary_scheme() {
@@ -83,7 +81,7 @@ mod tests {
         assert_eq!(link.date, NaiveDate::from_ymd(2012, 03, 05));
         assert_eq!(
             link.description,
-            Some(Description::from("some description".to_string()))
+            Some(Description::from("some description"))
         );
         assert_eq!(link.anchor, None);
     }
@@ -99,10 +97,7 @@ mod tests {
 
         assert_eq!(link.date, NaiveDate::from_ymd(2012, 03, 05));
         assert_eq!(link.description, None,);
-        assert_eq!(
-            link.anchor,
-            Some(Anchor::new(vec!["Tomorrow".to_string()]))
-        );
+        assert_eq!(link.anchor, Some(Anchor::from("Tomorrow")));
     }
 
     #[test]
@@ -118,11 +113,8 @@ mod tests {
         assert_eq!(link.date, NaiveDate::from_ymd(2012, 03, 05));
         assert_eq!(
             link.description,
-            Some(Description::Text("Tasks for tomorrow".to_string()))
+            Some(Description::from("Tasks for tomorrow"))
         );
-        assert_eq!(
-            link.anchor,
-            Some(Anchor::new(vec!["Tomorrow".to_string()]))
-        );
+        assert_eq!(link.anchor, Some(Anchor::from("Tomorrow")));
     }
 }

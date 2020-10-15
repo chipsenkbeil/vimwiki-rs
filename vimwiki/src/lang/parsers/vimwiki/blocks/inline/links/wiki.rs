@@ -1,7 +1,11 @@
-use super::{
-    elements::{Anchor, Description, WikiLink},
-    utils::{context, le, pstring, take_line_while1, uri, Error},
-    Span, IResult, LE,
+use crate::lang::{
+    elements::{Anchor, Description, Located, WikiLink},
+    parsers::{
+        utils::{
+            capture, context, cow_path, cow_str, locate, take_line_while1, uri,
+        },
+        Error, IResult, Span,
+    },
 };
 use nom::{
     branch::alt,
@@ -10,13 +14,13 @@ use nom::{
     multi::separated_list,
     sequence::{delimited, preceded},
 };
-use std::path::PathBuf;
+use std::{borrow::Cow, path::PathBuf};
 
 #[inline]
-pub fn wiki_link(input: Span) -> IResult<LE<WikiLink>> {
+pub fn wiki_link(input: Span) -> IResult<Located<WikiLink>> {
     context(
         "WikiLink",
-        le(delimited(tag("[["), wiki_link_internal, tag("]]"))),
+        locate(capture(delimited(tag("[["), wiki_link_internal, tag("]]")))),
     )(input)
 }
 
@@ -29,10 +33,7 @@ pub(super) fn wiki_link_internal(input: Span) -> IResult<WikiLink> {
     // a path
     let (input, maybe_path) = opt(preceded(
         not(tag("#")),
-        map(
-            take_line_while1(not(alt((tag("|"), tag("#"), tag("]]"))))),
-            |s: Span| PathBuf::from(s.as_unsafe_remaining_str()),
-        ),
+        cow_path(take_line_while1(not(alt((tag("|"), tag("#"), tag("]]")))))),
     ))(input)?;
 
     // Next, check if there are any anchors
@@ -48,7 +49,11 @@ pub(super) fn wiki_link_internal(input: Span) -> IResult<WikiLink> {
         }
         None if maybe_anchor.is_some() => Ok((
             input,
-            WikiLink::new(PathBuf::new(), maybe_description, maybe_anchor),
+            WikiLink::new(
+                Cow::from(PathBuf::new()),
+                maybe_description,
+                maybe_anchor,
+            ),
         )),
         None => Err(nom::Err::Error(Error::from_ctx(
             &input,
@@ -67,7 +72,7 @@ fn anchor(input: Span) -> IResult<Anchor> {
         map(
             separated_list(
                 tag("#"),
-                pstring(take_line_while1(not(alt((
+                cow_str(take_line_while1(not(alt((
                     tag("|"),
                     tag("#"),
                     tag("]]"),
@@ -89,7 +94,9 @@ fn description(input: Span) -> IResult<Description> {
             take_line_while1(not(tag("]]"))),
             alt((
                 description_from_uri,
-                map(rest, |s: Span| Description::from(s.as_unsafe_remaining_str())),
+                map(rest, |s: Span| {
+                    Description::from(s.as_unsafe_remaining_str())
+                }),
             )),
         ),
     )(input)
@@ -113,7 +120,6 @@ fn description_from_uri(input: Span) -> IResult<Description> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lang::utils::Span;
     use std::convert::TryFrom;
     use uriparse::URI;
 
@@ -164,7 +170,7 @@ mod tests {
         assert_eq!(link.path.to_str().unwrap(), "This is a link source");
         assert_eq!(
             link.description,
-            Some(Description::Text("Description of the link".to_string()))
+            Some(Description::from("Description of the link"))
         );
         assert_eq!(link.anchor, None);
     }
@@ -249,10 +255,7 @@ mod tests {
 
         assert!(link.is_path_dir(), "Not detected as subdirectory");
         assert_eq!(link.path.to_str().unwrap(), "a subdirectory/");
-        assert_eq!(
-            link.description,
-            Some(Description::Text("Other files".to_string()))
-        );
+        assert_eq!(link.description, Some(Description::from("Other files")));
         assert_eq!(link.anchor, None);
     }
 
@@ -267,10 +270,7 @@ mod tests {
 
         assert_eq!(link.path.to_str().unwrap(), "Todo List");
         assert_eq!(link.description, None);
-        assert_eq!(
-            link.anchor,
-            Some(Anchor::new(vec!["Tomorrow".to_string()]))
-        );
+        assert_eq!(link.anchor, Some(Anchor::from("Tomorrow")));
     }
 
     #[test]
@@ -286,10 +286,7 @@ mod tests {
         assert_eq!(link.description, None);
         assert_eq!(
             link.anchor,
-            Some(Anchor::new(vec![
-                "Tomorrow".to_string(),
-                "Later".to_string()
-            ]))
+            Some(Anchor::new(vec![Cow::from("Tomorrow"), Cow::from("Later")]))
         );
     }
 
@@ -305,12 +302,9 @@ mod tests {
         assert_eq!(link.path.to_str().unwrap(), "Todo List");
         assert_eq!(
             link.description,
-            Some(Description::Text("Tasks for tomorrow".to_string()))
+            Some(Description::from("Tasks for tomorrow"))
         );
-        assert_eq!(
-            link.anchor,
-            Some(Anchor::new(vec!["Tomorrow".to_string()]))
-        );
+        assert_eq!(link.anchor, Some(Anchor::from("Tomorrow")));
     }
 
     #[test]
@@ -326,14 +320,11 @@ mod tests {
         assert_eq!(link.path.to_str().unwrap(), "Todo List");
         assert_eq!(
             link.description,
-            Some(Description::Text("Tasks for tomorrow".to_string()))
+            Some(Description::from("Tasks for tomorrow"))
         );
         assert_eq!(
             link.anchor,
-            Some(Anchor::new(vec![
-                "Tomorrow".to_string(),
-                "Later".to_string()
-            ]))
+            Some(Anchor::new(vec![Cow::from("Tomorrow"), Cow::from("Later")]))
         );
     }
 
@@ -349,9 +340,6 @@ mod tests {
         assert!(link.is_local_anchor(), "Not detected as local anchor");
         assert_eq!(link.path.to_str().unwrap(), "");
         assert_eq!(link.description, None,);
-        assert_eq!(
-            link.anchor,
-            Some(Anchor::new(vec!["Tomorrow".to_string()]))
-        );
+        assert_eq!(link.anchor, Some(Anchor::from("Tomorrow")));
     }
 }

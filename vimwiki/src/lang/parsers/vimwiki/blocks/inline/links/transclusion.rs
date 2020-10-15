@@ -1,35 +1,35 @@
-use super::{
-    elements::{Description, TransclusionLink},
-    utils::{context, le, take_line_while, take_line_while1},
-    Span, IResult, LE,
+use crate::lang::{
+    elements::{Description, Located, TransclusionLink},
+    parsers::{
+        utils::{
+            capture, context, cow_str, locate, take_line_while,
+            take_line_while1, uri,
+        },
+        IResult, Span,
+    },
 };
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    combinator::{map, map_parser, map_res, not, opt},
+    combinator::{map, map_parser, not, opt},
     multi::separated_nonempty_list,
     sequence::{delimited, preceded, separated_pair},
 };
-use std::collections::HashMap;
-use std::convert::TryFrom;
-use uriparse::URI;
+use std::{borrow::Cow, collections::HashMap};
 
-#[inline]
-pub fn transclusion_link(input: Span) -> IResult<LE<TransclusionLink>> {
+pub fn transclusion_link(input: Span) -> IResult<Located<TransclusionLink>> {
     fn inner(input: Span) -> IResult<TransclusionLink> {
         let (input, _) = tag("{{")(input)?;
-        let (input, link_uri) = map_res(
+        let (input, link_uri) = map_parser(
             take_line_while1(not(alt((tag("|"), tag("}}"))))),
-            |s: Span| {
-                URI::try_from(s.as_unsafe_remaining_str()).map(|uri| uri.into_owned())
-            },
+            uri,
         )(input)?;
         let (input, maybe_description) = opt(map(
-            preceded(
+            cow_str(preceded(
                 tag("|"),
                 take_line_while(not(alt((tag("|"), tag("}}"))))),
-            ),
-            |s: Span| Description::from(s.as_unsafe_remaining_str()),
+            )),
+            Description::from,
         ))(input)?;
         let (input, maybe_properties) =
             opt(preceded(tag("|"), transclusion_properties))(input)?;
@@ -45,34 +45,28 @@ pub fn transclusion_link(input: Span) -> IResult<LE<TransclusionLink>> {
         ))
     }
 
-    context("Transclusion Link", le(inner))(input)
+    context("Transclusion Link", locate(capture(inner)))(input)
 }
 
 /// Parser for property pairs separated by | in the form of
 ///
 /// key1="value1"|key2="value2"|...
-#[inline]
-fn transclusion_properties(
-    input: Span,
-) -> IResult<HashMap<String, String>> {
+fn transclusion_properties<'a>(
+    input: Span<'a>,
+) -> IResult<HashMap<Cow<'a, str>, Cow<'a, str>>> {
     map(
         separated_nonempty_list(
             tag("|"),
             map_parser(
                 take_line_while1(not(alt((tag("|"), tag("}}"))))),
                 separated_pair(
-                    map(take_line_while1(not(tag("="))), |s: Span| {
-                        s.as_unsafe_remaining_str().to_string()
-                    }),
+                    cow_str(take_line_while1(not(tag("=")))),
                     tag("="),
-                    map(
-                        delimited(
-                            tag("\""),
-                            take_line_while(not(tag("\""))),
-                            tag("\""),
-                        ),
-                        |s: Span| s.as_unsafe_remaining_str().to_string(),
-                    ),
+                    cow_str(delimited(
+                        tag("\""),
+                        take_line_while(not(tag("\""))),
+                        tag("\""),
+                    )),
                 ),
             ),
         ),
@@ -162,12 +156,9 @@ mod tests {
         assert_eq!(link.description, Some(Description::from("cool stuff")));
         assert_eq!(
             link.properties,
-            vec![(
-                "style".to_string(),
-                "width:150px;height:120px;".to_string()
-            )]
-            .drain(..)
-            .collect()
+            vec![(Cow::from("style"), Cow::from("width:150px;height:120px;"))]
+                .drain(..)
+                .collect()
         );
     }
 
@@ -192,7 +183,7 @@ mod tests {
         assert_eq!(link.description, Some(Description::from("")));
         assert_eq!(
             link.properties,
-            vec![("class".to_string(), "center flow blabla".to_string())]
+            vec![(Cow::from("class"), Cow::from("center flow blabla"))]
                 .drain(..)
                 .collect()
         );

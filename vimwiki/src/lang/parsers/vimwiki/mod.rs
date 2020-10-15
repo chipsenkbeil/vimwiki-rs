@@ -2,7 +2,7 @@ use crate::lang::{
     elements::*,
     parsers::{
         utils::{blank_line, context, range, scan_with_step, take_until_byte1},
-        Captured, Error, IResult, Span,
+        Error, IResult, Span,
     },
 };
 use nom::{
@@ -41,7 +41,7 @@ pub fn page(mut s: String) -> Result<Page<'static>, nom::Err<Error>> {
 
 fn page_comments<'a>(
     input: Span<'a>,
-) -> IResult<Vec<(Range<usize>, Captured<Comment<'a>>)>> {
+) -> IResult<Vec<(Range<usize>, Located<Comment<'a>>)>> {
     context(
         "Page Comments",
         scan_with_step(
@@ -53,13 +53,13 @@ fn page_comments<'a>(
 
 fn page_elements<'a>(
     input: Span<'a>,
-) -> IResult<Vec<Captured<BlockElement<'a>>>> {
-    fn inner<'a>(input: Span<'a>) -> IResult<Vec<Captured<BlockElement<'a>>>> {
+) -> IResult<Vec<Located<BlockElement<'a>>>> {
+    fn inner<'a>(input: Span<'a>) -> IResult<Vec<Located<BlockElement<'a>>>> {
         // Parses one or more lines, either eating blank lines or producing
         // a block element
         fn maybe_block_element(
             input: Span,
-        ) -> IResult<Option<Captured<BlockElement>>> {
+        ) -> IResult<Option<Located<BlockElement>>> {
             alt((value(None, blank_line), map(blocks::block_element, Some)))(
                 input,
             )
@@ -76,6 +76,7 @@ fn page_elements<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::borrow::Cow;
 
     #[test]
     fn page_should_skip_blank_lines_not_within_block_elements() {
@@ -92,9 +93,9 @@ mod tests {
         assert_eq!(
             page.comments,
             vec![
-                Comment::from(LineComment("comment".to_string())),
-                Comment::from(MultiLineComment(vec!["comment2".to_string()])),
-                Comment::from(LineComment("comment3".to_string())),
+                Comment::from(LineComment::from("comment")),
+                Comment::from(MultiLineComment::from("comment2")),
+                Comment::from(LineComment::from("comment3")),
             ],
         );
         assert!(page.elements.is_empty());
@@ -124,23 +125,23 @@ mod tests {
         let comment = &page.comments[0];
         assert_eq!(
             comment.element,
-            Comment::from(LineComment("comment".to_string()))
+            Comment::from(LineComment::from("comment"))
         );
         assert_eq!(comment.region, Region::from((1, 1, 1, 9)));
 
         let comment = &page.comments[1];
         assert_eq!(
             comment.element,
-            Comment::from(MultiLineComment(vec!["comment".to_string()])),
+            Comment::from(MultiLineComment::from("comment")),
         );
         assert_eq!(comment.region, Region::from((2, 6, 2, 18)));
 
         let comment = &page.comments[2];
         assert_eq!(
             comment.element,
-            Comment::from(MultiLineComment(vec![
-                "".to_string(),
-                "comment".to_string(),
+            Comment::from(MultiLineComment::new(vec![
+                Cow::from(""),
+                Cow::from("comment"),
             ])),
         );
         assert_eq!(comment.region, Region::from((2, 23, 3, 10)));

@@ -1,7 +1,13 @@
-use super::{
-    elements::{Description, ExternalFileLink, ExternalFileLinkScheme},
-    utils::{context, le, take_line_while1},
-    Span, IResult, LE,
+use crate::lang::{
+    elements::{
+        Description, ExternalFileLink, ExternalFileLinkScheme, Located,
+    },
+    parsers::{
+        utils::{
+            capture, context, cow_path, cow_str, locate, take_line_while1,
+        },
+        IResult, Span,
+    },
 };
 use nom::{
     branch::alt,
@@ -9,10 +15,10 @@ use nom::{
     combinator::{map, not, opt},
     sequence::{pair, preceded},
 };
-use std::path::PathBuf;
+use std::{borrow::Cow, path::Path};
 
 #[inline]
-pub fn external_file_link(input: Span) -> IResult<LE<ExternalFileLink>> {
+pub fn external_file_link(input: Span) -> IResult<Located<ExternalFileLink>> {
     fn inner(input: Span) -> IResult<ExternalFileLink> {
         let (input, _) = tag("[[")(input)?;
         let (input, link) = alt((
@@ -34,7 +40,7 @@ pub fn external_file_link(input: Span) -> IResult<LE<ExternalFileLink>> {
         Ok((input, link))
     }
 
-    context("External File Link", le(inner))(input)
+    context("External File Link", locate(capture(inner)))(input)
 }
 
 #[inline]
@@ -49,14 +55,14 @@ fn take_external_file_link(
 }
 
 #[inline]
-fn take_path_and_description(
-    input: Span,
-) -> IResult<(PathBuf, Option<Description>)> {
+fn take_path_and_description<'a>(
+    input: Span<'a>,
+) -> IResult<(Cow<'a, Path>, Option<Description<'a>>)> {
     pair(
-        map(take_segment, |s: Span| PathBuf::from(s.as_unsafe_remaining_str())),
+        cow_path(take_segment),
         opt(preceded(
             tag("|"),
-            map(take_segment, |s: Span| Description::from(s.as_unsafe_remaining_str())),
+            map(cow_str(take_segment), Description::from),
         )),
     )(input)
 }
@@ -71,7 +77,6 @@ fn take_segment(input: Span) -> IResult<Span> {
 mod tests {
     use super::super::elements::Description;
     use super::*;
-    use crate::lang::utils::Span;
     use std::path::PathBuf;
 
     #[test]

@@ -1,17 +1,18 @@
 use super::{
-    blockquotes::blockquote,
-    definitions::definition_list,
-    dividers::divider,
-    elements::{InlineElementContainer, Paragraph},
-    headers::header,
-    inline::inline_element_container,
-    lists::list,
-    math::math_block,
-    placeholders::placeholder,
-    preformatted::preformatted_text,
-    tables::table,
-    utils::{beginning_of_line, blank_line, context, end_of_line_or_input, le},
-    Span, IResult, LE,
+    blockquotes::blockquote, definitions::definition_list, dividers::divider,
+    headers::header, inline::inline_element_container, lists::list,
+    math::math_block, placeholders::placeholder,
+    preformatted::preformatted_text, tables::table,
+};
+use crate::lang::{
+    elements::{InlineElementContainer, Located, Paragraph},
+    parsers::{
+        utils::{
+            beginning_of_line, blank_line, capture, context,
+            end_of_line_or_input, locate,
+        },
+        IResult, Span,
+    },
 };
 use nom::{
     character::complete::space0,
@@ -22,7 +23,7 @@ use nom::{
 
 /// Parses a vimwiki paragraph, returning the associated paragraph is successful
 #[inline]
-pub fn paragraph(input: Span) -> IResult<LE<Paragraph>> {
+pub fn paragraph(input: Span) -> IResult<Located<Paragraph>> {
     fn inner(input: Span) -> IResult<Paragraph> {
         // Ensure that we are starting at the beginning of a line
         let (input, _) = beginning_of_line(input)?;
@@ -44,13 +45,16 @@ pub fn paragraph(input: Span) -> IResult<LE<Paragraph>> {
         Ok((input, paragraph))
     }
 
-    context("Paragraph", le(inner))(input)
+    context("Paragraph", locate(capture(inner)))(input)
 }
 
 fn paragraph_line(input: Span) -> IResult<InlineElementContainer> {
     let (input, _) = space0(input)?;
 
-    map(inline_element_container, |c| c.element)(input)
+    map(
+        inline_element_container,
+        |l: Located<InlineElementContainer>| l.into_inner(),
+    )(input)
 }
 
 // TODO: Optimize by adjusting paragraph parser to be a tuple that
@@ -73,11 +77,10 @@ fn continue_paragraph(input: Span) -> IResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::elements::{
+    use crate::lang::elements::{
         DecoratedText, DecoratedTextContent, InlineElement, Link, MathInline,
         Text, WikiLink,
     };
-    use crate::lang::utils::Span;
     use indoc::indoc;
     use std::path::PathBuf;
 
@@ -104,7 +107,7 @@ mod tests {
             vec![
                 InlineElement::Text(Text::from("Some paragraph with ")),
                 InlineElement::DecoratedText(DecoratedText::Bold(vec![
-                    LE::from(DecoratedTextContent::from(Text::from(
+                    Located::from(DecoratedTextContent::from(Text::from(
                         "decorations"
                     )))
                 ])),
@@ -113,7 +116,7 @@ mod tests {
                     "links"
                 )))),
                 InlineElement::Text(Text::from(", ")),
-                InlineElement::Math(MathInline::new("math".to_string())),
+                InlineElement::Math(MathInline::from("math")),
                 InlineElement::Text(Text::from(", and more")),
             ],
         );
@@ -137,7 +140,7 @@ mod tests {
             vec![
                 InlineElement::Text(Text::from("Some paragraph with ")),
                 InlineElement::DecoratedText(DecoratedText::Bold(vec![
-                    LE::from(DecoratedTextContent::from(Text::from(
+                    Located::from(DecoratedTextContent::from(Text::from(
                         "decorations"
                     )))
                 ])),
@@ -146,7 +149,7 @@ mod tests {
                     "links"
                 )))),
                 InlineElement::Text(Text::from(", ")),
-                InlineElement::Math(MathInline::new("math".to_string())),
+                InlineElement::Math(MathInline::from("math")),
                 InlineElement::Text(Text::from(", and more")),
             ],
         );
@@ -171,7 +174,7 @@ mod tests {
             vec![
                 InlineElement::Text(Text::from("Some paragraph with ")),
                 InlineElement::DecoratedText(DecoratedText::Bold(vec![
-                    LE::from(DecoratedTextContent::from(Text::from(
+                    Located::from(DecoratedTextContent::from(Text::from(
                         "decorations"
                     )))
                 ])),
@@ -180,7 +183,7 @@ mod tests {
                     "links"
                 )))),
                 InlineElement::Text(Text::from(", ")),
-                InlineElement::Math(MathInline::new("math".to_string())),
+                InlineElement::Math(MathInline::from("math")),
                 InlineElement::Text(Text::from(", and more")),
             ],
         );
@@ -210,7 +213,7 @@ mod tests {
             vec![
                 InlineElement::Text(Text::from("Some paragraph with ")),
                 InlineElement::DecoratedText(DecoratedText::Bold(vec![
-                    LE::from(DecoratedTextContent::from(Text::from(
+                    Located::from(DecoratedTextContent::from(Text::from(
                         "decorations"
                     )))
                 ],)),
@@ -219,7 +222,7 @@ mod tests {
                     "links"
                 )))),
                 InlineElement::Text(Text::from(", ")),
-                InlineElement::Math(MathInline::new("math".to_string())),
+                InlineElement::Math(MathInline::from("math")),
                 InlineElement::Text(Text::from(", and more")),
             ],
         );

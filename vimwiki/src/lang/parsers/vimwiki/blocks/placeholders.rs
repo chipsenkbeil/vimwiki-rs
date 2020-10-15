@@ -1,10 +1,12 @@
-use super::{
-    elements::Placeholder,
-    utils::{
-        beginning_of_line, context, end_of_line_or_input, le, pstring,
-        take_line_while1, take_until_end_of_line_or_input,
+use crate::lang::{
+    elements::{Located, Placeholder},
+    parsers::{
+        utils::{
+            beginning_of_line, capture, context, cow_str, end_of_line_or_input,
+            locate, take_line_while1, take_until_end_of_line_or_input,
+        },
+        IResult, Span,
     },
-    Span, IResult, LE,
 };
 use chrono::NaiveDate;
 use nom::{
@@ -15,16 +17,16 @@ use nom::{
 };
 
 #[inline]
-pub fn placeholder(input: Span) -> IResult<LE<Placeholder>> {
-    fn inner(input: Span) -> IResult<LE<Placeholder>> {
+pub fn placeholder(input: Span) -> IResult<Located<Placeholder>> {
+    fn inner(input: Span) -> IResult<Located<Placeholder>> {
         let (input, _) = beginning_of_line(input)?;
-        let (input, le_placeholder) = le(alt((
+        let (input, le_placeholder) = locate(capture(alt((
             placeholder_title,
             placeholder_nohtml,
             placeholder_template,
             placeholder_date,
             placeholder_other,
-        )))(input)?;
+        ))))(input)?;
         let (input, _) = end_of_line_or_input(input)?;
         Ok((input, le_placeholder))
     }
@@ -37,8 +39,8 @@ fn placeholder_title(input: Span) -> IResult<Placeholder> {
         let (input, _) = tag("%title")(input)?;
         let (input, _) = space1(input)?;
         let (input, text) =
-            pstring(verify(take_until_end_of_line_or_input, |s: &Span| {
-                !s.as_unsafe_remaining_str().trim().is_empty()
+            cow_str(verify(take_until_end_of_line_or_input, |s: &Span| {
+                !s.is_only_whitespace()
             }))(input)?;
         Ok((input, Placeholder::Title(text)))
     }
@@ -61,8 +63,8 @@ fn placeholder_template(input: Span) -> IResult<Placeholder> {
         let (input, _) = tag("%template")(input)?;
         let (input, _) = space1(input)?;
         let (input, text) =
-            pstring(verify(take_until_end_of_line_or_input, |s: &Span| {
-                !s.as_unsafe_remaining_str().trim().is_empty()
+            cow_str(verify(take_until_end_of_line_or_input, |s: &Span| {
+                !s.is_only_whitespace()
             }))(input)?;
         Ok((input, Placeholder::Template(text)))
     }
@@ -76,7 +78,10 @@ fn placeholder_date(input: Span) -> IResult<Placeholder> {
         let (input, _) = space1(input)?;
         let (input, date) =
             map_res(take_until_end_of_line_or_input, |s: Span| {
-                NaiveDate::parse_from_str(s.as_unsafe_remaining_str(), "%Y-%m-%d")
+                NaiveDate::parse_from_str(
+                    s.as_unsafe_remaining_str(),
+                    "%Y-%m-%d",
+                )
             })(input)?;
         Ok((input, Placeholder::Date(date)))
     }
@@ -92,15 +97,15 @@ fn placeholder_other(input: Span) -> IResult<Placeholder> {
         let (input, _) = not(tag("%date"))(input)?;
 
         let (input, _) = tag("%")(input)?;
-        let (input, name) = pstring(take_line_while1(not(alt((
+        let (input, name) = cow_str(take_line_while1(not(alt((
             tag(" "),
             tag("\t"),
             tag("%"),
         )))))(input)?;
         let (input, _) = space1(input)?;
         let (input, value) =
-            pstring(verify(take_until_end_of_line_or_input, |s: &Span| {
-                !s.as_unsafe_remaining_str().trim().is_empty()
+            cow_str(verify(take_until_end_of_line_or_input, |s: &Span| {
+                !s.is_only_whitespace()
             }))(input)?;
         Ok((input, Placeholder::Other { name, value }))
     }
@@ -111,7 +116,6 @@ fn placeholder_other(input: Span) -> IResult<Placeholder> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lang::utils::Span;
 
     #[test]
     fn placeholder_should_fail_if_input_empty() {
@@ -130,7 +134,7 @@ mod tests {
         let input = Span::from("%title some title");
         let (input, placeholder) = placeholder(input).unwrap();
         assert!(input.is_empty(), "Did not consume placeholder");
-        assert_eq!(placeholder, Placeholder::Title("some title".to_string()));
+        assert_eq!(placeholder, Placeholder::title_from_str("some title"));
     }
 
     #[test]
@@ -158,10 +162,7 @@ mod tests {
         let input = Span::from("%template my_template");
         let (input, placeholder) = placeholder(input).unwrap();
         assert!(input.is_empty(), "Did not consume placeholder");
-        assert_eq!(
-            placeholder,
-            Placeholder::Template("my_template".to_string()),
-        );
+        assert_eq!(placeholder, Placeholder::template_from_str("my_template"),);
     }
 
     #[test]
@@ -231,10 +232,7 @@ mod tests {
         assert!(input.is_empty(), "Did not consume placeholder");
         assert_eq!(
             placeholder,
-            Placeholder::Other {
-                name: "other".to_string(),
-                value: "something else".to_string()
-            },
+            Placeholder::other_from_str("other", "something else"),
         );
     }
 }

@@ -1,8 +1,12 @@
-use super::{
-    elements::{Cell, Row, Table},
-    inline::inline_element_container,
-    utils::{context, end_of_line_or_input, le, take_line_while1},
-    Span, IResult, LE,
+use super::inline::inline_element_container;
+use crate::lang::{
+    elements::{Cell, InlineElementContainer, Located, Row, Table},
+    parsers::{
+        utils::{
+            capture, context, end_of_line_or_input, locate, take_line_while1,
+        },
+        IResult, Span,
+    },
 };
 use nom::{
     branch::alt,
@@ -14,13 +18,11 @@ use nom::{
 };
 
 #[inline]
-pub fn table(input: Span) -> IResult<LE<Table>> {
+pub fn table(input: Span) -> IResult<Located<Table>> {
     fn inner(input: Span) -> IResult<Table> {
         // Assume a table is centered if the first row is indented
         let (input, (table_header, centered)) =
-            map(pair(space0, row), |x| (x.1, !x.0.is_empty()))(
-                input,
-            )?;
+            map(pair(space0, row), |x| (x.1, !x.0.is_empty()))(input)?;
 
         // Retrieve remaining rows and prepend the header row
         let (input, mut rows) = many0(preceded(space0, row))(input)?;
@@ -31,14 +33,14 @@ pub fn table(input: Span) -> IResult<LE<Table>> {
     // Parse the table and make sure it isn't comprised entirely of divider rows
     context(
         "Table",
-        le(verify(inner, |t| {
+        locate(capture(verify(inner, |t| {
             !t.rows.iter().all(|r| matches!(r.element, Row::Divider))
-        })),
+        }))),
     )(input)
 }
 
 #[inline]
-fn row(input: Span) -> IResult<LE<Row>> {
+fn row(input: Span) -> IResult<Located<Row>> {
     fn inner(input: Span) -> IResult<Row> {
         terminated(
             delimited(
@@ -55,7 +57,7 @@ fn row(input: Span) -> IResult<LE<Row>> {
         )(input)
     }
 
-    context("Row", le(inner))(input)
+    context("Row", locate(capture(inner)))(input)
 }
 
 #[inline]
@@ -64,7 +66,7 @@ fn hyphens(input: Span) -> IResult<()> {
 }
 
 #[inline]
-fn cell(input: Span) -> IResult<LE<Cell>> {
+fn cell(input: Span) -> IResult<Located<Cell>> {
     fn inner(input: Span) -> IResult<Cell> {
         alt((
             cell_span_above,
@@ -74,12 +76,14 @@ fn cell(input: Span) -> IResult<LE<Cell>> {
                     take_line_while1(not(char('|'))),
                     inline_element_container,
                 ),
-                |c| c.map(Cell::Content).element,
+                |l: Located<InlineElementContainer>| {
+                    Cell::Content(l.into_inner())
+                },
             ),
         ))(input)
     }
 
-    context("Cell", le(inner))(input)
+    context("Cell", locate(capture(inner)))(input)
 }
 
 #[inline]
@@ -95,8 +99,7 @@ fn cell_span_above(input: Span) -> IResult<Cell> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::elements::{InlineElement, Link, Text, WikiLink};
-    use crate::lang::utils::Span;
+    use crate::lang::elements::{InlineElement, Link, Text, WikiLink};
     use indoc::indoc;
     use std::path::PathBuf;
 

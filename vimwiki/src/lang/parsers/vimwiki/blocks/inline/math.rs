@@ -1,7 +1,9 @@
-use super::{
-    elements::MathInline,
-    utils::{context, le, pstring, take_line_while1},
-    Span, IResult, LE,
+use crate::lang::{
+    elements::{Located, MathInline},
+    parsers::{
+        utils::{capture, context, cow_str, locate, take_line_while1},
+        IResult, Span,
+    },
 };
 use nom::{
     character::complete::char,
@@ -10,12 +12,12 @@ use nom::{
 };
 
 #[inline]
-pub fn math_inline(input: Span) -> IResult<LE<MathInline>> {
+pub fn math_inline(input: Span) -> IResult<Located<MathInline>> {
     fn inner(input: Span) -> IResult<MathInline> {
         // TODO: Is there any way to escape a $ inside a formula? If so, we will
         //       need to support detecting that rather than using take_till1
         map(
-            pstring(delimited(
+            cow_str(delimited(
                 char('$'),
                 take_line_while1(not(char('$'))),
                 char('$'),
@@ -24,13 +26,12 @@ pub fn math_inline(input: Span) -> IResult<LE<MathInline>> {
         )(input)
     }
 
-    context("Math Inline", le(inner))(input)
+    context("Math Inline", locate(capture(inner)))(input)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lang::utils::Span;
     use indoc::indoc;
 
     #[test]

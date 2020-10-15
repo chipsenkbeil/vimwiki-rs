@@ -1,14 +1,18 @@
 use crate::lang::{
-    elements::*,
+    elements::{Comment, LineComment, Located, MultiLineComment},
     parsers::{
-        utils::{capture, context, locate, take_until_end_of_line_or_input},
+        utils::{
+            capture, context, cow_str, locate, take_until_end_of_line_or_input,
+        },
         IResult, Span,
     },
 };
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_until},
-    combinator::map,
+    combinator::{map, map_parser},
+    multi::many1,
+    sequence::terminated,
 };
 
 pub fn comment<'a>(input: Span<'a>) -> IResult<'a, Located<Comment<'a>>> {
@@ -26,9 +30,9 @@ pub fn line_comment<'a>(
 ) -> IResult<'a, Located<LineComment<'a>>> {
     fn inner<'a>(input: Span<'a>) -> IResult<'a, LineComment<'a>> {
         let (input, _) = tag("%%")(input)?;
-        let (input, text) = take_until_end_of_line_or_input(input)?;
+        let (input, text) = cow_str(take_until_end_of_line_or_input)(input)?;
 
-        Ok((input, LineComment(text)))
+        Ok((input, LineComment::new(text)))
     }
 
     context("Line Comment", locate(capture(inner)))(input)
@@ -41,11 +45,14 @@ pub fn multi_line_comment<'a>(
         let (input, _) = tag("%%+")(input)?;
 
         // Capture all content between comments as individual lines
-        let (input, lines) = take_until("+%%")(input)?;
+        let (input, lines) = map_parser(
+            take_until("+%%"),
+            many1(cow_str(terminated(take_until("\n"), tag("\n")))),
+        )(input)?;
 
         let (input, _) = tag("+%%")(input)?;
 
-        Ok((input, MultiLineComment(lines)))
+        Ok((input, MultiLineComment::new(lines)))
     }
 
     context("Multi Line Comment", locate(capture(inner)))(input)
@@ -59,16 +66,16 @@ mod tests {
     #[test]
     fn comment_should_fail_if_no_input() {
         let input = Span::from("");
-        assert!(Comment::try_parse(input).is_err());
+        assert!(comment(input).is_err());
     }
 
     #[test]
     fn comment_should_fail_if_only_one_percent_sign() {
         let input = Span::from("% comment");
-        assert!(Comment::try_parse(input).is_err());
+        assert!(comment(input).is_err());
 
         let input = Span::from("%+ comment +%");
-        assert!(Comment::try_parse(input).is_err());
+        assert!(comment(input).is_err());
     }
 
     #[test]
@@ -79,7 +86,7 @@ mod tests {
             Ok((input, ()))
         }
         let (input, _) = advance(input).unwrap();
-        let (input, c) = Comment::try_parse(input).unwrap();
+        let (input, c) = comment(input).unwrap();
         assert!(input.is_empty(), "Did not consume comment");
 
         match c.into_inner() {
@@ -91,7 +98,7 @@ mod tests {
     #[test]
     fn comment_should_parse_line_comment() {
         let input = Span::from("%% comment");
-        let (input, c) = Comment::try_parse(input).unwrap();
+        let (input, c) = comment(input).unwrap();
         assert!(input.is_empty(), "Did not consume comment");
         match c.into_inner() {
             Comment::Line(x) => assert_eq!(x.0, " comment"),
@@ -100,7 +107,7 @@ mod tests {
 
         // NOTE: Line comment doesn't consume the newline; it leaves a blank line
         let input = Span::from("%% comment\nnext line");
-        let (input, c) = Comment::try_parse(input).unwrap();
+        let (input, c) = comment(input).unwrap();
         assert_eq!(
             input.as_unsafe_remaining_str(),
             "\nnext line",
@@ -115,7 +122,7 @@ mod tests {
     #[test]
     fn comment_should_parse_multi_line_comment() {
         let input = Span::from("%%+ comment +%%");
-        let (input, c) = Comment::try_parse(input).unwrap();
+        let (input, c) = comment(input).unwrap();
         assert!(input.is_empty(), "Did not consume comment");
         match c.into_inner() {
             Comment::MultiLine(x) => assert_eq!(x.0, " comment "),
@@ -123,7 +130,7 @@ mod tests {
         }
 
         let input = Span::from("%%+ comment\nnext line +%%");
-        let (input, c) = Comment::try_parse(input).unwrap();
+        let (input, c) = comment(input).unwrap();
         assert!(input.is_empty(), "Did not consume comment");
         match c.into_inner() {
             Comment::MultiLine(x) => assert_eq!(x.0, " comment\nnext line "),
@@ -131,7 +138,7 @@ mod tests {
         }
 
         let input = Span::from("%%+ comment\nnext line +%%after");
-        let (input, c) = Comment::try_parse(input).unwrap();
+        let (input, c) = comment(input).unwrap();
         assert_eq!(
             input.as_unsafe_remaining_str(),
             "after",

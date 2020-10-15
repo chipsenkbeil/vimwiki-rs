@@ -1,7 +1,9 @@
-use super::{
-    elements::{Tag, Tags},
-    utils::{context, le, take_line_while1},
-    Span, IResult, LE,
+use crate::lang::{
+    elements::{Located, Tag, Tags},
+    parsers::{
+        utils::{capture, context, cow_str, locate, take_line_while1},
+        IResult, Span,
+    },
 };
 use nom::{
     character::complete::char, combinator::not, multi::many1,
@@ -9,7 +11,7 @@ use nom::{
 };
 
 #[inline]
-pub fn tags(input: Span) -> IResult<LE<Tags>> {
+pub fn tags(input: Span) -> IResult<Located<Tags>> {
     fn inner(input: Span) -> IResult<Tags> {
         let (input, _) = char(':')(input)?;
         let (input, contents) =
@@ -18,7 +20,7 @@ pub fn tags(input: Span) -> IResult<LE<Tags>> {
         Ok((input, Tags::new(contents)))
     }
 
-    context("Tags", le(inner))(input)
+    context("Tags", locate(capture(inner)))(input)
 }
 
 fn tag_content(input: Span) -> IResult<Tag> {
@@ -29,8 +31,8 @@ fn tag_content(input: Span) -> IResult<Tag> {
         Ok((input, ()))
     }
 
-    let (input, s) = take_line_while1(has_more)(input)?;
-    Ok((input, Tag::from(s.as_unsafe_remaining_str())))
+    let (input, s) = cow_str(take_line_while1(has_more))(input)?;
+    Ok((input, Tag::new(s)))
 }
 
 #[cfg(test)]

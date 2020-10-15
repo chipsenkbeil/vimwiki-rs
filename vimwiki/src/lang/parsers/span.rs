@@ -10,6 +10,7 @@ use std::{
     fmt::{Display, Formatter, Result as FmtResult},
     iter::Enumerate,
     ops::{Range, RangeFrom, RangeFull, RangeTo},
+    path::Path,
     str::FromStr,
 };
 
@@ -261,6 +262,13 @@ impl<'a> From<Span<'a>> for Cow<'a, str> {
     /// Converts into remaining bytes as str
     fn from(span: Span<'a>) -> Self {
         Self::from(span.as_unsafe_remaining_str())
+    }
+}
+
+impl<'a> From<Span<'a>> for Cow<'a, Path> {
+    /// Converts into remaining bytes as str
+    fn from(span: Span<'a>) -> Self {
+        Self::from(Path::new(span.as_unsafe_remaining_str()))
     }
 }
 

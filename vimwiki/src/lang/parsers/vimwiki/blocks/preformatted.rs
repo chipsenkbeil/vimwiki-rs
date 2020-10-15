@@ -1,38 +1,42 @@
-use super::{
-    elements::PreformattedText,
-    utils::{
-        any_line, beginning_of_line, context, end_of_line_or_input, le,
-        pstring, take_line_while, take_line_while1,
+use crate::lang::{
+    elements::{Located, PreformattedText},
+    parsers::{
+        utils::{
+            any_line, beginning_of_line, capture, context, cow_str,
+            end_of_line_or_input, locate, take_line_while, take_line_while1,
+        },
+        IResult, Span,
     },
-    Span, IResult, LE,
 };
 use nom::{
     bytes::complete::tag,
     character::complete::{char, space0},
-    combinator::{map, not, opt, verify},
+    combinator::{not, opt, verify},
     multi::{many1, separated_list},
     sequence::{delimited, preceded, separated_pair, terminated},
 };
-use std::collections::HashMap;
+use std::{borrow::Cow, collections::HashMap};
 
 #[inline]
-pub fn preformatted_text(input: Span) -> IResult<LE<PreformattedText>> {
+pub fn preformatted_text(input: Span) -> IResult<Located<PreformattedText>> {
     fn inner(input: Span) -> IResult<PreformattedText> {
         let (input, (maybe_lang, metadata)) = preformatted_text_start(input)?;
-        let (input, lines) =
-            many1(preceded(not(preformatted_text_end), any_line))(input)?;
+        let (input, lines) = many1(preceded(
+            not(preformatted_text_end),
+            cow_str(any_line),
+        ))(input)?;
         let (input, _) = preformatted_text_end(input)?;
 
         Ok((input, PreformattedText::new(maybe_lang, metadata, lines)))
     }
 
-    context("Preformatted Text", le(inner))(input)
+    context("Preformatted Text", locate(capture(inner)))(input)
 }
 
 #[inline]
-fn preformatted_text_start(
-    input: Span,
-) -> IResult<(Option<String>, HashMap<String, String>)> {
+fn preformatted_text_start<'a>(
+    input: Span<'a>,
+) -> IResult<(Option<Cow<'a, str>>, HashMap<Cow<'a, str>, Cow<'a, str>>)> {
     // First, verify we have the start of a block and consume it
     let (input, _) = beginning_of_line(input)?;
     let (input, _) = space0(input)?;
@@ -42,8 +46,8 @@ fn preformatted_text_start(
     //
     // e.g. {{{c++ -> Some("c++")
     let (input, maybe_lang) = opt(terminated(
-        pstring(verify(take_line_while1(not(char(';'))), |s: &Span| {
-            !s.as_unsafe_remaining_str().contains('=')
+        cow_str(verify(take_line_while1(not(char(';'))), |s: &Span| {
+            !s.as_remaining().contains(&b'=')
         })),
         opt(char(';')),
     ))(input)?;
@@ -51,19 +55,14 @@ fn preformatted_text_start(
     // Third, look for optional metadata and consume it
     let (input, mut pairs) = separated_list(
         char(';'),
-        map(
-            separated_pair(
-                take_line_while1(not(char('='))),
-                char('='),
-                delimited(
-                    char('"'),
-                    take_line_while(not(char('"'))),
-                    char('"'),
-                ),
+        separated_pair(
+            cow_str(take_line_while1(not(char('=')))),
+            char('='),
+            delimited(
+                char('"'),
+                cow_str(take_line_while(not(char('"')))),
+                char('"'),
             ),
-            |(k, v): (Span, Span)| {
-                (k.as_unsafe_remaining_str().to_string(), v.as_unsafe_remaining_str().to_string())
-            },
         ),
     )(input)?;
 
@@ -93,7 +92,6 @@ fn preformatted_text_end(input: Span) -> IResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lang::utils::Span;
     use indoc::indoc;
 
     #[test]
@@ -149,10 +147,7 @@ mod tests {
             }}}
         "});
         let (input, p) = preformatted_text(input).unwrap();
-        assert!(
-            input.is_empty(),
-            "Did not consume preformatted block"
-        );
+        assert!(input.is_empty(), "Did not consume preformatted block");
         assert_eq!(p.lang, Some("c++".to_string()));
         assert_eq!(p.lines, vec!["some code".to_string()]);
         assert!(p.metadata.is_empty(), "Has unexpected metadata");
@@ -166,10 +161,7 @@ mod tests {
             }}}
         "#});
         let (input, p) = preformatted_text(input).unwrap();
-        assert!(
-            input.is_empty(),
-            "Did not consume preformatted block"
-        );
+        assert!(input.is_empty(), "Did not consume preformatted block");
         assert_eq!(p.lang, Some("c++".to_string()));
         assert_eq!(p.lines, vec!["some code".to_string()]);
         assert_eq!(p.metadata.get("key"), Some(&"value".to_string()));
@@ -190,10 +182,7 @@ mod tests {
             }}}
         "});
         let (input, p) = preformatted_text(input).unwrap();
-        assert!(
-            input.is_empty(),
-            "Did not consume preformatted block"
-        );
+        assert!(input.is_empty(), "Did not consume preformatted block");
         assert_eq!(
             p.lines,
             vec![
@@ -221,10 +210,7 @@ mod tests {
             }}}
         "#});
         let (input, p) = preformatted_text(input).unwrap();
-        assert!(
-            input.is_empty(),
-            "Did not consume preformatted block"
-        );
+        assert!(input.is_empty(), "Did not consume preformatted block");
         assert_eq!(
             p.lines,
             vec![
@@ -246,10 +232,7 @@ mod tests {
             }}}
         "#});
         let (input, p) = preformatted_text(input).unwrap();
-        assert!(
-            input.is_empty(),
-            "Did not consume preformatted block"
-        );
+        assert!(input.is_empty(), "Did not consume preformatted block");
         assert_eq!(
             p.lines,
             vec![

@@ -1,23 +1,24 @@
-use super::{
-    elements::CodeInline,
-    utils::{context, le, pstring, surround_in_line1},
-    Span, IResult, LE,
+use crate::lang::{
+    elements::{CodeInline, Located},
+    parsers::{
+        utils::{capture, context, cow_str, locate, surround_in_line1},
+        IResult, Span,
+    },
 };
 use nom::combinator::map;
 
 #[inline]
-pub fn code_inline(input: Span) -> IResult<LE<CodeInline>> {
+pub fn code_inline(input: Span) -> IResult<Located<CodeInline>> {
     fn inner(input: Span) -> IResult<CodeInline> {
-        map(pstring(surround_in_line1("`", "`")), CodeInline::new)(input)
+        map(cow_str(surround_in_line1("`", "`")), CodeInline::new)(input)
     }
 
-    context("Code Inline", le(inner))(input)
+    context("Code Inline", locate(capture(inner)))(input)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lang::utils::Span;
     use indoc::indoc;
 
     #[test]

@@ -1,12 +1,14 @@
-use super::{
-    elements::RawLink,
-    utils::{context, le, uri},
-    Span, IResult, LE,
+use crate::lang::{
+    elements::{Located, RawLink},
+    parsers::{
+        utils::{capture, context, locate, uri},
+        IResult, Span,
+    },
 };
 use nom::combinator::verify;
 
 #[inline]
-pub fn raw_link(input: Span) -> IResult<LE<RawLink>> {
+pub fn raw_link(input: Span) -> IResult<Located<RawLink>> {
     fn inner(input: Span) -> IResult<RawLink> {
         // This will match any URI, but we only want to allow a certain set
         // to ensure that we don't mistake some text preceding a tag
@@ -18,13 +20,12 @@ pub fn raw_link(input: Span) -> IResult<LE<RawLink>> {
         Ok((input, RawLink::from(uri)))
     }
 
-    context("Raw Link", le(inner))(input)
+    context("Raw Link", locate(capture(inner)))(input)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lang::utils::Span;
 
     #[test]
     fn raw_link_should_support_http_scheme() {
