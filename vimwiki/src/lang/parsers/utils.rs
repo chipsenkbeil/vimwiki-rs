@@ -7,13 +7,12 @@ use nom::{
     branch::alt,
     bytes::complete::{tag, take, take_while},
     character::complete::{anychar, crlf, line_ending, space0, space1},
-    combinator::{map_res, not, recognize, rest, rest_len, value, verify},
+    combinator::{map, map_res, not, recognize, rest, rest_len, value, verify},
     multi::{many0, many1},
     sequence::{pair, preceded, terminated},
     AsBytes, InputLength, InputTake,
 };
-use std::convert::TryFrom;
-use std::ops::Range;
+use std::{borrow::Cow, convert::TryFrom, ops::Range};
 use uriparse::URI;
 
 /// Wraps a parser in a contextual label, which makes it easier to identify
@@ -72,6 +71,14 @@ pub fn unwrap_captured<'a, T>(
 
         Ok((input, captured.into_inner()))
     })
+}
+
+/// Parser that transforms the result of one parser to that of `Cow<'a, str>`
+/// where the lifetime is bound to the resulting `Span<'a>`
+pub fn cow_str<'a>(
+    parser: impl Fn(Span<'a>) -> IResult<Span<'a>>,
+) -> impl Fn(Span<'a>) -> IResult<Cow<'a, str>> {
+    context("Cow Str", map(parser, |s: Span<'a>| s.into()))
 }
 
 /// Parser that wraps another parser's output in a tuple that also echos out
@@ -257,32 +264,24 @@ pub fn beginning_of_line(input: Span) -> IResult<()> {
 
 /// Parser that will consume a line if it is blank, which means that it is
 /// comprised of nothing but whitespace and line termination
-pub fn blank_line(input: Span) -> IResult<String> {
-    // 1. We must assert (using span) that we're actually at the beginning of
-    //    a line, otherwise this could have been used somewhere after some
-    //    other content was matched, and we don't want it to succeed
-    //
-    // 2. We want to eat up all spaces & tabs on that line, followed by a line
-    //    termination. If we happen to be at end of input, then that's okay as
-    //    long as there was some space as that would be a blank line at the
-    //    end of a file
+pub fn blank_line<'a>(input: Span<'a>) -> IResult<Span<'a>> {
     context(
         "Blank Line",
-        pstring(preceded(
+        preceded(
             beginning_of_line,
             alt((
                 terminated(space1, end_of_line_or_input),
                 terminated(space0, line_ending),
             )),
-        )),
+        ),
     )(input)
 }
 
 /// Parser that will consume any line, returning the line's content as output
-pub fn any_line(input: Span) -> IResult<String> {
-    fn inner(input: Span) -> IResult<String> {
+pub fn any_line<'a>(input: Span<'a>) -> IResult<Span<'a>> {
+    fn inner<'a>(input: Span<'a>) -> IResult<Span<'a>> {
         let (input, _) = beginning_of_line(input)?;
-        let (input, content) = pstring(take_until_end_of_line_or_input)(input)?;
+        let (input, content) = take_until_end_of_line_or_input(input)?;
         let (input, _) = end_of_line_or_input(input)?;
         Ok((input, content))
     }

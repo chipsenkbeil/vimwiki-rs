@@ -1,14 +1,17 @@
-use super::{
-    elements::Divider,
-    utils::{
-        beginning_of_line, context, end_of_line_or_input, le, take_line_while1,
+use crate::lang::{
+    elements::{Divider, Located},
+    parsers::{
+        utils::{
+            beginning_of_line, capture, context, end_of_line_or_input, locate,
+            take_line_while1,
+        },
+        IResult, Span,
     },
-    Span, IResult, LE,
 };
 use nom::{character::complete::char, combinator::verify};
 
 #[inline]
-pub fn divider(input: Span) -> IResult<LE<Divider>> {
+pub fn divider(input: Span) -> IResult<Located<Divider>> {
     fn inner(input: Span) -> IResult<Divider> {
         let (input, _) = beginning_of_line(input)?;
         let (input, _) = verify(take_line_while1(char('-')), |s: &Span| {
@@ -19,13 +22,12 @@ pub fn divider(input: Span) -> IResult<LE<Divider>> {
         Ok((input, Divider))
     }
 
-    context("Divider", le(inner))(input)
+    context("Divider", locate(capture(inner)))(input)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lang::utils::Span;
 
     #[test]
     fn divider_should_fail_if_not_at_beginning_of_line() {

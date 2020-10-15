@@ -6,6 +6,7 @@ use nom::{
     ParseTo, Slice,
 };
 use std::{
+    borrow::Cow,
     fmt::{Display, Formatter, Result as FmtResult},
     iter::Enumerate,
     ops::{Range, RangeFrom, RangeFull, RangeTo},
@@ -248,6 +249,20 @@ impl<'a> DoubleEndedIterator for SpanIterator<'a> {
 /*****************************************************************************/
 /* BEGIN CONVERSION HELPERS                                                  */
 /*****************************************************************************/
+
+impl<'a> From<Span<'a>> for Cow<'a, [u8]> {
+    /// Converts into remaining bytes
+    fn from(span: Span<'a>) -> Self {
+        Self::from(span.as_remaining())
+    }
+}
+
+impl<'a> From<Span<'a>> for Cow<'a, str> {
+    /// Converts into remaining bytes as str
+    fn from(span: Span<'a>) -> Self {
+        Self::from(span.as_unsafe_remaining_str())
+    }
+}
 
 impl<'a> From<&'a [u8]> for Span<'a> {
     fn from(inner: &'a [u8]) -> Self {

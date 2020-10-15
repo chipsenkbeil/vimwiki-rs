@@ -1,12 +1,14 @@
-use super::{
-    elements::{Header, InlineElementContainer},
-    inline::inline_element_container,
-    utils::{
-        beginning_of_line, context, end_of_line_or_input, le, take_end,
-        take_line_while1, take_until_end_of_line_or_input,
-        trim_trailing_whitespace, trim_whitespace, unwrap_le,
+use crate::lang::{
+    elements::{Header, InlineElementContainer, Located},
+    parsers::{
+        utils::{
+            beginning_of_line, capture, context, end_of_line_or_input, locate,
+            take_end, take_line_while1, take_until_end_of_line_or_input,
+            trim_trailing_whitespace, trim_whitespace,
+        },
+        vimwiki::blocks::inline::inline_element_container,
+        IResult, Span,
     },
-    Span, IResult, LE,
 };
 use nom::{
     bytes::complete::take,
@@ -16,7 +18,7 @@ use nom::{
 
 /// Parses a vimwiki header, returning the associated header if successful
 #[inline]
-pub fn header(input: Span) -> IResult<LE<Header>> {
+pub fn header(input: Span) -> IResult<Located<Header>> {
     fn inner(input: Span) -> IResult<Header> {
         // Header must start at the beginning of a line
         let (input, _) = beginning_of_line(input)?;
@@ -42,7 +44,7 @@ pub fn header(input: Span) -> IResult<LE<Header>> {
         Ok((input, header))
     }
 
-    context("Header", le(inner))(input)
+    context("Header", locate(capture(inner)))(input)
 }
 
 fn header_tail(
@@ -77,7 +79,10 @@ fn header_tail(
         let (rest_of_line, _) = trim_whitespace(rest_of_line)?;
 
         // Parse our container of inline elements
-        let (_, container) = unwrap_le(inline_element_container)(rest_of_line)?;
+        let (_, container) = map(
+            inline_element_container,
+            |l: Located<InlineElementContainer>| l.into_inner(),
+        )(rest_of_line)?;
 
         Ok((input, container))
     }
@@ -86,7 +91,7 @@ fn header_tail(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{elements::InlineElement, lang::utils::Span};
+    use crate::lang::elements::InlineElement;
 
     macro_rules! check {
         ($header:expr, $index:expr, $type:ident, $text:expr) => {

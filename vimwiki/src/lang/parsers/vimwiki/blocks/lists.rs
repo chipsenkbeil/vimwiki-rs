@@ -1,13 +1,17 @@
-use super::{
+use crate::lang::{
     elements::{
         InlineElementContainer, List, ListItem, ListItemAttributes,
         ListItemContent, ListItemContents, ListItemSuffix, ListItemTodoStatus,
-        ListItemType, OrderedListItemType, TypedBlockElement,
+        ListItemType, Located, OrderedListItemType, TypedBlockElement,
         UnorderedListItemType,
     },
-    inline::inline_element_container,
-    utils::{beginning_of_line, context, end_of_line_or_input, le},
-    Span, IResult, LE,
+    parsers::{
+        utils::{
+            beginning_of_line, capture, context, end_of_line_or_input, locate,
+        },
+        vimwiki::blocks::inline::inline_element_container,
+        IResult, Span,
+    },
 };
 use nom::{
     branch::alt,
@@ -19,7 +23,7 @@ use nom::{
 };
 
 #[inline]
-pub fn list(input: Span) -> IResult<LE<List>> {
+pub fn list(input: Span) -> IResult<Located<List>> {
     fn inner(input: Span) -> IResult<List> {
         // A list must at least have one item, whose indentation level we will
         // use to determine how far to go
@@ -61,13 +65,13 @@ pub fn list(input: Span) -> IResult<LE<List>> {
         Ok((input, List::new(items).normalize().to_owned()))
     }
 
-    context("List", le(inner))(input)
+    context("List", locate(capture(inner)))(input)
 }
 
 /// Parse space/tabs before a list item, followed by the list item
 #[inline]
-fn list_item(input: Span) -> IResult<(usize, LE<ListItem>)> {
-    fn inner(input: Span) -> IResult<(usize, LE<ListItem>)> {
+fn list_item(input: Span) -> IResult<(usize, Located<ListItem>)> {
+    fn inner(input: Span) -> IResult<(usize, Located<ListItem>)> {
         // 1. Start at the beginning of the line
         let (input, _) = beginning_of_line(input)?;
 
@@ -75,7 +79,7 @@ fn list_item(input: Span) -> IResult<(usize, LE<ListItem>)> {
         let (input, indentation) = indentation_level(true)(input)?;
 
         // 3. Ensure that the item starts with a valid prefix
-        let (input, item) = le(map(
+        let (input, item) = locate(capture(map(
             pair(list_item_prefix, list_item_tail(indentation)),
             |((item_type, item_suffix), (attrs, contents))| {
                 // NOTE: To make things easier, we aren't assigning the index
@@ -83,7 +87,7 @@ fn list_item(input: Span) -> IResult<(usize, LE<ListItem>)> {
                 //       will assign the actual index in the parent parser
                 ListItem::new(item_type, item_suffix, 0, contents, attrs)
             },
-        ))(input)?;
+        )))(input)?;
 
         Ok((input, (indentation, item)))
     }
@@ -161,7 +165,7 @@ fn indentation_level(consume: bool) -> impl Fn(Span) -> IResult<usize> {
 #[inline]
 fn list_item_line_content(
     input: Span,
-) -> IResult<LE<InlineElementContainer>> {
+) -> IResult<Located<InlineElementContainer>> {
     terminated(inline_element_container, end_of_line_or_input)(input)
 }
 
@@ -181,9 +185,7 @@ fn todo_status(input: Span) -> IResult<ListItemTodoStatus> {
 }
 
 #[inline]
-fn list_item_prefix(
-    input: Span,
-) -> IResult<(ListItemType, ListItemSuffix)> {
+fn list_item_prefix(input: Span) -> IResult<(ListItemType, ListItemSuffix)> {
     alt((
         map(unordered_list_item_prefix, |(t, s)| {
             (ListItemType::from(t), s)
@@ -267,16 +269,12 @@ fn unordered_list_item_type_asterisk(
 }
 
 #[inline]
-fn ordered_list_item_type_number(
-    input: Span,
-) -> IResult<OrderedListItemType> {
+fn ordered_list_item_type_number(input: Span) -> IResult<OrderedListItemType> {
     value(OrderedListItemType::Number, digit1)(input)
 }
 
 #[inline]
-fn ordered_list_item_type_pound(
-    input: Span,
-) -> IResult<OrderedListItemType> {
+fn ordered_list_item_type_pound(input: Span) -> IResult<OrderedListItemType> {
     value(OrderedListItemType::Pound, tag("#"))(input)
 }
 
@@ -344,11 +342,10 @@ fn list_item_suffix_none(input: Span) -> IResult<ListItemSuffix> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::elements::{
+    use crate::lang::elements::{
         DecoratedText, DecoratedTextContent, InlineElement, Keyword, Link,
         MathInline, Tags, Text, WikiLink,
     };
-    use crate::lang::utils::Span;
     use indoc::indoc;
     use std::path::PathBuf;
 
@@ -541,7 +538,9 @@ mod tests {
             vec![
                 &InlineElement::Text(Text::from("list ")),
                 &InlineElement::DecoratedText(DecoratedText::Bold(vec![
-                    LE::from(DecoratedTextContent::from(Text::from("item 1")))
+                    Located::from(DecoratedTextContent::from(Text::from(
+                        "item 1"
+                    )))
                 ])),
                 &InlineElement::Text(Text::from(" has a ")),
                 &InlineElement::Link(Link::from(WikiLink::from(
@@ -550,7 +549,7 @@ mod tests {
                 &InlineElement::Text(Text::from(" with ")),
                 &InlineElement::Tags(Tags::from("tag")),
                 &InlineElement::Text(Text::from(" and ")),
-                &InlineElement::Math(MathInline::new("formula".to_string())),
+                &InlineElement::Math(MathInline::from("formula")),
                 &InlineElement::Text(Text::from(" is ")),
                 &InlineElement::Keyword(Keyword::DONE),
             ]

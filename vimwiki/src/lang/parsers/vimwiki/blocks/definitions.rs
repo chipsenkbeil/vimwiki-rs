@@ -110,7 +110,7 @@ fn definition_line(input: Span) -> IResult<Definition> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::elements::{
+    use crate::lang::elements::{
         DecoratedText, DecoratedTextContent, InlineElement,
         InlineElementContainer, Link, MathInline, Text, WikiLink,
     };

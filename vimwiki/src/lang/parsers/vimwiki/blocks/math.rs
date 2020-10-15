@@ -1,10 +1,12 @@
-use super::{
-    elements::MathBlock,
-    utils::{
-        any_line, beginning_of_line, context, end_of_line_or_input, le,
-        pstring, take_line_while1,
+use crate::lang::{
+    elements::{Located, MathBlock},
+    parsers::{
+        utils::{
+            any_line, beginning_of_line, capture, context, cow_str,
+            end_of_line_or_input, locate, take_line_while1,
+        },
+        IResult, Span,
     },
-    Span, IResult, LE,
 };
 use nom::{
     bytes::complete::tag,
@@ -13,16 +15,16 @@ use nom::{
     multi::many1,
     sequence::{delimited, preceded},
 };
+use std::borrow::Cow;
 
-#[inline]
-pub fn math_block(input: Span) -> IResult<LE<MathBlock>> {
+pub fn math_block<'a>(input: Span<'a>) -> IResult<Located<MathBlock<'a>>> {
     fn inner(input: Span) -> IResult<MathBlock> {
         // First, look for the beginning section including an optional environment
         let (input, environment) = beginning_of_math_block(input)?;
 
         // Second, parse all lines while we don't encounter the closing block
         let (input, lines) =
-            many1(preceded(not(end_of_math_block), any_line))(input)?;
+            many1(preceded(not(end_of_math_block), cow_str(any_line)))(input)?;
 
         // Third, parse the closing block
         let (input, _) = end_of_math_block(input)?;
@@ -31,20 +33,19 @@ pub fn math_block(input: Span) -> IResult<LE<MathBlock>> {
         Ok((input, math_block))
     }
 
-    context("Math Block", le(inner))(input)
+    context("Math Block", locate(capture(inner)))(input)
 }
 
-fn beginning_of_math_block(input: Span) -> IResult<Option<String>> {
-    let environment_parser = pstring(delimited(
-        char('%'),
-        take_line_while1(not(char('%'))),
-        char('%'),
-    ));
+fn beginning_of_math_block<'a>(
+    input: Span<'a>,
+) -> IResult<Option<Cow<'a, str>>> {
+    let environment_parser =
+        delimited(char('%'), take_line_while1(not(char('%'))), char('%'));
 
     let (input, _) = beginning_of_line(input)?;
     let (input, _) = space0(input)?;
     let (input, _) = tag("{{$")(input)?;
-    let (input, environment) = opt(environment_parser)(input)?;
+    let (input, environment) = opt(cow_str(environment_parser))(input)?;
     let (input, _) = space0(input)?;
     let (input, _) = line_ending(input)?;
 
@@ -63,7 +64,6 @@ fn end_of_math_block(input: Span) -> IResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lang::utils::Span;
     use indoc::indoc;
 
     #[test]
