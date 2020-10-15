@@ -1,18 +1,18 @@
 use super::{Anchor, Description, WikiLink};
 use derive_more::{Constructor, Display, From};
 use serde::{Deserialize, Serialize};
-use std::{fmt, path::Path};
+use std::{borrow::Cow, fmt, path::Path};
 
 /// Represents a link to a file or directory in another wiki
 #[derive(
     Clone, Debug, Display, From, Eq, PartialEq, Hash, Serialize, Deserialize,
 )]
-pub enum InterWikiLink {
-    Indexed(IndexedInterWikiLink),
-    Named(NamedInterWikiLink),
+pub enum InterWikiLink<'a> {
+    Indexed(IndexedInterWikiLink<'a>),
+    Named(NamedInterWikiLink<'a>),
 }
 
-impl InterWikiLink {
+impl<'a> InterWikiLink<'a> {
     /// Returns the index associated with this interwiki link if it is an
     /// indexed interwiki link
     pub fn index(&self) -> Option<u32> {
@@ -31,7 +31,7 @@ impl InterWikiLink {
         }
     }
 
-    pub fn link(&self) -> &WikiLink {
+    pub fn link(&self) -> &WikiLink<'a> {
         match self {
             Self::Indexed(x) => &x.link,
             Self::Named(x) => &x.link,
@@ -56,19 +56,19 @@ impl InterWikiLink {
 #[derive(
     Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
 )]
-pub struct IndexedInterWikiLink {
+pub struct IndexedInterWikiLink<'a> {
     pub index: u32,
-    pub link: WikiLink,
+    pub link: WikiLink<'a>,
 }
 
-impl fmt::Display for IndexedInterWikiLink {
+impl<'a> fmt::Display for IndexedInterWikiLink<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.link)
     }
 }
 
-impl From<(u32, WikiLink)> for IndexedInterWikiLink {
-    fn from((index, link): (u32, WikiLink)) -> Self {
+impl<'a> From<(u32, WikiLink<'a>)> for IndexedInterWikiLink<'a> {
+    fn from((index, link): (u32, WikiLink<'a>)) -> Self {
         Self::new(index, link)
     }
 }
@@ -78,19 +78,25 @@ impl From<(u32, WikiLink)> for IndexedInterWikiLink {
 #[derive(
     Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
 )]
-pub struct NamedInterWikiLink {
-    pub name: String,
-    pub link: WikiLink,
+pub struct NamedInterWikiLink<'a> {
+    pub name: Cow<'a, str>,
+    pub link: WikiLink<'a>,
 }
 
-impl fmt::Display for NamedInterWikiLink {
+impl<'a> fmt::Display for NamedInterWikiLink<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.link)
     }
 }
 
-impl From<(String, WikiLink)> for NamedInterWikiLink {
-    fn from((name, link): (String, WikiLink)) -> Self {
-        Self::new(name, link)
+impl<'a> From<(String, WikiLink<'a>)> for NamedInterWikiLink<'a> {
+    fn from((name, link): (String, WikiLink<'a>)) -> Self {
+        Self::new(Cow::from(name), link)
+    }
+}
+
+impl<'a> From<(&'a str, WikiLink<'a>)> for NamedInterWikiLink<'a> {
+    fn from((name, link): (&'a str, WikiLink<'a>)) -> Self {
+        Self::new(Cow::from(name), link)
     }
 }

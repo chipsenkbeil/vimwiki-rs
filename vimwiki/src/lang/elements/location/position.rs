@@ -1,4 +1,3 @@
-use super::Span;
 use derive_more::Constructor;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;

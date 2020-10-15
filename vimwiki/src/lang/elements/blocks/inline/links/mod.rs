@@ -3,7 +3,7 @@ use derive_more::{
     IntoIterator, TryInto,
 };
 use serde::{Deserialize, Serialize};
-use std::fmt;
+use std::{borrow::Cow, fmt};
 use uriparse::URI;
 
 mod diary;
@@ -37,14 +37,14 @@ pub use wiki::WikiLink;
     Serialize,
     Deserialize,
 )]
-pub enum Description {
-    Text(String),
-    URI(URI<'static>),
+pub enum Description<'a> {
+    Text(Cow<'a, str>),
+    URI(URI<'a>),
 }
 
-impl From<&str> for Description {
-    fn from(s: &str) -> Self {
-        Self::from(s.to_string())
+impl<'a> From<&'a str> for Description<'a> {
+    fn from(s: &'a str) -> Self {
+        Self::from(Cow::from(s))
     }
 }
 
@@ -66,11 +66,11 @@ impl From<&str> for Description {
     Serialize,
     Deserialize,
 )]
-pub struct Anchor {
-    pub elements: Vec<String>,
+pub struct Anchor<'a> {
+    pub elements: Vec<Cow<'a, str>>,
 }
 
-impl fmt::Display for Anchor {
+impl<'a> fmt::Display for Anchor<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.elements.is_empty() {
             Ok(())
@@ -80,32 +80,32 @@ impl fmt::Display for Anchor {
     }
 }
 
-impl From<String> for Anchor {
+impl From<String> for Anchor<'static> {
     fn from(s: String) -> Self {
-        Self::new(vec![s])
+        Self::new(vec![Cow::from(s)])
     }
 }
 
-impl From<&str> for Anchor {
-    fn from(s: &str) -> Self {
-        Self::new(vec![s.to_string()])
+impl<'a> From<&'a str> for Anchor<'a> {
+    fn from(s: &'a str) -> Self {
+        Self::new(vec![Cow::from(s)])
     }
 }
 
 #[derive(
     Clone, Debug, Display, From, Eq, PartialEq, Hash, Serialize, Deserialize,
 )]
-pub enum Link {
-    Wiki(WikiLink),
-    InterWiki(InterWikiLink),
-    Diary(DiaryLink),
-    Raw(RawLink),
-    ExternalFile(ExternalFileLink),
-    Transclusion(TransclusionLink),
+pub enum Link<'a> {
+    Wiki(WikiLink<'a>),
+    InterWiki(InterWikiLink<'a>),
+    Diary(DiaryLink<'a>),
+    Raw(RawLink<'a>),
+    ExternalFile(ExternalFileLink<'a>),
+    Transclusion(TransclusionLink<'a>),
 }
 
-impl Link {
-    pub fn description(&self) -> Option<&Description> {
+impl<'a> Link<'a> {
+    pub fn description(&self) -> Option<&Description<'a>> {
         match self {
             Self::Wiki(x) => x.description.as_ref(),
             Self::InterWiki(x) => x.link().description.as_ref(),
@@ -116,7 +116,7 @@ impl Link {
         }
     }
 
-    pub fn anchor(&self) -> Option<&Anchor> {
+    pub fn anchor(&self) -> Option<&Anchor<'a>> {
         match self {
             Self::Wiki(x) => x.anchor.as_ref(),
             Self::InterWiki(x) => x.link().anchor.as_ref(),

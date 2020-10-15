@@ -5,7 +5,7 @@ use super::{
     math::math_inline,
     tags::tags,
     utils::{context, le, pstring, surround_in_line1, take_line_while1},
-    Span, VimwikiIResult, LE,
+    Span, IResult, LE,
 };
 
 use nom::{
@@ -16,10 +16,10 @@ use nom::{
 };
 
 #[inline]
-pub fn text(input: Span) -> VimwikiIResult<LE<Text>> {
+pub fn text(input: Span) -> IResult<LE<Text>> {
     // Uses combination of short-circuiting and full checks to ensure we
     // can continue consuming text
-    fn is_text(input: Span) -> VimwikiIResult<()> {
+    fn is_text(input: Span) -> IResult<()> {
         let (input, _) = not(code_inline)(input)?;
         let (input, _) = not(math_inline)(input)?;
         let (input, _) = not(tags)(input)?;
@@ -36,7 +36,7 @@ pub fn text(input: Span) -> VimwikiIResult<LE<Text>> {
 }
 
 #[inline]
-pub fn decorated_text(input: Span) -> VimwikiIResult<LE<DecoratedText>> {
+pub fn decorated_text(input: Span) -> IResult<LE<DecoratedText>> {
     context(
         "Decorated Text",
         le(alt((
@@ -51,7 +51,7 @@ pub fn decorated_text(input: Span) -> VimwikiIResult<LE<DecoratedText>> {
     )(input)
 }
 
-fn bold_italic_text_1(input: Span) -> VimwikiIResult<DecoratedText> {
+fn bold_italic_text_1(input: Span) -> IResult<DecoratedText> {
     context(
         "Bold Italic 1 Decorated Text",
         map(
@@ -61,7 +61,7 @@ fn bold_italic_text_1(input: Span) -> VimwikiIResult<DecoratedText> {
     )(input)
 }
 
-fn bold_italic_text_2(input: Span) -> VimwikiIResult<DecoratedText> {
+fn bold_italic_text_2(input: Span) -> IResult<DecoratedText> {
     context(
         "Bold Italic 2 Decorated Text",
         map(
@@ -71,7 +71,7 @@ fn bold_italic_text_2(input: Span) -> VimwikiIResult<DecoratedText> {
     )(input)
 }
 
-fn italic_text(input: Span) -> VimwikiIResult<DecoratedText> {
+fn italic_text(input: Span) -> IResult<DecoratedText> {
     context(
         "Italic Decorated Text",
         map(
@@ -81,7 +81,7 @@ fn italic_text(input: Span) -> VimwikiIResult<DecoratedText> {
     )(input)
 }
 
-fn bold_text(input: Span) -> VimwikiIResult<DecoratedText> {
+fn bold_text(input: Span) -> IResult<DecoratedText> {
     context(
         "Bold Decorated Text",
         map(
@@ -91,7 +91,7 @@ fn bold_text(input: Span) -> VimwikiIResult<DecoratedText> {
     )(input)
 }
 
-fn strikeout_text(input: Span) -> VimwikiIResult<DecoratedText> {
+fn strikeout_text(input: Span) -> IResult<DecoratedText> {
     context(
         "Strikeout Decorated Text",
         map(
@@ -101,7 +101,7 @@ fn strikeout_text(input: Span) -> VimwikiIResult<DecoratedText> {
     )(input)
 }
 
-fn superscript_text(input: Span) -> VimwikiIResult<DecoratedText> {
+fn superscript_text(input: Span) -> IResult<DecoratedText> {
     context(
         "Superscript Decorated Text",
         map(
@@ -111,7 +111,7 @@ fn superscript_text(input: Span) -> VimwikiIResult<DecoratedText> {
     )(input)
 }
 
-fn subscript_text(input: Span) -> VimwikiIResult<DecoratedText> {
+fn subscript_text(input: Span) -> IResult<DecoratedText> {
     context(
         "Subscript Decorated Text",
         map(
@@ -123,8 +123,8 @@ fn subscript_text(input: Span) -> VimwikiIResult<DecoratedText> {
 
 fn decorated_text_contents(
     input: Span,
-) -> VimwikiIResult<Vec<LE<DecoratedTextContent>>> {
-    fn inner(input: Span) -> VimwikiIResult<Vec<LE<DecoratedTextContent>>> {
+) -> IResult<Vec<LE<DecoratedTextContent>>> {
+    fn inner(input: Span) -> IResult<Vec<LE<DecoratedTextContent>>> {
         many1(alt((
             map(link, |c| c.map(DecoratedTextContent::from)),
             map(keyword, |c| c.map(DecoratedTextContent::from)),
@@ -136,7 +136,7 @@ fn decorated_text_contents(
 }
 
 #[inline]
-pub fn keyword(input: Span) -> VimwikiIResult<LE<Keyword>> {
+pub fn keyword(input: Span) -> IResult<LE<Keyword>> {
     // TODO: Generate using strum to iterate over all keyword items,
     //       forming a tag based on the string version and parsing the
     //       string back into the keyword in a map (or possibly using

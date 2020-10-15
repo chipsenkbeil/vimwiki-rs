@@ -1,4 +1,7 @@
-use super::{Region, Span, VimwikiIResult, VimwikiNomError, LE};
+use crate::lang::{
+    elements::{Located, Position, Region},
+    parsers::{Captured, Error, IResult, Span},
+};
 use memchr::{memchr, memchr_iter};
 use nom::{
     branch::alt,
@@ -25,62 +28,57 @@ pub use nom::error::context;
 #[cfg(feature = "timekeeper")]
 pub fn context<'a, T>(
     ctx: &'static str,
-    f: impl Fn(Span<'a>) -> VimwikiIResult<T>,
-) -> impl Fn(Span<'a>) -> VimwikiIResult<T> {
+    f: impl Fn(Span<'a>) -> IResult<T>,
+) -> impl Fn(Span<'a>) -> IResult<T> {
     crate::timekeeper::parsers::context(ctx, f)
 }
 
-/// Parser that wraps another parser's output in a LocatedElement based on
-/// the consumed input
-#[inline]
-pub fn le<'a, T>(
-    parser: impl Fn(Span<'a>) -> VimwikiIResult<T>,
-) -> impl Fn(Span<'a>) -> VimwikiIResult<LE<T>> {
-    use nom::{Offset, Slice};
-    context("LE", move |input: Span| {
-        let start_line = input.line();
-        let start_column = input.column();
+/// Parser that transforms a `Captured<T>` to a `Located<T>`, which involves
+/// calculating the line and column information; so, this is expensive!
+pub fn locate<'a, T>(
+    parser: impl Fn(Span<'a>) -> IResult<Captured<T>>,
+) -> impl Fn(Span<'a>) -> IResult<Located<T>> {
+    context("Locate", move |input: Span| {
+        let (input, c) = parser(input)?;
+        let start_pos = Position::new(c.input().line(), c.input().column());
+        let end_pos = Position::new(c.input().line(), c.input().column());
+        let region = Region::new(start_pos, end_pos);
 
-        let (input2, x) = parser(input)?;
-
-        // Get offset at end (new start - 1)
-        let mut offset = input.offset(&input2);
-        if offset > 0 {
-            offset -= 1;
-        }
-
-        let input = input.slice(offset..);
-        let end_line = input.line();
-        let end_column = input.column();
-
-        Ok((
-            input2,
-            LE::new(
-                x,
-                Region::from((start_line, start_column, end_line, end_column)),
-            ),
-        ))
+        Ok((input, Located::new(c.into_inner(), region)))
     })
 }
 
-/// Parser that unwraps another parser's output of LocatedElement into the
-/// underlying element
-pub fn unwrap_le<'a, T>(
-    parser: impl Fn(Span<'a>) -> VimwikiIResult<LE<T>>,
-) -> impl Fn(Span<'a>) -> VimwikiIResult<T> {
-    context("LE Unwrap", move |input: Span| {
-        let (input, le) = parser(input)?;
+/// Parser that captures the input used to create the output of provided the parser
+pub fn capture<'a, T>(
+    parser: impl Fn(Span<'a>) -> IResult<T>,
+) -> impl Fn(Span<'a>) -> IResult<Captured<T>> {
+    context("Capture", move |input: Span| {
+        let start = input;
+        let (input, x) = parser(input)?;
+        let start =
+            start.with_length(input.start_offset() - start.start_offset());
 
-        Ok((input, le.element))
+        Ok((input, Captured::new(x, start)))
+    })
+}
+
+/// Parser that unwraps another parser's output of `Data` into the
+/// underlying output
+pub fn unwrap_captured<'a, T>(
+    parser: impl Fn(Span<'a>) -> IResult<Captured<T>>,
+) -> impl Fn(Span<'a>) -> IResult<T> {
+    context("Unwrap Captured", move |input: Span| {
+        let (input, captured) = parser(input)?;
+
+        Ok((input, captured.into_inner()))
     })
 }
 
 /// Parser that wraps another parser's output in a tuple that also echos out
 /// the offset range (starting offset and ending exclusive offset beyond consumed)
-#[inline]
 pub fn range<'a, T>(
-    parser: impl Fn(Span<'a>) -> VimwikiIResult<T>,
-) -> impl Fn(Span<'a>) -> VimwikiIResult<(Range<usize>, T)> {
+    parser: impl Fn(Span<'a>) -> IResult<T>,
+) -> impl Fn(Span<'a>) -> IResult<(Range<usize>, T)> {
     move |input: Span| {
         let start = input.start_offset();
         let (input, x) = parser(input)?;
@@ -91,9 +89,8 @@ pub fn range<'a, T>(
 
 /// Parser that will consume an end of line (\n or \r\n) or do nothing if
 /// the input is empty
-#[inline]
-pub fn end_of_line_or_input(input: Span) -> VimwikiIResult<()> {
-    fn inner(input: Span) -> VimwikiIResult<()> {
+pub fn end_of_line_or_input(input: Span) -> IResult<()> {
+    fn inner(input: Span) -> IResult<()> {
         if input.is_empty() {
             return Ok((input, ()));
         }
@@ -114,11 +111,11 @@ pub fn end_of_line_or_input(input: Span) -> VimwikiIResult<()> {
 pub fn surround_in_line1<'a>(
     left: &'static str,
     right: &'static str,
-) -> impl Fn(Span<'a>) -> VimwikiIResult<Span<'a>> {
+) -> impl Fn(Span<'a>) -> IResult<Span<'a>> {
     fn inner<'a>(
         left: &'static str,
         right: &'static str,
-    ) -> impl Fn(Span<'a>) -> VimwikiIResult<Span<'a>> {
+    ) -> impl Fn(Span<'a>) -> IResult<Span<'a>> {
         move |input: Span| {
             let (input, _) = tag(left)(input)?;
             let input_bytes = input.as_bytes();
@@ -132,12 +129,10 @@ pub fn surround_in_line1<'a>(
                 // If we've reached the end of the line, return an error
                 if let Some(newline_pos) = maybe_newline_pos {
                     if pos >= newline_pos {
-                        return Err(nom::Err::Error(
-                            VimwikiNomError::from_ctx(
-                                &input,
-                                "end of line reached before right side",
-                            ),
-                        ));
+                        return Err(nom::Err::Error(Error::from_ctx(
+                            &input,
+                            "end of line reached before right side",
+                        )));
                     }
                 }
 
@@ -160,7 +155,7 @@ pub fn surround_in_line1<'a>(
             }
 
             // There was no match of the right side
-            Err(nom::Err::Error(VimwikiNomError::from_ctx(
+            Err(nom::Err::Error(Error::from_ctx(
                 &input,
                 "right side not found",
             )))
@@ -172,13 +167,12 @@ pub fn surround_in_line1<'a>(
 
 /// Parser that consumes input while the pattern succeeds or we reach the
 /// end of the line. Note that this does NOT consume the line termination.
-#[inline]
 pub fn take_line_while<'a, T>(
-    parser: impl Fn(Span<'a>) -> VimwikiIResult<T>,
-) -> impl Fn(Span<'a>) -> VimwikiIResult<Span<'a>> {
+    parser: impl Fn(Span<'a>) -> IResult<T>,
+) -> impl Fn(Span<'a>) -> IResult<Span<'a>> {
     fn single_char<'a, T>(
-        parser: impl Fn(Span<'a>) -> VimwikiIResult<T>,
-    ) -> impl Fn(Span<'a>) -> VimwikiIResult<char> {
+        parser: impl Fn(Span<'a>) -> IResult<T>,
+    ) -> impl Fn(Span<'a>) -> IResult<char> {
         move |input: Span| {
             let (input, _) = not(end_of_line_or_input)(input)?;
 
@@ -195,10 +189,9 @@ pub fn take_line_while<'a, T>(
 
 /// Parser that consumes input while the pattern succeeds or we reach the
 /// end of the line. Note that this does NOT consume the line termination.
-#[inline]
 pub fn take_line_while1<'a, T>(
-    parser: impl Fn(Span<'a>) -> VimwikiIResult<T>,
-) -> impl Fn(Span<'a>) -> VimwikiIResult<Span<'a>> {
+    parser: impl Fn(Span<'a>) -> IResult<T>,
+) -> impl Fn(Span<'a>) -> IResult<Span<'a>> {
     context(
         "Take Line While 1",
         verify(take_line_while(parser), |s| !s.is_empty()),
@@ -206,9 +199,8 @@ pub fn take_line_while1<'a, T>(
 }
 
 /// Parser that will consume the remainder of a line (or end of input)
-#[inline]
-pub fn take_until_end_of_line_or_input(input: Span) -> VimwikiIResult<Span> {
-    fn inner(input: Span) -> VimwikiIResult<Span> {
+pub fn take_until_end_of_line_or_input(input: Span) -> IResult<Span> {
+    fn inner(input: Span) -> IResult<Span> {
         match memchr(b'\n', input.as_bytes()) {
             Some(pos) => Ok(input.take_split(pos)),
             _ => rest(input),
@@ -220,10 +212,7 @@ pub fn take_until_end_of_line_or_input(input: Span) -> VimwikiIResult<Span> {
 
 /// Parser that will consume input until the specified byte is found,
 /// consuming the entire input if the byte is not found
-#[inline]
-pub fn take_until_byte<'a>(
-    byte: u8,
-) -> impl Fn(Span<'a>) -> VimwikiIResult<Span<'a>> {
+pub fn take_until_byte<'a>(byte: u8) -> impl Fn(Span<'a>) -> IResult<Span<'a>> {
     move |input: Span| {
         if let Some(pos) = memchr(byte, input.as_bytes()) {
             Ok(input.take_split(pos))
@@ -236,10 +225,9 @@ pub fn take_until_byte<'a>(
 /// Parser that will consume input until the specified byte is found,
 /// consuming the entire input if the byte is not found; fails if does
 /// not consume at least 1 byte
-#[inline]
 pub fn take_until_byte1<'a>(
     byte: u8,
-) -> impl Fn(Span<'a>) -> VimwikiIResult<Span<'a>> {
+) -> impl Fn(Span<'a>) -> IResult<Span<'a>> {
     context(
         "Take Until Byte 1",
         verify(take_until_byte(byte), |output| !output.is_empty()),
@@ -248,9 +236,8 @@ pub fn take_until_byte1<'a>(
 
 /// Parser that will succeed if input is at the beginning of a line; input
 /// will not be consumed
-#[inline]
-pub fn beginning_of_line(input: Span) -> VimwikiIResult<()> {
-    fn inner(input: Span) -> VimwikiIResult<()> {
+pub fn beginning_of_line(input: Span) -> IResult<()> {
+    fn inner(input: Span) -> IResult<()> {
         let l = input.consumed_len();
 
         // If we have consumed nothing or the last consumed byte was a newline,
@@ -258,7 +245,7 @@ pub fn beginning_of_line(input: Span) -> VimwikiIResult<()> {
         if l == 0 || input.as_consumed()[l - 1] == b'\n' {
             Ok((input, ()))
         } else {
-            Err(nom::Err::Error(VimwikiNomError::from_ctx(
+            Err(nom::Err::Error(Error::from_ctx(
                 &input,
                 "Not at beginning of line",
             )))
@@ -270,8 +257,7 @@ pub fn beginning_of_line(input: Span) -> VimwikiIResult<()> {
 
 /// Parser that will consume a line if it is blank, which means that it is
 /// comprised of nothing but whitespace and line termination
-#[inline]
-pub fn blank_line(input: Span) -> VimwikiIResult<String> {
+pub fn blank_line(input: Span) -> IResult<String> {
     // 1. We must assert (using span) that we're actually at the beginning of
     //    a line, otherwise this could have been used somewhere after some
     //    other content was matched, and we don't want it to succeed
@@ -293,9 +279,8 @@ pub fn blank_line(input: Span) -> VimwikiIResult<String> {
 }
 
 /// Parser that will consume any line, returning the line's content as output
-#[inline]
-pub fn any_line(input: Span) -> VimwikiIResult<String> {
-    fn inner(input: Span) -> VimwikiIResult<String> {
+pub fn any_line(input: Span) -> IResult<String> {
+    fn inner(input: Span) -> IResult<String> {
         let (input, _) = beginning_of_line(input)?;
         let (input, content) = pstring(take_until_end_of_line_or_input)(input)?;
         let (input, _) = end_of_line_or_input(input)?;
@@ -307,8 +292,7 @@ pub fn any_line(input: Span) -> VimwikiIResult<String> {
 
 /// Parser that consumes a single multispace that could be \r\n, \n, \t, or
 /// a space character
-#[inline]
-pub fn single_multispace(input: Span) -> VimwikiIResult<()> {
+pub fn single_multispace(input: Span) -> IResult<()> {
     context(
         "Single Multispace",
         value((), alt((crlf, tag("\n"), tag("\t"), tag(" ")))),
@@ -316,10 +300,9 @@ pub fn single_multispace(input: Span) -> VimwikiIResult<()> {
 }
 
 /// Parser that transforms the output of a parser into an allocated string
-#[inline]
 pub fn pstring<'a>(
-    parser: impl Fn(Span<'a>) -> VimwikiIResult<Span<'a>>,
-) -> impl Fn(Span<'a>) -> VimwikiIResult<String> {
+    parser: impl Fn(Span<'a>) -> IResult<Span<'a>>,
+) -> impl Fn(Span<'a>) -> IResult<String> {
     context("Pstring", move |input: Span| {
         let (input, result) = parser(input)?;
         Ok((input, result.as_unsafe_remaining_str().to_string()))
@@ -330,11 +313,10 @@ pub fn pstring<'a>(
 /// using the given step function, applying the provided parser
 /// and returning a series of results whenever a parser succeeds; does not
 /// consume the input
-#[inline]
 pub fn scan_with_step<'a, T, U>(
-    parser: impl Fn(Span<'a>) -> VimwikiIResult<T>,
-    step: impl Fn(Span<'a>) -> VimwikiIResult<U>,
-) -> impl Fn(Span<'a>) -> VimwikiIResult<Vec<T>> {
+    parser: impl Fn(Span<'a>) -> IResult<T>,
+    step: impl Fn(Span<'a>) -> IResult<U>,
+) -> impl Fn(Span<'a>) -> IResult<Vec<T>> {
     move |mut input: Span| {
         let mut output = Vec::new();
         let original_input = input;
@@ -343,7 +325,7 @@ pub fn scan_with_step<'a, T, U>(
             if let Ok((i, item)) = parser(input) {
                 // No advancement happened, so error to prevent infinite loop
                 if i == input {
-                    return Err(nom::Err::Error(VimwikiNomError::from_ctx(
+                    return Err(nom::Err::Error(Error::from_ctx(
                         &i,
                         "scan detected infinite loop",
                     )));
@@ -368,8 +350,8 @@ pub fn scan_with_step<'a, T, U>(
 /// applying the provided parser and returning a series of results whenever
 /// a parser succeeds; does not consume the input
 pub fn scan<'a, T>(
-    parser: impl Fn(Span<'a>) -> VimwikiIResult<T>,
-) -> impl Fn(Span<'a>) -> VimwikiIResult<Vec<T>> {
+    parser: impl Fn(Span<'a>) -> IResult<T>,
+) -> impl Fn(Span<'a>) -> IResult<Vec<T>> {
     scan_with_step(parser, value((), take(1usize)))
 }
 
@@ -388,8 +370,7 @@ pub fn scan<'a, T>(
 ///
 /// 1. www (www.example.com) -> (https://www.example.com)
 /// 2. // (//some/abs/path) -> (file:/some/abs/path)
-#[inline]
-pub fn uri(input: Span) -> VimwikiIResult<URI<'static>> {
+pub fn uri(input: Span) -> IResult<URI<'static>> {
     // URI = scheme:[//authority]path[?query][#fragment]
     // scheme = sequence of characters beginning with a letter and followed
     //          by any combination of letters, digits, plus (+), period (.),
@@ -433,8 +414,8 @@ pub fn uri(input: Span) -> VimwikiIResult<URI<'static>> {
 }
 
 /// Counts the spaces & tabs that are trailing in our input
-pub fn count_trailing_whitespace(input: Span) -> VimwikiIResult<usize> {
-    fn inner(input: Span) -> VimwikiIResult<usize> {
+pub fn count_trailing_whitespace(input: Span) -> IResult<usize> {
+    fn inner(input: Span) -> IResult<usize> {
         let mut cnt = 0;
 
         // Count whitespace in reverse so we know how many are trailing
@@ -453,8 +434,8 @@ pub fn count_trailing_whitespace(input: Span) -> VimwikiIResult<usize> {
 
 /// Trims the trailing whitespace from input, essentially working backwards
 /// to cut off part of the input
-pub fn trim_trailing_whitespace(input: Span) -> VimwikiIResult<()> {
-    fn inner(input: Span) -> VimwikiIResult<()> {
+pub fn trim_trailing_whitespace(input: Span) -> IResult<()> {
+    fn inner(input: Span) -> IResult<()> {
         use nom::Slice;
         let (input, len) = rest_len(input)?;
         let (input, cnt) = count_trailing_whitespace(input)?;
@@ -465,8 +446,8 @@ pub fn trim_trailing_whitespace(input: Span) -> VimwikiIResult<()> {
 }
 
 /// Trims the leading and trailing whitespace from input
-pub fn trim_whitespace(input: Span) -> VimwikiIResult<()> {
-    fn inner(input: Span) -> VimwikiIResult<()> {
+pub fn trim_whitespace(input: Span) -> IResult<()> {
+    fn inner(input: Span) -> IResult<()> {
         let (input, _) = space0(input)?;
         let (input, _) = trim_trailing_whitespace(input)?;
         Ok((input, ()))
@@ -476,9 +457,7 @@ pub fn trim_whitespace(input: Span) -> VimwikiIResult<()> {
 }
 
 /// Takes from the end instead of the beginning
-pub fn take_end<'a, C>(
-    count: C,
-) -> impl Fn(Span<'a>) -> VimwikiIResult<Span<'a>>
+pub fn take_end<'a, C>(count: C) -> impl Fn(Span<'a>) -> IResult<Span<'a>>
 where
     C: nom::ToUsize,
 {
@@ -490,10 +469,7 @@ where
     context("Take End", move |input: Span| {
         let len = input.input_len();
         if cnt > len {
-            Err(Err::Error(VimwikiNomError::from_error_kind(
-                input,
-                ErrorKind::Eof,
-            )))
+            Err(Err::Error(Error::from_error_kind(input, ErrorKind::Eof)))
         } else {
             let (end, input) = input.take_split(len - cnt);
             Ok((input, end))
@@ -507,7 +483,7 @@ mod tests {
     use nom::character::complete::char;
 
     #[inline]
-    fn take_and_toss(n: usize) -> impl Fn(Span) -> VimwikiIResult<()> {
+    fn take_and_toss(n: usize) -> impl Fn(Span) -> IResult<()> {
         move |input: Span| {
             nom::combinator::value((), nom::bytes::complete::take(n))(input)
         }

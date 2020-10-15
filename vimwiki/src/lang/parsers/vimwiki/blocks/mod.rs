@@ -1,6 +1,6 @@
 use super::{
     elements::{self, BlockElement},
-    utils::{self, context, VimwikiIResult},
+    utils::{self, context, IResult},
     Span, LE,
 };
 use nom::{branch::alt, combinator::map};
@@ -18,7 +18,7 @@ pub mod preformatted;
 pub mod tables;
 
 /// Parses a block element
-pub fn block_element(input: Span) -> VimwikiIResult<LE<BlockElement>> {
+pub fn block_element(input: Span) -> IResult<LE<BlockElement>> {
     context(
         "Block Element",
         alt((

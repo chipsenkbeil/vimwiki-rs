@@ -8,13 +8,13 @@ use std::{convert::TryFrom, fmt};
 #[derive(
     Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
 )]
-pub struct DiaryLink {
+pub struct DiaryLink<'a> {
     pub date: NaiveDate,
-    pub description: Option<Description>,
-    pub anchor: Option<Anchor>,
+    pub description: Option<Description<'a>>,
+    pub anchor: Option<Anchor<'a>>,
 }
 
-impl fmt::Display for DiaryLink {
+impl<'a> fmt::Display for DiaryLink<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(desc) = self.description.as_ref() {
             write!(f, "{}", desc)
@@ -28,13 +28,13 @@ impl fmt::Display for DiaryLink {
     }
 }
 
-impl From<NaiveDate> for DiaryLink {
+impl From<NaiveDate> for DiaryLink<'static> {
     fn from(date: NaiveDate) -> Self {
         Self::new(date, None, None)
     }
 }
 
-impl TryFrom<&str> for DiaryLink {
+impl TryFrom<&str> for DiaryLink<'static> {
     type Error = chrono::format::ParseError;
 
     fn try_from(str_date: &str) -> Result<Self, Self::Error> {

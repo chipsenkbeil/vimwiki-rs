@@ -1,7 +1,11 @@
 use super::{Anchor, Description};
 use derive_more::Constructor;
 use serde::{Deserialize, Serialize};
-use std::{fmt, path::PathBuf};
+use std::{
+    borrow::Cow,
+    fmt,
+    path::{Path, PathBuf},
+};
 
 /// Represents a link to a file or directory in the active wiki
 #[derive(
@@ -15,13 +19,13 @@ use std::{fmt, path::PathBuf};
     Serialize,
     Deserialize,
 )]
-pub struct WikiLink {
-    pub path: PathBuf,
-    pub description: Option<Description>,
-    pub anchor: Option<Anchor>,
+pub struct WikiLink<'a> {
+    pub path: Cow<'a, Path>,
+    pub description: Option<Description<'a>>,
+    pub anchor: Option<Anchor<'a>>,
 }
 
-impl WikiLink {
+impl<'a> WikiLink<'a> {
     /// Whether or not the link is representing an anchor to the current page
     pub fn is_local_anchor(&self) -> bool {
         self.path.as_os_str().is_empty() && self.anchor.is_some()
@@ -40,7 +44,7 @@ impl WikiLink {
     }
 }
 
-impl fmt::Display for WikiLink {
+impl<'a> fmt::Display for WikiLink<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(desc) = self.description.as_ref() {
             write!(f, "{}", desc)
@@ -54,14 +58,26 @@ impl fmt::Display for WikiLink {
     }
 }
 
-impl From<PathBuf> for WikiLink {
+impl From<PathBuf> for WikiLink<'static> {
     fn from(path: PathBuf) -> Self {
-        Self::new(path, None, None)
+        Self::new(Cow::from(path), None, None)
     }
 }
 
-impl From<String> for WikiLink {
+impl<'a> From<&'a Path> for WikiLink<'a> {
+    fn from(path: &'a Path) -> Self {
+        Self::new(Cow::from(path), None, None)
+    }
+}
+
+impl From<String> for WikiLink<'static> {
     fn from(str_path: String) -> Self {
         Self::from(PathBuf::from(str_path))
+    }
+}
+
+impl<'a> From<&'a str> for WikiLink<'a> {
+    fn from(str_path: &'a str) -> Self {
+        Self::from(Path::new(str_path))
     }
 }

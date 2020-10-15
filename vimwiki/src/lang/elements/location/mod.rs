@@ -1,7 +1,11 @@
-use super::{Region, Span};
 use derive_more::{Constructor, Deref, DerefMut, Display};
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
+
+mod position;
+pub use position::Position;
+mod region;
+pub use region::Region;
 
 /// Represents an encapsulation of a language element and its location
 /// within some string/file
@@ -17,29 +21,26 @@ use std::hash::{Hash, Hasher};
     Deserialize,
 )]
 #[display(fmt = "{}", element)]
-pub struct LocatedElement<T> {
+pub struct Located<T> {
     #[deref]
     #[deref_mut]
     pub element: T,
     pub region: Region,
 }
 
-/// Shorthand alias for LocatedElement
-pub type LE<T> = LocatedElement<T>;
-
-impl<T> LocatedElement<T> {
-    /// Maps a `LocatedElement<T>` to `LocatedElement<U>` by applying a
+impl<T> Located<T> {
+    /// Maps a `Located<T>` to `Located<U>` by applying a
     /// function to the underlying element. Useful when upleveling the
     /// element (such as wrapping a Header1) while the region remains
     /// unchanged.
     #[inline]
-    pub fn map<U>(self, f: impl FnOnce(T) -> U) -> LocatedElement<U> {
-        LocatedElement::new(f(self.element), self.region)
+    pub fn map<U>(self, f: impl FnOnce(T) -> U) -> Located<U> {
+        Located::new(f(self.element), self.region)
     }
 
     /// Wraps a function that would transform some input into a type `T` such
     /// that the higher-order function will transform some input into a
-    /// `LocatedElement<T>` (with default region).
+    /// `Located<T>` (with default region).
     #[inline]
     pub fn wrap<U>(f: impl Fn(U) -> T) -> impl Fn(U) -> Self {
         Self::wrap_with_region(Default::default(), f)
@@ -47,7 +48,7 @@ impl<T> LocatedElement<T> {
 
     /// Wraps a function that would transform some input into a type `T` such
     /// that the higher-order function will transform some input into a
-    /// `LocatedElement<T>`.
+    /// `Located<T>`.
     #[inline]
     pub fn wrap_with_region<U>(
         region: Region,
@@ -59,14 +60,14 @@ impl<T> LocatedElement<T> {
         }
     }
 
-    /// Takes a `LocatedElement` and replaces its region, producing the
+    /// Takes a `Located` and replaces its region, producing the
     /// updated region. This takes ownership of the existing element!
     pub fn take_with_region(mut self, region: Region) -> Self {
         self.region = region;
         self
     }
 
-    /// Takes a `LocatedElement` and shifts its region such that it starts
+    /// Takes a `Located` and shifts its region such that it starts
     /// at the specified line. This takes ownership of the existing element!
     pub fn take_at_line(mut self, line: usize) -> Self {
         let diff = self.region.end.line - self.region.start.line;
@@ -75,67 +76,60 @@ impl<T> LocatedElement<T> {
         self
     }
 
-    /// Converts from `&LocatedElement<T>` to `LocatedElement<&T>`
-    pub fn as_ref(&self) -> LE<&T> {
-        LocatedElement {
+    /// Converts from `&Located<T>` to `Located<&T>`
+    pub fn as_ref(&self) -> Located<&T> {
+        Located {
             element: &self.element,
             region: self.region,
         }
     }
 
-    /// Converts from `&mut LocatedElement<T>` to `LocatedElement<&mut T>`
-    pub fn as_mut(&mut self) -> LE<&mut T> {
-        LocatedElement {
+    /// Converts from `&mut Located<T>` to `Located<&mut T>`
+    pub fn as_mut(&mut self) -> Located<&mut T> {
+        Located {
             element: &mut self.element,
             region: self.region,
         }
     }
 
-    /// Converts from `&LocatedElement<T>` to `&T`
+    /// Converts from `&Located<T>` to `&T`
     pub fn as_inner(&self) -> &T {
         &self.element
     }
 
-    /// Converts from `&mut LocatedElement<T>` to `&mut T`
+    /// Converts from `&mut Located<T>` to `&mut T`
     pub fn as_mut_inner(&mut self) -> &mut T {
         &mut self.element
     }
 
-    /// Converts from `LocatedElement<T>` to `T`
+    /// Converts from `Located<T>` to `T`
     pub fn into_inner(self) -> T {
         self.element
     }
 }
 
-impl<T: PartialEq> PartialEq for LocatedElement<T> {
+impl<T: PartialEq> PartialEq for Located<T> {
     fn eq(&self, other: &Self) -> bool {
         self.element == other.element
     }
 }
 
-impl<T: PartialEq> PartialEq<T> for LocatedElement<T> {
+impl<T: PartialEq> PartialEq<T> for Located<T> {
     fn eq(&self, other: &T) -> bool {
         &self.element == other
     }
 }
 
-impl<T: Hash> Hash for LocatedElement<T> {
+impl<T: Hash> Hash for Located<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.element.hash(state);
     }
 }
 
-impl<T> From<T> for LocatedElement<T> {
+impl<T> From<T> for Located<T> {
     /// Creates a new located element around `T`, using a default location
     fn from(t: T) -> Self {
         Self::new(t, Default::default())
-    }
-}
-
-impl<'a, 'b, T> From<(T, Span<'a>, Span<'b>)> for LocatedElement<T> {
-    /// Creates a new located element around `T`, using a default location
-    fn from((element, start, end): (T, Span<'a>, Span<'b>)) -> Self {
-        Self::new(element, Region::from((start, end)))
     }
 }
 
@@ -146,7 +140,7 @@ mod tests {
 
     #[test]
     fn located_element_map_should_transform_inner_element_and_keep_region() {
-        let le = LE::new(3, Region::from(((1, 2), (3, 4))));
+        let le = Located::new(3, Region::from(((1, 2), (3, 4))));
         let mapped_le = le.map(|c| c + 1);
         assert_eq!(mapped_le.element, 4);
         assert_eq!(mapped_le.region, Region::from(((1, 2), (3, 4))));
@@ -154,7 +148,7 @@ mod tests {
 
     #[test]
     fn located_element_wrap_should_apply_function_and_wrap_in_default_region() {
-        let le = LE::wrap(|x: usize| x.to_string())(3);
+        let le = Located::wrap(|x: usize| x.to_string())(3);
         assert_eq!(le.element, String::from("3"));
         assert_eq!(le.region, Region::default());
     }
@@ -162,10 +156,10 @@ mod tests {
     #[test]
     fn located_element_wrap_with_region_should_apply_function_and_wrap_in_provided_region(
     ) {
-        let le =
-            LE::wrap_with_region(Region::from(((1, 2), (3, 4))), |x: usize| {
-                x.to_string()
-            })(3);
+        let le = Located::wrap_with_region(
+            Region::from(((1, 2), (3, 4))),
+            |x: usize| x.to_string(),
+        )(3);
         assert_eq!(le.element, String::from("3"));
         assert_eq!(le.region, Region::from(((1, 2), (3, 4))));
     }
@@ -173,15 +167,15 @@ mod tests {
     #[test]
     fn located_element_equality_with_other_located_element_should_only_use_inner_element(
     ) {
-        let le1 = LE::new(3, Region::from(((1, 2), (3, 4))));
-        let le2 = LE::new(3, Region::default());
+        let le1 = Located::new(3, Region::from(((1, 2), (3, 4))));
+        let le2 = Located::new(3, Region::default());
         assert_eq!(le1, le2);
     }
 
     #[test]
     fn located_element_equality_with_inner_type_should_only_use_inner_element()
     {
-        let le = LE::new(3, Region::from(((1, 2), (3, 4))));
+        let le = Located::new(3, Region::from(((1, 2), (3, 4))));
         let inner = 3;
         assert_eq!(le, inner);
         assert!(le != inner + 1);
@@ -189,21 +183,25 @@ mod tests {
 
     #[test]
     fn located_element_hashing_should_only_use_inner_element() {
-        let le1 = LE::new(3, Region::from(((1, 2), (3, 4))));
-        let le2 = LE::new(3, Region::default());
-        let le3 = LE::new(4, Region::from(((1, 2), (3, 4))));
-        let le4 = LE::new(3, Region::from(((1, 2), (3, 4))));
+        let le1 = Located::new(3, Region::from(((1, 2), (3, 4))));
+        let le2 = Located::new(3, Region::default());
+        let le3 = Located::new(4, Region::from(((1, 2), (3, 4))));
+        let le4 = Located::new(3, Region::from(((1, 2), (3, 4))));
 
         let mut m = HashSet::new();
         m.insert(le1);
 
-        let le = m.get(&le2).expect("Failed to retrieve LE with another LE");
+        let le = m
+            .get(&le2)
+            .expect("Failed to retrieve Located with another Located");
         assert_eq!(le.element, 3);
         assert_eq!(le.region, Region::from(((1, 2), (3, 4))));
 
         assert_eq!(m.get(&le3), None);
 
-        let le = m.get(&le4).expect("Failed to retrieve LE with another LE");
+        let le = m
+            .get(&le4)
+            .expect("Failed to retrieve Located with another Located");
         assert_eq!(le.element, 3);
         assert_eq!(le.region, Region::from(((1, 2), (3, 4))));
     }
@@ -214,7 +212,7 @@ mod tests {
         #[derive(Debug, PartialEq, Eq)]
         struct Test(usize);
 
-        let le = LE::new(Test(5), Region::from(((1, 2), (3, 4))));
+        let le = Located::new(Test(5), Region::from(((1, 2), (3, 4))));
         let le_ref = le.as_ref();
 
         assert_eq!(le_ref.element, &Test(5));
@@ -227,7 +225,7 @@ mod tests {
         #[derive(Debug, PartialEq, Eq)]
         struct Test(usize);
 
-        let mut le = LE::new(Test(5), Region::from(((1, 2), (3, 4))));
+        let mut le = Located::new(Test(5), Region::from(((1, 2), (3, 4))));
         let le_mut = le.as_mut();
 
         assert_eq!(le_mut.element, &mut Test(5));
@@ -240,7 +238,7 @@ mod tests {
         #[derive(Debug, PartialEq, Eq)]
         struct Test(usize);
 
-        let le = LE::new(Test(5), Region::from(((1, 2), (3, 4))));
+        let le = Located::new(Test(5), Region::from(((1, 2), (3, 4))));
         let inner = le.as_inner();
 
         assert_eq!(inner, &Test(5));
@@ -252,7 +250,7 @@ mod tests {
         #[derive(Debug, PartialEq, Eq)]
         struct Test(usize);
 
-        let mut le = LE::new(Test(5), Region::from(((1, 2), (3, 4))));
+        let mut le = Located::new(Test(5), Region::from(((1, 2), (3, 4))));
         let inner = le.as_mut_inner();
 
         assert_eq!(inner, &mut Test(5));
@@ -263,7 +261,7 @@ mod tests {
         #[derive(Debug, PartialEq, Eq)]
         struct Test(usize);
 
-        let le = LE::new(Test(5), Region::from(((1, 2), (3, 4))));
+        let le = Located::new(Test(5), Region::from(((1, 2), (3, 4))));
         let inner = le.into_inner();
 
         assert_eq!(inner, Test(5));

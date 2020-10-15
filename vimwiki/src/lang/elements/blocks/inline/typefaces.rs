@@ -1,7 +1,7 @@
-use super::{InlineElement, Link, TypedInlineElement, LE};
+use crate::lang::elements::{InlineElement, Link, Located, TypedInlineElement};
 use derive_more::{AsMut, AsRef, Constructor, Display, From, Into};
 use serde::{Deserialize, Serialize};
-use std::fmt;
+use std::{borrow::Cow, fmt};
 
 /// Represents plain text with no decorations or inline elements
 #[derive(
@@ -18,11 +18,17 @@ use std::fmt;
     Serialize,
     Deserialize,
 )]
-pub struct Text(String);
+pub struct Text<'a>(pub Cow<'a, str>);
 
-impl From<&str> for Text {
-    fn from(s: &str) -> Self {
-        Self::new(s.to_string())
+impl From<String> for Text<'static> {
+    fn from(s: String) -> Self {
+        Self::new(Cow::from(s))
+    }
+}
+
+impl<'a> From<&'a str> for Text<'a> {
+    fn from(s: &'a str) -> Self {
+        Self::new(Cow::from(s))
     }
 }
 
@@ -30,14 +36,14 @@ impl From<&str> for Text {
 #[derive(
     Clone, Debug, Display, From, Eq, PartialEq, Hash, Serialize, Deserialize,
 )]
-pub enum DecoratedTextContent {
-    Text(TypedInlineElement<Text>),
-    Keyword(TypedInlineElement<Keyword>),
-    Link(TypedInlineElement<Link>),
+pub enum DecoratedTextContent<'a> {
+    Text(TypedInlineElement<'a, Text<'a>>),
+    Keyword(TypedInlineElement<'a, Keyword>),
+    Link(TypedInlineElement<'a, Link<'a>>),
 }
 
-impl DecoratedTextContent {
-    pub fn as_inline_element(&self) -> &InlineElement {
+impl<'a> DecoratedTextContent<'a> {
+    pub fn as_inline_element(&self) -> &InlineElement<'a> {
         match self {
             Self::Text(ref x) => x.as_inner(),
             Self::Keyword(ref x) => x.as_inner(),
@@ -45,7 +51,7 @@ impl DecoratedTextContent {
         }
     }
 
-    pub fn as_mut_inline_element(&mut self) -> &mut InlineElement {
+    pub fn as_mut_inline_element(&mut self) -> &mut InlineElement<'a> {
         match self {
             Self::Text(ref mut x) => x.as_mut_inner(),
             Self::Keyword(ref mut x) => x.as_mut_inner(),
@@ -53,7 +59,7 @@ impl DecoratedTextContent {
         }
     }
 
-    pub fn into_inline_element(self) -> InlineElement {
+    pub fn into_inline_element(self) -> InlineElement<'a> {
         match self {
             Self::Text(x) => x.into_inner(),
             Self::Keyword(x) => x.into_inner(),
@@ -62,38 +68,38 @@ impl DecoratedTextContent {
     }
 }
 
-impl From<Text> for DecoratedTextContent {
-    fn from(text: Text) -> Self {
+impl<'a> From<Text<'a>> for DecoratedTextContent<'a> {
+    fn from(text: Text<'a>) -> Self {
         Self::from(TypedInlineElement::from_text(text))
     }
 }
 
-impl From<Keyword> for DecoratedTextContent {
+impl From<Keyword> for DecoratedTextContent<'static> {
     fn from(keyword: Keyword) -> Self {
         Self::from(TypedInlineElement::from_keyword(keyword))
     }
 }
 
-impl From<Link> for DecoratedTextContent {
-    fn from(link: Link) -> Self {
+impl<'a> From<Link<'a>> for DecoratedTextContent<'a> {
+    fn from(link: Link<'a>) -> Self {
         Self::from(TypedInlineElement::from_link(link))
     }
 }
 
 /// Represents text (series of content) with a typeface decoration
 #[derive(Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub enum DecoratedText {
-    Bold(Vec<LE<DecoratedTextContent>>),
-    Italic(Vec<LE<DecoratedTextContent>>),
-    BoldItalic(Vec<LE<DecoratedTextContent>>),
-    Strikeout(Vec<LE<DecoratedTextContent>>),
-    Superscript(Vec<LE<DecoratedTextContent>>),
-    Subscript(Vec<LE<DecoratedTextContent>>),
+pub enum DecoratedText<'a> {
+    Bold(Vec<Located<DecoratedTextContent<'a>>>),
+    Italic(Vec<Located<DecoratedTextContent<'a>>>),
+    BoldItalic(Vec<Located<DecoratedTextContent<'a>>>),
+    Strikeout(Vec<Located<DecoratedTextContent<'a>>>),
+    Superscript(Vec<Located<DecoratedTextContent<'a>>>),
+    Subscript(Vec<Located<DecoratedTextContent<'a>>>),
 }
 
-impl DecoratedText {
+impl<'a> DecoratedText<'a> {
     /// Converts to the underlying decorated text contents
-    pub fn as_contents(&self) -> &[LE<DecoratedTextContent>] {
+    pub fn as_contents(&self) -> &[Located<DecoratedTextContent<'a>>] {
         match self {
             Self::Bold(ref x) => x.as_slice(),
             Self::Italic(ref x) => x.as_slice(),
@@ -105,7 +111,7 @@ impl DecoratedText {
     }
 }
 
-impl fmt::Display for DecoratedText {
+impl<'a> fmt::Display for DecoratedText<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for content in self.as_contents().iter() {
             write!(f, "{}", content.to_string())?;

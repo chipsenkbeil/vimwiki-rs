@@ -7,7 +7,7 @@ use super::{
     },
     inline::inline_element_container,
     utils::{beginning_of_line, context, end_of_line_or_input, le},
-    Span, VimwikiIResult, LE,
+    Span, IResult, LE,
 };
 use nom::{
     branch::alt,
@@ -19,8 +19,8 @@ use nom::{
 };
 
 #[inline]
-pub fn list(input: Span) -> VimwikiIResult<LE<List>> {
-    fn inner(input: Span) -> VimwikiIResult<List> {
+pub fn list(input: Span) -> IResult<LE<List>> {
+    fn inner(input: Span) -> IResult<List> {
         // A list must at least have one item, whose indentation level we will
         // use to determine how far to go
         let (input, (indentation, item)) = list_item(input)?;
@@ -66,8 +66,8 @@ pub fn list(input: Span) -> VimwikiIResult<LE<List>> {
 
 /// Parse space/tabs before a list item, followed by the list item
 #[inline]
-fn list_item(input: Span) -> VimwikiIResult<(usize, LE<ListItem>)> {
-    fn inner(input: Span) -> VimwikiIResult<(usize, LE<ListItem>)> {
+fn list_item(input: Span) -> IResult<(usize, LE<ListItem>)> {
+    fn inner(input: Span) -> IResult<(usize, LE<ListItem>)> {
         // 1. Start at the beginning of the line
         let (input, _) = beginning_of_line(input)?;
 
@@ -94,7 +94,7 @@ fn list_item(input: Span) -> VimwikiIResult<(usize, LE<ListItem>)> {
 #[inline]
 fn list_item_tail(
     indentation: usize,
-) -> impl Fn(Span) -> VimwikiIResult<(ListItemAttributes, ListItemContents)> {
+) -> impl Fn(Span) -> IResult<(ListItemAttributes, ListItemContents)> {
     move |input: Span| {
         // 4. Check if we have a todo status attribute
         let (input, maybe_todo_status) = opt(todo_status)(input)?;
@@ -146,7 +146,7 @@ fn list_item_tail(
 /// Parser that determines the indentation level of the current line based
 /// on its current position
 #[inline]
-fn indentation_level(consume: bool) -> impl Fn(Span) -> VimwikiIResult<usize> {
+fn indentation_level(consume: bool) -> impl Fn(Span) -> IResult<usize> {
     move |input: Span| {
         if consume {
             map(space0, |s: Span| s.remaining_len())(input)
@@ -161,12 +161,12 @@ fn indentation_level(consume: bool) -> impl Fn(Span) -> VimwikiIResult<usize> {
 #[inline]
 fn list_item_line_content(
     input: Span,
-) -> VimwikiIResult<LE<InlineElementContainer>> {
+) -> IResult<LE<InlineElementContainer>> {
     terminated(inline_element_container, end_of_line_or_input)(input)
 }
 
 #[inline]
-fn todo_status(input: Span) -> VimwikiIResult<ListItemTodoStatus> {
+fn todo_status(input: Span) -> IResult<ListItemTodoStatus> {
     let (input, _) = tag("[")(input)?;
     let (input, attr) = alt((
         value(ListItemTodoStatus::Incomplete, tag(" ")),
@@ -183,7 +183,7 @@ fn todo_status(input: Span) -> VimwikiIResult<ListItemTodoStatus> {
 #[inline]
 fn list_item_prefix(
     input: Span,
-) -> VimwikiIResult<(ListItemType, ListItemSuffix)> {
+) -> IResult<(ListItemType, ListItemSuffix)> {
     alt((
         map(unordered_list_item_prefix, |(t, s)| {
             (ListItemType::from(t), s)
@@ -205,7 +205,7 @@ fn list_item_prefix(
 #[inline]
 fn unordered_list_item_prefix(
     input: Span,
-) -> VimwikiIResult<(UnorderedListItemType, ListItemSuffix)> {
+) -> IResult<(UnorderedListItemType, ListItemSuffix)> {
     let (input, item_type) = alt((
         unordered_list_item_type_hyphen,
         unordered_list_item_type_asterisk,
@@ -230,7 +230,7 @@ fn unordered_list_item_prefix(
 #[inline]
 fn ordered_list_item_prefix(
     input: Span,
-) -> VimwikiIResult<(OrderedListItemType, ListItemSuffix)> {
+) -> IResult<(OrderedListItemType, ListItemSuffix)> {
     // NOTE: Roman numeral check comes before alphabetic as alphabetic would
     //       also match roman numerals
     let (input, (item_type, item_suffix)) = alt((
@@ -255,35 +255,35 @@ fn ordered_list_item_prefix(
 #[inline]
 fn unordered_list_item_type_hyphen(
     input: Span,
-) -> VimwikiIResult<UnorderedListItemType> {
+) -> IResult<UnorderedListItemType> {
     value(UnorderedListItemType::Hyphen, tag("- "))(input)
 }
 
 #[inline]
 fn unordered_list_item_type_asterisk(
     input: Span,
-) -> VimwikiIResult<UnorderedListItemType> {
+) -> IResult<UnorderedListItemType> {
     value(UnorderedListItemType::Asterisk, tag("* "))(input)
 }
 
 #[inline]
 fn ordered_list_item_type_number(
     input: Span,
-) -> VimwikiIResult<OrderedListItemType> {
+) -> IResult<OrderedListItemType> {
     value(OrderedListItemType::Number, digit1)(input)
 }
 
 #[inline]
 fn ordered_list_item_type_pound(
     input: Span,
-) -> VimwikiIResult<OrderedListItemType> {
+) -> IResult<OrderedListItemType> {
     value(OrderedListItemType::Pound, tag("#"))(input)
 }
 
 #[inline]
 fn ordered_list_item_type_lower_alphabet(
     input: Span,
-) -> VimwikiIResult<OrderedListItemType> {
+) -> IResult<OrderedListItemType> {
     value(
         OrderedListItemType::LowercaseAlphabet,
         take_while1(|b: u8| {
@@ -296,7 +296,7 @@ fn ordered_list_item_type_lower_alphabet(
 #[inline]
 fn ordered_list_item_type_upper_alphabet(
     input: Span,
-) -> VimwikiIResult<OrderedListItemType> {
+) -> IResult<OrderedListItemType> {
     value(
         OrderedListItemType::UppercaseAlphabet,
         take_while1(|b: u8| {
@@ -309,7 +309,7 @@ fn ordered_list_item_type_upper_alphabet(
 #[inline]
 fn ordered_list_item_type_lower_roman(
     input: Span,
-) -> VimwikiIResult<OrderedListItemType> {
+) -> IResult<OrderedListItemType> {
     value(
         OrderedListItemType::LowercaseRoman,
         many1(one_of("ivxlcdm")),
@@ -319,7 +319,7 @@ fn ordered_list_item_type_lower_roman(
 #[inline]
 fn ordered_list_item_type_upper_roman(
     input: Span,
-) -> VimwikiIResult<OrderedListItemType> {
+) -> IResult<OrderedListItemType> {
     value(
         OrderedListItemType::UppercaseRoman,
         many1(one_of("IVXLEDM")),
@@ -327,17 +327,17 @@ fn ordered_list_item_type_upper_roman(
 }
 
 #[inline]
-fn list_item_suffix_paren(input: Span) -> VimwikiIResult<ListItemSuffix> {
+fn list_item_suffix_paren(input: Span) -> IResult<ListItemSuffix> {
     value(ListItemSuffix::Paren, tag(") "))(input)
 }
 
 #[inline]
-fn list_item_suffix_period(input: Span) -> VimwikiIResult<ListItemSuffix> {
+fn list_item_suffix_period(input: Span) -> IResult<ListItemSuffix> {
     value(ListItemSuffix::Period, tag(". "))(input)
 }
 
 #[inline]
-fn list_item_suffix_none(input: Span) -> VimwikiIResult<ListItemSuffix> {
+fn list_item_suffix_none(input: Span) -> IResult<ListItemSuffix> {
     value(ListItemSuffix::None, tag(" "))(input)
 }
 

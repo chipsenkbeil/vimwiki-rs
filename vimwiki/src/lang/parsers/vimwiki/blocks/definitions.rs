@@ -5,7 +5,7 @@ use super::{
         beginning_of_line, context, end_of_line_or_input, le, take_line_while1,
         take_until_end_of_line_or_input, unwrap_le,
     },
-    Span, VimwikiIResult, LE,
+    Span, IResult, LE,
 };
 use nom::{
     bytes::complete::tag,
@@ -16,7 +16,7 @@ use nom::{
 };
 
 #[inline]
-pub fn definition_list(input: Span) -> VimwikiIResult<LE<DefinitionList>> {
+pub fn definition_list(input: Span) -> IResult<LE<DefinitionList>> {
     context(
         "Definition List",
         le(map(many1(term_and_definitions), DefinitionList::from)),
@@ -25,7 +25,7 @@ pub fn definition_list(input: Span) -> VimwikiIResult<LE<DefinitionList>> {
 
 /// Parser that detects a term and one or more definitions
 #[inline]
-fn term_and_definitions(input: Span) -> VimwikiIResult<TermAndDefinitions> {
+fn term_and_definitions(input: Span) -> IResult<TermAndDefinitions> {
     let (input, _) = beginning_of_line(input)?;
     let (input, (term, maybe_def)) = term_line(input)?;
     let (input, mut defs) =
@@ -48,7 +48,7 @@ fn term_and_definitions(input: Span) -> VimwikiIResult<TermAndDefinitions> {
 
 /// Parsers a line as a term (with optional definition)
 #[inline]
-fn term_line(input: Span) -> VimwikiIResult<(Term, Option<Definition>)> {
+fn term_line(input: Span) -> IResult<(Term, Option<Definition>)> {
     let (input, _) = beginning_of_line(input)?;
 
     // Parse our term and provide location information for it
@@ -77,7 +77,7 @@ fn term_line(input: Span) -> VimwikiIResult<(Term, Option<Definition>)> {
 
 /// Parses a line as a definition
 #[inline]
-fn definition_line(input: Span) -> VimwikiIResult<Definition> {
+fn definition_line(input: Span) -> IResult<Definition> {
     let (input, _) = beginning_of_line(input)?;
     let (input, _) = tag("::")(input)?;
     let (input, _) = space1(input)?;

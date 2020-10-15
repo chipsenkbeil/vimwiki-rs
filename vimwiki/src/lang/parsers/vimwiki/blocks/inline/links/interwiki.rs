@@ -1,18 +1,18 @@
 use super::{
     elements::{IndexedInterWikiLink, InterWikiLink, NamedInterWikiLink},
-    utils::{context, take_line_while1, VimwikiNomError},
+    utils::{context, take_line_while1, Error},
     wiki::wiki_link,
-    Span, VimwikiIResult, LE,
+    Span, IResult, LE,
 };
 use nom::{bytes::complete::tag, combinator::not, sequence::delimited};
 use std::path::PathBuf;
 
 #[inline]
-pub fn inter_wiki_link(input: Span) -> VimwikiIResult<LE<InterWikiLink>> {
-    fn inner(input: Span) -> VimwikiIResult<LE<InterWikiLink>> {
+pub fn inter_wiki_link(input: Span) -> IResult<LE<InterWikiLink>> {
+    fn inner(input: Span) -> IResult<LE<InterWikiLink>> {
         let (input, mut link) = wiki_link(input)?;
         let path = link.path.to_str().ok_or_else(|| {
-            nom::Err::Error(VimwikiNomError::from_ctx(
+            nom::Err::Error(Error::from_ctx(
                 &input,
                 "Not interwiki link",
             ))
@@ -42,7 +42,7 @@ pub fn inter_wiki_link(input: Span) -> VimwikiIResult<LE<InterWikiLink>> {
             ));
         }
 
-        Err(nom::Err::Error(VimwikiNomError::from_ctx(
+        Err(nom::Err::Error(Error::from_ctx(
             &input,
             "not interwiki link",
         )))

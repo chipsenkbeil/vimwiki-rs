@@ -1,32 +1,34 @@
-use super::utils::LE;
-use derive_more::{Constructor, From};
+use derive_more::Constructor;
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 
 mod blocks;
 pub use blocks::*;
 mod comments;
 pub use comments::*;
+mod location;
+pub use location::{Located, Position, Region};
 
 /// Represents a full page containing different elements
 #[derive(
     Constructor, Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize,
 )]
-pub struct Page {
+pub struct Page<'a> {
     /// Comprised of the elements within a page
-    pub elements: Vec<LE<BlockElement>>,
+    pub elements: Vec<Located<BlockElement<'a>>>,
 
     /// Comprised of the comments within a page
-    pub comments: Vec<LE<Comment>>,
+    pub comments: Vec<Located<Comment<'a>>>,
 }
 
 /// Represents either a `BlockElement` or `InlineElement`
-#[derive(Clone, Debug, From, PartialEq, Eq)]
-pub enum Element {
-    Block(BlockElement),
-    Inline(InlineElement),
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Element<'a, 'b> {
+    Block(Cow<'a, BlockElement<'b>>),
+    Inline(Cow<'a, InlineElement<'b>>),
 }
 
-impl Element {
+impl<'a, 'b> Element<'a, 'b> {
     pub fn is_block_element(&self) -> bool {
         matches!(self, Self::Block(_))
     }
@@ -35,118 +37,72 @@ impl Element {
         matches!(self, Self::Inline(_))
     }
 
-    pub fn as_ref(&self) -> ElementRef<'_> {
+    pub fn as_borrowed(&self) -> Element<'_, 'b> {
         match self {
-            Self::Block(ref x) => ElementRef::Block(x),
-            Self::Inline(ref x) => ElementRef::Inline(x),
-        }
-    }
-
-    pub fn as_mut(&mut self) -> ElementMutRef<'_> {
-        match self {
-            Self::Block(ref mut x) => ElementMutRef::Block(x),
-            Self::Inline(ref mut x) => ElementMutRef::Inline(x),
-        }
-    }
-
-    #[inline]
-    pub fn as_block_element(&self) -> Option<&BlockElement> {
-        self.as_ref().as_block_element()
-    }
-
-    #[inline]
-    pub fn as_inline_element(&self) -> Option<&InlineElement> {
-        self.as_ref().as_inline_element()
-    }
-
-    #[inline]
-    pub fn as_mut_block_element(&mut self) -> Option<&mut BlockElement> {
-        // Not sure why, but cannot do the following:
-        // self.as_mut().as_mut_block_element()
-        match self {
-            Self::Block(ref mut x) => Some(x),
-            _ => None,
+            Self::Block(ref x) => Element::Block(match x {
+                Cow::Borrowed(x) => Cow::Borrowed(*x),
+                Cow::Owned(x) => Cow::Borrowed(&x),
+            }),
+            Self::Inline(ref x) => Element::Inline(match x {
+                Cow::Borrowed(x) => Cow::Borrowed(*x),
+                Cow::Owned(x) => Cow::Borrowed(&x),
+            }),
         }
     }
 
     #[inline]
-    pub fn as_mut_inline_element(&mut self) -> Option<&mut InlineElement> {
-        // Not sure why, but cannot do the following:
-        // self.as_mut().as_mut_inline_element()
-        match self {
-            Self::Inline(ref mut x) => Some(x),
-            _ => None,
-        }
-    }
-}
-
-/// Represents a reference to either a `BlockElement` or `InlineElement`
-#[derive(Clone, Debug, From, PartialEq, Eq)]
-pub enum ElementRef<'a> {
-    Block(&'a BlockElement),
-    Inline(&'a InlineElement),
-}
-
-impl<'a> ElementRef<'a> {
-    pub fn is_block_element(&self) -> bool {
-        matches!(self, Self::Block(_))
-    }
-
-    pub fn is_inline_element(&self) -> bool {
-        matches!(self, Self::Inline(_))
-    }
-
-    pub fn as_block_element(&self) -> Option<&'a BlockElement> {
+    pub fn as_block_element(&self) -> Option<&BlockElement<'b>> {
         match self {
             Self::Block(ref x) => Some(x),
             _ => None,
         }
     }
 
-    pub fn as_inline_element(&self) -> Option<&'a InlineElement> {
+    #[inline]
+    pub fn as_inline_element(&self) -> Option<&InlineElement<'b>> {
         match self {
             Self::Inline(ref x) => Some(x),
             _ => None,
         }
     }
 
-    pub fn to_owned(&self) -> Element {
-        match self {
-            Self::Block(x) => Element::from((*x).clone()),
-            Self::Inline(x) => Element::from((*x).clone()),
-        }
-    }
-}
-
-/// Represents a mutable reference to either a `BlockElement` or `InlineElement`
-#[derive(Debug, From, PartialEq, Eq)]
-pub enum ElementMutRef<'a> {
-    Block(&'a mut BlockElement),
-    Inline(&'a mut InlineElement),
-}
-
-impl<'a> ElementMutRef<'a> {
-    pub fn is_block_element(&self) -> bool {
-        matches!(self, Self::Block(_))
-    }
-
-    pub fn is_inline_element(&self) -> bool {
-        matches!(self, Self::Inline(_))
-    }
-
-    pub fn as_mut_block_element(&'a mut self) -> Option<&'a mut BlockElement> {
+    #[inline]
+    pub fn as_mut_block_element(&mut self) -> Option<&mut BlockElement<'b>> {
         match self {
             Self::Block(ref mut x) => Some(x),
             _ => None,
         }
     }
 
-    pub fn as_mut_inline_element(
-        &'a mut self,
-    ) -> Option<&'a mut InlineElement> {
+    #[inline]
+    pub fn as_mut_inline_element(&mut self) -> Option<&mut InlineElement<'b>> {
         match self {
             Self::Inline(ref mut x) => Some(x),
             _ => None,
         }
+    }
+}
+
+impl<'a, 'b> From<&'a BlockElement<'b>> for Element<'a, 'b> {
+    fn from(element: &'a BlockElement<'b>) -> Self {
+        Self::Block(Cow::Borrowed(element))
+    }
+}
+
+impl<'b> From<BlockElement<'b>> for Element<'static, 'b> {
+    fn from(element: BlockElement<'b>) -> Self {
+        Self::Block(Cow::Owned(element))
+    }
+}
+
+impl<'a, 'b> From<&'a InlineElement<'b>> for Element<'a, 'b> {
+    fn from(element: &'a InlineElement<'b>) -> Self {
+        Self::Inline(Cow::Borrowed(element))
+    }
+}
+
+impl<'b> From<InlineElement<'b>> for Element<'static, 'b> {
+    fn from(element: InlineElement<'b>) -> Self {
+        Self::Inline(Cow::Owned(element))
     }
 }

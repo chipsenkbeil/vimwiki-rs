@@ -1,11 +1,15 @@
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub enum Placeholder {
-    Title(String),
+pub enum Placeholder<'a> {
+    Title(Cow<'a, str>),
     NoHtml,
-    Template(String),
+    Template(Cow<'a, str>),
     Date(NaiveDate),
-    Other { name: String, value: String },
+    Other {
+        name: Cow<'a, str>,
+        value: Cow<'a, str>,
+    },
 }

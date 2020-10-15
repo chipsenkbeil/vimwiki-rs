@@ -1,4 +1,6 @@
-use super::{InlineElement, InlineElementContainer, TypedBlockElement, LE};
+use super::{
+    InlineElement, InlineElementContainer, Located, TypedBlockElement,
+};
 use derive_more::{
     Constructor, Deref, DerefMut, From, Index, IndexMut, Into, IntoIterator,
 };
@@ -11,11 +13,11 @@ pub use item::*;
 #[derive(
     Constructor, Clone, Debug, From, Eq, PartialEq, Serialize, Deserialize,
 )]
-pub struct List {
-    pub items: Vec<LE<ListItem>>,
+pub struct List<'a> {
+    pub items: Vec<Located<ListItem<'a>>>,
 }
 
-impl List {
+impl<'a> List<'a> {
     /// Normalizes the list by standardizing the item types based on the
     /// first list item.
     ///
@@ -52,9 +54,9 @@ impl List {
 /// Represents some content associated with a list item, either being
 /// an inline element or a new sublist
 #[derive(Clone, Debug, From, Eq, PartialEq, Serialize, Deserialize)]
-pub enum ListItemContent {
-    InlineContent(InlineElementContainer),
-    List(TypedBlockElement<List>),
+pub enum ListItemContent<'a> {
+    InlineContent(InlineElementContainer<'a>),
+    List(TypedBlockElement<'a, List<'a>>),
 }
 
 /// Represents a collection of list item content
@@ -75,11 +77,11 @@ pub enum ListItemContent {
     Serialize,
     Deserialize,
 )]
-pub struct ListItemContents {
-    pub contents: Vec<LE<ListItemContent>>,
+pub struct ListItemContents<'a> {
+    pub contents: Vec<Located<ListItemContent<'a>>>,
 }
 
-impl ListItemContents {
+impl<'a> ListItemContents<'a> {
     pub fn inline_content_iter(
         &self,
     ) -> impl Iterator<Item = &InlineElement> + '_ {
@@ -96,7 +98,7 @@ impl ListItemContents {
 
     pub fn inline_content_iter_mut(
         &mut self,
-    ) -> impl Iterator<Item = &mut InlineElement> + '_ {
+    ) -> impl Iterator<Item = &mut InlineElement<'a>> + '_ {
         self.contents
             .iter_mut()
             .filter_map(|c| match &mut c.element {
@@ -115,7 +117,9 @@ impl ListItemContents {
         })
     }
 
-    pub fn sublist_iter_mut(&mut self) -> impl Iterator<Item = &mut List> + '_ {
+    pub fn sublist_iter_mut(
+        &mut self,
+    ) -> impl Iterator<Item = &mut List<'a>> + '_ {
         self.contents.iter_mut().flat_map(|c| match &mut c.element {
             ListItemContent::List(x) => Some(x.as_mut_typed()),
             _ => None,

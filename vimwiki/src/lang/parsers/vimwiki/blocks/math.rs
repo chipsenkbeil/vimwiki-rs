@@ -4,7 +4,7 @@ use super::{
         any_line, beginning_of_line, context, end_of_line_or_input, le,
         pstring, take_line_while1,
     },
-    Span, VimwikiIResult, LE,
+    Span, IResult, LE,
 };
 use nom::{
     bytes::complete::tag,
@@ -15,8 +15,8 @@ use nom::{
 };
 
 #[inline]
-pub fn math_block(input: Span) -> VimwikiIResult<LE<MathBlock>> {
-    fn inner(input: Span) -> VimwikiIResult<MathBlock> {
+pub fn math_block(input: Span) -> IResult<LE<MathBlock>> {
+    fn inner(input: Span) -> IResult<MathBlock> {
         // First, look for the beginning section including an optional environment
         let (input, environment) = beginning_of_math_block(input)?;
 
@@ -34,7 +34,7 @@ pub fn math_block(input: Span) -> VimwikiIResult<LE<MathBlock>> {
     context("Math Block", le(inner))(input)
 }
 
-fn beginning_of_math_block(input: Span) -> VimwikiIResult<Option<String>> {
+fn beginning_of_math_block(input: Span) -> IResult<Option<String>> {
     let environment_parser = pstring(delimited(
         char('%'),
         take_line_while1(not(char('%'))),
@@ -51,7 +51,7 @@ fn beginning_of_math_block(input: Span) -> VimwikiIResult<Option<String>> {
     Ok((input, environment))
 }
 
-fn end_of_math_block(input: Span) -> VimwikiIResult<()> {
+fn end_of_math_block(input: Span) -> IResult<()> {
     let (input, _) = beginning_of_line(input)?;
     let (input, _) = space0(input)?;
     let (input, _) = tag("}}$")(input)?;

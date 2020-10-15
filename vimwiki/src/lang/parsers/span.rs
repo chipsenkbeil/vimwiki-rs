@@ -1,4 +1,4 @@
-use memchr::{memchr_iter, memrchr};
+use memchr::{memchr2, memchr_iter, memrchr};
 use nom::{
     error::{ErrorKind, ParseError},
     AsBytes, Compare, CompareResult, Err, ExtendInto, FindSubstring, FindToken,
@@ -131,6 +131,12 @@ impl<'a> Span<'a> {
         self.remaining_len() == 0
     }
 
+    /// Whether or not the remaining bytes are comprised of only spaces
+    /// or tabs
+    pub fn is_only_whitespace(&self) -> bool {
+        memchr2(b' ', b'\t', self.as_remaining()).is_some()
+    }
+
     /// Calculates the line position of this span using newline (\n) chars
     pub fn line(&self) -> usize {
         // Count the number of newline (\n) characters that take place before
@@ -173,6 +179,24 @@ impl<'a> Display for Span<'a> {
         }
 
         Ok(())
+    }
+}
+
+/*****************************************************************************/
+/* BEGIN EQUALITY HELPERS                                                    */
+/*****************************************************************************/
+
+impl<'a> PartialEq<&'a str> for Span<'a> {
+    /// Tests whether the bytes represented by this span equal the given str
+    fn eq(&self, other: &&'a str) -> bool {
+        self.as_bytes() == other.as_bytes()
+    }
+}
+
+impl<'a> PartialEq<&'a [u8]> for Span<'a> {
+    /// Tests whether the bytes represented by this span equal the given bytes
+    fn eq(&self, other: &&'a [u8]) -> bool {
+        self.as_bytes() == *other
     }
 }
 

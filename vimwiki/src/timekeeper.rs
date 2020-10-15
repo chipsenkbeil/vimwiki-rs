@@ -1,6 +1,6 @@
 use lazy_static::lazy_static;
 use std::sync::{Mutex, atomic::{AtomicBool, Ordering}};
-use crate::lang::utils::Span;
+use crate::lang::parsers::Span;
 
 lazy_static! {
     static ref TIMEKEEPER_ENABLED: AtomicBool = AtomicBool::new(false);
@@ -84,13 +84,13 @@ pub fn clear() {
 pub mod parsers {
     use super::*;
         
-    type VimwikiNomError = crate::LangParserError;
-    type VimwikiIResult<'a, O> = Result<(Span<'a>, O), nom::Err<VimwikiNomError>>;
+    type Error = crate::LangParserError;
+    type IResult<'a, O> = Result<(Span<'a>, O), nom::Err<Error>>;
 
     pub fn context<'a, T>(
         ctx: &'static str,
-        f: impl Fn(Span<'a>) -> VimwikiIResult<T>,
-    ) -> impl Fn(Span<'a>) -> VimwikiIResult<T> {
+        f: impl Fn(Span<'a>) -> IResult<T>,
+    ) -> impl Fn(Span<'a>) -> IResult<T> {
         use nom::error::ParseError;
         move |input: Span| {
             let start = std::time::Instant::now();
@@ -102,10 +102,10 @@ pub mod parsers {
                 Ok(o) => Ok(o),
                 Err(nom::Err::Incomplete(i)) => Err(nom::Err::Incomplete(i)),
                 Err(nom::Err::Error(e)) => Err(nom::Err::Error(
-                    VimwikiNomError::add_context(input, ctx, e),
+                    Error::add_context(input, ctx, e),
                 )),
                 Err(nom::Err::Failure(e)) => Err(nom::Err::Failure(
-                    VimwikiNomError::add_context(input, ctx, e),
+                    Error::add_context(input, ctx, e),
                 )),
             };
 

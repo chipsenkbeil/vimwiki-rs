@@ -1,7 +1,7 @@
 use super::{
     elements::{Description, ExternalFileLink, ExternalFileLinkScheme},
     utils::{context, le, take_line_while1},
-    Span, VimwikiIResult, LE,
+    Span, IResult, LE,
 };
 use nom::{
     branch::alt,
@@ -12,8 +12,8 @@ use nom::{
 use std::path::PathBuf;
 
 #[inline]
-pub fn external_file_link(input: Span) -> VimwikiIResult<LE<ExternalFileLink>> {
-    fn inner(input: Span) -> VimwikiIResult<ExternalFileLink> {
+pub fn external_file_link(input: Span) -> IResult<LE<ExternalFileLink>> {
+    fn inner(input: Span) -> IResult<ExternalFileLink> {
         let (input, _) = tag("[[")(input)?;
         let (input, link) = alt((
             preceded(
@@ -40,7 +40,7 @@ pub fn external_file_link(input: Span) -> VimwikiIResult<LE<ExternalFileLink>> {
 #[inline]
 fn take_external_file_link(
     scheme: ExternalFileLinkScheme,
-) -> impl Fn(Span) -> VimwikiIResult<ExternalFileLink> {
+) -> impl Fn(Span) -> IResult<ExternalFileLink> {
     move |input: Span| {
         map(take_path_and_description, |(p, d)| {
             ExternalFileLink::new(scheme, p, d)
@@ -51,7 +51,7 @@ fn take_external_file_link(
 #[inline]
 fn take_path_and_description(
     input: Span,
-) -> VimwikiIResult<(PathBuf, Option<Description>)> {
+) -> IResult<(PathBuf, Option<Description>)> {
     pair(
         map(take_segment, |s: Span| PathBuf::from(s.as_unsafe_remaining_str())),
         opt(preceded(
@@ -62,7 +62,7 @@ fn take_path_and_description(
 }
 
 #[inline]
-fn take_segment(input: Span) -> VimwikiIResult<Span> {
+fn take_segment(input: Span) -> IResult<Span> {
     let not_end = not(alt((tag("|"), tag("]]"))));
     take_line_while1(not_end)(input)
 }

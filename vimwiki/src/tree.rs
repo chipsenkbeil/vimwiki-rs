@@ -1,4 +1,4 @@
-use crate::{elements::*, Position, Region};
+use crate::elements::*;
 use std::{
     collections::HashMap,
     sync::atomic::{AtomicUsize, Ordering},
@@ -6,18 +6,18 @@ use std::{
 
 /// Represents an immutable tree containing references to elements within a page
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ElementTree<'a> {
-    page: &'a Page,
+pub struct ElementTree<'a, 'b> {
+    page: &'a Page<'b>,
     root_nodes: Vec<usize>,
-    nodes: HashMap<usize, ElementNode<'a>>,
+    nodes: HashMap<usize, ElementNode<'a, 'b>>,
 }
 
-impl<'a> ElementTree<'a> {
+impl<'a, 'b> ElementTree<'a, 'b> {
     /// Default id for situations where a node is required but there is no node
     const EMPTY_NODE: usize = 0;
 
     /// Reference to the page whose elements this tree points to
-    pub fn page(&self) -> &Page {
+    pub fn page(&self) -> &Page<'b> {
         self.page
     }
 
@@ -26,7 +26,7 @@ impl<'a> ElementTree<'a> {
     pub fn find_deepest_at(
         &self,
         position: Position,
-    ) -> Option<&ElementNode<'a>> {
+    ) -> Option<&ElementNode<'a, 'b>> {
         match self.find_root_at(position) {
             Some(root) => {
                 let mut curr = root;
@@ -50,7 +50,10 @@ impl<'a> ElementTree<'a> {
     }
 
     /// Finds the root node whose region contains the specified position
-    pub fn find_root_at(&self, position: Position) -> Option<&ElementNode<'a>> {
+    pub fn find_root_at(
+        &self,
+        position: Position,
+    ) -> Option<&ElementNode<'a, 'b>> {
         self.root_nodes()
             .iter()
             .find(|n| n.region().contains(position))
@@ -58,7 +61,7 @@ impl<'a> ElementTree<'a> {
     }
 
     /// Retrieves all of the root-level nodes within the tree
-    pub fn root_nodes(&self) -> Vec<&ElementNode<'a>> {
+    pub fn root_nodes(&self) -> Vec<&ElementNode<'a, 'b>> {
         self.root_nodes
             .iter()
             .flat_map(|id| self.nodes.get(id))
@@ -66,7 +69,7 @@ impl<'a> ElementTree<'a> {
     }
 
     /// Retrieve the root node for the given node
-    pub fn root_for(&self, node: &ElementNode<'a>) -> &ElementNode<'a> {
+    pub fn root_for(&self, node: &ElementNode<'a, 'b>) -> &ElementNode<'a, 'b> {
         self.nodes
             .get(&node.root_id)
             .expect("Tree mutated after construction")
@@ -75,16 +78,16 @@ impl<'a> ElementTree<'a> {
     /// Retrieve the parent node for the given node
     pub fn parent_for(
         &self,
-        node: &ElementNode<'a>,
-    ) -> Option<&ElementNode<'a>> {
+        node: &ElementNode<'a, 'b>,
+    ) -> Option<&ElementNode<'a, 'b>> {
         node.parent_id.and_then(|id| self.nodes.get(&id))
     }
 
     /// Retrieve the children nodes for the given node
-    pub fn children_for<'b>(
-        &'b self,
-        node: &'b ElementNode<'a>,
-    ) -> Vec<&'b ElementNode<'a>> {
+    pub fn children_for<'c>(
+        &'c self,
+        node: &'c ElementNode<'a, 'b>,
+    ) -> Vec<&'c ElementNode<'a, 'b>> {
         node.children_ids
             .iter()
             .flat_map(|id| self.nodes.get(id))
@@ -92,10 +95,10 @@ impl<'a> ElementTree<'a> {
     }
 
     /// Retrieve the sibling nodes for the given node (does not include self)
-    pub fn siblings_for<'b>(
-        &'b self,
-        node: &'b ElementNode<'a>,
-    ) -> Vec<&'b ElementNode<'a>> {
+    pub fn siblings_for<'c>(
+        &'c self,
+        node: &'c ElementNode<'a, 'b>,
+    ) -> Vec<&'c ElementNode<'a, 'b>> {
         let node_id = node.id();
 
         // Check if we have a parent and, if we do, gather its children to
@@ -112,7 +115,7 @@ impl<'a> ElementTree<'a> {
 
     /// Constructs a tree based on the top-level elements
     /// within the provided page
-    pub fn from_page(page: &'a Page) -> ElementTree<'a> {
+    pub fn from_page(page: &'a Page<'b>) -> ElementTree<'a, 'b> {
         let mut instance = Self {
             page,
             root_nodes: vec![],
@@ -141,7 +144,7 @@ impl<'a> ElementTree<'a> {
         counter: &AtomicUsize,
         root_id: usize,
         parent_id: Option<usize>,
-        element: &'a BlockElement,
+        element: &'a BlockElement<'b>,
         region: Region,
     ) -> usize {
         let element_id = counter.fetch_add(1, Ordering::Relaxed);
@@ -158,7 +161,7 @@ impl<'a> ElementTree<'a> {
             root_id,
             parent_id,
             element_id,
-            element: ElementRef::Block(element),
+            element: Element::from(element),
             region,
             children_ids: match element {
                 BlockElement::DefinitionList(x) => x
@@ -265,7 +268,7 @@ impl<'a> ElementTree<'a> {
         counter: &AtomicUsize,
         root_id: usize,
         parent_id: Option<usize>,
-        container: &'a InlineElementContainer,
+        container: &'a InlineElementContainer<'b>,
     ) -> Vec<usize> {
         let mut ids = Vec::with_capacity(container.elements.len());
         for e in container.elements.iter() {
@@ -287,7 +290,7 @@ impl<'a> ElementTree<'a> {
         counter: &AtomicUsize,
         root_id: usize,
         parent_id: Option<usize>,
-        element: &'a InlineElement,
+        element: &'a InlineElement<'b>,
         region: Region,
     ) -> usize {
         let element_id = counter.fetch_add(1, Ordering::Relaxed);
@@ -296,7 +299,7 @@ impl<'a> ElementTree<'a> {
             root_id,
             parent_id,
             element_id,
-            element: ElementRef::Inline(element),
+            element: Element::from(element),
             region,
             children_ids: match element {
                 InlineElement::DecoratedText(x) => x
@@ -324,16 +327,16 @@ impl<'a> ElementTree<'a> {
 /// A node within an `ElementTree` that points to either a `BlockElement` or
 /// an `InlineElement`
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ElementNode<'a> {
+pub struct ElementNode<'a, 'b> {
     root_id: usize,
     parent_id: Option<usize>,
     element_id: usize,
-    element: ElementRef<'a>,
+    element: Element<'a, 'b>,
     region: Region,
     children_ids: Vec<usize>,
 }
 
-impl<'a> ElementNode<'a> {
+impl<'a, 'b> ElementNode<'a, 'b> {
     /// Id of node, which maps to the element it references
     pub fn id(&self) -> usize {
         self.element_id
@@ -349,13 +352,13 @@ impl<'a> ElementNode<'a> {
         &self.region
     }
 
-    /// Converts to ref of inner `ElementRef`
-    pub fn as_inner(&self) -> &ElementRef<'a> {
+    /// Converts to ref of inner `Element`
+    pub fn as_inner(&self) -> &Element<'a, 'b> {
         &self.element
     }
 
-    /// Converts to inner `ElementRef`
-    pub fn into_inner(self) -> ElementRef<'a> {
+    /// Converts to inner `Element`
+    pub fn into_inner(self) -> Element<'a, 'b> {
         self.element
     }
 }
@@ -363,24 +366,24 @@ impl<'a> ElementNode<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::LE;
+    use crate::elements::Located;
 
-    fn test_page() -> Page {
+    fn test_page() -> Page<'static> {
         Page::new(
             vec![
-                LE::new(
+                Located::new(
                     BlockElement::from(Divider),
                     Region::from((1, 1, 1, 3)),
                 ),
-                LE::new(
+                Located::new(
                     BlockElement::from(Paragraph::from(vec![
-                        LE::new(
+                        Located::new(
                             InlineElement::from(Text::from("abc")),
                             Region::from((2, 1, 2, 3)),
                         ),
-                        LE::new(
+                        Located::new(
                             InlineElement::from(DecoratedText::Bold(vec![
-                                LE::new(
+                                Located::new(
                                     Text::from("bold").into(),
                                     Region::from((2, 4, 2, 7)),
                                 ),
@@ -404,7 +407,7 @@ mod tests {
         let node = tree.find_deepest_at(Position::from((2, 4))).unwrap();
         assert_eq!(
             node.to_owned().into_inner(),
-            ElementRef::from(match page.elements[1].as_inner() {
+            Element::from(match page.elements[1].as_inner() {
                 BlockElement::Paragraph(ref x) => match x.content[1].as_inner()
                 {
                     InlineElement::DecoratedText(ref x) =>
@@ -433,7 +436,7 @@ mod tests {
         let node = tree.find_root_at(Position::from((2, 4))).unwrap();
         assert_eq!(
             node.to_owned().into_inner(),
-            ElementRef::from(page.elements[1].as_inner())
+            Element::from(page.elements[1].as_inner())
         );
     }
 
@@ -454,10 +457,10 @@ mod tests {
             tree.root_nodes()
                 .drain(..)
                 .map(|node| node.as_inner().clone())
-                .collect::<Vec<ElementRef<'_>>>(),
+                .collect::<Vec<Element<'_, '_>>>(),
             vec![
-                ElementRef::from(page.elements[0].as_inner()),
-                ElementRef::from(page.elements[1].as_inner()),
+                Element::from(page.elements[0].as_inner()),
+                Element::from(page.elements[1].as_inner()),
             ],
         );
     }
@@ -508,14 +511,14 @@ mod tests {
             .children_for(tree.root_nodes()[1])
             .drain(..)
             .map(|node| node.as_inner().clone())
-            .collect::<Vec<ElementRef<'_>>>();
+            .collect::<Vec<Element<'_, '_>>>();
 
         assert_eq!(
             children,
             match page.elements[1].as_inner() {
                 BlockElement::Paragraph(ref x) => vec![
-                    ElementRef::from(x.content[0].as_inner()),
-                    ElementRef::from(x.content[1].as_inner()),
+                    Element::from(x.content[0].as_inner()),
+                    Element::from(x.content[1].as_inner()),
                 ],
                 _ => unreachable!(),
             },
@@ -534,13 +537,13 @@ mod tests {
             .siblings_for(node)
             .drain(..)
             .map(|node| node.as_inner().clone())
-            .collect::<Vec<ElementRef<'_>>>();
+            .collect::<Vec<Element<'_, '_>>>();
 
         assert_eq!(
             siblings,
             match page.elements[1].as_inner() {
                 BlockElement::Paragraph(ref x) =>
-                    vec![ElementRef::from(x.content[1].as_inner())],
+                    vec![Element::from(x.content[1].as_inner())],
                 _ => unreachable!(),
             },
         );
@@ -555,12 +558,9 @@ mod tests {
             .siblings_for(tree.root_nodes()[1])
             .drain(..)
             .map(|node| node.as_inner().clone())
-            .collect::<Vec<ElementRef<'_>>>();
+            .collect::<Vec<Element<'_, '_>>>();
 
-        assert_eq!(
-            siblings,
-            vec![ElementRef::from(page.elements[0].as_inner())]
-        );
+        assert_eq!(siblings, vec![Element::from(page.elements[0].as_inner())]);
     }
 
     mod node {
@@ -572,7 +572,7 @@ mod tests {
                 root_id: 0,
                 parent_id: None,
                 element_id: 999,
-                element: ElementRef::from(&BlockElement::Divider(Divider)),
+                element: Element::from(&BlockElement::Divider(Divider)),
                 region: Region::default(),
                 children_ids: vec![],
             };
@@ -586,7 +586,7 @@ mod tests {
                 root_id: 999,
                 parent_id: None,
                 element_id: 999,
-                element: ElementRef::from(&BlockElement::Divider(Divider)),
+                element: Element::from(&BlockElement::Divider(Divider)),
                 region: Region::default(),
                 children_ids: vec![],
             };
@@ -601,7 +601,7 @@ mod tests {
                 root_id: 0,
                 parent_id: None,
                 element_id: 999,
-                element: ElementRef::from(&BlockElement::Divider(Divider)),
+                element: Element::from(&BlockElement::Divider(Divider)),
                 region: Region::default(),
                 children_ids: vec![],
             };
@@ -615,7 +615,7 @@ mod tests {
                 root_id: 0,
                 parent_id: None,
                 element_id: 0,
-                element: ElementRef::from(&BlockElement::Divider(Divider)),
+                element: Element::from(&BlockElement::Divider(Divider)),
                 region: Region::from((1, 2, 3, 4)),
                 children_ids: vec![],
             };

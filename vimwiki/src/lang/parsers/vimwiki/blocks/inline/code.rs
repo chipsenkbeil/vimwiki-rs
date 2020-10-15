@@ -1,13 +1,13 @@
 use super::{
     elements::CodeInline,
     utils::{context, le, pstring, surround_in_line1},
-    Span, VimwikiIResult, LE,
+    Span, IResult, LE,
 };
 use nom::combinator::map;
 
 #[inline]
-pub fn code_inline(input: Span) -> VimwikiIResult<LE<CodeInline>> {
-    fn inner(input: Span) -> VimwikiIResult<CodeInline> {
+pub fn code_inline(input: Span) -> IResult<LE<CodeInline>> {
+    fn inner(input: Span) -> IResult<CodeInline> {
         map(pstring(surround_in_line1("`", "`")), CodeInline::new)(input)
     }
 

@@ -1,7 +1,7 @@
 use super::{
     elements::{Anchor, Description, WikiLink},
-    utils::{context, le, pstring, take_line_while1, uri, VimwikiNomError},
-    Span, VimwikiIResult, LE,
+    utils::{context, le, pstring, take_line_while1, uri, Error},
+    Span, IResult, LE,
 };
 use nom::{
     branch::alt,
@@ -13,7 +13,7 @@ use nom::{
 use std::path::PathBuf;
 
 #[inline]
-pub fn wiki_link(input: Span) -> VimwikiIResult<LE<WikiLink>> {
+pub fn wiki_link(input: Span) -> IResult<LE<WikiLink>> {
     context(
         "WikiLink",
         le(delimited(tag("[["), wiki_link_internal, tag("]]"))),
@@ -22,7 +22,7 @@ pub fn wiki_link(input: Span) -> VimwikiIResult<LE<WikiLink>> {
 
 /// Parser for wiki link content within [[...]]
 #[inline]
-pub(super) fn wiki_link_internal(input: Span) -> VimwikiIResult<WikiLink> {
+pub(super) fn wiki_link_internal(input: Span) -> IResult<WikiLink> {
     // First, check that the start is not an anchor, then grab all content
     // leading up to | (for description), # (for start of anchor), or
     // ]] (for end of link); if it is the start of an anchor, we won't have
@@ -50,7 +50,7 @@ pub(super) fn wiki_link_internal(input: Span) -> VimwikiIResult<WikiLink> {
             input,
             WikiLink::new(PathBuf::new(), maybe_description, maybe_anchor),
         )),
-        None => Err(nom::Err::Error(VimwikiNomError::from_ctx(
+        None => Err(nom::Err::Error(Error::from_ctx(
             &input,
             "Missing path and anchor",
         ))),
@@ -61,7 +61,7 @@ pub(super) fn wiki_link_internal(input: Span) -> VimwikiIResult<WikiLink> {
 //       error about type-length limit being reached and that means that
 //       we've nested too many parsers without breaking them up into
 //       functions that do NOT take parsers at input
-fn anchor(input: Span) -> VimwikiIResult<Anchor> {
+fn anchor(input: Span) -> IResult<Anchor> {
     preceded(
         tag("#"),
         map(
@@ -82,7 +82,7 @@ fn anchor(input: Span) -> VimwikiIResult<Anchor> {
 //       error about type-length limit being reached and that means that
 //       we've nested too many parsers without breaking them up into
 //       functions that do NOT take parsers at input
-fn description(input: Span) -> VimwikiIResult<Description> {
+fn description(input: Span) -> IResult<Description> {
     preceded(
         tag("|"),
         map_parser(
@@ -99,7 +99,7 @@ fn description(input: Span) -> VimwikiIResult<Description> {
 //       error about type-length limit being reached and that means that
 //       we've nested too many parsers without breaking them up into
 //       functions that do NOT take parsers at input
-fn description_from_uri(input: Span) -> VimwikiIResult<Description> {
+fn description_from_uri(input: Span) -> IResult<Description> {
     map(
         delimited(
             tag("{{"),

@@ -1,7 +1,9 @@
-use super::{
-    elements::{Comment, LineComment, MultiLineComment},
-    utils::{context, le, pstring, take_until_end_of_line_or_input},
-    Span, VimwikiIResult, LE,
+use crate::lang::{
+    elements::*,
+    parsers::{
+        utils::{capture, context, locate, take_until_end_of_line_or_input},
+        IResult, Span,
+    },
 };
 use nom::{
     branch::alt,
@@ -9,144 +11,135 @@ use nom::{
     combinator::map,
 };
 
-#[inline]
-pub fn comment(input: Span) -> VimwikiIResult<LE<Comment>> {
+pub fn comment<'a>(input: Span<'a>) -> IResult<'a, Located<Comment<'a>>> {
     context(
         "Comment",
         alt((
-            map(multi_line_comment, |c| c.map(Comment::from)),
             map(line_comment, |c| c.map(Comment::from)),
+            map(multi_line_comment, |c| c.map(Comment::from)),
         )),
     )(input)
 }
 
-#[inline]
-pub(crate) fn line_comment(input: Span) -> VimwikiIResult<LE<LineComment>> {
-    fn inner(input: Span) -> VimwikiIResult<LineComment> {
+pub fn line_comment<'a>(
+    input: Span<'a>,
+) -> IResult<'a, Located<LineComment<'a>>> {
+    fn inner<'a>(input: Span<'a>) -> IResult<'a, LineComment<'a>> {
         let (input, _) = tag("%%")(input)?;
-        let (input, text) = pstring(take_until_end_of_line_or_input)(input)?;
+        let (input, text) = take_until_end_of_line_or_input(input)?;
 
         Ok((input, LineComment(text)))
     }
 
-    context("Line Comment", le(inner))(input)
+    context("Line Comment", locate(capture(inner)))(input)
 }
 
-#[inline]
-pub(crate) fn multi_line_comment(
-    input: Span,
-) -> VimwikiIResult<LE<MultiLineComment>> {
-    fn inner(input: Span) -> VimwikiIResult<MultiLineComment> {
+pub fn multi_line_comment<'a>(
+    input: Span<'a>,
+) -> IResult<'a, Located<MultiLineComment<'a>>> {
+    fn inner<'a>(input: Span<'a>) -> IResult<'a, MultiLineComment<'a>> {
         let (input, _) = tag("%%+")(input)?;
 
         // Capture all content between comments as individual lines
-        let (input, lines) = map(take_until("+%%"), |s: Span| {
-            s.as_unsafe_remaining_str().lines().map(String::from).collect()
-        })(input)?;
+        let (input, lines) = take_until("+%%")(input)?;
 
         let (input, _) = tag("+%%")(input)?;
 
         Ok((input, MultiLineComment(lines)))
     }
 
-    context("Multi Line Comment", le(inner))(input)
+    context("Multi Line Comment", locate(capture(inner)))(input)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lang::utils::{Region, Span};
     use nom::bytes::complete::take;
 
     #[test]
     fn comment_should_fail_if_no_input() {
         let input = Span::from("");
-        assert!(comment(input).is_err());
+        assert!(Comment::try_parse(input).is_err());
     }
 
     #[test]
     fn comment_should_fail_if_only_one_percent_sign() {
         let input = Span::from("% comment");
-        assert!(comment(input).is_err());
+        assert!(Comment::try_parse(input).is_err());
 
         let input = Span::from("%+ comment +%");
-        assert!(comment(input).is_err());
+        assert!(Comment::try_parse(input).is_err());
     }
 
     #[test]
     fn comment_should_support_line_comment_not_at_beginning_of_line() {
         let input = Span::from("abc%% comment");
-        fn advance(input: Span) -> VimwikiIResult<()> {
+        fn advance(input: Span) -> IResult<()> {
             let (input, _) = take(3usize)(input)?;
             Ok((input, ()))
         }
         let (input, _) = advance(input).unwrap();
-        let (input, c) = comment(input).unwrap();
+        let (input, c) = Comment::try_parse(input).unwrap();
         assert!(input.is_empty(), "Did not consume comment");
-        assert_eq!(
-            c.element,
-            Comment::from(LineComment(" comment".to_string()))
-        );
+
+        match c.into_inner() {
+            Comment::Line(x) => assert_eq!(x, " comment"),
+            x => panic!("Unexpected element: {:?}", x),
+        }
     }
 
     #[test]
     fn comment_should_parse_line_comment() {
         let input = Span::from("%% comment");
-        let (input, c) = comment(input).unwrap();
+        let (input, c) = Comment::try_parse(input).unwrap();
         assert!(input.is_empty(), "Did not consume comment");
-        assert_eq!(
-            c.element,
-            Comment::from(LineComment(" comment".to_string()))
-        );
+        match c.into_inner() {
+            Comment::Line(x) => assert_eq!(x.0, " comment"),
+            x => panic!("Unexpected element: {:?}", x),
+        }
 
         // NOTE: Line comment doesn't consume the newline; it leaves a blank line
         let input = Span::from("%% comment\nnext line");
-        let (input, c) = comment(input).unwrap();
+        let (input, c) = Comment::try_parse(input).unwrap();
         assert_eq!(
             input.as_unsafe_remaining_str(),
             "\nnext line",
             "Unexpected input consumed"
         );
-        assert_eq!(
-            c.element,
-            Comment::from(LineComment(" comment".to_string()))
-        );
-        assert_eq!(c.region, Region::from((1, 1, 1, 10)));
+        match c.into_inner() {
+            Comment::Line(x) => assert_eq!(x.0, " comment"),
+            x => panic!("Unexpected element: {:?}", x),
+        }
     }
 
     #[test]
     fn comment_should_parse_multi_line_comment() {
         let input = Span::from("%%+ comment +%%");
-        let (input, c) = comment(input).unwrap();
+        let (input, c) = Comment::try_parse(input).unwrap();
         assert!(input.is_empty(), "Did not consume comment");
-        assert_eq!(
-            c.element,
-            Comment::from(MultiLineComment(vec![" comment ".to_string()]))
-        );
-        assert_eq!(c.region, Region::from((1, 1, 1, 15)));
+        match c.into_inner() {
+            Comment::MultiLine(x) => assert_eq!(x.0, " comment "),
+            x => panic!("Unexpected element: {:?}", x),
+        }
 
         let input = Span::from("%%+ comment\nnext line +%%");
-        let (input, c) = comment(input).unwrap();
+        let (input, c) = Comment::try_parse(input).unwrap();
         assert!(input.is_empty(), "Did not consume comment");
-        assert_eq!(
-            c.element,
-            Comment::from(MultiLineComment(vec![
-                " comment".to_string(),
-                "next line ".to_string(),
-            ]))
-        );
-        assert_eq!(c.region, Region::from((1, 1, 2, 13)));
+        match c.into_inner() {
+            Comment::MultiLine(x) => assert_eq!(x.0, " comment\nnext line "),
+            x => panic!("Unexpected element: {:?}", x),
+        }
 
         let input = Span::from("%%+ comment\nnext line +%%after");
-        let (input, c) = comment(input).unwrap();
-        assert_eq!(input.as_unsafe_remaining_str(), "after", "Unexpected input consumed");
+        let (input, c) = Comment::try_parse(input).unwrap();
         assert_eq!(
-            c.element,
-            Comment::from(MultiLineComment(vec![
-                " comment".to_string(),
-                "next line ".to_string(),
-            ]))
+            input.as_unsafe_remaining_str(),
+            "after",
+            "Unexpected input consumed"
         );
-        assert_eq!(c.region, Region::from((1, 1, 2, 13)));
+        match c.into_inner() {
+            Comment::MultiLine(x) => assert_eq!(x.0, " comment\nnext line "),
+            x => panic!("Unexpected element: {:?}", x),
+        }
     }
 }

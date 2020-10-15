@@ -2,7 +2,7 @@ use super::{
     elements::{Cell, Row, Table},
     inline::inline_element_container,
     utils::{context, end_of_line_or_input, le, take_line_while1},
-    Span, VimwikiIResult, LE,
+    Span, IResult, LE,
 };
 use nom::{
     branch::alt,
@@ -14,8 +14,8 @@ use nom::{
 };
 
 #[inline]
-pub fn table(input: Span) -> VimwikiIResult<LE<Table>> {
-    fn inner(input: Span) -> VimwikiIResult<Table> {
+pub fn table(input: Span) -> IResult<LE<Table>> {
+    fn inner(input: Span) -> IResult<Table> {
         // Assume a table is centered if the first row is indented
         let (input, (table_header, centered)) =
             map(pair(space0, row), |x| (x.1, !x.0.is_empty()))(
@@ -38,8 +38,8 @@ pub fn table(input: Span) -> VimwikiIResult<LE<Table>> {
 }
 
 #[inline]
-fn row(input: Span) -> VimwikiIResult<LE<Row>> {
-    fn inner(input: Span) -> VimwikiIResult<Row> {
+fn row(input: Span) -> IResult<LE<Row>> {
+    fn inner(input: Span) -> IResult<Row> {
         terminated(
             delimited(
                 char('|'),
@@ -59,13 +59,13 @@ fn row(input: Span) -> VimwikiIResult<LE<Row>> {
 }
 
 #[inline]
-fn hyphens(input: Span) -> VimwikiIResult<()> {
+fn hyphens(input: Span) -> IResult<()> {
     value((), take_line_while1(char('-')))(input)
 }
 
 #[inline]
-fn cell(input: Span) -> VimwikiIResult<LE<Cell>> {
-    fn inner(input: Span) -> VimwikiIResult<Cell> {
+fn cell(input: Span) -> IResult<LE<Cell>> {
+    fn inner(input: Span) -> IResult<Cell> {
         alt((
             cell_span_above,
             cell_span_left,
@@ -83,12 +83,12 @@ fn cell(input: Span) -> VimwikiIResult<LE<Cell>> {
 }
 
 #[inline]
-fn cell_span_left(input: Span) -> VimwikiIResult<Cell> {
+fn cell_span_left(input: Span) -> IResult<Cell> {
     value(Cell::SpanLeft, delimited(space0, tag(">"), space0))(input)
 }
 
 #[inline]
-fn cell_span_above(input: Span) -> VimwikiIResult<Cell> {
+fn cell_span_above(input: Span) -> IResult<Cell> {
     value(Cell::SpanAbove, delimited(space0, tag("\\/"), space0))(input)
 }
 

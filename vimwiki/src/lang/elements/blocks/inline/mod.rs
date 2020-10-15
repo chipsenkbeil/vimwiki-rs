@@ -1,4 +1,4 @@
-use super::*;
+use super::Located;
 use derive_more::{
     Constructor, Deref, DerefMut, Display, From, Index, IndexMut, Into,
     IntoIterator,
@@ -22,14 +22,14 @@ pub use typefaces::*;
 #[derive(
     Clone, Debug, Display, From, Eq, PartialEq, Hash, Serialize, Deserialize,
 )]
-pub enum InlineElement {
-    Text(Text),
-    DecoratedText(DecoratedText),
+pub enum InlineElement<'a> {
+    Text(Text<'a>),
+    DecoratedText(DecoratedText<'a>),
     Keyword(Keyword),
-    Link(Link),
-    Tags(Tags),
-    Code(CodeInline),
-    Math(MathInline),
+    Link(Link<'a>),
+    Tags(Tags<'a>),
+    Code(CodeInline<'a>),
+    Math(MathInline<'a>),
 }
 
 /// Represents a wrapper around a `InlineElement` where we already know the
@@ -37,13 +37,13 @@ pub enum InlineElement {
 /// or the inner type
 #[derive(Clone, Debug, Display, Eq, PartialEq, Hash, Serialize, Deserialize)]
 #[display(fmt = "{}", inner)]
-pub struct TypedInlineElement<T> {
-    inner: InlineElement,
+pub struct TypedInlineElement<'a, T> {
+    inner: InlineElement<'a>,
     phantom: PhantomData<T>,
 }
 
-impl<T> TypedInlineElement<T> {
-    pub fn into_inner(self) -> InlineElement {
+impl<'a, T> TypedInlineElement<'a, T> {
+    pub fn into_inner(self) -> InlineElement<'a> {
         self.inner
     }
 
@@ -51,7 +51,7 @@ impl<T> TypedInlineElement<T> {
         &self.inner
     }
 
-    pub fn as_mut_inner(&mut self) -> &mut InlineElement {
+    pub fn as_mut_inner(&mut self) -> &mut InlineElement<'a> {
         &mut self.inner
     }
 }
@@ -59,7 +59,7 @@ impl<T> TypedInlineElement<T> {
 macro_rules! typed_inline_element_impl {
     ($type:ty, $variant:ident, $name:ident) => {
         paste! {
-            impl TypedInlineElement<$type> {
+            impl<'a> TypedInlineElement<'a, $type> {
                 pub fn [<from_ $name>](x: $type) -> Self {
                     Self {
                         inner: InlineElement::from(x),
@@ -92,13 +92,13 @@ macro_rules! typed_inline_element_impl {
     };
 }
 
-typed_inline_element_impl!(Text, Text, text);
-typed_inline_element_impl!(DecoratedText, DecoratedText, decorated_text);
+typed_inline_element_impl!(Text<'a>, Text, text);
+typed_inline_element_impl!(DecoratedText<'a>, DecoratedText, decorated_text);
 typed_inline_element_impl!(Keyword, Keyword, keyword);
-typed_inline_element_impl!(Link, Link, link);
-typed_inline_element_impl!(Tags, Tags, tags);
-typed_inline_element_impl!(CodeInline, Code, code_inline);
-typed_inline_element_impl!(MathInline, Math, math_inline);
+typed_inline_element_impl!(Link<'a>, Link, link);
+typed_inline_element_impl!(Tags<'a>, Tags, tags);
+typed_inline_element_impl!(CodeInline<'a>, Code, code_inline);
+typed_inline_element_impl!(MathInline<'a>, Math, math_inline);
 
 /// Represents a convenience wrapper around a series of inline elements
 #[derive(
@@ -118,11 +118,11 @@ typed_inline_element_impl!(MathInline, Math, math_inline);
     Serialize,
     Deserialize,
 )]
-pub struct InlineElementContainer {
-    pub elements: Vec<LE<InlineElement>>,
+pub struct InlineElementContainer<'a> {
+    pub elements: Vec<Located<InlineElement<'a>>>,
 }
 
-impl fmt::Display for InlineElementContainer {
+impl<'a> fmt::Display for InlineElementContainer<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for le in self.elements.iter() {
             write!(f, "{}", le.element.to_string())?;
@@ -131,27 +131,27 @@ impl fmt::Display for InlineElementContainer {
     }
 }
 
-impl From<Vec<InlineElementContainer>> for InlineElementContainer {
+impl<'a> From<Vec<InlineElementContainer<'a>>> for InlineElementContainer<'a> {
     fn from(mut containers: Vec<Self>) -> Self {
         Self::new(containers.drain(..).flat_map(|c| c.elements).collect())
     }
 }
 
-impl From<LE<InlineElement>> for InlineElementContainer {
-    fn from(element: LE<InlineElement>) -> Self {
+impl<'a> From<Located<InlineElement<'a>>> for InlineElementContainer<'a> {
+    fn from(element: Located<InlineElement<'a>>) -> Self {
         Self::new(vec![element])
     }
 }
 
-impl From<LE<&str>> for InlineElementContainer {
-    fn from(element: LE<&str>) -> Self {
-        Self::from(element.map(|x| Text::new(x.to_string())))
+impl<'a> From<Located<&'a str>> for InlineElementContainer<'a> {
+    fn from(element: Located<&'a str>) -> Self {
+        Self::from(element.map(|x| Text::from(x)))
     }
 }
 
 macro_rules! container_mapping {
     ($type:ty) => {
-        impl From<$type> for InlineElementContainer {
+        impl<'a> From<$type> for InlineElementContainer<'a> {
             fn from(element: $type) -> Self {
                 Self::from(element.map(InlineElement::from))
             }
@@ -159,10 +159,10 @@ macro_rules! container_mapping {
     };
 }
 
-container_mapping!(LE<CodeInline>);
-container_mapping!(LE<MathInline>);
-container_mapping!(LE<Text>);
-container_mapping!(LE<DecoratedText>);
-container_mapping!(LE<Keyword>);
-container_mapping!(LE<Link>);
-container_mapping!(LE<Tags>);
+container_mapping!(Located<CodeInline<'a>>);
+container_mapping!(Located<MathInline<'a>>);
+container_mapping!(Located<Text<'a>>);
+container_mapping!(Located<DecoratedText<'a>>);
+container_mapping!(Located<Keyword>);
+container_mapping!(Located<Link<'a>>);
+container_mapping!(Located<Tags<'a>>);

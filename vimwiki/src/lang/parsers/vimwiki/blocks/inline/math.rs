@@ -1,7 +1,7 @@
 use super::{
     elements::MathInline,
     utils::{context, le, pstring, take_line_while1},
-    Span, VimwikiIResult, LE,
+    Span, IResult, LE,
 };
 use nom::{
     character::complete::char,
@@ -10,8 +10,8 @@ use nom::{
 };
 
 #[inline]
-pub fn math_inline(input: Span) -> VimwikiIResult<LE<MathInline>> {
-    fn inner(input: Span) -> VimwikiIResult<MathInline> {
+pub fn math_inline(input: Span) -> IResult<LE<MathInline>> {
+    fn inner(input: Span) -> IResult<MathInline> {
         // TODO: Is there any way to escape a $ inside a formula? If so, we will
         //       need to support detecting that rather than using take_till1
         map(

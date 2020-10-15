@@ -11,7 +11,7 @@ use super::{
     preformatted::preformatted_text,
     tables::table,
     utils::{beginning_of_line, blank_line, context, end_of_line_or_input, le},
-    Span, VimwikiIResult, LE,
+    Span, IResult, LE,
 };
 use nom::{
     character::complete::space0,
@@ -22,8 +22,8 @@ use nom::{
 
 /// Parses a vimwiki paragraph, returning the associated paragraph is successful
 #[inline]
-pub fn paragraph(input: Span) -> VimwikiIResult<LE<Paragraph>> {
-    fn inner(input: Span) -> VimwikiIResult<Paragraph> {
+pub fn paragraph(input: Span) -> IResult<LE<Paragraph>> {
+    fn inner(input: Span) -> IResult<Paragraph> {
         // Ensure that we are starting at the beginning of a line
         let (input, _) = beginning_of_line(input)?;
 
@@ -47,7 +47,7 @@ pub fn paragraph(input: Span) -> VimwikiIResult<LE<Paragraph>> {
     context("Paragraph", le(inner))(input)
 }
 
-fn paragraph_line(input: Span) -> VimwikiIResult<InlineElementContainer> {
+fn paragraph_line(input: Span) -> IResult<InlineElementContainer> {
     let (input, _) = space0(input)?;
 
     map(inline_element_container, |c| c.element)(input)
@@ -56,7 +56,7 @@ fn paragraph_line(input: Span) -> VimwikiIResult<InlineElementContainer> {
 // TODO: Optimize by adjusting paragraph parser to be a tuple that
 //       includes an Option<BlockElement> so that we don't waste
 //       the processing spent
-fn continue_paragraph(input: Span) -> VimwikiIResult<()> {
+fn continue_paragraph(input: Span) -> IResult<()> {
     let (input, _) = not(header)(input)?;
     let (input, _) = not(definition_list)(input)?;
     let (input, _) = not(list)(input)?;

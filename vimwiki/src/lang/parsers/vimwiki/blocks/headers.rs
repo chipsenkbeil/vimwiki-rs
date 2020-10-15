@@ -6,7 +6,7 @@ use super::{
         take_line_while1, take_until_end_of_line_or_input,
         trim_trailing_whitespace, trim_whitespace, unwrap_le,
     },
-    Span, VimwikiIResult, LE,
+    Span, IResult, LE,
 };
 use nom::{
     bytes::complete::take,
@@ -16,8 +16,8 @@ use nom::{
 
 /// Parses a vimwiki header, returning the associated header if successful
 #[inline]
-pub fn header(input: Span) -> VimwikiIResult<LE<Header>> {
-    fn inner(input: Span) -> VimwikiIResult<Header> {
+pub fn header(input: Span) -> IResult<LE<Header>> {
+    fn inner(input: Span) -> IResult<Header> {
         // Header must start at the beginning of a line
         let (input, _) = beginning_of_line(input)?;
 
@@ -47,7 +47,7 @@ pub fn header(input: Span) -> VimwikiIResult<LE<Header>> {
 
 fn header_tail(
     level: usize,
-) -> impl Fn(Span) -> VimwikiIResult<InlineElementContainer> {
+) -> impl Fn(Span) -> IResult<InlineElementContainer> {
     use nom::{AsBytes, InputIter};
     move |input: Span| {
         // Get remainder of line and remove any excess whitespace

@@ -1,5 +1,6 @@
 use derive_more::{Constructor, Display};
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 
 #[derive(
     Constructor,
@@ -12,12 +13,12 @@ use serde::{Deserialize, Serialize};
     Serialize,
     Deserialize,
 )]
-pub struct CodeInline {
-    pub code: String,
+pub struct CodeInline<'a> {
+    pub code: Cow<'a, str>,
 }
 
-impl From<&str> for CodeInline {
-    fn from(s: &str) -> Self {
-        Self::new(s.to_string())
+impl<'a> From<&'a str> for CodeInline<'a> {
+    fn from(s: &'a str) -> Self {
+        Self::new(Cow::from(s))
     }
 }

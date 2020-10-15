@@ -16,20 +16,20 @@ use uriparse::URI;
     Deserialize,
 )]
 #[display(fmt = "{}", uri)]
-pub struct RawLink {
-    pub uri: URI<'static>,
+pub struct RawLink<'a> {
+    pub uri: URI<'a>,
 }
 
-impl From<URI<'static>> for RawLink {
-    fn from(uri: URI<'static>) -> Self {
+impl<'a> From<URI<'a>> for RawLink<'a> {
+    fn from(uri: URI<'a>) -> Self {
         Self::new(uri)
     }
 }
 
-impl TryFrom<&str> for RawLink {
+impl<'a> TryFrom<&'a str> for RawLink<'a> {
     type Error = uriparse::URIError;
 
-    fn try_from(str_uri: &str) -> Result<Self, Self::Error> {
-        Ok(Self::from(URI::try_from(str_uri)?.into_owned()))
+    fn try_from(str_uri: &'a str) -> Result<Self, Self::Error> {
+        Ok(Self::from(URI::try_from(str_uri)?))
     }
 }

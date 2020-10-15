@@ -1,4 +1,4 @@
-use super::LE;
+use crate::lang::elements::Located;
 use derive_more::From;
 use paste::paste;
 use serde::{Deserialize, Serialize};
@@ -29,59 +29,59 @@ pub use tables::*;
 
 /// Represents elements that are standalone (metaphorically a block element in CSS)
 #[derive(Clone, Debug, From, Eq, PartialEq, Serialize, Deserialize)]
-pub enum BlockElement {
-    Blockquote(Blockquote),
-    DefinitionList(DefinitionList),
+pub enum BlockElement<'a> {
+    Blockquote(Blockquote<'a>),
+    DefinitionList(DefinitionList<'a>),
     Divider(Divider),
-    Header(Header),
-    List(List),
-    Math(MathBlock),
-    Paragraph(Paragraph),
-    Placeholder(Placeholder),
-    PreformattedText(PreformattedText),
-    Table(Table),
+    Header(Header<'a>),
+    List(List<'a>),
+    Math(MathBlock<'a>),
+    Paragraph(Paragraph<'a>),
+    Placeholder(Placeholder<'a>),
+    PreformattedText(PreformattedText<'a>),
+    Table(Table<'a>),
 }
 
 macro_rules! le_mapping {
     ($type:ty) => {
-        impl From<LE<$type>> for LE<BlockElement> {
-            fn from(element: LE<$type>) -> Self {
+        impl<'a> From<Located<$type>> for Located<BlockElement<'a>> {
+            fn from(element: Located<$type>) -> Self {
                 element.map(BlockElement::from)
             }
         }
     };
 }
 
-le_mapping!(Header);
-le_mapping!(Paragraph);
-le_mapping!(DefinitionList);
-le_mapping!(List);
-le_mapping!(Table);
-le_mapping!(PreformattedText);
-le_mapping!(MathBlock);
-le_mapping!(Blockquote);
+le_mapping!(Header<'a>);
+le_mapping!(Paragraph<'a>);
+le_mapping!(DefinitionList<'a>);
+le_mapping!(List<'a>);
+le_mapping!(Table<'a>);
+le_mapping!(PreformattedText<'a>);
+le_mapping!(MathBlock<'a>);
+le_mapping!(Blockquote<'a>);
 le_mapping!(Divider);
-le_mapping!(Placeholder);
+le_mapping!(Placeholder<'a>);
 
 /// Represents a wrapper around a `BlockElement` where we already know the
 /// type it will be and can therefore convert to either the `BlockElement`
 /// or the inner type
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct TypedBlockElement<T> {
-    inner: BlockElement,
+pub struct TypedBlockElement<'a, T> {
+    inner: BlockElement<'a>,
     phantom: PhantomData<T>,
 }
 
-impl<T> TypedBlockElement<T> {
-    pub fn into_inner(self) -> BlockElement {
+impl<'a, T> TypedBlockElement<'a, T> {
+    pub fn into_inner(self) -> BlockElement<'a> {
         self.inner
     }
 
-    pub fn as_inner(&self) -> &BlockElement {
+    pub fn as_inner(&self) -> &BlockElement<'a> {
         &self.inner
     }
 
-    pub fn as_mut_inner(&mut self) -> &mut BlockElement {
+    pub fn as_mut_inner(&mut self) -> &mut BlockElement<'a> {
         &mut self.inner
     }
 }
@@ -89,7 +89,7 @@ impl<T> TypedBlockElement<T> {
 macro_rules! typed_block_element_impl {
     ($type:ty, $variant:ident, $name:ident) => {
         paste! {
-            impl TypedBlockElement<$type> {
+            impl<'a> TypedBlockElement<'a, $type> {
                 pub fn [<from_ $name>](x: $type) -> Self {
                     Self {
                         inner: BlockElement::from(x),
@@ -122,17 +122,17 @@ macro_rules! typed_block_element_impl {
     };
 }
 
-typed_block_element_impl!(Header, Header, header);
-typed_block_element_impl!(Paragraph, Paragraph, paragraph);
-typed_block_element_impl!(DefinitionList, DefinitionList, definition_list);
-typed_block_element_impl!(List, List, list);
-typed_block_element_impl!(Table, Table, table);
+typed_block_element_impl!(Header<'a>, Header, header);
+typed_block_element_impl!(Paragraph<'a>, Paragraph, paragraph);
+typed_block_element_impl!(DefinitionList<'a>, DefinitionList, definition_list);
+typed_block_element_impl!(List<'a>, List, list);
+typed_block_element_impl!(Table<'a>, Table, table);
 typed_block_element_impl!(
-    PreformattedText,
+    PreformattedText<'a>,
     PreformattedText,
     preformatted_text
 );
-typed_block_element_impl!(MathBlock, Math, math_block);
-typed_block_element_impl!(Blockquote, Blockquote, blockquote);
+typed_block_element_impl!(MathBlock<'a>, Math, math_block);
+typed_block_element_impl!(Blockquote<'a>, Blockquote, blockquote);
 typed_block_element_impl!(Divider, Divider, divider);
-typed_block_element_impl!(Placeholder, Placeholder, placeholder);
+typed_block_element_impl!(Placeholder<'a>, Placeholder, placeholder);

@@ -1,20 +1,20 @@
 use super::{
     elements::DiaryLink,
-    utils::{context, VimwikiNomError},
+    utils::{context, Error},
     wiki::wiki_link,
-    Span, VimwikiIResult, LE,
+    Span, IResult, LE,
 };
 use chrono::NaiveDate;
 
 #[inline]
-pub fn diary_link(input: Span) -> VimwikiIResult<LE<DiaryLink>> {
-    fn inner(input: Span) -> VimwikiIResult<LE<DiaryLink>> {
+pub fn diary_link(input: Span) -> IResult<LE<DiaryLink>> {
+    fn inner(input: Span) -> IResult<LE<DiaryLink>> {
         // First, parse as a standard wiki link, which should stash the potential
         // diary as the path
         let (input, link) = wiki_link(input)?;
 
         let path = link.path.to_str().ok_or_else(|| {
-            nom::Err::Error(VimwikiNomError::from_ctx(&input, "Not diary link"))
+            nom::Err::Error(Error::from_ctx(&input, "Not diary link"))
         })?;
 
         // Second, check if the link is a diary
@@ -23,7 +23,7 @@ pub fn diary_link(input: Span) -> VimwikiIResult<LE<DiaryLink>> {
                 input,
                 link.map(|c| DiaryLink::new(date, c.description, c.anchor)),
             )),
-            _ => Err(nom::Err::Error(VimwikiNomError::from_ctx(
+            _ => Err(nom::Err::Error(Error::from_ctx(
                 &input,
                 "Not diary link",
             ))),

@@ -1,4 +1,4 @@
-use super::{Position, Span};
+use super::Position;
 use derive_more::Constructor;
 use serde::{Deserialize, Serialize};
 
@@ -76,37 +76,9 @@ impl From<(usize, usize, usize, usize)> for Region {
     }
 }
 
-impl<'a, 'b> From<(Span<'a>, Span<'b>)> for Region {
-    /// Converts a start and end span into a region that they represent,
-    /// assuming that the end span is non-inclusive (one step past end)
-    fn from((start, end): (Span<'a>, Span<'b>)) -> Self {
-        use nom::Offset;
-        let mut offset = start.offset(&end);
-
-        // Assume that if the spans are not equal, the end span is one past
-        // the actual end of the region
-        if offset > 0 {
-            offset -= 1;
-        }
-
-        Self::from((start, offset))
-    }
-}
-
-impl<'a> From<(Span<'a>, usize)> for Region {
-    fn from((span, offset): (Span<'a>, usize)) -> Self {
-        use nom::Slice;
-        let start = Position::from(span.clone());
-        let end = Position::from(span.slice(offset..));
-
-        Self::new(start, end)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lang::utils::Span;
 
     #[test]
     fn region_contains_should_yield_true_if_between_start_and_end() {

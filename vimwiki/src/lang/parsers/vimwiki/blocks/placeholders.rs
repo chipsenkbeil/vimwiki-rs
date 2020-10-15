@@ -4,7 +4,7 @@ use super::{
         beginning_of_line, context, end_of_line_or_input, le, pstring,
         take_line_while1, take_until_end_of_line_or_input,
     },
-    Span, VimwikiIResult, LE,
+    Span, IResult, LE,
 };
 use chrono::NaiveDate;
 use nom::{
@@ -15,8 +15,8 @@ use nom::{
 };
 
 #[inline]
-pub fn placeholder(input: Span) -> VimwikiIResult<LE<Placeholder>> {
-    fn inner(input: Span) -> VimwikiIResult<LE<Placeholder>> {
+pub fn placeholder(input: Span) -> IResult<LE<Placeholder>> {
+    fn inner(input: Span) -> IResult<LE<Placeholder>> {
         let (input, _) = beginning_of_line(input)?;
         let (input, le_placeholder) = le(alt((
             placeholder_title,
@@ -32,8 +32,8 @@ pub fn placeholder(input: Span) -> VimwikiIResult<LE<Placeholder>> {
     context("Placeholder", inner)(input)
 }
 
-fn placeholder_title(input: Span) -> VimwikiIResult<Placeholder> {
-    fn inner(input: Span) -> VimwikiIResult<Placeholder> {
+fn placeholder_title(input: Span) -> IResult<Placeholder> {
+    fn inner(input: Span) -> IResult<Placeholder> {
         let (input, _) = tag("%title")(input)?;
         let (input, _) = space1(input)?;
         let (input, text) =
@@ -46,8 +46,8 @@ fn placeholder_title(input: Span) -> VimwikiIResult<Placeholder> {
     context("Placeholder Title", inner)(input)
 }
 
-fn placeholder_nohtml(input: Span) -> VimwikiIResult<Placeholder> {
-    fn inner(input: Span) -> VimwikiIResult<Placeholder> {
+fn placeholder_nohtml(input: Span) -> IResult<Placeholder> {
+    fn inner(input: Span) -> IResult<Placeholder> {
         let (input, _) = tag("%nohtml")(input)?;
         let (input, _) = space0(input)?;
         Ok((input, Placeholder::NoHtml))
@@ -56,8 +56,8 @@ fn placeholder_nohtml(input: Span) -> VimwikiIResult<Placeholder> {
     context("Placeholder NoHtml", inner)(input)
 }
 
-fn placeholder_template(input: Span) -> VimwikiIResult<Placeholder> {
-    fn inner(input: Span) -> VimwikiIResult<Placeholder> {
+fn placeholder_template(input: Span) -> IResult<Placeholder> {
+    fn inner(input: Span) -> IResult<Placeholder> {
         let (input, _) = tag("%template")(input)?;
         let (input, _) = space1(input)?;
         let (input, text) =
@@ -70,8 +70,8 @@ fn placeholder_template(input: Span) -> VimwikiIResult<Placeholder> {
     context("Placeholder Template", inner)(input)
 }
 
-fn placeholder_date(input: Span) -> VimwikiIResult<Placeholder> {
-    fn inner(input: Span) -> VimwikiIResult<Placeholder> {
+fn placeholder_date(input: Span) -> IResult<Placeholder> {
+    fn inner(input: Span) -> IResult<Placeholder> {
         let (input, _) = tag("%date")(input)?;
         let (input, _) = space1(input)?;
         let (input, date) =
@@ -84,8 +84,8 @@ fn placeholder_date(input: Span) -> VimwikiIResult<Placeholder> {
     context("Placeholder Date", inner)(input)
 }
 
-fn placeholder_other(input: Span) -> VimwikiIResult<Placeholder> {
-    fn inner(input: Span) -> VimwikiIResult<Placeholder> {
+fn placeholder_other(input: Span) -> IResult<Placeholder> {
+    fn inner(input: Span) -> IResult<Placeholder> {
         let (input, _) = not(tag("%title"))(input)?;
         let (input, _) = not(tag("%nohtml"))(input)?;
         let (input, _) = not(tag("%template"))(input)?;

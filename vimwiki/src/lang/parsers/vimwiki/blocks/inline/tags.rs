@@ -1,7 +1,7 @@
 use super::{
     elements::{Tag, Tags},
     utils::{context, le, take_line_while1},
-    Span, VimwikiIResult, LE,
+    Span, IResult, LE,
 };
 use nom::{
     character::complete::char, combinator::not, multi::many1,
@@ -9,8 +9,8 @@ use nom::{
 };
 
 #[inline]
-pub fn tags(input: Span) -> VimwikiIResult<LE<Tags>> {
-    fn inner(input: Span) -> VimwikiIResult<Tags> {
+pub fn tags(input: Span) -> IResult<LE<Tags>> {
+    fn inner(input: Span) -> IResult<Tags> {
         let (input, _) = char(':')(input)?;
         let (input, contents) =
             many1(terminated(tag_content, char(':')))(input)?;
@@ -21,8 +21,8 @@ pub fn tags(input: Span) -> VimwikiIResult<LE<Tags>> {
     context("Tags", le(inner))(input)
 }
 
-fn tag_content(input: Span) -> VimwikiIResult<Tag> {
-    fn has_more(input: Span) -> VimwikiIResult<()> {
+fn tag_content(input: Span) -> IResult<Tag> {
+    fn has_more(input: Span) -> IResult<()> {
         let (input, _) = not(char(':'))(input)?;
         let (input, _) = not(char(' '))(input)?;
         let (input, _) = not(char('\t'))(input)?;

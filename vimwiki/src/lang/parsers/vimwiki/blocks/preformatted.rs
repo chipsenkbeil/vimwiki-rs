@@ -4,7 +4,7 @@ use super::{
         any_line, beginning_of_line, context, end_of_line_or_input, le,
         pstring, take_line_while, take_line_while1,
     },
-    Span, VimwikiIResult, LE,
+    Span, IResult, LE,
 };
 use nom::{
     bytes::complete::tag,
@@ -16,8 +16,8 @@ use nom::{
 use std::collections::HashMap;
 
 #[inline]
-pub fn preformatted_text(input: Span) -> VimwikiIResult<LE<PreformattedText>> {
-    fn inner(input: Span) -> VimwikiIResult<PreformattedText> {
+pub fn preformatted_text(input: Span) -> IResult<LE<PreformattedText>> {
+    fn inner(input: Span) -> IResult<PreformattedText> {
         let (input, (maybe_lang, metadata)) = preformatted_text_start(input)?;
         let (input, lines) =
             many1(preceded(not(preformatted_text_end), any_line))(input)?;
@@ -32,7 +32,7 @@ pub fn preformatted_text(input: Span) -> VimwikiIResult<LE<PreformattedText>> {
 #[inline]
 fn preformatted_text_start(
     input: Span,
-) -> VimwikiIResult<(Option<String>, HashMap<String, String>)> {
+) -> IResult<(Option<String>, HashMap<String, String>)> {
     // First, verify we have the start of a block and consume it
     let (input, _) = beginning_of_line(input)?;
     let (input, _) = space0(input)?;
@@ -80,7 +80,7 @@ fn preformatted_text_start(
 }
 
 #[inline]
-fn preformatted_text_end(input: Span) -> VimwikiIResult<()> {
+fn preformatted_text_end(input: Span) -> IResult<()> {
     let (input, _) = beginning_of_line(input)?;
     let (input, _) = space0(input)?;
     let (input, _) = tag("}}}")(input)?;

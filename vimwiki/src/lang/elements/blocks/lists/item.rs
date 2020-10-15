@@ -2,20 +2,21 @@ use super::{ListItemContent, ListItemContents};
 use derive_more::{Constructor, From};
 use numerals::roman::Roman;
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 
 /// Represents an item in a list
 #[derive(
     Constructor, Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize,
 )]
-pub struct ListItem {
-    pub item_type: ListItemType,
+pub struct ListItem<'a> {
+    pub item_type: ListItemType<'a>,
     pub suffix: ListItemSuffix,
     pub pos: usize,
-    pub contents: ListItemContents,
+    pub contents: ListItemContents<'a>,
     pub attributes: ListItemAttributes,
 }
 
-impl ListItem {
+impl<'a> ListItem<'a> {
     /// Indicates whether or not this list item represents an unordered item
     pub fn is_unordered(&self) -> bool {
         self.item_type.is_unordered()
@@ -196,12 +197,12 @@ impl Default for ListItemSuffix {
 }
 
 #[derive(Clone, Debug, From, Eq, PartialEq, Serialize, Deserialize)]
-pub enum ListItemType {
+pub enum ListItemType<'a> {
     Ordered(OrderedListItemType),
-    Unordered(UnorderedListItemType),
+    Unordered(UnorderedListItemType<'a>),
 }
 
-impl ListItemType {
+impl<'a> ListItemType<'a> {
     pub fn is_ordered(&self) -> bool {
         match self {
             Self::Ordered(_) => true,
@@ -224,7 +225,7 @@ impl ListItemType {
     }
 }
 
-impl Default for ListItemType {
+impl<'a> Default for ListItemType<'a> {
     fn default() -> Self {
         Self::Unordered(UnorderedListItemType::default())
     }
@@ -232,16 +233,16 @@ impl Default for ListItemType {
 
 /// Represents the type associated with an unordered item
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub enum UnorderedListItemType {
+pub enum UnorderedListItemType<'a> {
     /// -
     Hyphen,
     /// *
     Asterisk,
     /// Catchall
-    Other(String),
+    Other(Cow<'a, str>),
 }
 
-impl UnorderedListItemType {
+impl<'a> UnorderedListItemType<'a> {
     /// Allocates a new string representing the full prefix of the list item
     /// such as - or *
     pub fn to_prefix(&self, suffix: ListItemSuffix) -> String {
@@ -261,7 +262,7 @@ impl UnorderedListItemType {
     }
 }
 
-impl Default for UnorderedListItemType {
+impl<'a> Default for UnorderedListItemType<'a> {
     fn default() -> Self {
         Self::Hyphen
     }
@@ -379,9 +380,8 @@ pub struct ListItemAttributes {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        elements::{List, ListItemContent, Text, TypedBlockElement},
-        LE,
+    use crate::elements::{
+        List, ListItemContent, Located, Text, TypedBlockElement,
     };
 
     macro_rules! unordered_item {
@@ -501,7 +501,7 @@ mod tests {
         };
     }
 
-    fn todo_list_item(todo_status: ListItemTodoStatus) -> ListItem {
+    fn todo_list_item(todo_status: ListItemTodoStatus) -> ListItem<'static> {
         let mut item = ListItem::default();
 
         item.attributes.todo_status = Some(todo_status);
@@ -531,8 +531,11 @@ mod tests {
     }
 
     fn make_content(text: &str) -> ListItemContents {
-        let le_text = LE::from(Text::from(text));
-        vec![LE::from(ListItemContent::InlineContent(le_text.into()))].into()
+        let le_text = Located::from(Text::from(text));
+        vec![Located::from(ListItemContent::InlineContent(
+            le_text.into(),
+        ))]
+        .into()
     }
 
     #[test]
@@ -899,12 +902,12 @@ mod tests {
         assert_eq!(
             todo_list_item!(
                 Incomplete,
-                LE::from(todo_list_item!(Rejected)),
-                LE::from(todo_list_item!(Complete)),
-                LE::from(todo_list_item!(PartiallyComplete1)),
-                LE::from(todo_list_item!(PartiallyComplete2)),
-                LE::from(todo_list_item!(PartiallyComplete3)),
-                LE::from(todo_list_item!(Incomplete))
+                Located::from(todo_list_item!(Rejected)),
+                Located::from(todo_list_item!(Complete)),
+                Located::from(todo_list_item!(PartiallyComplete1)),
+                Located::from(todo_list_item!(PartiallyComplete2)),
+                Located::from(todo_list_item!(PartiallyComplete3)),
+                Located::from(todo_list_item!(Incomplete))
             )
             .compute_todo_progress(),
             Some((1.0 + 0.25 + 0.5 + 0.75 + 0.0) / 5.0)
@@ -916,14 +919,14 @@ mod tests {
         assert_eq!(
             todo_list_item!(
                 Incomplete,
-                LE::from(todo_list_item!(
+                Located::from(todo_list_item!(
                     Rejected,
-                    LE::from(todo_list_item!(Rejected)),
-                    LE::from(todo_list_item!(Complete)),
-                    LE::from(todo_list_item!(PartiallyComplete1)),
-                    LE::from(todo_list_item!(PartiallyComplete2)),
-                    LE::from(todo_list_item!(PartiallyComplete3)),
-                    LE::from(todo_list_item!(Incomplete))
+                    Located::from(todo_list_item!(Rejected)),
+                    Located::from(todo_list_item!(Complete)),
+                    Located::from(todo_list_item!(PartiallyComplete1)),
+                    Located::from(todo_list_item!(PartiallyComplete2)),
+                    Located::from(todo_list_item!(PartiallyComplete3)),
+                    Located::from(todo_list_item!(Incomplete))
                 ))
             )
             .compute_todo_progress(),

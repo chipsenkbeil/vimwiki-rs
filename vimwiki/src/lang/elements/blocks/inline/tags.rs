@@ -3,7 +3,7 @@ use derive_more::{
     IntoIterator,
 };
 use serde::{Deserialize, Serialize};
-use std::fmt;
+use std::{borrow::Cow, fmt};
 
 /// Represents a sequence of one or more tags
 ///
@@ -32,9 +32,9 @@ use std::fmt;
     Serialize,
     Deserialize,
 )]
-pub struct Tags(pub Vec<Tag>);
+pub struct Tags<'a>(pub Vec<Tag<'a>>);
 
-impl fmt::Display for Tags {
+impl<'a> fmt::Display for Tags<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for tag in self.0.iter() {
             write!(f, ":{}", tag.0)?;
@@ -43,21 +43,21 @@ impl fmt::Display for Tags {
     }
 }
 
-impl From<Tag> for Tags {
-    fn from(tag: Tag) -> Self {
+impl<'a> From<Tag<'a>> for Tags<'a> {
+    fn from(tag: Tag<'a>) -> Self {
         Self::new(vec![tag])
     }
 }
 
-impl From<String> for Tags {
+impl From<String> for Tags<'static> {
     fn from(s: String) -> Self {
-        Self::from(Tag::new(s))
+        Self::from(Tag::from(s))
     }
 }
 
-impl From<&str> for Tags {
-    fn from(s: &str) -> Self {
-        Self::from(s.to_string())
+impl<'a> From<&'a str> for Tags<'a> {
+    fn from(s: &'a str) -> Self {
+        Self::from(Tag::from(s))
     }
 }
 
@@ -77,10 +77,16 @@ impl From<&str> for Tags {
     Serialize,
     Deserialize,
 )]
-pub struct Tag(pub String);
+pub struct Tag<'a>(pub Cow<'a, str>);
 
-impl From<&str> for Tag {
-    fn from(s: &str) -> Self {
-        Self::new(s.to_string())
+impl<'a> From<&'a str> for Tag<'a> {
+    fn from(s: &'a str) -> Self {
+        Self::new(Cow::from(s))
+    }
+}
+
+impl From<String> for Tag<'static> {
+    fn from(s: String) -> Self {
+        Self::new(Cow::from(s))
     }
 }

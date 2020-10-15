@@ -1,6 +1,6 @@
 use super::{
     elements::{self, InlineElement, InlineElementContainer},
-    utils::{self, context, le, VimwikiIResult},
+    utils::{self, context, le, IResult},
     Span, LE,
 };
 use nom::{branch::alt, combinator::map, multi::many1};
@@ -16,7 +16,7 @@ pub mod typefaces;
 #[inline]
 pub fn inline_element_container(
     input: Span,
-) -> VimwikiIResult<LE<InlineElementContainer>> {
+) -> IResult<LE<InlineElementContainer>> {
     context(
         "Inline Element Container",
         le(map(many1(inline_element), InlineElementContainer::from)),
@@ -25,7 +25,7 @@ pub fn inline_element_container(
 
 /// Parses an inline element, which can only exist on a single line
 #[inline]
-pub fn inline_element(input: Span) -> VimwikiIResult<LE<InlineElement>> {
+pub fn inline_element(input: Span) -> IResult<LE<InlineElement>> {
     // NOTE: Ordering matters here as the first match is used as the
     //       element. This means that we want to ensure that text,
     //       which can match any character, is the last of our elements.

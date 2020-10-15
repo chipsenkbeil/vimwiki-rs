@@ -1,7 +1,12 @@
-use super::{
-    elements::Blockquote,
-    utils::{beginning_of_line, blank_line, context, end_of_line_or_input, le},
-    Span, VimwikiIResult, LE,
+use crate::lang::{
+    elements::{Blockquote, Located},
+    parsers::{
+        utils::{
+            beginning_of_line, blank_line, capture, context,
+            end_of_line_or_input, locate,
+        },
+        IResult, Span,
+    },
 };
 use nom::{
     branch::alt,
@@ -11,10 +16,10 @@ use nom::{
     multi::{many0, many1},
     sequence::pair,
 };
+use std::borrow::Cow;
 
-#[inline]
-pub fn blockquote(input: Span) -> VimwikiIResult<LE<Blockquote>> {
-    fn inner(input: Span) -> VimwikiIResult<Blockquote> {
+pub fn blockquote<'a>(input: Span<'a>) -> IResult<'a, Located<Blockquote<'a>>> {
+    fn inner<'a>(input: Span<'a>) -> IResult<Blockquote<'a>> {
         let (input, lines) = alt((
             // NOTE: Indented blockquotes do not allow blank lines
             many1(blockquote_line_1),
@@ -24,7 +29,7 @@ pub fn blockquote(input: Span) -> VimwikiIResult<LE<Blockquote>> {
                     many1(blockquote_line_2),
                     map(
                         many0(pair(
-                            many0(value(String::new(), blank_line)),
+                            many0(value(Cow::from(""), blank_line)),
                             blockquote_line_2,
                         )),
                         |mut pairs| {
@@ -44,17 +49,17 @@ pub fn blockquote(input: Span) -> VimwikiIResult<LE<Blockquote>> {
         Ok((input, Blockquote::new(lines)))
     }
 
-    context("Blockquote", le(inner))(input)
+    context("Blockquote", locate(capture(inner)))(input)
 }
 
 /// Parses a blockquote line that begins with four or more spaces
 #[inline]
-fn blockquote_line_1(input: Span) -> VimwikiIResult<String> {
+fn blockquote_line_1<'a>(input: Span<'a>) -> IResult<Cow<'a, str>> {
     let (input, _) = beginning_of_line(input)?;
     let (input, _) = verify(space0, |s: &Span| s.remaining_len() >= 4)(input)?;
-    let (input, text) = verify(
-        map(not_line_ending, |s: Span| s.as_unsafe_remaining_str().to_string()),
-        |s: &str| !s.trim().is_empty(),
+    let (input, text) = map(
+        verify(not_line_ending, |s: &Span<'a>| !s.is_only_whitespace()),
+        |s: Span<'a>| Cow::from(s.as_unsafe_remaining_str()),
     )(input)?;
     let (input, _) = end_of_line_or_input(input)?;
 
@@ -63,11 +68,12 @@ fn blockquote_line_1(input: Span) -> VimwikiIResult<String> {
 
 /// Parses a blockquote line that begins with >
 #[inline]
-fn blockquote_line_2(input: Span) -> VimwikiIResult<String> {
+fn blockquote_line_2<'a>(input: Span<'a>) -> IResult<Cow<'a, str>> {
     let (input, _) = beginning_of_line(input)?;
     let (input, _) = tag("> ")(input)?;
-    let (input, text) =
-        map(not_line_ending, |s: Span| s.as_unsafe_remaining_str().to_string())(input)?;
+    let (input, text) = map(not_line_ending, |s: Span<'a>| {
+        Cow::from(s.as_unsafe_remaining_str())
+    })(input)?;
     let (input, _) = end_of_line_or_input(input)?;
 
     Ok((input, text))
@@ -76,7 +82,6 @@ fn blockquote_line_2(input: Span) -> VimwikiIResult<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lang::utils::Span;
     use indoc::indoc;
 
     #[test]

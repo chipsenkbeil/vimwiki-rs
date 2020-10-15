@@ -1,10 +1,9 @@
-use super::{
-    elements::{self, BlockElement, Comment, Page},
-    utils::{
-        self, blank_line, context, range, scan_with_step, take_until_byte1,
-        VimwikiIResult, VimwikiNomError,
+use crate::lang::{
+    elements::*,
+    parsers::{
+        utils::{blank_line, context, range, scan_with_step, take_until_byte1},
+        Captured, Error, IResult, Span,
     },
-    Span, LE,
 };
 use nom::{
     branch::alt,
@@ -17,8 +16,7 @@ use std::ops::Range;
 pub mod blocks;
 pub mod comments;
 
-/// Parses entire vimwiki page
-pub fn page(mut s: String) -> Result<LE<Page>, nom::Err<VimwikiNomError>> {
+pub fn page(mut s: String) -> Result<Page<'static>, nom::Err<Error>> {
     // First, parse the page for comments and remove all from input,
     // skipping over any character that is not a comment
     let mut ranges_and_comments = {
@@ -38,12 +36,12 @@ pub fn page(mut s: String) -> Result<LE<Page>, nom::Err<VimwikiNomError>> {
     // Fourth, return a page wrapped in a location that comprises the
     // entire input
     let comments = ranges_and_comments.drain(..).map(|x| x.1).collect();
-    Ok(LE::from(Page::new(elements, comments)))
+    Ok(Page { elements, comments })
 }
 
-fn page_comments(
-    input: Span,
-) -> VimwikiIResult<Vec<(Range<usize>, LE<Comment>)>> {
+fn page_comments<'a>(
+    input: Span<'a>,
+) -> IResult<Vec<(Range<usize>, Captured<Comment<'a>>)>> {
     context(
         "Page Comments",
         scan_with_step(
@@ -53,13 +51,15 @@ fn page_comments(
     )(input)
 }
 
-fn page_elements(input: Span) -> VimwikiIResult<Vec<LE<BlockElement>>> {
-    fn inner(input: Span) -> VimwikiIResult<Vec<LE<BlockElement>>> {
+fn page_elements<'a>(
+    input: Span<'a>,
+) -> IResult<Vec<Captured<BlockElement<'a>>>> {
+    fn inner<'a>(input: Span<'a>) -> IResult<Vec<Captured<BlockElement<'a>>>> {
         // Parses one or more lines, either eating blank lines or producing
         // a block element
         fn maybe_block_element(
             input: Span,
-        ) -> VimwikiIResult<Option<LE<BlockElement>>> {
+        ) -> IResult<Option<Captured<BlockElement>>> {
             alt((value(None, blank_line), map(blocks::block_element, Some)))(
                 input,
             )
@@ -76,14 +76,6 @@ fn page_elements(input: Span) -> VimwikiIResult<Vec<LE<BlockElement>>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        elements::{
-            BlockElement, Comment, InlineElement, LineComment,
-            MultiLineComment, Paragraph, Text,
-        },
-        lang::utils::Span,
-        Region,
-    };
 
     #[test]
     fn page_should_skip_blank_lines_not_within_block_elements() {
@@ -114,7 +106,7 @@ mod tests {
         assert!(page.comments.is_empty(), "Unexpected parsed comment");
         assert_eq!(
             page.elements,
-            vec![BlockElement::from(Paragraph::from(vec![LE::from(
+            vec![BlockElement::from(Paragraph::from(vec![Located::from(
                 InlineElement::Text(Text::from("some text with % signs"))
             )]))]
         );
@@ -156,7 +148,7 @@ mod tests {
         let element = &page.elements[0];
         assert_eq!(
             element.element,
-            BlockElement::from(Paragraph::from(vec![LE::from(
+            BlockElement::from(Paragraph::from(vec![Located::from(
                 InlineElement::Text(Text::from("Some more text"))
             )]))
         );

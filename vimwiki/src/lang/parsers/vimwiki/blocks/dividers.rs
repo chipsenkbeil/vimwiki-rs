@@ -3,13 +3,13 @@ use super::{
     utils::{
         beginning_of_line, context, end_of_line_or_input, le, take_line_while1,
     },
-    Span, VimwikiIResult, LE,
+    Span, IResult, LE,
 };
 use nom::{character::complete::char, combinator::verify};
 
 #[inline]
-pub fn divider(input: Span) -> VimwikiIResult<LE<Divider>> {
-    fn inner(input: Span) -> VimwikiIResult<Divider> {
+pub fn divider(input: Span) -> IResult<LE<Divider>> {
+    fn inner(input: Span) -> IResult<Divider> {
         let (input, _) = beginning_of_line(input)?;
         let (input, _) = verify(take_line_while1(char('-')), |s: &Span| {
             s.remaining_len() >= 4
