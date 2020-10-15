@@ -1,11 +1,16 @@
-use super::{
-    elements::{Definition, DefinitionList, Term, TermAndDefinitions},
-    inline::inline_element_container,
-    utils::{
-        beginning_of_line, context, end_of_line_or_input, le, take_line_while1,
-        take_until_end_of_line_or_input, unwrap_le,
+use crate::lang::{
+    elements::{
+        Definition, DefinitionList, InlineElementContainer, Located, Term,
+        TermAndDefinitions,
     },
-    Span, IResult, LE,
+    parsers::{
+        utils::{
+            beginning_of_line, capture, context, end_of_line_or_input, locate,
+            take_line_while1, take_until_end_of_line_or_input,
+        },
+        vimwiki::blocks::inline::inline_element_container,
+        IResult, Span,
+    },
 };
 use nom::{
     bytes::complete::tag,
@@ -16,10 +21,13 @@ use nom::{
 };
 
 #[inline]
-pub fn definition_list(input: Span) -> IResult<LE<DefinitionList>> {
+pub fn definition_list(input: Span) -> IResult<Located<DefinitionList>> {
     context(
         "Definition List",
-        le(map(many1(term_and_definitions), DefinitionList::from)),
+        locate(capture(map(
+            many1(term_and_definitions),
+            DefinitionList::from,
+        ))),
     )(input)
 }
 
@@ -55,7 +63,10 @@ fn term_line(input: Span) -> IResult<(Term, Option<Definition>)> {
     let (input, term) = terminated(
         map_parser(
             take_line_while1(not(tag("::"))),
-            unwrap_le(inline_element_container),
+            map(
+                inline_element_container,
+                |l: Located<InlineElementContainer>| l.into_inner(),
+            ),
         ),
         tag("::"),
     )(input)?;
@@ -65,7 +76,10 @@ fn term_line(input: Span) -> IResult<(Term, Option<Definition>)> {
         space1,
         map_parser(
             take_until_end_of_line_or_input,
-            unwrap_le(inline_element_container),
+            map(
+                inline_element_container,
+                |l: Located<InlineElementContainer>| l.into_inner(),
+            ),
         ),
     ))(input)?;
 
@@ -83,7 +97,10 @@ fn definition_line(input: Span) -> IResult<Definition> {
     let (input, _) = space1(input)?;
     let (input, def) = map_parser(
         take_until_end_of_line_or_input,
-        unwrap_le(inline_element_container),
+        map(
+            inline_element_container,
+            |l: Located<InlineElementContainer>| l.into_inner(),
+        ),
     )(input)?;
     let (input, _) = end_of_line_or_input(input)?;
 
@@ -93,15 +110,11 @@ fn definition_line(input: Span) -> IResult<Definition> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        elements::{
-            DecoratedText, DecoratedTextContent, InlineElement,
-            InlineElementContainer, Link, MathInline, Text, WikiLink,
-        },
-        lang::utils::Span,
+    use crate::elements::{
+        DecoratedText, DecoratedTextContent, InlineElement,
+        InlineElementContainer, Link, MathInline, Text, WikiLink,
     };
     use indoc::indoc;
-    use std::path::PathBuf;
 
     /// Checks defs match those of a provided list in ANY order
     fn check_text_defs(defs: Vec<&Definition>, expected: Vec<&str>) {
@@ -275,12 +288,12 @@ mod tests {
         assert_eq!(
             terms,
             vec![&InlineElementContainer::new(vec![
-                LE::from(InlineElement::DecoratedText(DecoratedText::Bold(
-                    vec![LE::from(DecoratedTextContent::from(Text::from(
-                        "term"
-                    )))]
-                ))),
-                LE::from(InlineElement::Text(Text::from(" 1"))),
+                Located::from(InlineElement::DecoratedText(
+                    DecoratedText::Bold(vec![Located::from(
+                        DecoratedTextContent::from(Text::from("term"))
+                    )])
+                )),
+                Located::from(InlineElement::Text(Text::from(" 1"))),
             ])]
         );
 
@@ -289,17 +302,15 @@ mod tests {
         assert_eq!(defs.len(), 2, "Wrong number of definitions found");
         assert_eq!(
             defs[0],
-            &InlineElementContainer::new(vec![LE::from(InlineElement::from(
-                Link::from(WikiLink::new(PathBuf::from("def 1"), None, None))
-            ))])
+            &InlineElementContainer::new(vec![Located::from(
+                InlineElement::from(Link::from(WikiLink::from("def 1")))
+            )])
         );
         assert_eq!(
             defs[1],
             &InlineElementContainer::new(vec![
-                LE::from(InlineElement::Text(Text::from("def "))),
-                LE::from(InlineElement::from(MathInline::new(
-                    "2+2".to_string()
-                ))),
+                Located::from(InlineElement::Text(Text::from("def "))),
+                Located::from(InlineElement::from(MathInline::from("2+2"))),
             ])
         );
     }
