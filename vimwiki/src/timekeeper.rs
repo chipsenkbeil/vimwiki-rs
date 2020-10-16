@@ -83,15 +83,15 @@ pub fn clear() {
 /// within each parser wrapped in a context.
 pub mod parsers {
     use super::*;
+    use nom::error::ParseError;
         
-    type Error = crate::LangParserError;
+    type Error = crate::lang::parsers::Error;
     type IResult<'a, O> = Result<(Span<'a>, O), nom::Err<Error>>;
 
     pub fn context<'a, T>(
         ctx: &'static str,
         f: impl Fn(Span<'a>) -> IResult<T>,
     ) -> impl Fn(Span<'a>) -> IResult<T> {
-        use nom::error::ParseError;
         move |input: Span| {
             let start = std::time::Instant::now();
 

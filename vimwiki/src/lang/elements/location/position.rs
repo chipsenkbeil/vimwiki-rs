@@ -50,19 +50,6 @@ impl Position {
     }
 }
 
-impl<'a> From<Span<'a>> for Position {
-    /// Constructs a position based on the start of a span
-    fn from(span: Span) -> Self {
-        // NOTE: Span from nom_locate has base 1 for line/col
-        // TODO: Compare performance of naive_get_utf8_column, which is
-        //       supposedly better for shorter lines (100 or less), which
-        //       I imagine is more common for vimwiki
-        let (line, column) = (span.line(), span.column());
-
-        Self::new(line - 1, column - 1)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -87,22 +74,5 @@ mod tests {
     fn position_is_at_beginning_of_line_should_return_true_if_column_is_0() {
         assert!(Position::new(1, 0).is_at_beginning_of_line());
         assert!(!Position::new(1, 1).is_at_beginning_of_line());
-    }
-
-    #[test]
-    fn position_from_span_should_offset_line_and_column_by_1() {
-        let input = Span::from("abc\n123");
-        let p = Position::from(input.clone());
-        assert_eq!(p.line, 0);
-        assert_eq!(p.column, 0);
-
-        fn take5(input: Span) -> nom::IResult<Span, Span> {
-            nom::bytes::complete::take(5usize)(input)
-        }
-
-        let (input, _) = take5(input).unwrap();
-        let p = Position::from(input);
-        assert_eq!(p.line, 1);
-        assert_eq!(p.column, 1);
     }
 }

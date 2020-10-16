@@ -43,7 +43,7 @@ pub enum DecoratedTextContent<'a> {
 }
 
 impl<'a> DecoratedTextContent<'a> {
-    pub fn as_inline_element(&self) -> &InlineElement<'a> {
+    pub fn as_inline_element(&'a self) -> &InlineElement<'a> {
         match self {
             Self::Text(ref x) => x.as_inner(),
             Self::Keyword(ref x) => x.as_inner(),

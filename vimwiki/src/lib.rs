@@ -4,16 +4,12 @@ mod tree;
 #[cfg(feature = "timekeeper")]
 pub mod timekeeper;
 
+pub use lang::{
+    elements::{self, Located, Position, Region},
+    parsers::Error as ParseError,
+    RawStr,
+};
 pub use tree::{ElementNode, ElementTree};
-
-// Export the language elements without dumping them into the top leve
-pub use lang::elements;
-
-// Export our top-level parser structs
-pub use lang::{LangParserError, RawStr};
-
-// Dump our utilities (LocatedElement, Region, Point, ...) into top level
-pub use lang::utils::{LocatedElement, Position, Region, LE};
 
 // Re-export the vendor libraries so we're able to reconstruct their
 // structs from macros

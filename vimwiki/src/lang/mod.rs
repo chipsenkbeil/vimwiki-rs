@@ -147,7 +147,7 @@ impl RawStr<'_> {
     }
 }
 
-impl<'a> TryFrom<RawStr<'a>> for Located<Page<'a>> {
+impl<'a> TryFrom<RawStr<'a>> for Page<'static> {
     type Error = nom::Err<parsers::Error>;
 
     fn try_from(s: RawStr<'a>) -> Result<Self, Self::Error> {
@@ -303,10 +303,9 @@ mod tests {
         use super::*;
 
         #[test]
-        fn try_from_raw_str_to_le_page() {
+        fn try_from_raw_str_to_page() {
             let input = RawStr::from_vimwiki_str("some text");
-            let _result: Located<Page> =
-                input.try_into().expect("Failed to parse");
+            let _result: Page = input.try_into().expect("Failed to parse");
         }
 
         #[test]

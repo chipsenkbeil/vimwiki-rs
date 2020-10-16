@@ -6,18 +6,18 @@ use std::{
 
 /// Represents an immutable tree containing references to elements within a page
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ElementTree<'a, 'b> {
-    page: &'a Page<'b>,
+pub struct ElementTree<'a> {
+    page: &'a Page<'a>,
     root_nodes: Vec<usize>,
-    nodes: HashMap<usize, ElementNode<'a, 'b>>,
+    nodes: HashMap<usize, ElementNode<'a>>,
 }
 
-impl<'a, 'b> ElementTree<'a, 'b> {
+impl<'a> ElementTree<'a> {
     /// Default id for situations where a node is required but there is no node
     const EMPTY_NODE: usize = 0;
 
     /// Reference to the page whose elements this tree points to
-    pub fn page(&self) -> &Page<'b> {
+    pub fn page(&self) -> &Page<'a> {
         self.page
     }
 
@@ -26,7 +26,7 @@ impl<'a, 'b> ElementTree<'a, 'b> {
     pub fn find_deepest_at(
         &self,
         position: Position,
-    ) -> Option<&ElementNode<'a, 'b>> {
+    ) -> Option<&ElementNode<'a>> {
         match self.find_root_at(position) {
             Some(root) => {
                 let mut curr = root;
@@ -50,10 +50,7 @@ impl<'a, 'b> ElementTree<'a, 'b> {
     }
 
     /// Finds the root node whose region contains the specified position
-    pub fn find_root_at(
-        &self,
-        position: Position,
-    ) -> Option<&ElementNode<'a, 'b>> {
+    pub fn find_root_at(&self, position: Position) -> Option<&ElementNode<'a>> {
         self.root_nodes()
             .iter()
             .find(|n| n.region().contains(position))
@@ -61,7 +58,7 @@ impl<'a, 'b> ElementTree<'a, 'b> {
     }
 
     /// Retrieves all of the root-level nodes within the tree
-    pub fn root_nodes(&self) -> Vec<&ElementNode<'a, 'b>> {
+    pub fn root_nodes(&self) -> Vec<&ElementNode<'a>> {
         self.root_nodes
             .iter()
             .flat_map(|id| self.nodes.get(id))
@@ -69,7 +66,7 @@ impl<'a, 'b> ElementTree<'a, 'b> {
     }
 
     /// Retrieve the root node for the given node
-    pub fn root_for(&self, node: &ElementNode<'a, 'b>) -> &ElementNode<'a, 'b> {
+    pub fn root_for(&self, node: &ElementNode<'a>) -> &ElementNode<'a> {
         self.nodes
             .get(&node.root_id)
             .expect("Tree mutated after construction")
@@ -78,16 +75,16 @@ impl<'a, 'b> ElementTree<'a, 'b> {
     /// Retrieve the parent node for the given node
     pub fn parent_for(
         &self,
-        node: &ElementNode<'a, 'b>,
-    ) -> Option<&ElementNode<'a, 'b>> {
+        node: &ElementNode<'a>,
+    ) -> Option<&ElementNode<'a>> {
         node.parent_id.and_then(|id| self.nodes.get(&id))
     }
 
     /// Retrieve the children nodes for the given node
-    pub fn children_for<'c>(
-        &'c self,
-        node: &'c ElementNode<'a, 'b>,
-    ) -> Vec<&'c ElementNode<'a, 'b>> {
+    pub fn children_for<'b>(
+        &'b self,
+        node: &'b ElementNode<'a>,
+    ) -> Vec<&'b ElementNode<'a>> {
         node.children_ids
             .iter()
             .flat_map(|id| self.nodes.get(id))
@@ -95,10 +92,10 @@ impl<'a, 'b> ElementTree<'a, 'b> {
     }
 
     /// Retrieve the sibling nodes for the given node (does not include self)
-    pub fn siblings_for<'c>(
-        &'c self,
-        node: &'c ElementNode<'a, 'b>,
-    ) -> Vec<&'c ElementNode<'a, 'b>> {
+    pub fn siblings_for<'b>(
+        &'b self,
+        node: &'b ElementNode<'a>,
+    ) -> Vec<&'b ElementNode<'a>> {
         let node_id = node.id();
 
         // Check if we have a parent and, if we do, gather its children to
@@ -115,7 +112,7 @@ impl<'a, 'b> ElementTree<'a, 'b> {
 
     /// Constructs a tree based on the top-level elements
     /// within the provided page
-    pub fn from_page(page: &'a Page<'b>) -> ElementTree<'a, 'b> {
+    pub fn from_page(page: &'a Page<'a>) -> ElementTree<'a> {
         let mut instance = Self {
             page,
             root_nodes: vec![],
@@ -124,7 +121,8 @@ impl<'a, 'b> ElementTree<'a, 'b> {
 
         let counter = AtomicUsize::new(Self::EMPTY_NODE + 1);
         for element in page.elements.iter() {
-            let id = instance.add_block_element(
+            let id = add_block_element(
+                &mut instance.nodes,
                 &counter,
                 Self::EMPTY_NODE,
                 None,
@@ -136,207 +134,217 @@ impl<'a, 'b> ElementTree<'a, 'b> {
 
         instance
     }
+}
 
-    /// Adds a new node to the tree that is a `BlockElement` reference,
-    /// returning the id of the newly-added node
-    fn add_block_element(
-        &mut self,
-        counter: &AtomicUsize,
-        root_id: usize,
-        parent_id: Option<usize>,
-        element: &'a BlockElement<'b>,
-        region: Region,
-    ) -> usize {
-        let element_id = counter.fetch_add(1, Ordering::Relaxed);
+/// Adds a new node to the tree that is a `BlockElement` reference,
+/// returning the id of the newly-added node
+fn add_block_element<'a>(
+    nodes: &mut HashMap<usize, ElementNode<'a>>,
+    counter: &AtomicUsize,
+    root_id: usize,
+    parent_id: Option<usize>,
+    element: &'a BlockElement<'a>,
+    region: Region,
+) -> usize {
+    let element_id = counter.fetch_add(1, Ordering::Relaxed);
 
-        // If provided a root id that is nothing, this indicates that we are
-        // the root and should therefore use our element's id
-        let root_id = if root_id != Self::EMPTY_NODE {
-            root_id
-        } else {
-            element_id
-        };
+    // If provided a root id that is nothing, this indicates that we are
+    // the root and should therefore use our element's id
+    let root_id = if root_id != ElementTree::EMPTY_NODE {
+        root_id
+    } else {
+        element_id
+    };
 
-        let node = ElementNode {
-            root_id,
-            parent_id,
-            element_id,
-            element: Element::from(element),
-            region,
-            children_ids: match element {
-                BlockElement::DefinitionList(x) => x
-                    .iter()
-                    .flat_map(|td| {
-                        let mut ids = self.add_inline_elements_from_container(
-                            counter,
-                            root_id,
-                            Some(element_id),
-                            &td.term,
-                        );
+    let node = ElementNode {
+        root_id,
+        parent_id,
+        element_id,
+        element: Element::from(element),
+        region,
+        children_ids: match element {
+            BlockElement::DefinitionList(x) => x
+                .iter()
+                .flat_map(|td| {
+                    let mut ids = add_inline_elements_from_container(
+                        nodes,
+                        counter,
+                        root_id,
+                        Some(element_id),
+                        &td.term,
+                    );
 
-                        let mut def_ids = td
-                            .definitions
-                            .iter()
-                            .flat_map(|d| {
-                                self.add_inline_elements_from_container(
+                    let mut def_ids = td
+                        .definitions
+                        .iter()
+                        .flat_map(|d| {
+                            add_inline_elements_from_container(
+                                nodes,
+                                counter,
+                                root_id,
+                                Some(element_id),
+                                &d,
+                            )
+                        })
+                        .collect();
+                    ids.append(&mut def_ids);
+
+                    ids
+                })
+                .collect(),
+            BlockElement::Header(x) => add_inline_elements_from_container(
+                nodes,
+                counter,
+                root_id,
+                Some(element_id),
+                &x.content,
+            ),
+            BlockElement::List(x) => x
+                .items
+                .iter()
+                .flat_map(|item| {
+                    item.as_inner()
+                        .contents
+                        .iter()
+                        .flat_map(|c| match c.as_inner() {
+                            ListItemContent::InlineContent(x) => {
+                                add_inline_elements_from_container(
+                                    nodes,
                                     counter,
                                     root_id,
                                     Some(element_id),
-                                    &d,
+                                    &x,
                                 )
-                            })
-                            .collect();
-                        ids.append(&mut def_ids);
-
-                        ids
-                    })
-                    .collect(),
-                BlockElement::Header(x) => self
-                    .add_inline_elements_from_container(
-                        counter,
-                        root_id,
-                        Some(element_id),
-                        &x.content,
-                    ),
-                BlockElement::List(x) => x
-                    .items
-                    .iter()
-                    .flat_map(|item| {
-                        item.as_inner()
-                            .contents
-                            .iter()
-                            .flat_map(|c| match c.as_inner() {
-                                ListItemContent::InlineContent(x) => self
-                                    .add_inline_elements_from_container(
-                                        counter,
-                                        root_id,
-                                        Some(element_id),
-                                        &x,
-                                    ),
-                                ListItemContent::List(x) => vec![self
-                                    .add_block_element(
-                                        counter,
-                                        root_id,
-                                        Some(element_id),
-                                        x.as_inner(),
-                                        c.region,
-                                    )],
-                            })
-                            .collect::<Vec<usize>>()
-                    })
-                    .collect(),
-                BlockElement::Paragraph(x) => self
-                    .add_inline_elements_from_container(
-                        counter,
-                        root_id,
-                        Some(element_id),
-                        &x.content,
-                    ),
-                BlockElement::Table(x) => x
-                    .rows
-                    .iter()
-                    .flat_map(|r| match r.as_inner() {
-                        Row::Content { cells } => cells
-                            .iter()
-                            .flat_map(|c| match c.as_inner() {
-                                Cell::Content(x) => self
-                                    .add_inline_elements_from_container(
-                                        counter,
-                                        root_id,
-                                        Some(element_id),
-                                        &x,
-                                    ),
-                                _ => vec![],
-                            })
-                            .collect(),
-                        _ => vec![],
-                    })
-                    .collect(),
-                _ => vec![],
-            },
-        };
-
-        self.nodes.insert(element_id, node);
-        element_id
-    }
-
-    /// Adds new nodes to the tree, one for each `InlineElement` reference
-    /// held within the provided container, returning the ids of the
-    /// newly-added nodes
-    fn add_inline_elements_from_container(
-        &mut self,
-        counter: &AtomicUsize,
-        root_id: usize,
-        parent_id: Option<usize>,
-        container: &'a InlineElementContainer<'b>,
-    ) -> Vec<usize> {
-        let mut ids = Vec::with_capacity(container.elements.len());
-        for e in container.elements.iter() {
-            ids.push(self.add_inline_element(
+                            }
+                            ListItemContent::List(x) => {
+                                vec![add_block_element(
+                                    nodes,
+                                    counter,
+                                    root_id,
+                                    Some(element_id),
+                                    x.as_inner(),
+                                    c.region,
+                                )]
+                            }
+                        })
+                        .collect::<Vec<usize>>()
+                })
+                .collect(),
+            BlockElement::Paragraph(x) => add_inline_elements_from_container(
+                nodes,
                 counter,
                 root_id,
-                parent_id,
-                e.as_inner(),
-                e.region,
-            ));
-        }
-        ids
-    }
+                Some(element_id),
+                &x.content,
+            ),
+            BlockElement::Table(x) => x
+                .rows
+                .iter()
+                .flat_map(|r| match r.as_inner() {
+                    Row::Content { cells } => cells
+                        .iter()
+                        .flat_map(|c| match c.as_inner() {
+                            Cell::Content(x) => {
+                                add_inline_elements_from_container(
+                                    nodes,
+                                    counter,
+                                    root_id,
+                                    Some(element_id),
+                                    &x,
+                                )
+                            }
+                            _ => vec![],
+                        })
+                        .collect(),
+                    _ => vec![],
+                })
+                .collect(),
+            _ => vec![],
+        },
+    };
 
-    /// Adds a new node to the tree that is an `InlineElement` reference,
-    /// returning the id of the newly-added node
-    fn add_inline_element(
-        &mut self,
-        counter: &AtomicUsize,
-        root_id: usize,
-        parent_id: Option<usize>,
-        element: &'a InlineElement<'b>,
-        region: Region,
-    ) -> usize {
-        let element_id = counter.fetch_add(1, Ordering::Relaxed);
+    nodes.insert(element_id, node);
+    element_id
+}
 
-        let node = ElementNode {
+/// Adds new nodes to the tree, one for each `InlineElement` reference
+/// held within the provided container, returning the ids of the
+/// newly-added nodes
+fn add_inline_elements_from_container<'a>(
+    nodes: &mut HashMap<usize, ElementNode<'a>>,
+    counter: &AtomicUsize,
+    root_id: usize,
+    parent_id: Option<usize>,
+    container: &'a InlineElementContainer<'a>,
+) -> Vec<usize> {
+    let mut ids = Vec::with_capacity(container.elements.len());
+    for e in container.elements.iter() {
+        ids.push(add_inline_element(
+            nodes,
+            counter,
             root_id,
             parent_id,
-            element_id,
-            element: Element::from(element),
-            region,
-            children_ids: match element {
-                InlineElement::DecoratedText(x) => x
-                    .as_contents()
-                    .iter()
-                    .map(|c| {
-                        self.add_inline_element(
-                            counter,
-                            root_id,
-                            Some(element_id),
-                            c.element.as_inline_element(),
-                            c.region,
-                        )
-                    })
-                    .collect(),
-                _ => vec![],
-            },
-        };
-
-        self.nodes.insert(element_id, node);
-        element_id
+            e.as_inner(),
+            e.region,
+        ));
     }
+    ids
+}
+
+/// Adds a new node to the tree that is an `InlineElement` reference,
+/// returning the id of the newly-added node
+fn add_inline_element<'a>(
+    nodes: &mut HashMap<usize, ElementNode<'a>>,
+    counter: &AtomicUsize,
+    root_id: usize,
+    parent_id: Option<usize>,
+    element: &'a InlineElement<'a>,
+    region: Region,
+) -> usize {
+    let element_id = counter.fetch_add(1, Ordering::Relaxed);
+
+    let node = ElementNode {
+        root_id,
+        parent_id,
+        element_id,
+        element: Element::from(element),
+        region,
+        children_ids: match element {
+            InlineElement::DecoratedText(x) => {
+                let mut children = Vec::new();
+                for c in x.as_contents().iter() {
+                    children.push(add_inline_element(
+                        nodes,
+                        counter,
+                        root_id,
+                        Some(element_id),
+                        c.element.as_inline_element(),
+                        c.region,
+                    ));
+                }
+                children
+            }
+            _ => vec![],
+        },
+    };
+
+    nodes.insert(element_id, node);
+    element_id
 }
 
 /// A node within an `ElementTree` that points to either a `BlockElement` or
 /// an `InlineElement`
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ElementNode<'a, 'b> {
+pub struct ElementNode<'a> {
     root_id: usize,
     parent_id: Option<usize>,
     element_id: usize,
-    element: Element<'a, 'b>,
+    element: Element<'a, 'a>,
     region: Region,
     children_ids: Vec<usize>,
 }
 
-impl<'a, 'b> ElementNode<'a, 'b> {
+impl<'a> ElementNode<'a> {
     /// Id of node, which maps to the element it references
     pub fn id(&self) -> usize {
         self.element_id
@@ -353,12 +361,12 @@ impl<'a, 'b> ElementNode<'a, 'b> {
     }
 
     /// Converts to ref of inner `Element`
-    pub fn as_inner(&self) -> &Element<'a, 'b> {
+    pub fn as_inner(&self) -> &Element<'a, 'a> {
         &self.element
     }
 
     /// Converts to inner `Element`
-    pub fn into_inner(self) -> Element<'a, 'b> {
+    pub fn into_inner(self) -> Element<'a, 'a> {
         self.element
     }
 }

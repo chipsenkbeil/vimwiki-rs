@@ -1,7 +1,9 @@
-use super::{
-    elements::{self, InlineElement, InlineElementContainer},
-    utils::{self, context, le, IResult},
-    Span, LE,
+use crate::lang::{
+    elements::{InlineElement, InlineElementContainer, Located},
+    parsers::{
+        utils::{capture, context, locate},
+        IResult, Span,
+    },
 };
 use nom::{branch::alt, combinator::map, multi::many1};
 
@@ -16,16 +18,19 @@ pub mod typefaces;
 #[inline]
 pub fn inline_element_container(
     input: Span,
-) -> IResult<LE<InlineElementContainer>> {
+) -> IResult<Located<InlineElementContainer>> {
     context(
         "Inline Element Container",
-        le(map(many1(inline_element), InlineElementContainer::from)),
+        locate(capture(map(
+            many1(inline_element),
+            InlineElementContainer::from,
+        ))),
     )(input)
 }
 
 /// Parses an inline element, which can only exist on a single line
 #[inline]
-pub fn inline_element(input: Span) -> IResult<LE<InlineElement>> {
+pub fn inline_element(input: Span) -> IResult<Located<InlineElement>> {
     // NOTE: Ordering matters here as the first match is used as the
     //       element. This means that we want to ensure that text,
     //       which can match any character, is the last of our elements.
@@ -46,12 +51,12 @@ pub fn inline_element(input: Span) -> IResult<LE<InlineElement>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
+    use crate::lang::{
         elements::{
             CodeInline, DecoratedText, DecoratedTextContent, InlineElement,
             Keyword, Link, MathInline, Tags, Text, WikiLink,
         },
-        lang::utils::Span,
+        parsers::Span,
     };
     use std::path::PathBuf;
 
@@ -70,18 +75,20 @@ mod tests {
                 .collect::<Vec<InlineElement>>(),
             vec![
                 InlineElement::DecoratedText(DecoratedText::Bold(vec![
-                    LE::from(DecoratedTextContent::from(Text::from("item 1")))
+                    Located::from(DecoratedTextContent::from(Text::from(
+                        "item 1"
+                    )))
                 ],)),
                 InlineElement::Text(Text::from(" has a ")),
                 InlineElement::Link(Link::from(WikiLink::from(PathBuf::from(
                     "link"
                 )))),
                 InlineElement::Text(Text::from(" with ")),
-                InlineElement::Code(CodeInline::new("code".to_string())),
+                InlineElement::Code(CodeInline::from("code")),
                 InlineElement::Text(Text::from(" and ")),
                 InlineElement::Tags(Tags::from("tag")),
                 InlineElement::Text(Text::from(" and ")),
-                InlineElement::Math(MathInline::new("formula".to_string())),
+                InlineElement::Math(MathInline::from("formula")),
                 InlineElement::Text(Text::from(" is ")),
                 InlineElement::Keyword(Keyword::DONE),
             ]
