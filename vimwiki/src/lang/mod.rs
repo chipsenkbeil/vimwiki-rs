@@ -6,50 +6,50 @@ use elements::*;
 use parsers::{vimwiki, Span};
 use std::borrow::Cow;
 
-/// Parse a value from a `RawStr`
-pub trait FromRawStr<'a>: Sized {
+/// Parse a value from a `Language`
+pub trait FromLanguage<'a>: Sized {
     type Error;
 
-    /// Parses a `RawStr` to return a value of this type
-    fn from_raw_str(s: &'a RawStr<'a>) -> Result<Self, Self::Error>;
+    /// Parses a `Language` to return a value of this type
+    fn from_language(s: &'a Language<'a>) -> Result<Self, Self::Error>;
 }
 
-/// Represents a raw string for a type of language
+/// Represents a raw, unparsed representation of some language
 /// (vimwiki, markdown, mediawiki)
 #[derive(Clone, Debug, Eq, PartialEq, Display)]
-pub enum RawStr<'a> {
+pub enum Language<'a> {
     Vimwiki(Cow<'a, str>),
     Markdown(Cow<'a, str>),
     Mediawiki(Cow<'a, str>),
 }
 
-impl<'a> RawStr<'a> {
-    /// Wraps provided `&str` as a `RawStr` for *vimwiki*
+impl<'a> Language<'a> {
+    /// Wraps provided `&str` as a `Language` for *vimwiki*
     pub fn from_vimwiki_str(inner: &'a str) -> Self {
         Self::Vimwiki(Cow::from(inner))
     }
 
-    /// Wraps provided `String` as a `RawStr` for *vimwiki*
+    /// Wraps provided `String` as a `Language` for *vimwiki*
     pub fn from_vimwiki_string(inner: String) -> Self {
         Self::Vimwiki(Cow::from(inner))
     }
 
-    /// Wraps provided `&str` as a `RawStr` for *markdown*
+    /// Wraps provided `&str` as a `Language` for *markdown*
     pub fn from_markdown_str(inner: &'a str) -> Self {
         Self::Markdown(Cow::from(inner))
     }
 
-    /// Wraps provided `String` as a `RawStr` for *markdown*
+    /// Wraps provided `String` as a `Language` for *markdown*
     pub fn from_markdown_string(inner: String) -> Self {
         Self::Markdown(Cow::from(inner))
     }
 
-    /// Wraps provided `&str` as a `RawStr` for *mediawiki*
+    /// Wraps provided `&str` as a `Language` for *mediawiki*
     pub fn from_mediawiki_str(inner: &'a str) -> Self {
         Self::Mediawiki(Cow::from(inner))
     }
 
-    /// Wraps provided `String` as a `RawStr` for *mediawiki*
+    /// Wraps provided `String` as a `Language` for *mediawiki*
     pub fn from_mediawiki_string(inner: String) -> Self {
         Self::Mediawiki(Cow::from(inner))
     }
@@ -96,13 +96,13 @@ impl<'a> RawStr<'a> {
         }
     }
 
-    /// Parses this `RawStr` into another type
-    pub fn parse<F: FromRawStr<'a>>(&'a self) -> Result<F, F::Error> {
-        FromRawStr::from_raw_str(self)
+    /// Parses this `Language` into another type
+    pub fn parse<F: FromLanguage<'a>>(&'a self) -> Result<F, F::Error> {
+        FromLanguage::from_language(self)
     }
 }
 
-impl RawStr<'_> {
+impl Language<'_> {
     /// Whether or not this represents a vimwiki format
     pub fn is_vimwiki(&self) -> bool {
         matches!(self, Self::Vimwiki(_))
@@ -118,29 +118,31 @@ impl RawStr<'_> {
         matches!(self, Self::Mediawiki(_))
     }
 
-    /// Whether or not this `RawStr` is only borrowing the underlying data
+    /// Whether or not this `Language` is only borrowing the underlying data
     pub fn is_borrowed(&self) -> bool {
         matches!(self.as_inner(), Cow::Borrowed(_))
     }
 
-    /// Whether or not this `RawStr` owns the underlying data
+    /// Whether or not this `Language` owns the underlying data
     pub fn is_owned(&self) -> bool {
         matches!(self.as_inner(), Cow::Owned(_))
     }
 
-    /// Converts `RawStr` into owned version, allocating a new string if
+    /// Converts `Language` into owned version, allocating a new string if
     /// necessary, or just yielding itself if already owned
-    pub fn into_owned(self) -> RawStr<'static> {
+    pub fn into_owned(self) -> Language<'static> {
         match self {
-            Self::Vimwiki(x) => RawStr::Vimwiki(Cow::from(x.into_owned())),
-            Self::Markdown(x) => RawStr::Markdown(Cow::from(x.into_owned())),
-            Self::Mediawiki(x) => RawStr::Mediawiki(Cow::from(x.into_owned())),
+            Self::Vimwiki(x) => Language::Vimwiki(Cow::from(x.into_owned())),
+            Self::Markdown(x) => Language::Markdown(Cow::from(x.into_owned())),
+            Self::Mediawiki(x) => {
+                Language::Mediawiki(Cow::from(x.into_owned()))
+            }
         }
     }
 
-    /// Returns a new `RawStr` which is identical but has as lifetime tied to
-    /// this `RawStr`
-    pub fn as_borrowed(&self) -> RawStr {
+    /// Returns a new `Language` which is identical but has as lifetime tied to
+    /// this `Language`
+    pub fn as_borrowed(&self) -> Language {
         use self::Cow::*;
 
         macro_rules! make_borrowed {
@@ -153,9 +155,9 @@ impl RawStr<'_> {
         }
 
         match self {
-            Self::Vimwiki(ref x) => RawStr::Vimwiki(make_borrowed!(x)),
-            Self::Markdown(ref x) => RawStr::Markdown(make_borrowed!(x)),
-            Self::Mediawiki(ref x) => RawStr::Mediawiki(make_borrowed!(x)),
+            Self::Vimwiki(ref x) => Language::Vimwiki(make_borrowed!(x)),
+            Self::Markdown(ref x) => Language::Markdown(make_borrowed!(x)),
+            Self::Mediawiki(ref x) => Language::Mediawiki(make_borrowed!(x)),
         }
     }
 }
@@ -165,7 +167,7 @@ impl RawStr<'_> {
 // CHIP CHIP CHIP
 //
 // Two things:
-// 1. RawStr doesn't really make sense. Rename it to something like LangStr
+// 1. Language doesn't really make sense. Rename it to something like LangStr
 // 2. We're very, very close to supporting the mix of owned/borrowed across the
 //    elements (I think), but Page is a blocker as it requires special handling.
 //
@@ -185,10 +187,10 @@ impl RawStr<'_> {
 //    of the line" for parsing inline content, which parsers should then
 //    check if they continue on the next line
 //
-impl<'a> FromRawStr<'a> for Page<'static> {
+impl<'a> FromLanguage<'a> for Page<'static> {
     type Error = nom::Err<parsers::Error>;
 
-    fn from_raw_str(s: &'a RawStr<'a>) -> Result<Self, Self::Error> {
+    fn from_language(s: &'a Language<'a>) -> Result<Self, Self::Error> {
         if s.is_vimwiki() {
             vimwiki::page(s.as_str().to_string())
         } else {
@@ -199,12 +201,12 @@ impl<'a> FromRawStr<'a> for Page<'static> {
 
 macro_rules! impl_try_from {
     ($t:ty, $f:expr) => {
-        impl<'a> FromRawStr<'a> for $t {
+        impl<'a> FromLanguage<'a> for $t {
             type Error = nom::Err<parsers::Error>;
 
-            fn from_raw_str(s: &'a RawStr<'a>) -> Result<Self, Self::Error> {
+            fn from_language(s: &'a Language<'a>) -> Result<Self, Self::Error> {
                 match s {
-                    RawStr::Vimwiki(x) => Ok($f(Span::from(x.as_bytes()))?.1),
+                    Language::Vimwiki(x) => Ok($f(Span::from(x.as_bytes()))?.1),
                     _ => Err(nom::Err::Failure(parsers::Error::unsupported())),
                 }
             }
@@ -338,211 +340,211 @@ mod tests {
         use super::*;
 
         #[test]
-        fn try_from_raw_str_to_page() {
-            let input = RawStr::from_vimwiki_str("some text");
+        fn parse_to_page() {
+            let input = Language::from_vimwiki_str("some text");
             let _result: Page = input.parse().expect("Failed to parse");
         }
 
         #[test]
-        fn try_from_raw_str_to_le_block_element() {
-            let input = RawStr::from_vimwiki_str("some text");
+        fn parse_to_located_block_element() {
+            let input = Language::from_vimwiki_str("some text");
             let _result: Located<BlockElement> =
                 input.parse().expect("Failed to parse");
         }
 
         #[test]
-        fn try_from_raw_str_to_le_inline_element_container() {
-            let input = RawStr::from_vimwiki_str("some text");
+        fn parse_to_located_inline_element_container() {
+            let input = Language::from_vimwiki_str("some text");
             let _result: Located<InlineElementContainer> =
                 input.parse().expect("Failed to parse");
         }
 
         #[test]
-        fn try_from_raw_str_to_le_inline_element() {
-            let input = RawStr::from_vimwiki_str("some text");
+        fn parse_to_located_inline_element() {
+            let input = Language::from_vimwiki_str("some text");
             let _result: Located<InlineElement> =
                 input.parse().expect("Failed to parse");
         }
 
         #[test]
-        fn try_from_raw_str_to_le_blockquote() {
-            let input = RawStr::from_vimwiki_str("> some text");
+        fn parse_to_located_blockquote() {
+            let input = Language::from_vimwiki_str("> some text");
             let _result: Located<Blockquote> =
                 input.parse().expect("Failed to parse");
         }
 
         #[test]
-        fn try_from_raw_str_to_le_code_inline() {
-            let input = RawStr::from_vimwiki_str("`code`");
+        fn parse_to_located_code_inline() {
+            let input = Language::from_vimwiki_str("`code`");
             let _result: Located<CodeInline> =
                 input.parse().expect("Failed to parse");
         }
 
         #[test]
-        fn try_from_raw_str_to_le_comment() {
-            let input = RawStr::from_vimwiki_str("%% some comment");
+        fn parse_to_located_comment() {
+            let input = Language::from_vimwiki_str("%% some comment");
             let _result: Located<Comment> =
                 input.parse().expect("Failed to parse");
         }
 
         #[test]
-        fn try_from_raw_str_to_le_line_comment() {
-            let input = RawStr::from_vimwiki_str("%% some comment");
+        fn parse_to_located_line_comment() {
+            let input = Language::from_vimwiki_str("%% some comment");
             let _result: Located<LineComment> =
                 input.parse().expect("Failed to parse");
         }
 
         #[test]
-        fn try_from_raw_str_to_le_multi_line_comment() {
-            let input = RawStr::from_vimwiki_str("%%+ some comment +%%");
+        fn parse_to_located_multi_line_comment() {
+            let input = Language::from_vimwiki_str("%%+ some comment +%%");
             let _result: Located<MultiLineComment> =
                 input.parse().expect("Failed to parse");
         }
 
         #[test]
-        fn try_from_raw_str_to_le_definition_list() {
-            let input = RawStr::from_vimwiki_str("term:: definition");
+        fn parse_to_located_definition_list() {
+            let input = Language::from_vimwiki_str("term:: definition");
             let _result: Located<DefinitionList> =
                 input.parse().expect("Failed to parse");
         }
 
         #[test]
-        fn try_from_raw_str_to_le_divider() {
-            let input = RawStr::from_vimwiki_str("----");
+        fn parse_to_located_divider() {
+            let input = Language::from_vimwiki_str("----");
             let _result: Located<Divider> =
                 input.parse().expect("Failed to parse");
         }
 
         #[test]
-        fn try_from_raw_str_to_le_header() {
-            let input = RawStr::from_vimwiki_str("= header =");
+        fn parse_to_located_header() {
+            let input = Language::from_vimwiki_str("= header =");
             let _result: Located<Header> =
                 input.parse().expect("Failed to parse");
         }
 
         #[test]
-        fn try_from_raw_str_to_le_link() {
-            let input = RawStr::from_vimwiki_str("[[link]]");
+        fn parse_to_located_link() {
+            let input = Language::from_vimwiki_str("[[link]]");
             let _result: Located<Link> =
                 input.parse().expect("Failed to parse");
         }
 
         #[test]
-        fn try_from_raw_str_to_le_diary_link() {
-            let input = RawStr::from_vimwiki_str("[[diary:2012-03-05]]");
+        fn parse_to_located_diary_link() {
+            let input = Language::from_vimwiki_str("[[diary:2012-03-05]]");
             let _result: Located<DiaryLink> =
                 input.parse().expect("Failed to parse");
         }
 
         #[test]
-        fn try_from_raw_str_to_le_external_file_link() {
-            let input = RawStr::from_vimwiki_str("[[file:path/to/file]]");
+        fn parse_to_located_external_file_link() {
+            let input = Language::from_vimwiki_str("[[file:path/to/file]]");
             let _result: Located<ExternalFileLink> =
                 input.parse().expect("Failed to parse");
         }
 
         #[test]
-        fn try_from_raw_str_to_le_raw_link() {
-            let input = RawStr::from_vimwiki_str("https://example.com");
+        fn parse_to_located_raw_link() {
+            let input = Language::from_vimwiki_str("https://example.com");
             let _result: Located<RawLink> =
                 input.parse().expect("Failed to parse");
         }
 
         #[test]
-        fn try_from_raw_str_to_le_transclusion_link() {
+        fn parse_to_located_transclusion_link() {
             let input =
-                RawStr::from_vimwiki_str("{{https://example.com/img.jpg}}");
+                Language::from_vimwiki_str("{{https://example.com/img.jpg}}");
             let _result: Located<TransclusionLink> =
                 input.parse().expect("Failed to parse");
         }
 
         #[test]
-        fn try_from_raw_str_to_le_wiki_link() {
-            let input = RawStr::from_vimwiki_str("[[link]]");
+        fn parse_to_located_wiki_link() {
+            let input = Language::from_vimwiki_str("[[link]]");
             let _result: Located<WikiLink> =
                 input.parse().expect("Failed to parse");
         }
 
         #[test]
-        fn try_from_raw_str_to_le_inter_wiki_link() {
-            let input = RawStr::from_vimwiki_str("[[wiki1:link]]");
+        fn parse_to_located_inter_wiki_link() {
+            let input = Language::from_vimwiki_str("[[wiki1:link]]");
             let _result: Located<InterWikiLink> =
                 input.parse().expect("Failed to parse");
         }
 
         #[test]
-        fn try_from_raw_str_to_le_list() {
-            let input = RawStr::from_vimwiki_str("- some list item");
+        fn parse_to_located_list() {
+            let input = Language::from_vimwiki_str("- some list item");
             let _result: Located<List> =
                 input.parse().expect("Failed to parse");
         }
 
         #[test]
-        fn try_from_raw_str_to_le_math_inline() {
-            let input = RawStr::from_vimwiki_str("$math$");
+        fn parse_to_located_math_inline() {
+            let input = Language::from_vimwiki_str("$math$");
             let _result: Located<MathInline> =
                 input.parse().expect("Failed to parse");
         }
 
         #[test]
-        fn try_from_raw_str_to_le_math_block() {
-            let input = RawStr::from_vimwiki_str("{{$\nmath\n}}$");
+        fn parse_to_located_math_block() {
+            let input = Language::from_vimwiki_str("{{$\nmath\n}}$");
             let _result: Located<MathBlock> =
                 input.parse().expect("Failed to parse");
         }
 
         #[test]
-        fn try_from_raw_str_to_le_paragraph() {
-            let input = RawStr::from_vimwiki_str("some text");
+        fn parse_to_located_paragraph() {
+            let input = Language::from_vimwiki_str("some text");
             let _result: Located<Paragraph> =
                 input.parse().expect("Failed to parse");
         }
 
         #[test]
-        fn try_from_raw_str_to_le_placeholder() {
-            let input = RawStr::from_vimwiki_str("%title some text");
+        fn parse_to_located_placeholder() {
+            let input = Language::from_vimwiki_str("%title some text");
             let _result: Located<Placeholder> =
                 input.parse().expect("Failed to parse");
         }
 
         #[test]
-        fn try_from_raw_str_to_le_preformatted_text() {
-            let input = RawStr::from_vimwiki_str("{{{\nsome code\n}}}");
+        fn parse_to_located_preformatted_text() {
+            let input = Language::from_vimwiki_str("{{{\nsome code\n}}}");
             let _result: Located<PreformattedText> =
                 input.parse().expect("Failed to parse");
         }
 
         #[test]
-        fn try_from_raw_str_to_le_table() {
-            let input = RawStr::from_vimwiki_str("|cell|");
+        fn parse_to_located_table() {
+            let input = Language::from_vimwiki_str("|cell|");
             let _result: Located<Table> =
                 input.parse().expect("Failed to parse");
         }
 
         #[test]
-        fn try_from_raw_str_to_le_tags() {
-            let input = RawStr::from_vimwiki_str(":tag:");
+        fn parse_to_located_tags() {
+            let input = Language::from_vimwiki_str(":tag:");
             let _result: Located<Tags> =
                 input.parse().expect("Failed to parse");
         }
 
         #[test]
-        fn try_from_raw_str_to_le_text() {
-            let input = RawStr::from_vimwiki_str("some text");
+        fn parse_to_located_text() {
+            let input = Language::from_vimwiki_str("some text");
             let _result: Located<Text> =
                 input.parse().expect("Failed to parse");
         }
 
         #[test]
-        fn try_from_raw_str_to_le_decorated_text() {
-            let input = RawStr::from_vimwiki_str("*some text*");
+        fn parse_to_located_decorated_text() {
+            let input = Language::from_vimwiki_str("*some text*");
             let _result: Located<DecoratedText> =
                 input.parse().expect("Failed to parse");
         }
 
         #[test]
-        fn try_from_raw_str_to_le_keyword() {
-            let input = RawStr::from_vimwiki_str("TODO");
+        fn parse_to_located_keyword() {
+            let input = Language::from_vimwiki_str("TODO");
             let _result: Located<Keyword> =
                 input.parse().expect("Failed to parse");
         }

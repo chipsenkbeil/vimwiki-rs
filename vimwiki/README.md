@@ -16,7 +16,6 @@ vimwiki = "0.1.0-alpha.2"
 ## Examples
 
 ```rust
-use std::convert::TryInto;
 use vimwiki::{RawStr, LE, elements::*};
 
 // Load a file into a String

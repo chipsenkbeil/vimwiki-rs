@@ -4,6 +4,33 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
+//
+// CHIP CHIP CHIP CHIP
+//
+// This should be rewritten (again) since we've refactored a lot of code
+// and it's easier to pass around owned references of elements. It also may
+// make sense to have a separate struct for a page tree versus an element
+// tree so we don't have a boatload of page references floating around
+//
+// Make something like this:
+//
+// pub struct ElementTree<'a> {
+//     parent: Option<Box<Tree<'a>>>,
+//     element: Element<'a>,
+// }
+//
+// impl<'a> ElementTree<'a> {
+//     pub fn from(element: impl Into<Element<'a>>) -> Self {
+//         // ...
+//     }
+// }
+//
+// impl<'a> From<Header<'a>> for ElementTree<'a> {
+//     // ...
+// }
+//
+//
+
 /// Represents an immutable tree containing references to elements within a page
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ElementTree<'a> {
