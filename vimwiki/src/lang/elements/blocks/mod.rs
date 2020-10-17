@@ -42,6 +42,38 @@ pub enum BlockElement<'a> {
     Table(Table<'a>),
 }
 
+impl BlockElement<'_> {
+    pub fn to_borrowed(&self) -> BlockElement {
+        match self {
+            Self::Blockquote(x) => BlockElement::from(x.to_borrowed()),
+            Self::DefinitionList(x) => BlockElement::from(x.to_borrowed()),
+            Self::Divider(x) => BlockElement::from(x.as_borrowed()),
+            Self::Header(x) => BlockElement::from(x.to_borrowed()),
+            Self::List(x) => BlockElement::from(x.to_borrowed()),
+            Self::Math(x) => BlockElement::from(x.to_borrowed()),
+            Self::Paragraph(x) => BlockElement::from(x.to_borrowed()),
+            Self::Placeholder(x) => BlockElement::from(x.to_borrowed()),
+            Self::PreformattedText(x) => BlockElement::from(x.to_borrowed()),
+            Self::Table(x) => BlockElement::from(x.to_borrowed()),
+        }
+    }
+
+    pub fn into_owned(self) -> BlockElement<'static> {
+        match self {
+            Self::Blockquote(x) => BlockElement::from(x.into_owned()),
+            Self::DefinitionList(x) => BlockElement::from(x.into_owned()),
+            Self::Divider(x) => BlockElement::from(x.into_owned()),
+            Self::Header(x) => BlockElement::from(x.into_owned()),
+            Self::List(x) => BlockElement::from(x.into_owned()),
+            Self::Math(x) => BlockElement::from(x.into_owned()),
+            Self::Paragraph(x) => BlockElement::from(x.into_owned()),
+            Self::Placeholder(x) => BlockElement::from(x.into_owned()),
+            Self::PreformattedText(x) => BlockElement::from(x.into_owned()),
+            Self::Table(x) => BlockElement::from(x.into_owned()),
+        }
+    }
+}
+
 macro_rules! le_mapping {
     ($type:ty) => {
         impl<'a> From<Located<$type>> for Located<BlockElement<'a>> {
@@ -83,6 +115,26 @@ impl<'a, T> TypedBlockElement<'a, T> {
 
     pub fn as_mut_inner(&mut self) -> &mut BlockElement<'a> {
         &mut self.inner
+    }
+}
+
+impl<T> TypedBlockElement<'_, T> {
+    pub fn to_borrowed(&self) -> TypedBlockElement<'_, T> {
+        let inner = self.inner.to_borrowed();
+
+        TypedBlockElement {
+            inner,
+            phantom: PhantomData,
+        }
+    }
+
+    pub fn into_owned(self) -> TypedBlockElement<'static, T> {
+        let inner = self.inner.into_owned();
+
+        TypedBlockElement {
+            inner,
+            phantom: PhantomData,
+        }
     }
 }
 

@@ -14,6 +14,57 @@ pub enum Placeholder<'a> {
     },
 }
 
+impl Placeholder<'_> {
+    pub fn to_borrowed(&self) -> Placeholder {
+        use self::Cow::*;
+        match self {
+            Self::Title(ref x) => Placeholder::Title(Cow::Borrowed(match x {
+                Borrowed(x) => *x,
+                Owned(x) => x.as_str(),
+            })),
+            Self::NoHtml => Placeholder::NoHtml,
+            Self::Template(ref x) => {
+                Placeholder::Template(Cow::Borrowed(match x {
+                    Borrowed(x) => *x,
+                    Owned(x) => x.as_str(),
+                }))
+            }
+            Self::Date(x) => Placeholder::Date(*x),
+            Self::Other {
+                ref name,
+                ref value,
+            } => Placeholder::Other {
+                name: Cow::Borrowed(match name {
+                    Borrowed(x) => *x,
+                    Owned(x) => x.as_str(),
+                }),
+                value: Cow::Borrowed(match value {
+                    Borrowed(x) => *x,
+                    Owned(x) => x.as_str(),
+                }),
+            },
+        }
+    }
+
+    pub fn into_owned(self) -> Placeholder<'static> {
+        match self {
+            Self::Title(ref x) => Placeholder::Title(Cow::from(x.into_owned())),
+            Self::NoHtml => Placeholder::NoHtml,
+            Self::Template(ref x) => {
+                Placeholder::Template(Cow::from(x.into_owned()))
+            }
+            Self::Date(x) => Placeholder::Date(x),
+            Self::Other {
+                ref name,
+                ref value,
+            } => Placeholder::Other {
+                name: Cow::from(name.into_owned()),
+                value: Cow::from(value.into_owned()),
+            },
+        }
+    }
+}
+
 impl<'a> Placeholder<'a> {
     pub fn title_from_str(title: &'a str) -> Self {
         Self::Title(Cow::from(title))

@@ -12,6 +12,22 @@ pub enum InterWikiLink<'a> {
     Named(NamedInterWikiLink<'a>),
 }
 
+impl InterWikiLink<'_> {
+    pub fn to_borrowed(&self) -> InterWikiLink {
+        match self {
+            Self::Indexed(x) => InterWikiLink::from(x.to_borrowed()),
+            Self::Named(x) => InterWikiLink::from(x.to_borrowed()),
+        }
+    }
+
+    pub fn into_owned(self) -> InterWikiLink<'static> {
+        match self {
+            Self::Indexed(x) => InterWikiLink::from(x.into_owned()),
+            Self::Named(x) => InterWikiLink::from(x.into_owned()),
+        }
+    }
+}
+
 impl<'a> InterWikiLink<'a> {
     /// Returns the index associated with this interwiki link if it is an
     /// indexed interwiki link
@@ -61,6 +77,22 @@ pub struct IndexedInterWikiLink<'a> {
     pub link: WikiLink<'a>,
 }
 
+impl IndexedInterWikiLink<'_> {
+    pub fn to_borrowed(&self) -> IndexedInterWikiLink {
+        IndexedInterWikiLink {
+            index: self.index,
+            link: self.link.to_borrowed(),
+        }
+    }
+
+    pub fn into_owned(self) -> IndexedInterWikiLink<'static> {
+        IndexedInterWikiLink {
+            index: self.index,
+            link: self.link.into_owned(),
+        }
+    }
+}
+
 impl<'a> fmt::Display for IndexedInterWikiLink<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.link)
@@ -81,6 +113,27 @@ impl<'a> From<(u32, WikiLink<'a>)> for IndexedInterWikiLink<'a> {
 pub struct NamedInterWikiLink<'a> {
     pub name: Cow<'a, str>,
     pub link: WikiLink<'a>,
+}
+
+impl NamedInterWikiLink<'_> {
+    pub fn to_borrowed(&self) -> NamedInterWikiLink {
+        use self::Cow::*;
+
+        NamedInterWikiLink {
+            name: Cow::Borrowed(match &self.name {
+                Borrowed(x) => *x,
+                Owned(x) => x.as_str(),
+            }),
+            link: self.link.to_borrowed(),
+        }
+    }
+
+    pub fn into_owned(self) -> NamedInterWikiLink<'static> {
+        NamedInterWikiLink {
+            name: Cow::from(self.name.into_owned()),
+            link: self.link.into_owned(),
+        }
+    }
 }
 
 impl<'a> fmt::Display for NamedInterWikiLink<'a> {

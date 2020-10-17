@@ -21,6 +21,22 @@ pub struct Page<'a> {
     pub comments: Vec<Located<Comment<'a>>>,
 }
 
+impl Page<'_> {
+    pub fn as_borrowed(&self) -> Page {
+        let elements = self.elements.iter().map(|e| e.as_borrowed()).collect();
+        let comments = self.comments.iter().map(|c| c.as_borrowed()).collect();
+
+        Page { elements, comments }
+    }
+
+    pub fn into_owned(self) -> Page<'static> {
+        let elements = self.elements.iter().map(|e| e.into_owned()).collect();
+        let comments = self.comments.iter().map(|c| c.into_owned()).collect();
+
+        Page { elements, comments }
+    }
+}
+
 /// Represents either a `BlockElement` or `InlineElement`
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Element<'a, 'b> {

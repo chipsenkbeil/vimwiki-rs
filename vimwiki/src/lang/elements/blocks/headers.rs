@@ -11,6 +11,24 @@ pub struct Header<'a> {
     pub centered: bool,
 }
 
+impl Header<'_> {
+    pub fn to_borrowed(&self) -> Header {
+        Header {
+            level: self.level,
+            content: self.content.to_borrowed(),
+            centered: self.centered,
+        }
+    }
+
+    pub fn into_owned(self) -> Header<'static> {
+        Header {
+            level: self.level,
+            content: self.content.into_owned(),
+            centered: self.centered,
+        }
+    }
+}
+
 impl<'a> Header<'a> {
     /// Represents the smallest a header's level can be
     pub const MIN_LEVEL: usize = 1;

@@ -34,6 +34,20 @@ use std::{borrow::Cow, fmt};
 )]
 pub struct Tags<'a>(pub Vec<Tag<'a>>);
 
+impl Tags<'_> {
+    pub fn to_borrowed(&self) -> Tags {
+        let inner = self.0.iter().map(|x| x.as_borrowed()).collect();
+
+        Tags(inner)
+    }
+
+    pub fn into_owned(self) -> Tags<'static> {
+        let inner = self.0.iter().map(|x| x.into_owned()).collect();
+
+        Tags(inner)
+    }
+}
+
 impl<'a> fmt::Display for Tags<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for tag in self.0.iter() {
@@ -78,6 +92,25 @@ impl<'a> From<&'a str> for Tags<'a> {
     Deserialize,
 )]
 pub struct Tag<'a>(pub Cow<'a, str>);
+
+impl Tag<'_> {
+    pub fn as_borrowed(&self) -> Tag {
+        use self::Cow::*;
+
+        let inner = Cow::Borrowed(match &self.0 {
+            Borrowed(x) => *x,
+            Owned(x) => x.as_str(),
+        });
+
+        Tag(inner)
+    }
+
+    pub fn into_owned(self) -> Tag<'static> {
+        let inner = Cow::from(self.0.into_owned());
+
+        Tag(inner)
+    }
+}
 
 impl<'a> From<&'a str> for Tag<'a> {
     fn from(s: &'a str) -> Self {

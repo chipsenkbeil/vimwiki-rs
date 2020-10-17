@@ -7,6 +7,7 @@ use nom::{
 };
 use std::{
     borrow::Cow,
+    convert::TryFrom,
     fmt::{Display, Formatter, Result as FmtResult},
     iter::Enumerate,
     ops::{Range, RangeFrom, RangeFull, RangeTo},
@@ -252,23 +253,35 @@ impl<'a> DoubleEndedIterator for SpanIterator<'a> {
 /*****************************************************************************/
 
 impl<'a> From<Span<'a>> for Cow<'a, [u8]> {
-    /// Converts into remaining bytes
-    fn from(span: Span<'a>) -> Self {
-        Self::from(span.as_remaining())
+    /// Converts into remaining bytes by allocating new bytes
+    fn from(span: Span<'a>) -> Cow<'a, [u8]> {
+        Cow::from(&span.inner[span.start..span.end])
     }
 }
 
 impl<'a> From<Span<'a>> for Cow<'a, str> {
-    /// Converts into remaining bytes as str
-    fn from(span: Span<'a>) -> Self {
-        Self::from(span.as_unsafe_remaining_str())
+    /// Converts into remaining bytes as str by allocating a new string
+    fn from(span: Span<'a>) -> Cow<'a, str> {
+        Cow::from(unsafe {
+            std::str::from_utf8_unchecked(&span.inner[span.start..span.end])
+        })
     }
 }
 
 impl<'a> From<Span<'a>> for Cow<'a, Path> {
-    /// Converts into remaining bytes as str
-    fn from(span: Span<'a>) -> Self {
-        Self::from(Path::new(span.as_unsafe_remaining_str()))
+    /// Converts into remaining bytes as path by allocating a new path
+    fn from(span: Span<'a>) -> Cow<'a, Path> {
+        Cow::from(Path::new(unsafe {
+            std::str::from_utf8_unchecked(&span.inner[span.start..span.end])
+        }))
+    }
+}
+
+impl<'a> TryFrom<Span<'a>> for uriparse::URI<'a> {
+    type Error = uriparse::URIError;
+
+    fn try_from(span: Span<'a>) -> Result<Self, Self::Error> {
+        uriparse::URI::try_from(&span.inner[span.start..span.end])
     }
 }
 

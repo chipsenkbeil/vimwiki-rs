@@ -1,4 +1,4 @@
-use super::Description;
+use super::{uri_to_borrowed, Description};
 use derive_more::Constructor;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -16,6 +16,55 @@ pub struct TransclusionLink<'a> {
     pub uri: URI<'a>,
     pub description: Option<Description<'a>>,
     pub properties: HashMap<Cow<'a, str>, Cow<'a, str>>,
+}
+
+impl TransclusionLink<'_> {
+    pub fn to_borrowed(&self) -> TransclusionLink {
+        use self::Cow::*;
+
+        let uri = uri_to_borrowed(&self.uri);
+        let description = self.description.map(|x| x.to_borrowed());
+        let properties = self
+            .properties
+            .iter()
+            .map(|(key, value)| {
+                let key = Cow::Borrowed(match key {
+                    Borrowed(x) => *x,
+                    Owned(x) => x.as_str(),
+                });
+                let value = Cow::Borrowed(match value {
+                    Borrowed(x) => *x,
+                    Owned(x) => x.as_str(),
+                });
+
+                (key, value)
+            })
+            .collect();
+
+        TransclusionLink {
+            uri,
+            description,
+            properties,
+        }
+    }
+
+    pub fn into_owned(self) -> TransclusionLink<'static> {
+        let uri = self.uri.into_owned();
+        let description = self.description.map(|x| x.into_owned());
+        let properties = self
+            .properties
+            .iter()
+            .map(|(key, value)| {
+                (Cow::from(key.into_owned()), Cow::from(value.into_owned()))
+            })
+            .collect();
+
+        TransclusionLink {
+            uri,
+            description,
+            properties,
+        }
+    }
 }
 
 impl<'a> TransclusionLink<'a> {

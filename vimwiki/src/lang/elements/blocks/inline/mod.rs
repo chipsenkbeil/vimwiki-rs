@@ -32,6 +32,32 @@ pub enum InlineElement<'a> {
     Math(MathInline<'a>),
 }
 
+impl InlineElement<'_> {
+    pub fn to_borrowed(&self) -> InlineElement {
+        match self {
+            Self::Text(x) => InlineElement::from(x.as_borrowed()),
+            Self::DecoratedText(x) => InlineElement::from(x.to_borrowed()),
+            Self::Keyword(x) => InlineElement::from(x.as_borrowed()),
+            Self::Link(x) => InlineElement::from(x.to_borrowed()),
+            Self::Tags(x) => InlineElement::from(x.to_borrowed()),
+            Self::Code(x) => InlineElement::from(x.as_borrowed()),
+            Self::Math(x) => InlineElement::from(x.as_borrowed()),
+        }
+    }
+
+    pub fn into_owned(&self) -> InlineElement<'static> {
+        match self {
+            Self::Text(x) => InlineElement::from(x.into_owned()),
+            Self::DecoratedText(x) => InlineElement::from(x.into_owned()),
+            Self::Keyword(x) => InlineElement::from(x.into_owned()),
+            Self::Link(x) => InlineElement::from(x.into_owned()),
+            Self::Tags(x) => InlineElement::from(x.into_owned()),
+            Self::Code(x) => InlineElement::from(x.into_owned()),
+            Self::Math(x) => InlineElement::from(x.into_owned()),
+        }
+    }
+}
+
 /// Represents a wrapper around a `InlineElement` where we already know the
 /// type it will be and can therefore convert to either the `InlineElement`
 /// or the inner type
@@ -53,6 +79,26 @@ impl<'a, T> TypedInlineElement<'a, T> {
 
     pub fn as_mut_inner(&mut self) -> &mut InlineElement<'a> {
         &mut self.inner
+    }
+}
+
+impl<T> TypedInlineElement<'_, T> {
+    pub fn to_borrowed(&self) -> TypedInlineElement<'_, T> {
+        let inner = self.inner.to_borrowed();
+
+        TypedInlineElement {
+            inner,
+            phantom: PhantomData,
+        }
+    }
+
+    pub fn into_owned(self) -> TypedInlineElement<'static, T> {
+        let inner = self.inner.into_owned();
+
+        TypedInlineElement {
+            inner,
+            phantom: PhantomData,
+        }
     }
 }
 
@@ -120,6 +166,28 @@ typed_inline_element_impl!(MathInline<'a>, Math, math_inline);
 )]
 pub struct InlineElementContainer<'a> {
     pub elements: Vec<Located<InlineElement<'a>>>,
+}
+
+impl InlineElementContainer<'_> {
+    pub fn to_borrowed(&self) -> InlineElementContainer {
+        let elements = self
+            .elements
+            .iter()
+            .map(|x| Located::new(x.as_inner().to_borrowed(), x.region))
+            .collect();
+
+        InlineElementContainer { elements }
+    }
+
+    pub fn into_owned(self) -> InlineElementContainer<'static> {
+        let elements = self
+            .elements
+            .iter()
+            .map(|x| Located::new(x.as_inner().into_owned(), x.region))
+            .collect();
+
+        InlineElementContainer { elements }
+    }
 }
 
 impl<'a> fmt::Display for InlineElementContainer<'a> {

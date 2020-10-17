@@ -42,6 +42,42 @@ pub enum Description<'a> {
     URI(URI<'a>),
 }
 
+impl Description<'_> {
+    pub fn to_borrowed(&self) -> Description {
+        use self::Cow::*;
+
+        match self {
+            Self::Text(ref x) => Description::from(Cow::Borrowed(match x {
+                Borrowed(x) => *x,
+                Owned(x) => x.as_str(),
+            })),
+            Self::URI(ref x) => Description::from(uri_to_borrowed(x)),
+        }
+    }
+
+    pub fn into_owned(self) -> Description<'static> {
+        match self {
+            Self::Text(x) => Description::from(Cow::from(x.into_owned())),
+            Self::URI(x) => Description::from(x.into_owned()),
+        }
+    }
+}
+
+/// Helper function to borrow a `URI` similar to our other approaches as the
+/// functionality is not available directly in the `uriparse` crate
+fn uri_to_borrowed<'a>(uri: &URI<'a>) -> URI<'a> {
+    let scheme = uri.scheme().as_borrowed();
+    let authority = uri.authority().map(|x| x.as_borrowed());
+    let query = uri.query().map(|x| x.as_borrowed());
+    let fragment = uri.fragment().map(|x| x.as_borrowed());
+
+    // NOTE: Requires an allocation of a new Vec of borrowed elements
+    let path = uri.path().to_borrowed();
+
+    URI::from_parts(scheme, authority, path, query, fragment)
+        .expect("URI failed to borrow itself")
+}
+
 impl<'a> From<&'a str> for Description<'a> {
     fn from(s: &'a str) -> Self {
         Self::from(Cow::from(s))
@@ -68,6 +104,35 @@ impl<'a> From<&'a str> for Description<'a> {
 )]
 pub struct Anchor<'a> {
     pub elements: Vec<Cow<'a, str>>,
+}
+
+impl Anchor<'_> {
+    pub fn to_borrowed(&self) -> Anchor {
+        use self::Cow::*;
+
+        let elements = self
+            .elements
+            .iter()
+            .map(|x| {
+                Cow::Borrowed(match x {
+                    Borrowed(x) => *x,
+                    Owned(x) => x.as_str(),
+                })
+            })
+            .collect();
+
+        Anchor { elements }
+    }
+
+    pub fn into_owned(self) -> Anchor<'static> {
+        let elements = self
+            .elements
+            .iter()
+            .map(|x| Cow::from(x.into_owned()))
+            .collect();
+
+        Anchor { elements }
+    }
 }
 
 impl<'a> fmt::Display for Anchor<'a> {
@@ -102,6 +167,30 @@ pub enum Link<'a> {
     Raw(RawLink<'a>),
     ExternalFile(ExternalFileLink<'a>),
     Transclusion(TransclusionLink<'a>),
+}
+
+impl Link<'_> {
+    pub fn to_borrowed(&self) -> Link {
+        match self {
+            Self::Wiki(x) => Link::from(x.to_borrowed()),
+            Self::InterWiki(x) => Link::from(x.to_borrowed()),
+            Self::Diary(x) => Link::from(x.to_borrowed()),
+            Self::Raw(x) => Link::from(x.to_borrowed()),
+            Self::ExternalFile(x) => Link::from(x.to_borrowed()),
+            Self::Transclusion(x) => Link::from(x.to_borrowed()),
+        }
+    }
+
+    pub fn into_owned(self) -> Link<'static> {
+        match self {
+            Self::Wiki(x) => Link::from(x.into_owned()),
+            Self::InterWiki(x) => Link::from(x.into_owned()),
+            Self::Diary(x) => Link::from(x.into_owned()),
+            Self::Raw(x) => Link::from(x.into_owned()),
+            Self::ExternalFile(x) => Link::from(x.into_owned()),
+            Self::Transclusion(x) => Link::from(x.into_owned()),
+        }
+    }
 }
 
 impl<'a> Link<'a> {

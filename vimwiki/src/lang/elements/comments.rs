@@ -8,10 +8,43 @@ pub enum Comment<'a> {
     MultiLine(MultiLineComment<'a>),
 }
 
+impl Comment<'_> {
+    pub fn as_borrowed(&self) -> Comment {
+        match self {
+            Self::Line(x) => Comment::from(x.as_borrowed()),
+            Self::MultiLine(x) => Comment::from(x.as_borrowed()),
+        }
+    }
+
+    pub fn into_owned(self) -> Comment<'static> {
+        match self {
+            Self::Line(x) => Comment::from(x.into_owned()),
+            Self::MultiLine(x) => Comment::from(x.into_owned()),
+        }
+    }
+}
+
 #[derive(
     Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
 )]
 pub struct LineComment<'a>(pub Cow<'a, str>);
+
+impl LineComment<'_> {
+    pub fn as_borrowed(&self) -> LineComment {
+        use self::Cow::*;
+
+        let inner = match &self.0 {
+            Borrowed(x) => *x,
+            Owned(x) => x.as_str(),
+        };
+
+        LineComment(Cow::Borrowed(inner))
+    }
+
+    pub fn into_owned(self) -> LineComment<'static> {
+        LineComment(Cow::from(self.0.into_owned()))
+    }
+}
 
 impl<'a> From<&'a str> for LineComment<'a> {
     fn from(s: &'a str) -> Self {
@@ -29,6 +62,31 @@ impl<'a> From<String> for LineComment<'a> {
     Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
 )]
 pub struct MultiLineComment<'a>(pub Vec<Cow<'a, str>>);
+
+impl MultiLineComment<'_> {
+    pub fn as_borrowed(&self) -> MultiLineComment {
+        use self::Cow::*;
+
+        let inner = self
+            .0
+            .iter()
+            .map(|x| {
+                Cow::Borrowed(match x {
+                    Borrowed(x) => *x,
+                    Owned(x) => x.as_str(),
+                })
+            })
+            .collect();
+
+        MultiLineComment(inner)
+    }
+
+    pub fn into_owned(self) -> MultiLineComment<'static> {
+        let inner = self.0.iter().map(|x| Cow::from(x.into_owned())).collect();
+
+        MultiLineComment(inner)
+    }
+}
 
 impl<'a> From<&'a str> for MultiLineComment<'a> {
     fn from(s: &'a str) -> Self {

@@ -1,8 +1,18 @@
 use crate::lang::{
-    elements::{Link, Located},
-    parsers::{utils::context, IResult, Span},
+    elements::{Anchor, Description, Link, Located},
+    parsers::{
+        utils::{context, cow_path, cow_str, take_line_while1, uri},
+        IResult, Span,
+    },
 };
-use nom::{branch::alt, combinator::map};
+use nom::{
+    branch::alt,
+    bytes::complete::tag,
+    combinator::{map, map_parser, not, rest},
+    multi::separated_list,
+    sequence::{delimited, preceded},
+};
+use std::{borrow::Cow, path::Path};
 
 pub(crate) mod diary;
 pub(crate) mod external;
@@ -57,6 +67,58 @@ pub fn link(input: Span) -> IResult<Located<Link>> {
             map(raw::raw_link, |c| c.map(Link::from)),
             map(transclusion::transclusion_link, |c| c.map(Link::from)),
         )),
+    )(input)
+}
+
+/// Extracts the path-portion of a link
+fn link_path<'a>(input: Span<'a>) -> IResult<Cow<'a, Path>> {
+    preceded(
+        not(tag("#")),
+        cow_path(take_line_while1(not(alt((tag("|"), tag("#"), tag("]]")))))),
+    )(input)
+}
+
+/// Extracts the anchor-portion of a link
+fn link_anchor<'a>(input: Span<'a>) -> IResult<Anchor<'a>> {
+    preceded(
+        tag("#"),
+        map(
+            separated_list(
+                tag("#"),
+                cow_str(take_line_while1(not(alt((
+                    tag("|"),
+                    tag("#"),
+                    tag("]]"),
+                ))))),
+            ),
+            Anchor::new,
+        ),
+    )(input)
+}
+
+/// Extracts the description-portion of a link
+fn link_description<'a>(input: Span<'a>) -> IResult<Description<'a>> {
+    map_parser(
+        take_line_while1(not(tag("]]"))),
+        alt((
+            description_from_uri,
+            map(rest, |s: Span| Description::Text(s.into())),
+        )),
+    )(input)
+}
+
+// NOTE: This function exists purely because we were hitting some nom
+//       error about type-length limit being reached and that means that
+//       we've nested too many parsers without breaking them up into
+//       functions that do NOT take parsers at input
+fn description_from_uri<'a>(input: Span<'a>) -> IResult<Description<'a>> {
+    map(
+        delimited(
+            tag("{{"),
+            map_parser(take_line_while1(not(tag("}}"))), uri),
+            tag("}}"),
+        ),
+        Description::from,
     )(input)
 }
 

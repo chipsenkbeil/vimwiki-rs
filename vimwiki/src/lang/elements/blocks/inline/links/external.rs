@@ -21,6 +21,37 @@ pub struct ExternalFileLink<'a> {
     pub description: Option<Description<'a>>,
 }
 
+impl ExternalFileLink<'_> {
+    pub fn to_borrowed(&self) -> ExternalFileLink {
+        use self::Cow::*;
+
+        let scheme = self.scheme;
+        let path = Cow::Borrowed(match &self.path {
+            Borrowed(x) => *x,
+            Owned(x) => x.as_path(),
+        });
+        let description = self.description.map(|x| x.to_borrowed());
+
+        ExternalFileLink {
+            scheme,
+            path,
+            description,
+        }
+    }
+
+    pub fn into_owned(self) -> ExternalFileLink<'static> {
+        let scheme = self.scheme;
+        let path = Cow::from(self.path.into_owned());
+        let description = self.description.map(|x| x.into_owned());
+
+        ExternalFileLink {
+            scheme,
+            path,
+            description,
+        }
+    }
+}
+
 impl<'a> ExternalFileLink<'a> {
     /// Creates new external file link with no description
     pub fn using_scheme_and_path(

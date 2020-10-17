@@ -1,46 +1,82 @@
-use crate::lang::elements::InlineElementContainer;
-use derive_more::Constructor;
+use crate::lang::elements::{InlineElementContainer, Located};
+use derive_more::{Constructor, Display};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::{
+    collections::{hash_map, HashMap},
+    hash::{Hash, Hasher},
+};
 
-/// Represents the type used for a single term
-pub type Term<'a> = InlineElementContainer<'a>;
+/// Represents the newtype used for terms & definitions
+#[derive(Constructor, Clone, Debug, Display, Serialize, Deserialize)]
+#[display(fmt = "{}", _0)]
+#[serde(transparent)]
+pub struct DefinitionListValue<'a>(InlineElementContainer<'a>);
 
-/// Represents the type used for a single definition
-pub type Definition<'a> = InlineElementContainer<'a>;
+impl DefinitionListValue<'_> {
+    pub fn to_borrowed(&self) -> DefinitionListValue {
+        DefinitionListValue(self.0.to_borrowed())
+    }
 
-/// Represents a term and associated definitions
-#[derive(Constructor, Clone, Debug, Serialize, Deserialize)]
-pub struct TermAndDefinitions<'a> {
-    pub term: Term<'a>,
-    pub definitions: Vec<Definition<'a>>,
+    pub fn into_owned(self) -> DefinitionListValue<'static> {
+        DefinitionListValue(self.0.into_owned())
+    }
 }
 
-impl<'a> Eq for TermAndDefinitions<'a> {}
+impl<'a> DefinitionListValue<'a> {
+    pub fn as_inner(&self) -> &InlineElementContainer<'a> {
+        &self.0
+    }
 
-impl<'a> PartialEq for TermAndDefinitions<'a> {
+    pub fn into_inner(self) -> InlineElementContainer<'a> {
+        self.0
+    }
+}
+
+impl<'a> Hash for DefinitionListValue<'a> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.to_string().hash(state);
+    }
+}
+
+impl<'a> Eq for DefinitionListValue<'a> {}
+
+impl<'a> PartialEq for DefinitionListValue<'a> {
     fn eq(&self, other: &Self) -> bool {
-        self.term.to_string() == other.term.to_string()
+        self.to_string() == other.to_string()
     }
 }
 
-impl<'a, 'b> PartialEq<InlineElementContainer<'b>> for TermAndDefinitions<'a> {
+impl<'a, 'b> PartialEq<InlineElementContainer<'b>> for DefinitionListValue<'a> {
     fn eq(&self, other: &InlineElementContainer<'b>) -> bool {
-        self.term.to_string() == other.to_string()
+        self.to_string() == other.to_string()
     }
 }
 
-impl<'a> PartialEq<String> for TermAndDefinitions<'a> {
+impl<'a> PartialEq<String> for DefinitionListValue<'a> {
     fn eq(&self, other: &String) -> bool {
-        &self.term.to_string() == other
+        &self.to_string() == other
     }
 }
 
-impl<'a, 'b> PartialEq<&'b str> for TermAndDefinitions<'a> {
+impl<'a, 'b> PartialEq<&'b str> for DefinitionListValue<'a> {
     fn eq(&self, other: &&'b str) -> bool {
-        &self.term.to_string() == other
+        &self.to_string() == other
     }
 }
+
+impl<'a> From<&'a str> for DefinitionListValue<'a> {
+    /// Creates a new term by wrapping the given str in `Located` and then
+    /// wrapping that in `InlineElementContainer`
+    fn from(s: &'a str) -> Self {
+        Self::new(InlineElementContainer::from(Located::from(s)))
+    }
+}
+
+/// Represents the type alias used for a single term
+pub type Term<'a> = DefinitionListValue<'a>;
+
+/// Represents the type alias used for a single definition
+pub type Definition<'a> = DefinitionListValue<'a>;
 
 /// Represents a list of terms and definitions, where a term can have multiple
 /// definitions associated with it
@@ -48,40 +84,74 @@ impl<'a, 'b> PartialEq<&'b str> for TermAndDefinitions<'a> {
     Constructor, Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize,
 )]
 pub struct DefinitionList<'a> {
-    terms_and_definitions: HashMap<String, TermAndDefinitions<'a>>,
+    mapping: HashMap<Term<'a>, Vec<Definition<'a>>>,
+}
+
+impl DefinitionList<'_> {
+    pub fn to_borrowed(&self) -> DefinitionList {
+        let mapping = self
+            .mapping
+            .iter()
+            .map(|(key, value)| {
+                (
+                    key.to_borrowed(),
+                    value.iter().map(|x| x.to_borrowed()).collect(),
+                )
+            })
+            .collect();
+
+        DefinitionList { mapping }
+    }
+
+    pub fn into_owned(self) -> DefinitionList<'static> {
+        let mapping = self
+            .mapping
+            .iter()
+            .map(|(key, value)| {
+                (
+                    key.into_owned(),
+                    value.iter().map(|x| x.into_owned()).collect(),
+                )
+            })
+            .collect();
+
+        DefinitionList { mapping }
+    }
 }
 
 impl<'a> DefinitionList<'a> {
-    /// Retrieves a term and its associated definitions
-    pub fn get(&self, term: &str) -> Option<&TermAndDefinitions<'a>> {
-        self.terms_and_definitions.get(term)
+    /// Retrieves definitions for an specific term
+    pub fn get(
+        &'a self,
+        term: impl Into<Term<'a>>,
+    ) -> Option<&Vec<Definition<'a>>> {
+        self.mapping.get(&term.into())
     }
 
-    /// Iterates through all term and definitions instances in list
-    pub fn iter(&self) -> impl Iterator<Item = &TermAndDefinitions<'a>> {
-        self.terms_and_definitions.values()
+    /// Iterates through all terms and their associated definitions in the list
+    pub fn iter(&self) -> hash_map::Iter<'_, Term<'a>, Vec<Definition<'a>>> {
+        self.mapping.iter()
     }
 
     /// Iterates through all terms in the list
-    pub fn terms(&self) -> impl Iterator<Item = &Term<'a>> {
-        self.terms_and_definitions.values().map(|td| &td.term)
+    pub fn terms(&self) -> hash_map::Keys<'_, Term<'a>, Vec<Definition<'a>>> {
+        self.mapping.keys()
     }
 
-    /// Retrieves the definitions for a term
-    pub fn defs_for_term(
-        &self,
-        term: &str,
-    ) -> Option<impl Iterator<Item = &Definition<'a>>> {
-        self.get(term).map(|td| td.definitions.iter())
+    /// Iterates through all definitions in the list
+    pub fn definitions(&self) -> impl Iterator<Item = &Definition<'a>> {
+        self.mapping.values().flatten()
     }
 }
 
-impl<'a> From<Vec<TermAndDefinitions<'a>>> for DefinitionList<'a> {
-    fn from(mut term_and_definitions: Vec<TermAndDefinitions<'a>>) -> Self {
+impl<'a> From<Vec<(Term<'a>, Vec<Definition<'a>>)>> for DefinitionList<'a> {
+    fn from(
+        mut terms_and_definitions: Vec<(Term<'a>, Vec<Definition<'a>>)>,
+    ) -> Self {
         let mut dl = Self::default();
 
-        for td in term_and_definitions.drain(..) {
-            dl.terms_and_definitions.insert(td.term.to_string(), td);
+        for (term, definitions) in terms_and_definitions.drain(..) {
+            dl.mapping.insert(term, definitions);
         }
 
         dl
@@ -91,78 +161,65 @@ impl<'a> From<Vec<TermAndDefinitions<'a>>> for DefinitionList<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::elements::{
-        DecoratedText, DecoratedTextContent, InlineElement, Located, Text,
-    };
+    use crate::elements::{InlineElement, Located};
 
     #[test]
-    fn term_and_definitions_should_equal_other_instance_if_names_are_same() {
-        let td1 =
-            TermAndDefinitions::new(Term::from(Located::from("term")), vec![]);
-        let td2 = TermAndDefinitions::new(
-            Term::from(Located::from("term")),
-            vec![Definition::from(Located::from("definition"))],
-        );
-        assert_eq!(td1, td2);
+    fn term_should_equal_other_instance_if_string_representations_are_same() {
+        let t1 = Term::from("term");
+        let t2 = Term::new(InlineElementContainer::new(vec![
+            Located::from(InlineElement::Text("t".into())),
+            Located::from(InlineElement::Text("e".into())),
+            Located::from(InlineElement::Text("r".into())),
+            Located::from(InlineElement::Text("m".into())),
+        ]));
+        assert_eq!(t1, t2);
     }
 
     #[test]
-    fn term_and_definitions_should_equal_le_string_if_name_equals_string() {
-        let td =
-            TermAndDefinitions::new(Term::from(Located::from("term")), vec![]);
-        let other = Term::from(Located::from("term"));
-        assert_eq!(td, other);
+    fn term_should_equal_inline_element_container_if_string_representations_are_same(
+    ) {
+        let term = Term::from("term");
+        let other = InlineElementContainer::new(vec![Located::from(
+            InlineElement::Text("term".into()),
+        )]);
+        assert_eq!(term, other);
     }
 
     #[test]
-    fn term_and_definitions_should_equal_string_if_name_equals_string() {
-        let td =
-            TermAndDefinitions::new(Term::from(Located::from("term")), vec![]);
+    fn term_should_equal_string_if_string_representations_are_same() {
+        let term = Term::from("term");
         let other = String::from("term");
-        assert_eq!(td, other);
+        assert_eq!(term, other);
     }
 
     #[test]
-    fn term_and_definitions_should_equal_str_slice_if_name_equals_str_slice() {
-        let td =
-            TermAndDefinitions::new(Term::from(Located::from("term")), vec![]);
+    fn term_should_equal_str_slice_if_string_representations_are_same() {
+        let term = Term::from("term");
         let other = "term";
-        assert_eq!(td, other);
+        assert_eq!(term, other);
     }
 
     #[test]
-    fn term_and_definitions_should_hash_using_its_name() {
-        let td1 =
-            TermAndDefinitions::new(Term::from(Located::from("term")), vec![]);
-        let td2 = TermAndDefinitions::new(
-            Term::from(Located::from("term")),
-            vec![Term::from(Located::from("definition"))],
-        );
+    fn term_should_hash_using_its_string_representation() {
+        let t1 = Term::from("term");
+        let t2 = Term::new(InlineElementContainer::new(vec![
+            Located::from(InlineElement::Text("t".into())),
+            Located::from(InlineElement::Text("e".into())),
+            Located::from(InlineElement::Text("r".into())),
+            Located::from(InlineElement::Text("m".into())),
+        ]));
 
         let mut hs = HashMap::new();
-        hs.insert(td1.term.to_string(), td1);
+        hs.insert(t1, vec![]);
         assert_eq!(hs.len(), 1);
-        assert!(hs.get(&td2.term.to_string()).is_some());
-    }
-
-    #[test]
-    fn definition_list_should_be_able_to_get_term_and_definitions_by_term_name()
-    {
-        let dl = DefinitionList::from(vec![TermAndDefinitions::new(
-            Term::from(Located::from("term")),
-            vec![Definition::from(Located::from("definition"))],
-        )]);
-        assert!(dl.get("term").is_some());
+        assert!(hs.get(&t2).is_some());
     }
 
     #[test]
     fn definition_list_should_be_able_to_iterate_through_terms() {
         let dl = DefinitionList::from(vec![
-            TermAndDefinitions::new(
-                Term::from(Located::from("term1")),
-                vec![Definition::from(Located::from("definition"))],
-            ),
-            TermAndDefinitions::new(Term::from(Located::from("term2")), vec![]),
+            (Term::from("term1"), vec![]),
+            (Term::from("term2"), vec![]),
         ]);
 
         let term_names =
@@ -176,45 +233,40 @@ mod tests {
     fn definition_list_should_be_able_to_iterate_through_definitions_for_term()
     {
         let dl = DefinitionList::from(vec![
-            TermAndDefinitions::new(
-                Term::from(Located::from("term1")),
-                vec![Definition::from(Located::from("definition"))],
-            ),
-            TermAndDefinitions::new(Term::from(Located::from("term2")), vec![]),
+            (Term::from("term1"), vec![Definition::from("definition")]),
+            (Term::from("term2"), vec![]),
         ]);
 
         let defs = dl
-            .defs_for_term("term1")
+            .get("term1")
             .expect("Failed to find term")
+            .iter()
             .map(|d| d.to_string())
             .collect::<Vec<String>>();
         assert_eq!(defs.len(), 1);
         assert!(defs.contains(&"definition".to_string()));
 
         let defs = dl
-            .defs_for_term("term2")
+            .get("term2")
             .expect("Failed to find term")
+            .iter()
             .map(|d| d.to_string())
             .collect::<Vec<String>>();
         assert!(defs.is_empty());
 
-        assert!(dl.defs_for_term("term-unknown").is_none());
+        assert!(dl.get("term-unknown").is_none());
     }
 
     #[test]
     fn definition_list_should_support_lookup_with_terms_containing_other_inline_elements(
     ) {
-        let dl = DefinitionList::from(vec![TermAndDefinitions::new(
-            Term::new(vec![
-                Located::from(InlineElement::DecoratedText(
-                    DecoratedText::Bold(vec![Located::from(
-                        DecoratedTextContent::from(Text::from("term")),
-                    )]),
-                )),
-                Located::from(InlineElement::Text(Text::from(" 1"))),
-            ]),
-            vec![Definition::from(Located::from("definition"))],
-        )]);
+        let dl = DefinitionList::from(vec![
+            (
+                Term::from("term1"),
+                vec![Definition::from("def1"), Definition::from("def2")],
+            ),
+            (Term::from("term2"), vec![]),
+        ]);
         assert!(dl.get("term 1").is_some());
     }
 }

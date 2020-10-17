@@ -25,6 +25,37 @@ pub struct WikiLink<'a> {
     pub anchor: Option<Anchor<'a>>,
 }
 
+impl WikiLink<'_> {
+    pub fn to_borrowed(&self) -> WikiLink {
+        use self::Cow::*;
+
+        let path = Cow::Borrowed(match &self.path {
+            Borrowed(x) => *x,
+            Owned(x) => x.as_path(),
+        });
+        let description = self.description.map(|x| x.to_borrowed());
+        let anchor = self.anchor.map(|x| x.to_borrowed());
+
+        WikiLink {
+            path,
+            description,
+            anchor,
+        }
+    }
+
+    pub fn into_owned(self) -> WikiLink<'static> {
+        let path = Cow::from(self.path.into_owned());
+        let description = self.description.map(|x| x.into_owned());
+        let anchor = self.anchor.map(|x| x.into_owned());
+
+        WikiLink {
+            path,
+            description,
+            anchor,
+        }
+    }
+}
+
 impl<'a> WikiLink<'a> {
     /// Whether or not the link is representing an anchor to the current page
     pub fn is_local_anchor(&self) -> bool {

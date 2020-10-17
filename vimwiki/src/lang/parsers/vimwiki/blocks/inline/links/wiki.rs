@@ -1,125 +1,65 @@
+use super::{link_anchor, link_description, link_path};
 use crate::lang::{
-    elements::{Anchor, Description, Located, WikiLink},
+    elements::{Located, WikiLink},
     parsers::{
-        utils::{
-            capture, context, cow_path, cow_str, locate, take_line_while1, uri,
-        },
+        utils::{capture, context, locate, surround_in_line1},
         Error, IResult, Span,
     },
 };
 use nom::{
-    branch::alt,
     bytes::complete::tag,
-    combinator::{map, map_parser, not, opt, rest},
-    multi::separated_list,
-    sequence::{delimited, preceded},
+    combinator::{map_parser, opt},
+    sequence::preceded,
 };
 use std::{borrow::Cow, path::PathBuf};
 
 #[inline]
 pub fn wiki_link(input: Span) -> IResult<Located<WikiLink>> {
+    fn inner(input: Span) -> IResult<WikiLink> {
+        // First, check that the start is not an anchor, then grab all content
+        // leading up to | (for description), # (for start of anchor), or
+        // ]] (for end of link); if it is the start of an anchor, we won't have
+        // a path
+        let (input, maybe_path) = opt(link_path)(input)?;
+
+        // Next, check if there are any anchors
+        let (input, maybe_anchor) = opt(link_anchor)(input)?;
+
+        // Finally, check if there is a description (preceding with |), where
+        // a special case is wrapped in {{...}} as a URL
+        let (input, maybe_description) =
+            opt(preceded(tag("|"), link_description))(input)?;
+
+        match maybe_path {
+            Some(path) => Ok((
+                input,
+                WikiLink::new(path, maybe_description, maybe_anchor),
+            )),
+            None if maybe_anchor.is_some() => Ok((
+                input,
+                WikiLink::new(
+                    Cow::from(PathBuf::new()),
+                    maybe_description,
+                    maybe_anchor,
+                ),
+            )),
+            None => Err(nom::Err::Error(Error::from_ctx(
+                &input,
+                "Missing path and anchor",
+            ))),
+        }
+    }
+
     context(
         "WikiLink",
-        locate(capture(delimited(tag("[["), wiki_link_internal, tag("]]")))),
-    )(input)
-}
-
-/// Parser for wiki link content within [[...]]
-#[inline]
-pub(super) fn wiki_link_internal(input: Span) -> IResult<WikiLink> {
-    // First, check that the start is not an anchor, then grab all content
-    // leading up to | (for description), # (for start of anchor), or
-    // ]] (for end of link); if it is the start of an anchor, we won't have
-    // a path
-    let (input, maybe_path) = opt(preceded(
-        not(tag("#")),
-        cow_path(take_line_while1(not(alt((tag("|"), tag("#"), tag("]]")))))),
-    ))(input)?;
-
-    // Next, check if there are any anchors
-    let (input, maybe_anchor) = opt(anchor)(input)?;
-
-    // Finally, check if there is a description (preceding with |), where
-    // a special case is wrapped in {{...}} as a URL
-    let (input, maybe_description) = opt(description)(input)?;
-
-    match maybe_path {
-        Some(path) => {
-            Ok((input, WikiLink::new(path, maybe_description, maybe_anchor)))
-        }
-        None if maybe_anchor.is_some() => Ok((
-            input,
-            WikiLink::new(
-                Cow::from(PathBuf::new()),
-                maybe_description,
-                maybe_anchor,
-            ),
-        )),
-        None => Err(nom::Err::Error(Error::from_ctx(
-            &input,
-            "Missing path and anchor",
-        ))),
-    }
-}
-
-// NOTE: This function exists purely because we were hitting some nom
-//       error about type-length limit being reached and that means that
-//       we've nested too many parsers without breaking them up into
-//       functions that do NOT take parsers at input
-fn anchor(input: Span) -> IResult<Anchor> {
-    preceded(
-        tag("#"),
-        map(
-            separated_list(
-                tag("#"),
-                cow_str(take_line_while1(not(alt((
-                    tag("|"),
-                    tag("#"),
-                    tag("]]"),
-                ))))),
-            ),
-            Anchor::new,
-        ),
-    )(input)
-}
-
-// NOTE: This function exists purely because we were hitting some nom
-//       error about type-length limit being reached and that means that
-//       we've nested too many parsers without breaking them up into
-//       functions that do NOT take parsers at input
-fn description(input: Span) -> IResult<Description> {
-    preceded(
-        tag("|"),
-        map_parser(
-            take_line_while1(not(tag("]]"))),
-            alt((
-                description_from_uri,
-                map(rest, |s: Span| {
-                    Description::from(s.as_unsafe_remaining_str())
-                }),
-            )),
-        ),
-    )(input)
-}
-
-// NOTE: This function exists purely because we were hitting some nom
-//       error about type-length limit being reached and that means that
-//       we've nested too many parsers without breaking them up into
-//       functions that do NOT take parsers at input
-fn description_from_uri(input: Span) -> IResult<Description> {
-    map(
-        delimited(
-            tag("{{"),
-            map_parser(take_line_while1(not(tag("}}"))), uri),
-            tag("}}"),
-        ),
-        Description::from,
+        locate(capture(map_parser(surround_in_line1("[[", "]]"), inner))),
     )(input)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::lang::elements::{Anchor, Description};
     use std::convert::TryFrom;
     use uriparse::URI;
 

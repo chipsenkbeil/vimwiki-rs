@@ -16,6 +16,28 @@ pub struct ListItem<'a> {
     pub attributes: ListItemAttributes,
 }
 
+impl ListItem<'_> {
+    pub fn to_borrowed(&self) -> ListItem {
+        ListItem {
+            item_type: self.item_type.as_borrowed(),
+            suffix: self.suffix,
+            pos: self.pos,
+            contents: self.contents.to_borrowed(),
+            attributes: self.attributes,
+        }
+    }
+
+    pub fn into_owned(self) -> ListItem<'static> {
+        ListItem {
+            item_type: self.item_type.into_owned(),
+            suffix: self.suffix,
+            pos: self.pos,
+            contents: self.contents.into_owned(),
+            attributes: self.attributes,
+        }
+    }
+}
+
 impl<'a> ListItem<'a> {
     /// Indicates whether or not this list item represents an unordered item
     pub fn is_unordered(&self) -> bool {
@@ -202,6 +224,22 @@ pub enum ListItemType<'a> {
     Unordered(UnorderedListItemType<'a>),
 }
 
+impl ListItemType<'_> {
+    pub fn as_borrowed(&self) -> ListItemType {
+        match self {
+            Self::Unordered(ref x) => ListItemType::from(x.as_borrowed()),
+            Self::Ordered(ref x) => ListItemType::from(*x),
+        }
+    }
+
+    pub fn into_owned(self) -> ListItemType<'static> {
+        match self {
+            Self::Unordered(x) => ListItemType::from(x.into_owned()),
+            Self::Ordered(x) => ListItemType::from(x),
+        }
+    }
+}
+
 impl<'a> ListItemType<'a> {
     pub fn is_ordered(&self) -> bool {
         match self {
@@ -240,6 +278,33 @@ pub enum UnorderedListItemType<'a> {
     Asterisk,
     /// Catchall
     Other(Cow<'a, str>),
+}
+
+impl UnorderedListItemType<'_> {
+    pub fn as_borrowed(&self) -> UnorderedListItemType {
+        use self::Cow::*;
+
+        match self {
+            Self::Other(ref x) => {
+                UnorderedListItemType::Other(Cow::Borrowed(match x {
+                    Borrowed(x) => *x,
+                    Owned(x) => x.as_str(),
+                }))
+            }
+            Self::Hyphen => UnorderedListItemType::Hyphen,
+            Self::Asterisk => UnorderedListItemType::Asterisk,
+        }
+    }
+
+    pub fn into_owned(self) -> UnorderedListItemType<'static> {
+        match self {
+            Self::Other(x) => {
+                UnorderedListItemType::Other(Cow::from(x.into_owned()))
+            }
+            Self::Hyphen => UnorderedListItemType::Hyphen,
+            Self::Asterisk => UnorderedListItemType::Asterisk,
+        }
+    }
 }
 
 impl<'a> UnorderedListItemType<'a> {
@@ -371,7 +436,7 @@ pub enum ListItemTodoStatus {
 }
 
 /// Represents additional attributes associated with a list item
-#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ListItemAttributes {
     /// The TODO status for a list item, if it has been associated with TODO
     pub todo_status: Option<ListItemTodoStatus>,
@@ -492,7 +557,7 @@ mod tests {
         };
         () => {
             ListItem::new(
-                ListItemType::from(UnorderedListItemType::Other(String::new())),
+                ListItemType::from(UnorderedListItemType::Other(Cow::from(""))),
                 ListItemSuffix::default(),
                 0,
                 vec![].into(),
@@ -633,7 +698,7 @@ mod tests {
         assert_eq!(ordered_item!(UppercaseAlphabet, Paren, 999).pos, 999);
         assert_eq!(ordered_item!(LowercaseRoman, Paren, 999).pos, 999);
         assert_eq!(ordered_item!(UppercaseRoman, Paren, 999).pos, 999);
-        assert_eq!(other_item!(String::new(), None, 999).pos, 999);
+        assert_eq!(other_item!(Cow::from(""), None, 999).pos, 999);
     }
 
     #[test]
@@ -678,7 +743,7 @@ mod tests {
         );
 
         assert_eq!(
-            other_item!(String::new(), None, 0, make_content("test")).contents,
+            other_item!(Cow::from(""), None, 0, make_content("test")).contents,
             make_content("test"),
         );
     }
@@ -810,41 +875,41 @@ mod tests {
     #[test]
     fn to_prefix_should_return_internal_value_with_suffix_if_other_type() {
         assert_eq!(
-            other_item!("prefix".to_string(), None, 0).to_prefix(),
+            other_item!(Cow::from("prefix"), None, 0).to_prefix(),
             "prefix"
         );
         assert_eq!(
-            other_item!("prefix".to_string(), None, 27).to_prefix(),
+            other_item!(Cow::from("prefix"), None, 27).to_prefix(),
             "prefix"
         );
         assert_eq!(
-            other_item!("prefix".to_string(), None, 99).to_prefix(),
+            other_item!(Cow::from("prefix"), None, 99).to_prefix(),
             "prefix"
         );
 
         assert_eq!(
-            other_item!("prefix".to_string(), Period, 0).to_prefix(),
+            other_item!(Cow::from("prefix"), Period, 0).to_prefix(),
             "prefix."
         );
         assert_eq!(
-            other_item!("prefix".to_string(), Period, 27).to_prefix(),
+            other_item!(Cow::from("prefix"), Period, 27).to_prefix(),
             "prefix."
         );
         assert_eq!(
-            other_item!("prefix".to_string(), Period, 99).to_prefix(),
+            other_item!(Cow::from("prefix"), Period, 99).to_prefix(),
             "prefix."
         );
 
         assert_eq!(
-            other_item!("prefix".to_string(), Paren, 0).to_prefix(),
+            other_item!(Cow::from("prefix"), Paren, 0).to_prefix(),
             "prefix)"
         );
         assert_eq!(
-            other_item!("prefix".to_string(), Paren, 27).to_prefix(),
+            other_item!(Cow::from("prefix"), Paren, 27).to_prefix(),
             "prefix)"
         );
         assert_eq!(
-            other_item!("prefix".to_string(), Paren, 99).to_prefix(),
+            other_item!(Cow::from("prefix"), Paren, 99).to_prefix(),
             "prefix)"
         );
     }

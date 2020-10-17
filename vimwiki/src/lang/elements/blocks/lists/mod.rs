@@ -17,6 +17,28 @@ pub struct List<'a> {
     pub items: Vec<Located<ListItem<'a>>>,
 }
 
+impl List<'_> {
+    pub fn to_borrowed(&self) -> List {
+        List {
+            items: self
+                .items
+                .iter()
+                .map(|x| Located::new(x.as_inner().to_borrowed(), x.region))
+                .collect(),
+        }
+    }
+
+    pub fn into_owned(&self) -> List {
+        List {
+            items: self
+                .items
+                .iter()
+                .map(|x| Located::new(x.as_inner().into_owned(), x.region))
+                .collect(),
+        }
+    }
+}
+
 impl<'a> List<'a> {
     /// Normalizes the list by standardizing the item types based on the
     /// first list item.
@@ -59,6 +81,24 @@ pub enum ListItemContent<'a> {
     List(TypedBlockElement<'a, List<'a>>),
 }
 
+impl ListItemContent<'_> {
+    pub fn to_borrowed(&self) -> ListItemContent {
+        match self {
+            Self::InlineContent(ref x) => {
+                ListItemContent::from(x.to_borrowed())
+            }
+            Self::List(ref x) => ListItemContent::from(x.to_borrowed()),
+        }
+    }
+
+    pub fn into_owned(self) -> ListItemContent<'static> {
+        match self {
+            Self::InlineContent(x) => ListItemContent::from(x.into_owned()),
+            Self::List(x) => ListItemContent::from(x.into_owned()),
+        }
+    }
+}
+
 /// Represents a collection of list item content
 #[derive(
     Constructor,
@@ -79,6 +119,28 @@ pub enum ListItemContent<'a> {
 )]
 pub struct ListItemContents<'a> {
     pub contents: Vec<Located<ListItemContent<'a>>>,
+}
+
+impl ListItemContents<'_> {
+    pub fn to_borrowed(&self) -> ListItemContents {
+        ListItemContents {
+            contents: self
+                .contents
+                .iter()
+                .map(|x| Located::new(x.as_inner().to_borrowed(), x.region))
+                .collect(),
+        }
+    }
+
+    pub fn into_owned(self) -> ListItemContents<'static> {
+        ListItemContents {
+            contents: self
+                .contents
+                .iter()
+                .map(|x| Located::new(x.as_inner().into_owned(), x.region))
+                .collect(),
+        }
+    }
 }
 
 impl<'a> ListItemContents<'a> {

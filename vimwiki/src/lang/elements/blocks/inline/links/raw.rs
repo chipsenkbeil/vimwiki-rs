@@ -1,3 +1,4 @@
+use super::uri_to_borrowed;
 use derive_more::{Constructor, Display};
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
@@ -18,6 +19,20 @@ use uriparse::URI;
 #[display(fmt = "{}", uri)]
 pub struct RawLink<'a> {
     pub uri: URI<'a>,
+}
+
+impl RawLink<'_> {
+    pub fn to_borrowed(&self) -> RawLink {
+        RawLink {
+            uri: uri_to_borrowed(&self.uri),
+        }
+    }
+
+    pub fn into_owned(self) -> RawLink<'static> {
+        RawLink {
+            uri: self.uri.into_owned(),
+        }
+    }
 }
 
 impl<'a> From<URI<'a>> for RawLink<'a> {

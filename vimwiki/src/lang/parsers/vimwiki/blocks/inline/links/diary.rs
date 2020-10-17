@@ -1,41 +1,47 @@
-use super::wiki::wiki_link;
+use super::{link_anchor, link_description, link_path};
 use crate::lang::{
     elements::{DiaryLink, Located},
-    parsers::{utils::context, Error, IResult, Span},
+    parsers::{
+        utils::{capture, context, locate, surround_in_line1},
+        IResult, Span,
+    },
 };
 use chrono::NaiveDate;
+use nom::{
+    bytes::complete::tag,
+    combinator::{map_parser, map_res, opt},
+    sequence::preceded,
+};
 
 #[inline]
 pub fn diary_link(input: Span) -> IResult<Located<DiaryLink>> {
-    fn inner(input: Span) -> IResult<Located<DiaryLink>> {
-        // First, parse as a standard wiki link, which should stash the potential
-        // diary as the path
-        let (input, link) = wiki_link(input)?;
+    fn inner(input: Span) -> IResult<DiaryLink> {
+        // Diary is a specialized link that must start with diary:
+        let (input, _) = tag("diary:")(input)?;
 
-        let path = link.path.to_str().ok_or_else(|| {
-            nom::Err::Error(Error::from_ctx(&input, "Not diary link"))
-        })?;
+        // After the specialized start, a valid date must follow
+        // TODO: Unsure if this would allocate a new string given that the
+        //       path is formed from a valid UTF-8 str; Cow<'_, str> yielded
+        //       might just be a pointer to the original slice
+        let (input, date) = map_res(link_path, |path| {
+            NaiveDate::parse_from_str(&path.to_string_lossy(), "%Y-%m-%d")
+        })(input)?;
 
-        // Second, check if the link is a diary
-        match parse_date_from_path(path) {
-            Some(date) => Ok((
-                input,
-                link.map(|c| DiaryLink::new(date, c.description, c.anchor)),
-            )),
-            _ => {
-                Err(nom::Err::Error(Error::from_ctx(&input, "Not diary link")))
-            }
-        }
+        // Next, check if there are any anchors
+        let (input, maybe_anchor) = opt(link_anchor)(input)?;
+
+        // Finally, check if there is a description (preceding with |), where
+        // a special case is wrapped in {{...}} as a URL
+        let (input, maybe_description) =
+            opt(preceded(tag("|"), link_description))(input)?;
+
+        Ok((input, DiaryLink::new(date, maybe_description, maybe_anchor)))
     }
 
-    context("Diary Link", inner)(input)
-}
-
-#[inline]
-fn parse_date_from_path(path: &str) -> Option<NaiveDate> {
-    path.strip_prefix("diary:").and_then(|date_str| {
-        NaiveDate::parse_from_str(date_str, "%Y-%m-%d").ok()
-    })
+    context(
+        "DiaryLink",
+        locate(capture(map_parser(surround_in_line1("[[", "]]"), inner))),
+    )(input)
 }
 
 #[cfg(test)]

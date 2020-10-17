@@ -14,6 +14,32 @@ pub struct DiaryLink<'a> {
     pub anchor: Option<Anchor<'a>>,
 }
 
+impl DiaryLink<'_> {
+    pub fn to_borrowed(&self) -> DiaryLink {
+        let date = self.date;
+        let description = self.description.map(|x| x.to_borrowed());
+        let anchor = self.anchor.map(|x| x.to_borrowed());
+
+        DiaryLink {
+            date,
+            description,
+            anchor,
+        }
+    }
+
+    pub fn into_owned(self) -> DiaryLink<'static> {
+        let date = self.date;
+        let description = self.description.map(|x| x.into_owned());
+        let anchor = self.anchor.map(|x| x.into_owned());
+
+        DiaryLink {
+            date,
+            description,
+            anchor,
+        }
+    }
+}
+
 impl<'a> fmt::Display for DiaryLink<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(desc) = self.description.as_ref() {

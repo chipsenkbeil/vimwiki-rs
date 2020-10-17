@@ -378,48 +378,29 @@ pub fn scan<'a, T>(
 /// 1. www (www.example.com) -> (https://www.example.com)
 /// 2. // (//some/abs/path) -> (file:/some/abs/path)
 pub fn uri<'a>(input: Span<'a>) -> IResult<URI<'a>> {
-    // URI = scheme:[//authority]path[?query][#fragment]
-    // scheme = sequence of characters beginning with a letter and followed
-    //          by any combination of letters, digits, plus (+), period (.),
-    //          or hyphen (-)
-    // authority = [userinfo@]host[:port] where host is a hostname or IP address
-    // path = sequence of path segments separated by / with an empty segment
-    //        resulting in //
-    let scheme = terminated(
-        take_while(|b: u8| {
-            let c = char::from(b);
-            c.is_alphanumeric() || c == '+' || c == '.' || c == '-'
-        }),
-        tag(":"),
-    );
-
-    // TODO: Do we need to support whitespace in our raw URIs?
+    // TODO: Support special cases, which involves allocating a new string
+    //       or providing some alternative structure to a URI
     context(
-        "URI",
+        "Normal URI",
         map_res(
             recognize(pair(
-                alt((tag("www."), tag("//"), scheme)),
+                uri_scheme,
                 many1(pair(not(single_multispace), anychar)),
             )),
-            |s| {
-                // TODO: Can we do anything to not need the allocation here?
-                if s.as_bytes().starts_with(b"www.") {
-                    URI::try_from(
-                        ["https://", s.as_unsafe_remaining_str()]
-                            .join("")
-                            .as_str(),
-                    )
-                // TODO: Can we do anything to not need the allocation here?
-                } else if s.as_bytes().starts_with(b"//") {
-                    URI::try_from(
-                        ["file:/", s.as_unsafe_remaining_str()]
-                            .join("")
-                            .as_str(),
-                    )
-                } else {
-                    URI::try_from(s.as_bytes())
-                }
-            },
+            URI::try_from,
+        ),
+    )(input)
+}
+
+fn uri_scheme<'a>(input: Span<'a>) -> IResult<Span<'a>> {
+    context(
+        "URI Scheme",
+        terminated(
+            take_while(|b: u8| {
+                let c = char::from(b);
+                c.is_alphanumeric() || c == '+' || c == '.' || c == '-'
+            }),
+            tag(":"),
         ),
     )(input)
 }

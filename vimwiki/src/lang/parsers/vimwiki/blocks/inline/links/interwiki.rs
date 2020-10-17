@@ -1,78 +1,88 @@
-use super::wiki::wiki_link;
+use super::{link_anchor, link_description, link_path};
 use crate::lang::{
     elements::{
-        IndexedInterWikiLink, InterWikiLink, Located, NamedInterWikiLink,
+        Anchor, Description, IndexedInterWikiLink, InterWikiLink, Located,
+        NamedInterWikiLink, WikiLink,
     },
     parsers::{
-        utils::{context, take_line_while1},
-        Error, IResult, Span,
+        utils::{
+            capture, context, cow_str, locate, surround_in_line1,
+            take_line_while1,
+        },
+        IResult, Span,
     },
 };
-use nom::{bytes::complete::tag, combinator::not, sequence::delimited};
-use std::borrow::Cow;
+use nom::{
+    branch::alt,
+    bytes::complete::tag,
+    combinator::{map, map_parser, map_res, not, opt},
+    sequence::{delimited, pair, preceded},
+};
+use std::{borrow::Cow, path::Path};
 
 #[inline]
 pub fn inter_wiki_link(input: Span) -> IResult<Located<InterWikiLink>> {
-    fn inner(input: Span) -> IResult<Located<InterWikiLink>> {
-        let (input, mut link) = wiki_link(input)?;
-        let path = link.path.to_str().ok_or_else(|| {
-            nom::Err::Error(Error::from_ctx(&input, "Not interwiki link"))
-        })?;
-
-        if let Some((path, index)) = parse_index_from_path(path) {
-            // Update path of link after removal of prefix
-            link.path = path.into();
-
-            return Ok((
-                input,
-                link.map(|c| {
-                    InterWikiLink::from(IndexedInterWikiLink::new(index, c))
-                }),
-            ));
-        }
-
-        if let Some((path, name)) = parse_name_from_path(path) {
-            // Update path of link after removal of prefix
-            link.path = path.into();
-
-            return Ok((
-                input,
-                link.map(|c| {
-                    InterWikiLink::from(NamedInterWikiLink::new(name, c))
-                }),
-            ));
-        }
-
-        Err(nom::Err::Error(Error::from_ctx(
-            &input,
-            "not interwiki link",
-        )))
+    fn inner(input: Span) -> IResult<InterWikiLink> {
+        // InterWikiLinks are specialized links that start with either an
+        // index or name
+        alt((
+            map(
+                pair(indexed_link_index, rest_of_link),
+                |(index, (path, maybe_anchor, maybe_description))| {
+                    InterWikiLink::from(IndexedInterWikiLink::new(
+                        index,
+                        WikiLink::new(path, maybe_description, maybe_anchor),
+                    ))
+                },
+            ),
+            map(
+                pair(named_link_name, rest_of_link),
+                |(name, (path, maybe_anchor, maybe_description))| {
+                    InterWikiLink::from(NamedInterWikiLink::new(
+                        name,
+                        WikiLink::new(path, maybe_description, maybe_anchor),
+                    ))
+                },
+            ),
+        ))(input)
     }
 
-    context("Inter Wiki Link", inner)(input)
+    context(
+        "InterWikiLink",
+        locate(capture(map_parser(surround_in_line1("[[", "]]"), inner))),
+    )(input)
 }
 
-fn parse_index_from_path(path: &str) -> Option<(Span, u32)> {
-    delimited(tag("wiki"), take_line_while1(not(tag(":"))), tag(":"))(
-        Span::from(path),
-    )
-    .ok()
-    .map(|(path, index)| {
-        index
-            .as_unsafe_remaining_str()
-            .parse::<u32>()
-            .ok()
-            .map(move |n| (path, n))
-    })
-    .flatten()
+fn indexed_link_index(input: Span) -> IResult<u32> {
+    map_res(
+        delimited(tag("wiki"), take_line_while1(not(tag(":"))), tag(":")),
+        |s| s.as_unsafe_remaining_str().parse::<u32>(),
+    )(input)
 }
 
-fn parse_name_from_path<'a>(path: &'a str) -> Option<(Span<'a>, Cow<'a, str>)> {
-    delimited(tag("wn."), take_line_while1(not(tag(":"))), tag(":"))(
-        Span::from(path),
-    )
-    .ok()
-    .map(|(path, name)| (path, Cow::from(name.as_unsafe_remaining_str())))
+fn named_link_name<'a>(input: Span<'a>) -> IResult<Cow<'a, str>> {
+    cow_str(delimited(
+        tag("wn."),
+        take_line_while1(not(tag(":"))),
+        tag(":"),
+    ))(input)
+}
+
+fn rest_of_link<'a>(
+    input: Span<'a>,
+) -> IResult<(Cow<'a, Path>, Option<Anchor<'a>>, Option<Description<'a>>)> {
+    // After the specialized start, a valid path must follow
+    let (input, path) = link_path(input)?;
+
+    // Next, check if there are any anchors
+    let (input, maybe_anchor) = opt(link_anchor)(input)?;
+
+    // Finally, check if there is a description (preceding with |), where
+    // a special case is wrapped in {{...}} as a URL
+    let (input, maybe_description) =
+        opt(preceded(tag("|"), link_description))(input)?;
+
+    Ok((input, (path, maybe_anchor, maybe_description)))
 }
 
 #[cfg(test)]

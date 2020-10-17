@@ -7,6 +7,20 @@ pub struct Paragraph<'a> {
     pub content: InlineElementContainer<'a>,
 }
 
+impl Paragraph<'_> {
+    pub fn to_borrowed(&self) -> Paragraph {
+        Paragraph {
+            content: self.content.to_borrowed(),
+        }
+    }
+
+    pub fn into_owned(self) -> Paragraph<'static> {
+        Paragraph {
+            content: self.content.into_owned(),
+        }
+    }
+}
+
 impl<'a> From<Vec<Located<InlineElement<'a>>>> for Paragraph<'a> {
     fn from(elements: Vec<Located<InlineElement<'a>>>) -> Self {
         Self::new(elements.into())
