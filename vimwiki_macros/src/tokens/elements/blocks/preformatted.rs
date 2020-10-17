@@ -1,6 +1,7 @@
 use crate::tokens::{
-    root_crate,
-    utils::{tokenize_hashmap, tokenize_option, tokenize_string_type},
+    utils::{
+        element_path, tokenize_hashmap, tokenize_option, tokenize_string_type,
+    },
     Tokenize,
 };
 use proc_macro2::TokenStream;
@@ -11,8 +12,8 @@ impl_tokenize!(tokenize_preformatted_text, PreformattedText<'a>, 'a);
 fn tokenize_preformatted_text(
     preformatted_text: &PreformattedText,
 ) -> TokenStream {
-    let root = root_crate();
-    let lang = tokenize_option(&preformatted_text.lang, tokenize_string);
+    let root = element_path();
+    let lang = tokenize_option(&preformatted_text.lang, |x| do_tokenize!(x));
     let metadata = tokenize_hashmap(
         &preformatted_text.metadata,
         tokenize_string_type(),
@@ -22,7 +23,7 @@ fn tokenize_preformatted_text(
     );
     let lines = preformatted_text.lines.iter().map(|x| do_tokenize!(x));
     quote! {
-        #root::elements::PreformattedText {
+        #root::PreformattedText {
             lang: #lang,
             metadata: #metadata,
             lines: vec![#(#lines),*],

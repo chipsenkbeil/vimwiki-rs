@@ -1,15 +1,15 @@
-use crate::tokens::{root_crate, utils::tokenize_option, Tokenize};
+use crate::tokens::{utils::element_path, Tokenize};
 use proc_macro2::TokenStream;
 use quote::quote;
 use vimwiki::elements::*;
 
 impl_tokenize!(tokenize_table, Table<'a>, 'a);
 fn tokenize_table(table: &Table) -> TokenStream {
-    let root = root_crate();
-    let rows = table.rows.iter().map(|x| do_tokenze!(x));
+    let root = element_path();
+    let rows = table.rows.iter().map(|x| do_tokenize!(x));
     let centered = table.centered;
     quote! {
-        #root::elements::Table {
+        #root::Table {
             rows: vec![#(#rows),*],
             centered: #centered,
         }
@@ -18,31 +18,31 @@ fn tokenize_table(table: &Table) -> TokenStream {
 
 impl_tokenize!(tokenize_row, Row<'a>, 'a);
 fn tokenize_row(row: &Row) -> TokenStream {
-    let root = root_crate();
+    let root = element_path();
     match &row {
         Row::Content { cells } => {
             let t = cells.iter().map(|x| do_tokenize!(x));
-            quote! { #root::elements::Row::Content { cells: vec![#(#t),*] } }
+            quote! { #root::Row::Content { cells: vec![#(#t),*] } }
         }
         Row::Divider => {
-            quote! { #root::elements::Row::Divider }
+            quote! { #root::Row::Divider }
         }
     }
 }
 
 impl_tokenize!(tokenize_cell, Cell<'a>, 'a);
 fn tokenize_cell(cell: &Cell) -> TokenStream {
-    let root = root_crate();
+    let root = element_path();
     match &cell {
         Cell::Content(x) => {
-            let t = do_tokenze!(&x);
-            quote! { #root::elements::Cell::Content(#t) }
+            let t = do_tokenize!(&x);
+            quote! { #root::Cell::Content(#t) }
         }
         Cell::SpanAbove => {
-            quote! { #root::elements::Cell::SpanAbove }
+            quote! { #root::Cell::SpanAbove }
         }
         Cell::SpanLeft => {
-            quote! { #root::elements::Cell::SpanLeft }
+            quote! { #root::Cell::SpanLeft }
         }
     }
 }

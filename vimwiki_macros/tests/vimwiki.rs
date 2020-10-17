@@ -1,8 +1,7 @@
-use std::{convert::TryFrom, path::PathBuf};
+use std::{borrow::Cow, convert::TryFrom, path::PathBuf};
 use vimwiki::{
     elements::*,
     vendor::{chrono::NaiveDate, uriparse::URI},
-    LE,
 };
 use vimwiki_macros::*;
 
@@ -10,15 +9,12 @@ use vimwiki_macros::*;
 fn vimwiki_page() {
     let x = vimwiki_page!("some text");
     assert_eq!(
-        x.element,
-        Page::new(
-            vec![LE::from(BlockElement::Paragraph(Paragraph::new(
-                InlineElementContainer::new(vec![LE::from(
-                    InlineElement::Text(Text::from("some text"))
-                )])
-            )))],
-            vec![]
-        )
+        x,
+        Page::new(vec![Located::from(BlockElement::Paragraph(
+            Paragraph::new(InlineElementContainer::new(vec![Located::from(
+                InlineElement::Text(Text::from("some text"))
+            )]))
+        ))],)
     );
 }
 
@@ -26,9 +22,9 @@ fn vimwiki_page() {
 fn vimwiki_block_element() {
     let x = vimwiki_block_element!("some text");
     assert_eq!(
-        x.element,
+        x.into_inner(),
         BlockElement::Paragraph(Paragraph::new(InlineElementContainer::new(
-            vec![LE::from(InlineElement::Text(Text::from("some text")))]
+            vec![Located::from(InlineElement::Text(Text::from("some text")))]
         )))
     );
 }
@@ -37,8 +33,8 @@ fn vimwiki_block_element() {
 fn vimwiki_inline_element_container() {
     let x = vimwiki_inline_element_container!("some text");
     assert_eq!(
-        x.element,
-        InlineElementContainer::new(vec![LE::from(InlineElement::Text(
+        x.into_inner(),
+        InlineElementContainer::new(vec![Located::from(InlineElement::Text(
             Text::from("some text")
         ))])
     );
@@ -47,36 +43,39 @@ fn vimwiki_inline_element_container() {
 #[test]
 fn vimwiki_inline_element() {
     let x = vimwiki_inline_element!("some text");
-    assert_eq!(x.element, InlineElement::Text(Text::from("some text")));
+    assert_eq!(x.into_inner(), InlineElement::Text(Text::from("some text")));
 }
 
 #[test]
 fn vimwiki_blockquote() {
     let x = vimwiki_blockquote!("> some text");
-    assert_eq!(x.element, Blockquote::new(vec!["some text".to_string()]));
+    assert_eq!(
+        x.into_inner(),
+        Blockquote::new(vec![Cow::from("some text")])
+    );
 }
 
 #[test]
 fn vimwiki_comment() {
     let x = vimwiki_comment!("%% some comment");
     assert_eq!(
-        x.element,
-        Comment::from(LineComment(" some comment".to_string()))
+        x.into_inner(),
+        Comment::from(LineComment::new(Cow::from(" some comment")))
     );
 }
 
 #[test]
 fn vimwiki_line_comment() {
     let x = vimwiki_line_comment!("%% some comment");
-    assert_eq!(x.element, LineComment(" some comment".to_string()));
+    assert_eq!(x.into_inner(), LineComment::new(Cow::from(" some comment")));
 }
 
 #[test]
 fn vimwiki_multi_line_comment() {
     let x = vimwiki_multi_line_comment!("%%+ some comment +%%");
     assert_eq!(
-        x.element,
-        MultiLineComment(vec![" some comment ".to_string()])
+        x.into_inner(),
+        MultiLineComment::new(vec![Cow::from(" some comment ")])
     );
 }
 
@@ -84,14 +83,14 @@ fn vimwiki_multi_line_comment() {
 fn vimwiki_definition_list() {
     let x = vimwiki_definition_list!("term:: definition");
     assert_eq!(
-        x.element,
-        DefinitionList::from(vec![TermAndDefinitions::new(
-            InlineElementContainer::new(vec![LE::from(InlineElement::from(
-                Text::from("term")
-            ))]),
-            vec![InlineElementContainer::new(vec![LE::from(
-                InlineElement::from(Text::from("definition"))
-            )])],
+        x.into_inner(),
+        DefinitionList::from(vec![(
+            DefinitionListValue::new(InlineElementContainer::new(vec![
+                Located::from(InlineElement::from(Text::from("term")))
+            ])),
+            vec![DefinitionListValue::new(InlineElementContainer::new(vec![
+                Located::from(InlineElement::from(Text::from("definition")))
+            ]))],
         )])
     );
 }
@@ -99,19 +98,19 @@ fn vimwiki_definition_list() {
 #[test]
 fn vimwiki_divider() {
     let x = vimwiki_divider!("----");
-    assert_eq!(x.element, Divider);
+    assert_eq!(x.into_inner(), Divider);
 }
 
 #[test]
 fn vimwiki_header() {
     let x = vimwiki_header!("= header =");
     assert_eq!(
-        x.element,
+        x.into_inner(),
         Header::new(
             1,
-            InlineElementContainer::new(vec![LE::from(InlineElement::from(
-                Text::from("header")
-            ))]),
+            InlineElementContainer::new(vec![Located::from(
+                InlineElement::from(Text::from("header"))
+            )]),
             false
         )
     );
@@ -120,23 +119,29 @@ fn vimwiki_header() {
 #[test]
 fn vimwiki_link() {
     let x = vimwiki_link!("[[link]]");
-    assert_eq!(x.element, Link::Wiki(WikiLink::from(PathBuf::from("link"))));
+    assert_eq!(
+        x.into_inner(),
+        Link::Wiki(WikiLink::from(PathBuf::from("link")))
+    );
 }
 
 #[test]
 fn vimwiki_diary_link() {
     let x = vimwiki_diary_link!("[[diary:2012-03-05]]");
-    assert_eq!(x.element, DiaryLink::from(NaiveDate::from_ymd(2012, 3, 5)));
+    assert_eq!(
+        x.into_inner(),
+        DiaryLink::from(NaiveDate::from_ymd(2012, 3, 5))
+    );
 }
 
 #[test]
 fn vimwiki_external_file_link() {
     let x = vimwiki_external_file_link!("[[file:path/to/file]]");
     assert_eq!(
-        x.element,
+        x.into_inner(),
         ExternalFileLink::new(
             ExternalFileLinkScheme::File,
-            PathBuf::from("path/to/file"),
+            Cow::from(PathBuf::from("path/to/file")),
             None
         )
     )
@@ -146,7 +151,7 @@ fn vimwiki_external_file_link() {
 fn vimwiki_raw_link() {
     let x = vimwiki_raw_link!("https://example.com");
     assert_eq!(
-        x.element,
+        x.into_inner(),
         RawLink::new(
             URI::try_from("https://example.com").unwrap().into_owned()
         )
@@ -157,7 +162,7 @@ fn vimwiki_raw_link() {
 fn vimwiki_transclusion_link() {
     let x = vimwiki_transclusion_link!("{{https://example.com/img.jpg}}");
     assert_eq!(
-        x.element,
+        x.into_inner(),
         TransclusionLink::from(
             URI::try_from("https://example.com/img.jpg")
                 .unwrap()
@@ -169,14 +174,14 @@ fn vimwiki_transclusion_link() {
 #[test]
 fn vimwiki_wiki_link() {
     let x = vimwiki_wiki_link!("[[link]]");
-    assert_eq!(x.element, WikiLink::from(PathBuf::from("link")));
+    assert_eq!(x.into_inner(), WikiLink::from(PathBuf::from("link")));
 }
 
 #[test]
 fn vimwiki_inter_wiki_link() {
     let x = vimwiki_inter_wiki_link!("[[wiki1:link]]");
     assert_eq!(
-        x.element,
+        x.into_inner(),
         InterWikiLink::Indexed(IndexedInterWikiLink::new(
             1,
             WikiLink::from(PathBuf::from("link"))
@@ -192,45 +197,45 @@ fn vimwiki_list() {
             1. sub list item
     "};
     assert_eq!(
-        x.element,
+        x.into_inner(),
         List::new(vec![
-            LE::from(ListItem::new(
+            Located::from(ListItem::new(
                 ListItemType::Unordered(UnorderedListItemType::Hyphen),
                 ListItemSuffix::None,
                 0,
-                ListItemContents::new(vec![LE::from(
+                ListItemContents::new(vec![Located::from(
                     ListItemContent::InlineContent(
-                        InlineElementContainer::new(vec![LE::from(
+                        InlineElementContainer::new(vec![Located::from(
                             InlineElement::Text(Text::from("some list item"))
                         )])
                     )
                 )]),
                 ListItemAttributes::default(),
             ),),
-            LE::from(ListItem::new(
+            Located::from(ListItem::new(
                 ListItemType::Unordered(UnorderedListItemType::Hyphen),
                 ListItemSuffix::None,
                 1,
                 ListItemContents::new(vec![
-                    LE::from(ListItemContent::InlineContent(
-                        InlineElementContainer::new(vec![LE::from(
+                    Located::from(ListItemContent::InlineContent(
+                        InlineElementContainer::new(vec![Located::from(
                             InlineElement::Text(Text::from(
                                 "some other list item"
                             ))
                         )])
                     )),
-                    LE::from(ListItemContent::List(
+                    Located::from(ListItemContent::List(
                         TypedBlockElement::from_list(List::new(vec![
-                            LE::from(ListItem::new(
+                            Located::from(ListItem::new(
                                 ListItemType::Ordered(
                                     OrderedListItemType::Number
                                 ),
                                 ListItemSuffix::Period,
                                 0,
-                                ListItemContents::new(vec![LE::from(
+                                ListItemContents::new(vec![Located::from(
                                     ListItemContent::InlineContent(
                                         InlineElementContainer::new(vec![
-                                            LE::from(InlineElement::Text(
+                                            Located::from(InlineElement::Text(
                                                 Text::from("sub list item")
                                             ))
                                         ])
@@ -251,14 +256,14 @@ fn vimwiki_list() {
 fn vimwiki_list_raw() {
     let x = vimwiki_list_raw!("- some list item");
     assert_eq!(
-        x.element,
-        List::new(vec![LE::from(ListItem::new(
+        x.into_inner(),
+        List::new(vec![Located::from(ListItem::new(
             ListItemType::Unordered(UnorderedListItemType::Hyphen),
             ListItemSuffix::None,
             0,
-            ListItemContents::new(vec![LE::from(
+            ListItemContents::new(vec![Located::from(
                 ListItemContent::InlineContent(InlineElementContainer::new(
-                    vec![LE::from(InlineElement::Text(Text::from(
+                    vec![Located::from(InlineElement::Text(Text::from(
                         "some list item"
                     )))]
                 ))
@@ -271,13 +276,13 @@ fn vimwiki_list_raw() {
 #[test]
 fn vimwiki_code_inline() {
     let x = vimwiki_code_inline!("`code`");
-    assert_eq!(x.element, CodeInline::new("code".to_string()));
+    assert_eq!(x.into_inner(), CodeInline::new(Cow::from("code")));
 }
 
 #[test]
 fn vimwiki_math_inline() {
     let x = vimwiki_math_inline!("$math$");
-    assert_eq!(x.element, MathInline::new("math".to_string()));
+    assert_eq!(x.into_inner(), MathInline::new(Cow::from("math")));
 }
 
 #[test]
@@ -287,7 +292,10 @@ fn vimwiki_math_block() {
     math
     }}$
     "#};
-    assert_eq!(x.element, MathBlock::new(vec!["math".to_string()], None));
+    assert_eq!(
+        x.into_inner(),
+        MathBlock::new(vec![Cow::from("math")], None)
+    );
 }
 
 #[test]
@@ -296,8 +304,8 @@ fn vimwiki_math_block_raw() {
     math
     }}$"#};
     assert_eq!(
-        x.element,
-        MathBlock::new(vec!["    math".to_string()], None)
+        x.into_inner(),
+        MathBlock::new(vec![Cow::from("    math")], None)
     );
 }
 
@@ -305,8 +313,8 @@ fn vimwiki_math_block_raw() {
 fn vimwiki_paragraph() {
     let x = vimwiki_paragraph!("some text");
     assert_eq!(
-        x.element,
-        Paragraph::new(InlineElementContainer::new(vec![LE::from(
+        x.into_inner(),
+        Paragraph::new(InlineElementContainer::new(vec![Located::from(
             InlineElement::Text(Text::from("some text"))
         )]))
     );
@@ -315,24 +323,27 @@ fn vimwiki_paragraph() {
 #[test]
 fn vimwiki_placeholder() {
     assert_eq!(
-        vimwiki_placeholder!("%date 2012-03-05").element,
+        vimwiki_placeholder!("%date 2012-03-05").into_inner(),
         Placeholder::Date(NaiveDate::from_ymd(2012, 3, 5)),
     );
-    assert_eq!(vimwiki_placeholder!("%nohtml").element, Placeholder::NoHtml,);
     assert_eq!(
-        vimwiki_placeholder!("%other some text").element,
+        vimwiki_placeholder!("%nohtml").into_inner(),
+        Placeholder::NoHtml,
+    );
+    assert_eq!(
+        vimwiki_placeholder!("%other some text").into_inner(),
         Placeholder::Other {
-            name: "other".to_string(),
-            value: "some text".to_string()
+            name: Cow::from("other"),
+            value: Cow::from("some text")
         },
     );
     assert_eq!(
-        vimwiki_placeholder!("%template my_template").element,
-        Placeholder::Template("my_template".to_string()),
+        vimwiki_placeholder!("%template my_template").into_inner(),
+        Placeholder::Template(Cow::from("my_template")),
     );
     assert_eq!(
-        vimwiki_placeholder!("%title some text").element,
-        Placeholder::Title("some text".to_string()),
+        vimwiki_placeholder!("%title some text").into_inner(),
+        Placeholder::Title(Cow::from("some text")),
     );
 }
 
@@ -344,11 +355,11 @@ fn vimwiki_preformatted_text() {
     }}}
     "#};
     assert_eq!(
-        x.element,
+        x.into_inner(),
         PreformattedText::new(
             None,
             Default::default(),
-            vec!["some code".to_string()]
+            vec![Cow::from("some code")]
         )
     );
 }
@@ -359,11 +370,11 @@ fn vimwiki_preformatted_text_raw() {
     some code
     }}}"#};
     assert_eq!(
-        x.element,
+        x.into_inner(),
         PreformattedText::new(
             None,
             Default::default(),
-            vec!["    some code".to_string()]
+            vec![Cow::from("    some code")]
         )
     );
 }
@@ -372,11 +383,11 @@ fn vimwiki_preformatted_text_raw() {
 fn vimwiki_table() {
     let x = vimwiki_table!("|cell|");
     assert_eq!(
-        x.element,
+        x.into_inner(),
         Table::new(
-            vec![LE::from(Row::Content {
-                cells: vec![LE::from(Cell::Content(
-                    InlineElementContainer::new(vec![LE::from(
+            vec![Located::from(Row::Content {
+                cells: vec![Located::from(Cell::Content(
+                    InlineElementContainer::new(vec![Located::from(
                         InlineElement::Text(Text::from("cell"))
                     )])
                 ))],
@@ -389,21 +400,21 @@ fn vimwiki_table() {
 #[test]
 fn vimwiki_tags() {
     let x = vimwiki_tags!(":tag:");
-    assert_eq!(x.element, Tags::from("tag"));
+    assert_eq!(x.into_inner(), Tags::from("tag"));
 }
 
 #[test]
 fn vimwiki_text() {
     let x = vimwiki_text!("some text");
-    assert_eq!(x.element, Text::from("some text"));
+    assert_eq!(x.into_inner(), Text::from("some text"));
 }
 
 #[test]
 fn vimwiki_decorated_text_bold() {
     let x = vimwiki_decorated_text!("*some text*");
     assert_eq!(
-        x.element,
-        DecoratedText::Bold(vec![LE::from(DecoratedTextContent::from(
+        x.into_inner(),
+        DecoratedText::Bold(vec![Located::from(DecoratedTextContent::from(
             Text::from("some text")
         ))],)
     );
@@ -413,10 +424,10 @@ fn vimwiki_decorated_text_bold() {
 fn vimwiki_decorated_text_bolditalic_1() {
     let x = vimwiki_decorated_text!("*_some text_*");
     assert_eq!(
-        x.element,
-        DecoratedText::BoldItalic(vec![LE::from(DecoratedTextContent::from(
-            Text::from("some text")
-        ))],)
+        x.into_inner(),
+        DecoratedText::BoldItalic(vec![Located::from(
+            DecoratedTextContent::from(Text::from("some text"))
+        )],)
     );
 }
 
@@ -424,10 +435,10 @@ fn vimwiki_decorated_text_bolditalic_1() {
 fn vimwiki_decorated_text_bolditalic_2() {
     let x = vimwiki_decorated_text!("_*some text*_");
     assert_eq!(
-        x.element,
-        DecoratedText::BoldItalic(vec![LE::from(DecoratedTextContent::from(
-            Text::from("some text")
-        ))],)
+        x.into_inner(),
+        DecoratedText::BoldItalic(vec![Located::from(
+            DecoratedTextContent::from(Text::from("some text"))
+        )],)
     );
 }
 
@@ -435,8 +446,8 @@ fn vimwiki_decorated_text_bolditalic_2() {
 fn vimwiki_decorated_text_italic() {
     let x = vimwiki_decorated_text!("_some text_");
     assert_eq!(
-        x.element,
-        DecoratedText::Italic(vec![LE::from(DecoratedTextContent::from(
+        x.into_inner(),
+        DecoratedText::Italic(vec![Located::from(DecoratedTextContent::from(
             Text::from("some text")
         ))],)
     );
@@ -446,10 +457,10 @@ fn vimwiki_decorated_text_italic() {
 fn vimwiki_decorated_text_strikeout() {
     let x = vimwiki_decorated_text!("~~some text~~");
     assert_eq!(
-        x.element,
-        DecoratedText::Strikeout(vec![LE::from(DecoratedTextContent::from(
-            Text::from("some text")
-        ))],)
+        x.into_inner(),
+        DecoratedText::Strikeout(vec![Located::from(
+            DecoratedTextContent::from(Text::from("some text"))
+        )],)
     );
 }
 
@@ -457,10 +468,10 @@ fn vimwiki_decorated_text_strikeout() {
 fn vimwiki_decorated_text_superscript() {
     let x = vimwiki_decorated_text!("^some text^");
     assert_eq!(
-        x.element,
-        DecoratedText::Superscript(vec![LE::from(DecoratedTextContent::from(
-            Text::from("some text")
-        ))],)
+        x.into_inner(),
+        DecoratedText::Superscript(vec![Located::from(
+            DecoratedTextContent::from(Text::from("some text"))
+        )],)
     );
 }
 
@@ -468,15 +479,15 @@ fn vimwiki_decorated_text_superscript() {
 fn vimwiki_decorated_text_subscript() {
     let x = vimwiki_decorated_text!(",,some text,,");
     assert_eq!(
-        x.element,
-        DecoratedText::Subscript(vec![LE::from(DecoratedTextContent::from(
-            Text::from("some text")
-        ))],)
+        x.into_inner(),
+        DecoratedText::Subscript(vec![Located::from(
+            DecoratedTextContent::from(Text::from("some text"))
+        )],)
     );
 }
 
 #[test]
 fn vimwiki_keyword() {
     let x = vimwiki_keyword!("TODO");
-    assert_eq!(x.element, Keyword::TODO);
+    assert_eq!(x.into_inner(), Keyword::TODO);
 }

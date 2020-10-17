@@ -1,18 +1,18 @@
-use crate::tokens::{root_crate, Tokenize};
+use crate::tokens::{utils::element_path, Tokenize};
 use proc_macro2::TokenStream;
 use quote::quote;
 use vimwiki::elements::*;
 
-mod blocks;
-mod location;
+pub mod blocks;
+pub mod location;
 
 // Top-level types
 impl_tokenize!(tokenize_page, Page<'a>, 'a);
 fn tokenize_page(page: &Page) -> TokenStream {
-    let root = root_crate();
-    let elements = page.elements.iter().map(|c| do_tokenize!(x));
+    let root = element_path();
+    let elements = page.elements.iter().map(|x| do_tokenize!(x));
     quote! {
-        #root::elements::Page {
+        #root::Page {
             elements: vec![#(#elements),*],
         }
     }

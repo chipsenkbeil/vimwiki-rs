@@ -1,17 +1,14 @@
-use crate::tokens::{root_crate, Tokenize};
+use crate::tokens::{utils::element_path, utils::tokenize_option, Tokenize};
 use proc_macro2::TokenStream;
 use quote::quote;
 use vimwiki::elements::*;
 
 impl_tokenize!(tokenize_list, List<'a>, 'a);
 fn tokenize_list(list: &List) -> TokenStream {
-    let root = root_crate();
-    let items = list
-        .items
-        .iter()
-        .map(|x| tokenize_located_element(x, tokenize_list_item));
+    let root = element_path();
+    let items = list.items.iter().map(|x| do_tokenize!(x));
     quote! {
-        #root::elements::List {
+        #root::List {
             items: vec![#(#items),*],
         }
     }
@@ -19,7 +16,7 @@ fn tokenize_list(list: &List) -> TokenStream {
 
 impl_tokenize!(tokenize_list_item, ListItem<'a>, 'a);
 fn tokenize_list_item(list_item: &ListItem) -> TokenStream {
-    let root = root_crate();
+    let root = element_path();
     let ListItem {
         item_type,
         suffix,
@@ -32,7 +29,7 @@ fn tokenize_list_item(list_item: &ListItem) -> TokenStream {
     let contents_t = tokenize_list_item_contents(&contents);
     let attributes_t = tokenize_list_item_attributes(&attributes);
     quote! {
-        #root::elements::ListItem {
+        #root::ListItem {
             item_type: #item_type_t,
             suffix: #suffix_t,
             pos: #pos,
@@ -46,15 +43,15 @@ impl_tokenize!(tokenize_list_item_content, ListItemContent<'a>, 'a);
 fn tokenize_list_item_content(
     list_item_content: &ListItemContent,
 ) -> TokenStream {
-    let root = root_crate();
+    let root = element_path();
     match &list_item_content {
         ListItemContent::InlineContent(x) => {
-            let t = tokenize_inline_element_container(&x);
-            quote! { #root::elements::ListItemContent::InlineContent(#t) }
+            let t = do_tokenize!(&x);
+            quote! { #root::ListItemContent::InlineContent(#t) }
         }
         ListItemContent::List(x) => {
-            let t = tokenize_typed_block_element_of_list(&x);
-            quote! { #root::elements::ListItemContent::List(#t) }
+            let t = do_tokenize!(&x);
+            quote! { #root::ListItemContent::List(#t) }
         }
     }
 }
@@ -63,13 +60,10 @@ impl_tokenize!(tokenize_list_item_contents, ListItemContents<'a>, 'a);
 fn tokenize_list_item_contents(
     list_item_contents: &ListItemContents,
 ) -> TokenStream {
-    let root = root_crate();
-    let contents = list_item_contents
-        .contents
-        .iter()
-        .map(|x| tokenize_located_element(x, tokenize_list_item_content));
+    let root = element_path();
+    let contents = list_item_contents.contents.iter().map(|x| do_tokenize!(x));
     quote! {
-        #root::elements::ListItemContents {
+        #root::ListItemContents {
             contents: vec![#(#contents),*],
         }
     }
@@ -77,31 +71,31 @@ fn tokenize_list_item_contents(
 
 impl_tokenize!(tokenize_list_item_suffix, ListItemSuffix);
 fn tokenize_list_item_suffix(list_item_suffix: &ListItemSuffix) -> TokenStream {
-    let root = root_crate();
+    let root = element_path();
     match &list_item_suffix {
         ListItemSuffix::None => {
-            quote! { #root::elements::ListItemSuffix::None }
+            quote! { #root::ListItemSuffix::None }
         }
         ListItemSuffix::Period => {
-            quote! { #root::elements::ListItemSuffix::Period }
+            quote! { #root::ListItemSuffix::Period }
         }
         ListItemSuffix::Paren => {
-            quote! { #root::elements::ListItemSuffix::Paren }
+            quote! { #root::ListItemSuffix::Paren }
         }
     }
 }
 
 impl_tokenize!(tokenize_list_item_type, ListItemType<'a>, 'a);
 fn tokenize_list_item_type(list_item_type: &ListItemType) -> TokenStream {
-    let root = root_crate();
+    let root = element_path();
     match &list_item_type {
         ListItemType::Ordered(x) => {
             let t = tokenize_ordered_list_item_type(&x);
-            quote! { #root::elements::ListItemType::Ordered(#t) }
+            quote! { #root::ListItemType::Ordered(#t) }
         }
         ListItemType::Unordered(x) => {
             let t = tokenize_unordered_list_item_type(&x);
-            quote! { #root::elements::ListItemType::Unordered(#t) }
+            quote! { #root::ListItemType::Unordered(#t) }
         }
     }
 }
@@ -110,25 +104,25 @@ impl_tokenize!(tokenize_ordered_list_item_type, OrderedListItemType);
 fn tokenize_ordered_list_item_type(
     ordered_list_item_type: &OrderedListItemType,
 ) -> TokenStream {
-    let root = root_crate();
+    let root = element_path();
     match &ordered_list_item_type {
         OrderedListItemType::Number => {
-            quote! { #root::elements::OrderedListItemType::Number }
+            quote! { #root::OrderedListItemType::Number }
         }
         OrderedListItemType::Pound => {
-            quote! { #root::elements::OrderedListItemType::Pound }
+            quote! { #root::OrderedListItemType::Pound }
         }
         OrderedListItemType::LowercaseAlphabet => {
-            quote! { #root::elements::OrderedListItemType::LowercaseAlphabet }
+            quote! { #root::OrderedListItemType::LowercaseAlphabet }
         }
         OrderedListItemType::UppercaseAlphabet => {
-            quote! { #root::elements::OrderedListItemType::UppercaseAlphabet }
+            quote! { #root::OrderedListItemType::UppercaseAlphabet }
         }
         OrderedListItemType::LowercaseRoman => {
-            quote! { #root::elements::OrderedListItemType::LowercaseRoman }
+            quote! { #root::OrderedListItemType::LowercaseRoman }
         }
         OrderedListItemType::UppercaseRoman => {
-            quote! { #root::elements::OrderedListItemType::UppercaseRoman }
+            quote! { #root::OrderedListItemType::UppercaseRoman }
         }
     }
 }
@@ -137,17 +131,17 @@ impl_tokenize!(tokenize_unordered_list_item_type, UnorderedListItemType<'a>, 'a)
 fn tokenize_unordered_list_item_type(
     unordered_list_item_type: &UnorderedListItemType,
 ) -> TokenStream {
-    let root = root_crate();
+    let root = element_path();
     match &unordered_list_item_type {
         UnorderedListItemType::Hyphen => {
-            quote! { #root::elements::UnorderedListItemType::Hyphen }
+            quote! { #root::UnorderedListItemType::Hyphen }
         }
         UnorderedListItemType::Asterisk => {
-            quote! { #root::elements::UnorderedListItemType::Asterisk }
+            quote! { #root::UnorderedListItemType::Asterisk }
         }
         UnorderedListItemType::Other(x) => {
-            let t = tokenize_string(&x);
-            quote! { #root::elements::UnorderedListItemType::Other(#t) }
+            let t = do_tokenize!(&x);
+            quote! { #root::UnorderedListItemType::Other(#t) }
         }
     }
 }
@@ -156,13 +150,11 @@ impl_tokenize!(tokenize_list_item_attributes, ListItemAttributes);
 fn tokenize_list_item_attributes(
     list_item_attributes: &ListItemAttributes,
 ) -> TokenStream {
-    let root = root_crate();
-    let todo_status = tokenize_option(
-        &list_item_attributes.todo_status,
-        tokenize_list_item_todo_status,
-    );
+    let root = element_path();
+    let todo_status =
+        tokenize_option(&list_item_attributes.todo_status, |x| do_tokenize!(x));
     quote! {
-        #root::elements::ListItemAttributes {
+        #root::ListItemAttributes {
             todo_status: #todo_status
         }
     }
@@ -172,25 +164,25 @@ impl_tokenize!(tokenize_list_item_todo_status, ListItemTodoStatus);
 fn tokenize_list_item_todo_status(
     list_item_todo_status: &ListItemTodoStatus,
 ) -> TokenStream {
-    let root = root_crate();
+    let root = element_path();
     match list_item_todo_status {
         ListItemTodoStatus::Incomplete => {
-            quote! { #root::elements::ListItemTodoStatus::Incomplete }
+            quote! { #root::ListItemTodoStatus::Incomplete }
         }
         ListItemTodoStatus::PartiallyComplete1 => {
-            quote! { #root::elements::ListItemTodoStatus::PartiallyComplete1 }
+            quote! { #root::ListItemTodoStatus::PartiallyComplete1 }
         }
         ListItemTodoStatus::PartiallyComplete2 => {
-            quote! { #root::elements::ListItemTodoStatus::PartiallyComplete2 }
+            quote! { #root::ListItemTodoStatus::PartiallyComplete2 }
         }
         ListItemTodoStatus::PartiallyComplete3 => {
-            quote! { #root::elements::ListItemTodoStatus::PartiallyComplete3 }
+            quote! { #root::ListItemTodoStatus::PartiallyComplete3 }
         }
         ListItemTodoStatus::Complete => {
-            quote! { #root::elements::ListItemTodoStatus::Complete }
+            quote! { #root::ListItemTodoStatus::Complete }
         }
         ListItemTodoStatus::Rejected => {
-            quote! { #root::elements::ListItemTodoStatus::Rejected }
+            quote! { #root::ListItemTodoStatus::Rejected }
         }
     }
 }

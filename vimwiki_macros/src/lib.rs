@@ -26,18 +26,28 @@ macro_rules! impl_macro {
                     )
                 })?;
 
-                let raw_source = utils::input_to_string(first, $raw_mode)?;
-                let element: $type = Language::$from_str(raw_source)
+                // Validate we did indeed only get a single argument
+                utils::require_empty_or_trailing_comma(&mut input)?;
+
+                // Load our input in as a specific language
+                let language = Language::$from_str(
+                    utils::input_to_string(first, $raw_mode)?
+                );
+
+                // Perform the action of parsing our language into a
+                // structured format
+                let element: $type = language
                     .parse()
                     .map_err(|x| Error::new(Span::call_site(), &format!("{}", x)))?;
 
-                utils::require_empty_or_trailing_comma(&mut input)?;
-
+                // Stuff our structure language into a proper token stream
                 let mut stream = TokenStream::new();
                 element.tokenize(&mut stream);
                 Ok(stream)
             }
 
+            // Do the act of expanding our input language into Rust code
+            // at compile-time, reporting an error if we fail
             let output = match try_expand(input) {
                 Ok(tokens) => tokens,
                 Err(err) => err.to_compile_error(),

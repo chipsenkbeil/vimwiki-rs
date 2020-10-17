@@ -1,11 +1,8 @@
-use crate::tokens::{root_crate, Tokenize};
+use crate::tokens::{utils::vendor_path, Tokenize};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use std::{borrow::Cow, path::Path};
-use vimwiki::{
-    elements::*,
-    vendor::{chrono::NaiveDate, uriparse::URI},
-};
+use vimwiki::vendor::{chrono::NaiveDate, uriparse::URI};
 
 // Implement primitives that already implement ToTokens via quote crate
 impl_tokenize!(bool);
@@ -29,20 +26,20 @@ impl_tokenize!(tokenize_path, Path);
 
 fn tokenize_naive_date(naive_date: &NaiveDate) -> TokenStream {
     use vimwiki::vendor::chrono::Datelike;
-    let root = root_crate();
+    let root = vendor_path();
     let year = naive_date.year();
     let month = naive_date.month();
     let day = naive_date.day();
-    quote! { #root::vendor::chrono::NaiveDate::from_ymd(#year, #month, #day) }
+    quote! { #root::chrono::NaiveDate::from_ymd(#year, #month, #day) }
 }
 
 fn tokenize_uri(uri: &URI) -> TokenStream {
-    let root = root_crate();
+    let root = vendor_path();
     let uri_string = uri.to_string();
     quote! {
         {
             use std::convert::TryFrom;
-            #root::vendor::uriparse::URI::try_from(#uri_string)
+            #root::uriparse::URI::try_from(#uri_string)
                 .expect("Failed to parse URI").into_owned()
         }
     }

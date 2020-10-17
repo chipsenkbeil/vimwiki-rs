@@ -1,14 +1,4 @@
 use proc_macro2::TokenStream;
-use quote::quote;
-
-/// Generates a `TokenStream` that provides the root of an import path for
-/// the `vimwiki` crate
-#[inline]
-fn root_crate() -> TokenStream {
-    // TODO: Support detecting if we're within the vimwiki crate
-    //       (for unit tests only, not integration tests)
-    quote! { ::vimwiki }
-}
 
 /// Tokenize a value into a stream of tokens.
 pub trait Tokenize {
@@ -51,6 +41,6 @@ macro_rules! do_tokenize {
     }};
 }
 
-mod elements;
-mod primitives;
-mod utils;
+pub mod elements;
+pub mod primitives;
+pub mod utils;

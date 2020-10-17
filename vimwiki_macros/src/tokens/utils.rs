@@ -3,6 +3,31 @@ use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
 use std::collections::HashMap;
 
+/// Generates a `TokenStream` that provides the root of an import path for
+/// the `vimwiki` crate
+#[inline]
+pub fn root_crate() -> TokenStream {
+    // TODO: Support detecting if we're within the vimwiki crate
+    //       (for unit tests only, not integration tests)
+    quote! { ::vimwiki }
+}
+
+/// Generates a `TokenStream` that provides the path to element types in
+/// the `vimwiki` crate
+#[inline]
+pub fn element_path() -> TokenStream {
+    let root = root_crate();
+    quote! { #root::elements }
+}
+
+/// Generates a `TokenStream` that provides the path to vendor types in
+/// the `vimwiki` crate
+#[inline]
+pub fn vendor_path() -> TokenStream {
+    let root = root_crate();
+    quote! { #root::vendor }
+}
+
 /// Produces a `TokenStream` for the `String` type
 #[inline]
 pub fn tokenize_string_type() -> TokenStream {

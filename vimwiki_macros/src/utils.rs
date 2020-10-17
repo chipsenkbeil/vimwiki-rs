@@ -91,6 +91,8 @@ pub fn input_to_string(token: TokenTree, raw_mode: bool) -> Result<String> {
     Ok(lines)
 }
 
+/// Validates that our macro receives only a single argument, advancing
+/// the input as a consequence
 pub fn require_empty_or_trailing_comma(input: &mut TokenIter) -> Result<()> {
     let first = match input.next() {
         Some(TokenTree::Punct(punct)) if punct.as_char() == ',' => {
