@@ -25,12 +25,12 @@ impl Page<'_> {
         let elements = self
             .elements
             .iter()
-            .map(|x| Located::new(x.as_inner().to_borrowed(), x.region))
+            .map(|x| x.as_ref().map(BlockElement::to_borrowed))
             .collect();
         let comments = self
             .comments
             .iter()
-            .map(|x| Located::new(x.as_inner().as_borrowed(), x.region))
+            .map(|x| x.as_ref().map(Comment::to_borrowed))
             .collect();
 
         Page { elements, comments }
@@ -39,13 +39,13 @@ impl Page<'_> {
     pub fn into_owned(self) -> Page<'static> {
         let elements = self
             .elements
-            .iter()
-            .map(|x| Located::new(x.as_inner().into_owned(), x.region))
+            .into_iter()
+            .map(|x| x.map(BlockElement::into_owned))
             .collect();
         let comments = self
             .comments
-            .iter()
-            .map(|x| Located::new(x.as_inner().into_owned(), x.region))
+            .into_iter()
+            .map(|x| x.map(Comment::into_owned))
             .collect();
 
         Page { elements, comments }

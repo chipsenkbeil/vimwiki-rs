@@ -4,7 +4,15 @@ pub mod parsers;
 use derive_more::Display;
 use elements::*;
 use parsers::{vimwiki, Span};
-use std::{borrow::Cow, convert::TryFrom};
+use std::borrow::Cow;
+
+/// Parse a value from a `RawStr`
+pub trait FromRawStr<'a>: Sized {
+    type Error;
+
+    /// Parses a `RawStr` to return a value of this type
+    fn from_raw_str(s: &'a RawStr<'a>) -> Result<Self, Self::Error>;
+}
 
 /// Represents a raw string for a type of language
 /// (vimwiki, markdown, mediawiki)
@@ -87,6 +95,11 @@ impl<'a> RawStr<'a> {
             Self::Mediawiki(x) => x,
         }
     }
+
+    /// Parses this `RawStr` into another type
+    pub fn parse<F: FromRawStr<'a>>(&'a self) -> Result<F, F::Error> {
+        FromRawStr::from_raw_str(self)
+    }
 }
 
 impl RawStr<'_> {
@@ -147,12 +160,37 @@ impl RawStr<'_> {
     }
 }
 
-impl<'a> TryFrom<RawStr<'a>> for Page<'static> {
+//
+//
+// CHIP CHIP CHIP
+//
+// Two things:
+// 1. RawStr doesn't really make sense. Rename it to something like LangStr
+// 2. We're very, very close to supporting the mix of owned/borrowed across the
+//    elements (I think), but Page is a blocker as it requires special handling.
+//
+//    Can we refactor comments to be parsed inline instead of separately at
+//    the beginning? If so, we wouldn't have to try to mutate a string and we
+//    could refactor the page parser to accept Span and fall in line with the
+//    rest of the parsers again.
+//
+//    Both LineComment and MultiLineComment could be inline as they can start
+//    anywhere. For LineComment, we would consume to newline, like usual. For
+//    MultiLineComment, I think it's okay to consume until end and treat
+//    whatever line we end up on as the line which we will continue to
+//    consume as inline content
+//
+//    Alternatively, the other way to handle multi-line would be to determine
+//    if it goes beyond the current line. If so, we mark that as the "end
+//    of the line" for parsing inline content, which parsers should then
+//    check if they continue on the next line
+//
+impl<'a> FromRawStr<'a> for Page<'static> {
     type Error = nom::Err<parsers::Error>;
 
-    fn try_from(s: RawStr<'a>) -> Result<Self, Self::Error> {
+    fn from_raw_str(s: &'a RawStr<'a>) -> Result<Self, Self::Error> {
         if s.is_vimwiki() {
-            vimwiki::page(s.into_inner().into_owned())
+            vimwiki::page(s.as_str().to_string())
         } else {
             Err(nom::Err::Failure(parsers::Error::unsupported()))
         }
@@ -161,15 +199,13 @@ impl<'a> TryFrom<RawStr<'a>> for Page<'static> {
 
 macro_rules! impl_try_from {
     ($t:ty, $f:expr) => {
-        impl<'a> TryFrom<RawStr<'a>> for $t {
+        impl<'a> FromRawStr<'a> for $t {
             type Error = nom::Err<parsers::Error>;
 
-            fn try_from(s: RawStr<'a>) -> Result<Self, Self::Error> {
-                if s.is_vimwiki() {
-                    let input = Span::from(s.into_inner().as_bytes());
-                    Ok($f(input)?.1)
-                } else {
-                    Err(nom::Err::Failure(parsers::Error::unsupported()))
+            fn from_raw_str(s: &'a RawStr<'a>) -> Result<Self, Self::Error> {
+                match s {
+                    RawStr::Vimwiki(x) => Ok($f(Span::from(x.as_bytes()))?.1),
+                    _ => Err(nom::Err::Failure(parsers::Error::unsupported())),
                 }
             }
         }
@@ -296,7 +332,6 @@ impl_try_from!(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::convert::TryInto;
 
     /// Contains tests for the vimwiki language parsers
     mod vimwiki {
@@ -305,112 +340,112 @@ mod tests {
         #[test]
         fn try_from_raw_str_to_page() {
             let input = RawStr::from_vimwiki_str("some text");
-            let _result: Page = input.try_into().expect("Failed to parse");
+            let _result: Page = input.parse().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_le_block_element() {
             let input = RawStr::from_vimwiki_str("some text");
             let _result: Located<BlockElement> =
-                input.try_into().expect("Failed to parse");
+                input.parse().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_le_inline_element_container() {
             let input = RawStr::from_vimwiki_str("some text");
             let _result: Located<InlineElementContainer> =
-                input.try_into().expect("Failed to parse");
+                input.parse().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_le_inline_element() {
             let input = RawStr::from_vimwiki_str("some text");
             let _result: Located<InlineElement> =
-                input.try_into().expect("Failed to parse");
+                input.parse().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_le_blockquote() {
             let input = RawStr::from_vimwiki_str("> some text");
             let _result: Located<Blockquote> =
-                input.try_into().expect("Failed to parse");
+                input.parse().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_le_code_inline() {
             let input = RawStr::from_vimwiki_str("`code`");
             let _result: Located<CodeInline> =
-                input.try_into().expect("Failed to parse");
+                input.parse().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_le_comment() {
             let input = RawStr::from_vimwiki_str("%% some comment");
             let _result: Located<Comment> =
-                input.try_into().expect("Failed to parse");
+                input.parse().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_le_line_comment() {
             let input = RawStr::from_vimwiki_str("%% some comment");
             let _result: Located<LineComment> =
-                input.try_into().expect("Failed to parse");
+                input.parse().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_le_multi_line_comment() {
             let input = RawStr::from_vimwiki_str("%%+ some comment +%%");
             let _result: Located<MultiLineComment> =
-                input.try_into().expect("Failed to parse");
+                input.parse().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_le_definition_list() {
             let input = RawStr::from_vimwiki_str("term:: definition");
             let _result: Located<DefinitionList> =
-                input.try_into().expect("Failed to parse");
+                input.parse().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_le_divider() {
             let input = RawStr::from_vimwiki_str("----");
             let _result: Located<Divider> =
-                input.try_into().expect("Failed to parse");
+                input.parse().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_le_header() {
             let input = RawStr::from_vimwiki_str("= header =");
             let _result: Located<Header> =
-                input.try_into().expect("Failed to parse");
+                input.parse().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_le_link() {
             let input = RawStr::from_vimwiki_str("[[link]]");
             let _result: Located<Link> =
-                input.try_into().expect("Failed to parse");
+                input.parse().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_le_diary_link() {
             let input = RawStr::from_vimwiki_str("[[diary:2012-03-05]]");
             let _result: Located<DiaryLink> =
-                input.try_into().expect("Failed to parse");
+                input.parse().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_le_external_file_link() {
             let input = RawStr::from_vimwiki_str("[[file:path/to/file]]");
             let _result: Located<ExternalFileLink> =
-                input.try_into().expect("Failed to parse");
+                input.parse().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_le_raw_link() {
             let input = RawStr::from_vimwiki_str("https://example.com");
             let _result: Located<RawLink> =
-                input.try_into().expect("Failed to parse");
+                input.parse().expect("Failed to parse");
         }
 
         #[test]
@@ -418,98 +453,98 @@ mod tests {
             let input =
                 RawStr::from_vimwiki_str("{{https://example.com/img.jpg}}");
             let _result: Located<TransclusionLink> =
-                input.try_into().expect("Failed to parse");
+                input.parse().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_le_wiki_link() {
             let input = RawStr::from_vimwiki_str("[[link]]");
             let _result: Located<WikiLink> =
-                input.try_into().expect("Failed to parse");
+                input.parse().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_le_inter_wiki_link() {
             let input = RawStr::from_vimwiki_str("[[wiki1:link]]");
             let _result: Located<InterWikiLink> =
-                input.try_into().expect("Failed to parse");
+                input.parse().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_le_list() {
             let input = RawStr::from_vimwiki_str("- some list item");
             let _result: Located<List> =
-                input.try_into().expect("Failed to parse");
+                input.parse().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_le_math_inline() {
             let input = RawStr::from_vimwiki_str("$math$");
             let _result: Located<MathInline> =
-                input.try_into().expect("Failed to parse");
+                input.parse().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_le_math_block() {
             let input = RawStr::from_vimwiki_str("{{$\nmath\n}}$");
             let _result: Located<MathBlock> =
-                input.try_into().expect("Failed to parse");
+                input.parse().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_le_paragraph() {
             let input = RawStr::from_vimwiki_str("some text");
             let _result: Located<Paragraph> =
-                input.try_into().expect("Failed to parse");
+                input.parse().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_le_placeholder() {
             let input = RawStr::from_vimwiki_str("%title some text");
             let _result: Located<Placeholder> =
-                input.try_into().expect("Failed to parse");
+                input.parse().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_le_preformatted_text() {
             let input = RawStr::from_vimwiki_str("{{{\nsome code\n}}}");
             let _result: Located<PreformattedText> =
-                input.try_into().expect("Failed to parse");
+                input.parse().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_le_table() {
             let input = RawStr::from_vimwiki_str("|cell|");
             let _result: Located<Table> =
-                input.try_into().expect("Failed to parse");
+                input.parse().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_le_tags() {
             let input = RawStr::from_vimwiki_str(":tag:");
             let _result: Located<Tags> =
-                input.try_into().expect("Failed to parse");
+                input.parse().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_le_text() {
             let input = RawStr::from_vimwiki_str("some text");
             let _result: Located<Text> =
-                input.try_into().expect("Failed to parse");
+                input.parse().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_le_decorated_text() {
             let input = RawStr::from_vimwiki_str("*some text*");
             let _result: Located<DecoratedText> =
-                input.try_into().expect("Failed to parse");
+                input.parse().expect("Failed to parse");
         }
 
         #[test]
         fn try_from_raw_str_to_le_keyword() {
             let input = RawStr::from_vimwiki_str("TODO");
             let _result: Located<Keyword> =
-                input.try_into().expect("Failed to parse");
+                input.parse().expect("Failed to parse");
         }
     }
 }

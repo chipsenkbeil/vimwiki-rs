@@ -9,10 +9,10 @@ pub enum Comment<'a> {
 }
 
 impl Comment<'_> {
-    pub fn as_borrowed(&self) -> Comment {
+    pub fn to_borrowed(&self) -> Comment {
         match self {
             Self::Line(x) => Comment::from(x.as_borrowed()),
-            Self::MultiLine(x) => Comment::from(x.as_borrowed()),
+            Self::MultiLine(x) => Comment::from(x.to_borrowed()),
         }
     }
 
@@ -64,7 +64,7 @@ impl<'a> From<String> for LineComment<'a> {
 pub struct MultiLineComment<'a>(pub Vec<Cow<'a, str>>);
 
 impl MultiLineComment<'_> {
-    pub fn as_borrowed(&self) -> MultiLineComment {
+    pub fn to_borrowed(&self) -> MultiLineComment {
         use self::Cow::*;
 
         let inner = self
