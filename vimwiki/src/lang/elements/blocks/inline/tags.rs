@@ -36,13 +36,13 @@ pub struct Tags<'a>(pub Vec<Tag<'a>>);
 
 impl Tags<'_> {
     pub fn to_borrowed(&self) -> Tags {
-        let inner = self.0.iter().map(|x| x.as_borrowed()).collect();
+        let inner = self.0.iter().map(Tag::as_borrowed).collect();
 
         Tags(inner)
     }
 
     pub fn into_owned(self) -> Tags<'static> {
-        let inner = self.0.iter().map(|x| x.into_owned()).collect();
+        let inner = self.0.into_iter().map(Tag::into_owned).collect();
 
         Tags(inner)
     }

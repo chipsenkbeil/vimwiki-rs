@@ -1,7 +1,6 @@
 use crate::lang::{
     elements::{
         Definition, DefinitionList, InlineElementContainer, Located, Term,
-        TermAndDefinitions,
     },
     parsers::{
         utils::{
@@ -33,7 +32,9 @@ pub fn definition_list(input: Span) -> IResult<Located<DefinitionList>> {
 
 /// Parser that detects a term and one or more definitions
 #[inline]
-fn term_and_definitions(input: Span) -> IResult<TermAndDefinitions> {
+fn term_and_definitions<'a>(
+    input: Span<'a>,
+) -> IResult<(Term<'a>, Vec<Definition<'a>>)> {
     let (input, _) = beginning_of_line(input)?;
     let (input, (term, maybe_def)) = term_line(input)?;
     let (input, mut defs) =
@@ -45,13 +46,7 @@ fn term_and_definitions(input: Span) -> IResult<TermAndDefinitions> {
         defs.insert(0, def);
     }
 
-    Ok((
-        input,
-        TermAndDefinitions {
-            term,
-            definitions: defs,
-        },
-    ))
+    Ok((input, (term, defs)))
 }
 
 /// Parsers a line as a term (with optional definition)
@@ -78,7 +73,9 @@ fn term_line(input: Span) -> IResult<(Term, Option<Definition>)> {
             take_until_end_of_line_or_input,
             map(
                 inline_element_container,
-                |l: Located<InlineElementContainer>| l.into_inner(),
+                |l: Located<InlineElementContainer>| {
+                    Definition::new(l.into_inner())
+                },
             ),
         ),
     ))(input)?;
@@ -86,7 +83,7 @@ fn term_line(input: Span) -> IResult<(Term, Option<Definition>)> {
     // Conclude with any lingering space and newline
     let (input, _) = pair(space0, end_of_line_or_input)(input)?;
 
-    Ok((input, (term, maybe_def)))
+    Ok((input, (Term::new(term), maybe_def)))
 }
 
 /// Parses a line as a definition
@@ -104,7 +101,7 @@ fn definition_line(input: Span) -> IResult<Definition> {
     )(input)?;
     let (input, _) = end_of_line_or_input(input)?;
 
-    Ok((input, def))
+    Ok((input, Definition::new(def)))
 }
 
 #[cfg(test)]
@@ -177,7 +174,7 @@ mod tests {
         let (input, l) = definition_list(input).unwrap();
         assert!(input.is_empty(), "Did not consume def list");
 
-        let defs = l.defs_for_term("term 1").unwrap().collect();
+        let defs = l.get("term 1").unwrap().iter().collect();
         check_text_defs(defs, vec!["def 1"]);
     }
 
@@ -190,7 +187,7 @@ mod tests {
         let (input, l) = definition_list(input).unwrap();
         assert!(input.is_empty(), "Did not consume def list");
 
-        let defs = l.defs_for_term("term 1").unwrap().collect();
+        let defs = l.get("term 1").unwrap().iter().collect();
         check_text_defs(defs, vec!["def 1"]);
     }
 
@@ -204,7 +201,7 @@ mod tests {
         let (input, l) = definition_list(input).unwrap();
         assert!(input.is_empty(), "Did not consume def list");
 
-        let defs = l.defs_for_term("term 1").unwrap().collect();
+        let defs = l.get("term 1").unwrap().iter().collect();
         check_text_defs(defs, vec!["def 1", "def 2"]);
     }
 
@@ -218,7 +215,7 @@ mod tests {
         let (input, l) = definition_list(input).unwrap();
         assert!(input.is_empty(), "Did not consume def list");
 
-        let defs = l.defs_for_term("term 1").unwrap().collect();
+        let defs = l.get("term 1").unwrap().iter().collect();
         check_text_defs(defs, vec!["def 1", "def 2"]);
     }
 
@@ -231,10 +228,10 @@ mod tests {
         let (input, l) = definition_list(input).unwrap();
         assert!(input.is_empty(), "Did not consume def list");
 
-        let defs = l.defs_for_term("term 1").unwrap().collect();
+        let defs = l.get("term 1").unwrap().iter().collect();
         check_text_defs(defs, vec!["def 1"]);
 
-        let defs = l.defs_for_term("term 2").unwrap().collect();
+        let defs = l.get("term 2").unwrap().iter().collect();
         check_text_defs(defs, vec!["def 2"]);
     }
 
@@ -249,10 +246,10 @@ mod tests {
         let (input, l) = definition_list(input).unwrap();
         assert!(input.is_empty(), "Did not consume def list");
 
-        let defs = l.defs_for_term("term 1").unwrap().collect();
+        let defs = l.get("term 1").unwrap().iter().collect();
         check_text_defs(defs, vec!["def 1"]);
 
-        let defs = l.defs_for_term("term 2").unwrap().collect();
+        let defs = l.get("term 2").unwrap().iter().collect();
         check_text_defs(defs, vec!["def 2"]);
     }
 
@@ -267,10 +264,10 @@ mod tests {
         let (input, l) = definition_list(input).unwrap();
         assert!(input.is_empty(), "Did not consume def list");
 
-        let defs = l.defs_for_term("term 1").unwrap().collect();
+        let defs = l.get("term 1").unwrap().iter().collect();
         check_text_defs(defs, vec!["def 1", "def 2"]);
 
-        let defs = l.defs_for_term("term 2").unwrap().collect();
+        let defs = l.get("term 2").unwrap().iter().collect();
         check_text_defs(defs, vec!["def 3", "def 4"]);
     }
 
@@ -297,8 +294,7 @@ mod tests {
             ])]
         );
 
-        let defs: Vec<&Definition> =
-            l.defs_for_term("term 1").unwrap().collect();
+        let defs: Vec<&Definition> = l.get("term 1").unwrap().iter().collect();
         assert_eq!(defs.len(), 2, "Wrong number of definitions found");
         assert_eq!(
             defs[0],

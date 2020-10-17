@@ -82,7 +82,11 @@ impl MultiLineComment<'_> {
     }
 
     pub fn into_owned(self) -> MultiLineComment<'static> {
-        let inner = self.0.iter().map(|x| Cow::from(x.into_owned())).collect();
+        let inner = self
+            .0
+            .into_iter()
+            .map(|x| Cow::from(x.into_owned()))
+            .collect();
 
         MultiLineComment(inner)
     }

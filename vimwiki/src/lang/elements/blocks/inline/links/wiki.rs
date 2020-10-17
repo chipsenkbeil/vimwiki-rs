@@ -33,8 +33,9 @@ impl WikiLink<'_> {
             Borrowed(x) => *x,
             Owned(x) => x.as_path(),
         });
-        let description = self.description.map(|x| x.to_borrowed());
-        let anchor = self.anchor.map(|x| x.to_borrowed());
+        let description =
+            self.description.as_ref().map(Description::to_borrowed);
+        let anchor = self.anchor.as_ref().map(Anchor::to_borrowed);
 
         WikiLink {
             path,
@@ -45,8 +46,8 @@ impl WikiLink<'_> {
 
     pub fn into_owned(self) -> WikiLink<'static> {
         let path = Cow::from(self.path.into_owned());
-        let description = self.description.map(|x| x.into_owned());
-        let anchor = self.anchor.map(|x| x.into_owned());
+        let description = self.description.map(Description::into_owned);
+        let anchor = self.anchor.map(Anchor::into_owned);
 
         WikiLink {
             path,

@@ -1,4 +1,4 @@
-use crate::lang::elements::{InlineElement, Link, Located, TypedInlineElement};
+use crate::lang::elements::{InlineElement, Link, Located};
 use derive_more::{AsMut, AsRef, Constructor, Display, From, Into};
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, fmt};
@@ -56,16 +56,16 @@ impl<'a> From<&'a str> for Text<'a> {
     Clone, Debug, Display, From, Eq, PartialEq, Hash, Serialize, Deserialize,
 )]
 pub enum DecoratedTextContent<'a> {
-    Text(TypedInlineElement<'a, Text<'a>>),
-    Keyword(TypedInlineElement<'a, Keyword>),
-    Link(TypedInlineElement<'a, Link<'a>>),
+    Text(Text<'a>),
+    Keyword(Keyword),
+    Link(Link<'a>),
 }
 
 impl DecoratedTextContent<'_> {
     pub fn to_borrowed(&self) -> DecoratedTextContent {
         match self {
-            Self::Text(x) => DecoratedTextContent::from(x.to_borrowed()),
-            Self::Keyword(x) => DecoratedTextContent::from(x.to_borrowed()),
+            Self::Text(x) => DecoratedTextContent::from(x.as_borrowed()),
+            Self::Keyword(x) => DecoratedTextContent::from(*x),
             Self::Link(x) => DecoratedTextContent::from(x.to_borrowed()),
         }
     }
@@ -73,53 +73,20 @@ impl DecoratedTextContent<'_> {
     pub fn into_owned(self) -> DecoratedTextContent<'static> {
         match self {
             Self::Text(x) => DecoratedTextContent::from(x.into_owned()),
-            Self::Keyword(x) => DecoratedTextContent::from(x.into_owned()),
+            Self::Keyword(x) => DecoratedTextContent::from(x),
             Self::Link(x) => DecoratedTextContent::from(x.into_owned()),
         }
     }
 }
 
 impl<'a> DecoratedTextContent<'a> {
-    pub fn as_inline_element(&'a self) -> &InlineElement<'a> {
+    /// Borrows the content and wraps it in an `InlineElement`
+    pub fn to_inline_element(&'a self) -> InlineElement<'a> {
         match self {
-            Self::Text(ref x) => x.as_inner(),
-            Self::Keyword(ref x) => x.as_inner(),
-            Self::Link(ref x) => x.as_inner(),
+            Self::Text(ref x) => x.as_borrowed().into(),
+            Self::Keyword(x) => (*x).into(),
+            Self::Link(ref x) => x.to_borrowed().into(),
         }
-    }
-
-    pub fn as_mut_inline_element(&mut self) -> &mut InlineElement<'a> {
-        match self {
-            Self::Text(ref mut x) => x.as_mut_inner(),
-            Self::Keyword(ref mut x) => x.as_mut_inner(),
-            Self::Link(ref mut x) => x.as_mut_inner(),
-        }
-    }
-
-    pub fn into_inline_element(self) -> InlineElement<'a> {
-        match self {
-            Self::Text(x) => x.into_inner(),
-            Self::Keyword(x) => x.into_inner(),
-            Self::Link(x) => x.into_inner(),
-        }
-    }
-}
-
-impl<'a> From<Text<'a>> for DecoratedTextContent<'a> {
-    fn from(text: Text<'a>) -> Self {
-        Self::from(TypedInlineElement::from_text(text))
-    }
-}
-
-impl From<Keyword> for DecoratedTextContent<'static> {
-    fn from(keyword: Keyword) -> Self {
-        Self::from(TypedInlineElement::from_keyword(keyword))
-    }
-}
-
-impl<'a> From<Link<'a>> for DecoratedTextContent<'a> {
-    fn from(link: Link<'a>) -> Self {
-        Self::from(TypedInlineElement::from_link(link))
     }
 }
 
@@ -139,7 +106,7 @@ impl DecoratedText<'_> {
         macro_rules! vec_to_borrowed {
             ($vec:expr) => {
                 $vec.iter()
-                    .map(|x| Located::new(x.as_inner().to_borrowed(), x.region))
+                    .map(|x| x.as_ref().map(DecoratedTextContent::to_borrowed))
                     .collect()
             };
         }
@@ -161,8 +128,8 @@ impl DecoratedText<'_> {
     pub fn into_owned(self) -> DecoratedText<'static> {
         macro_rules! vec_into_owned {
             ($vec:expr) => {
-                $vec.iter()
-                    .map(|x| Located::new(x.as_inner().into_owned(), x.region))
+                $vec.into_iter()
+                    .map(|x| x.map(DecoratedTextContent::into_owned))
                     .collect()
             };
         }
@@ -216,17 +183,4 @@ pub enum Keyword {
     FIXME,
     FIXED,
     XXX,
-}
-
-impl Keyword {
-    /// For a keyword, this just copies the contents, rather than borrowing
-    /// within as the keyword has nothing to borrow
-    pub fn as_borrowed(&self) -> Keyword {
-        *self
-    }
-
-    /// For a keyword, this just behaves the same as a copy
-    pub fn into_owned(self) -> Keyword {
-        self
-    }
 }

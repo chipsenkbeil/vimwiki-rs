@@ -30,7 +30,7 @@ impl Blockquote<'_> {
     pub fn into_owned(self) -> Blockquote<'static> {
         let lines = self
             .lines
-            .iter()
+            .into_iter()
             .map(|x| Cow::from(x.into_owned()))
             .collect();
 

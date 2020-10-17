@@ -48,16 +48,13 @@ impl Placeholder<'_> {
 
     pub fn into_owned(self) -> Placeholder<'static> {
         match self {
-            Self::Title(ref x) => Placeholder::Title(Cow::from(x.into_owned())),
+            Self::Title(x) => Placeholder::Title(Cow::from(x.into_owned())),
             Self::NoHtml => Placeholder::NoHtml,
-            Self::Template(ref x) => {
+            Self::Template(x) => {
                 Placeholder::Template(Cow::from(x.into_owned()))
             }
             Self::Date(x) => Placeholder::Date(x),
-            Self::Other {
-                ref name,
-                ref value,
-            } => Placeholder::Other {
+            Self::Other { name, value } => Placeholder::Other {
                 name: Cow::from(name.into_owned()),
                 value: Cow::from(value.into_owned()),
             },

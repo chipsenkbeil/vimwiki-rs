@@ -2,8 +2,7 @@ use crate::lang::{
     elements::{
         InlineElementContainer, List, ListItem, ListItemAttributes,
         ListItemContent, ListItemContents, ListItemSuffix, ListItemTodoStatus,
-        ListItemType, Located, OrderedListItemType, TypedBlockElement,
-        UnorderedListItemType,
+        ListItemType, Located, OrderedListItemType, UnorderedListItemType,
     },
     parsers::{
         utils::{
@@ -122,11 +121,7 @@ fn list_item_tail(
         let (input, mut contents) = many0(preceded(
             verify(indentation_level(false), |level| *level > indentation),
             alt((
-                map(list, |c| {
-                    c.map(|l| {
-                        ListItemContent::from(TypedBlockElement::from_list(l))
-                    })
-                }),
+                map(list, |c| c.map(|l| ListItemContent::from(l))),
                 map(preceded(space0, list_item_line_content), |c| {
                     c.map(ListItemContent::from)
                 }),

@@ -25,7 +25,7 @@ impl MathBlock<'_> {
                     })
                 })
                 .collect(),
-            environment: self.environment.map(|x| {
+            environment: self.environment.as_ref().map(|x| {
                 Cow::Borrowed(match &x {
                     Borrowed(x) => *x,
                     Owned(x) => x.as_str(),
@@ -38,7 +38,7 @@ impl MathBlock<'_> {
         MathBlock {
             lines: self
                 .lines
-                .iter()
+                .into_iter()
                 .map(|x| Cow::from(x.into_owned()))
                 .collect(),
             environment: self.environment.map(|x| Cow::from(x.into_owned())),

@@ -16,7 +16,7 @@ impl Table<'_> {
             rows: self
                 .rows
                 .iter()
-                .map(|x| Located::new(x.as_inner().to_borrowed(), x.region))
+                .map(|x| x.as_ref().map(Row::to_borrowed))
                 .collect(),
             centered: self.centered,
         }
@@ -26,8 +26,8 @@ impl Table<'_> {
         Table {
             rows: self
                 .rows
-                .iter()
-                .map(|x| Located::new(x.as_inner().into_owned(), x.region))
+                .into_iter()
+                .map(|x| x.map(Row::into_owned))
                 .collect(),
             centered: self.centered,
         }
@@ -62,7 +62,7 @@ impl Row<'_> {
             Self::Content { cells } => Row::Content {
                 cells: cells
                     .iter()
-                    .map(|x| Located::new(x.as_inner().to_borrowed(), x.region))
+                    .map(|x| x.as_ref().map(Cell::to_borrowed))
                     .collect(),
             },
             Self::Divider => Row::Divider,
@@ -73,8 +73,8 @@ impl Row<'_> {
         match self {
             Self::Content { cells } => Row::Content {
                 cells: cells
-                    .iter()
-                    .map(|x| Located::new(x.as_inner().into_owned(), x.region))
+                    .into_iter()
+                    .map(|x| x.map(Cell::into_owned))
                     .collect(),
             },
             Self::Divider => Row::Divider,

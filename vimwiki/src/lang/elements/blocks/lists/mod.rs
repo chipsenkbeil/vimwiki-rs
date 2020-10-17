@@ -1,6 +1,4 @@
-use super::{
-    InlineElement, InlineElementContainer, Located, TypedBlockElement,
-};
+use super::{InlineElement, InlineElementContainer, Located};
 use derive_more::{
     Constructor, Deref, DerefMut, From, Index, IndexMut, Into, IntoIterator,
 };
@@ -23,17 +21,17 @@ impl List<'_> {
             items: self
                 .items
                 .iter()
-                .map(|x| Located::new(x.as_inner().to_borrowed(), x.region))
+                .map(|x| x.as_ref().map(ListItem::to_borrowed))
                 .collect(),
         }
     }
 
-    pub fn into_owned(&self) -> List {
+    pub fn into_owned(self) -> List<'static> {
         List {
             items: self
                 .items
-                .iter()
-                .map(|x| Located::new(x.as_inner().into_owned(), x.region))
+                .into_iter()
+                .map(|x| x.map(ListItem::into_owned))
                 .collect(),
         }
     }
@@ -78,7 +76,7 @@ impl<'a> List<'a> {
 #[derive(Clone, Debug, From, Eq, PartialEq, Serialize, Deserialize)]
 pub enum ListItemContent<'a> {
     InlineContent(InlineElementContainer<'a>),
-    List(TypedBlockElement<'a, List<'a>>),
+    List(List<'a>),
 }
 
 impl ListItemContent<'_> {
@@ -127,7 +125,7 @@ impl ListItemContents<'_> {
             contents: self
                 .contents
                 .iter()
-                .map(|x| Located::new(x.as_inner().to_borrowed(), x.region))
+                .map(|x| x.as_ref().map(ListItemContent::to_borrowed))
                 .collect(),
         }
     }
@@ -136,8 +134,8 @@ impl ListItemContents<'_> {
         ListItemContents {
             contents: self
                 .contents
-                .iter()
-                .map(|x| Located::new(x.as_inner().into_owned(), x.region))
+                .into_iter()
+                .map(|x| x.map(ListItemContent::into_owned))
                 .collect(),
         }
     }
@@ -174,7 +172,7 @@ impl<'a> ListItemContents<'a> {
 
     pub fn sublist_iter(&self) -> impl Iterator<Item = &List> + '_ {
         self.contents.iter().flat_map(|c| match &c.element {
-            ListItemContent::List(x) => Some(x.as_typed()),
+            ListItemContent::List(x) => Some(x),
             _ => None,
         })
     }
@@ -183,7 +181,7 @@ impl<'a> ListItemContents<'a> {
         &mut self,
     ) -> impl Iterator<Item = &mut List<'a>> + '_ {
         self.contents.iter_mut().flat_map(|c| match &mut c.element {
-            ListItemContent::List(x) => Some(x.as_mut_typed()),
+            ListItemContent::List(x) => Some(x),
             _ => None,
         })
     }

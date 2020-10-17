@@ -65,7 +65,7 @@ impl Description<'_> {
 
 /// Helper function to borrow a `URI` similar to our other approaches as the
 /// functionality is not available directly in the `uriparse` crate
-fn uri_to_borrowed<'a>(uri: &URI<'a>) -> URI<'a> {
+fn uri_to_borrowed<'a>(uri: &'a URI<'a>) -> URI<'a> {
     let scheme = uri.scheme().as_borrowed();
     let authority = uri.authority().map(|x| x.as_borrowed());
     let query = uri.query().map(|x| x.as_borrowed());
@@ -127,7 +127,7 @@ impl Anchor<'_> {
     pub fn into_owned(self) -> Anchor<'static> {
         let elements = self
             .elements
-            .iter()
+            .into_iter()
             .map(|x| Cow::from(x.into_owned()))
             .collect();
 

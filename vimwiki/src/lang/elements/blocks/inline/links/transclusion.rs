@@ -23,7 +23,8 @@ impl TransclusionLink<'_> {
         use self::Cow::*;
 
         let uri = uri_to_borrowed(&self.uri);
-        let description = self.description.map(|x| x.to_borrowed());
+        let description =
+            self.description.as_ref().map(Description::to_borrowed);
         let properties = self
             .properties
             .iter()
@@ -50,10 +51,10 @@ impl TransclusionLink<'_> {
 
     pub fn into_owned(self) -> TransclusionLink<'static> {
         let uri = self.uri.into_owned();
-        let description = self.description.map(|x| x.into_owned());
+        let description = self.description.map(Description::into_owned);
         let properties = self
             .properties
-            .iter()
+            .into_iter()
             .map(|(key, value)| {
                 (Cow::from(key.into_owned()), Cow::from(value.into_owned()))
             })

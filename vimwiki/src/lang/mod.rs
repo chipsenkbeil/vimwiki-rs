@@ -166,7 +166,7 @@ macro_rules! impl_try_from {
 
             fn try_from(s: RawStr<'a>) -> Result<Self, Self::Error> {
                 if s.is_vimwiki() {
-                    let input = Span::from(&s.into_inner());
+                    let input = Span::from(s.into_inner().as_bytes());
                     Ok($f(input)?.1)
                 } else {
                     Err(nom::Err::Failure(parsers::Error::unsupported()))

@@ -55,14 +55,14 @@ impl PreformattedText<'_> {
             lang: self.lang.map(|x| Cow::from(x.into_owned())),
             metadata: self
                 .metadata
-                .iter()
+                .into_iter()
                 .map(|(key, value)| {
                     (Cow::from(key.into_owned()), Cow::from(value.into_owned()))
                 })
                 .collect(),
             lines: self
                 .lines
-                .iter()
+                .into_iter()
                 .map(|x| Cow::from(x.into_owned()))
                 .collect(),
         }

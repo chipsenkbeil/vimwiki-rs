@@ -106,11 +106,11 @@ impl DefinitionList<'_> {
     pub fn into_owned(self) -> DefinitionList<'static> {
         let mapping = self
             .mapping
-            .iter()
+            .into_iter()
             .map(|(key, value)| {
                 (
                     key.into_owned(),
-                    value.iter().map(|x| x.into_owned()).collect(),
+                    value.into_iter().map(|x| x.into_owned()).collect(),
                 )
             })
             .collect();

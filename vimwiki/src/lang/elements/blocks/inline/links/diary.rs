@@ -17,8 +17,9 @@ pub struct DiaryLink<'a> {
 impl DiaryLink<'_> {
     pub fn to_borrowed(&self) -> DiaryLink {
         let date = self.date;
-        let description = self.description.map(|x| x.to_borrowed());
-        let anchor = self.anchor.map(|x| x.to_borrowed());
+        let description =
+            self.description.as_ref().map(Description::to_borrowed);
+        let anchor = self.anchor.as_ref().map(Anchor::to_borrowed);
 
         DiaryLink {
             date,
@@ -29,8 +30,8 @@ impl DiaryLink<'_> {
 
     pub fn into_owned(self) -> DiaryLink<'static> {
         let date = self.date;
-        let description = self.description.map(|x| x.into_owned());
-        let anchor = self.anchor.map(|x| x.into_owned());
+        let description = self.description.map(Description::into_owned);
+        let anchor = self.anchor.map(Anchor::into_owned);
 
         DiaryLink {
             date,

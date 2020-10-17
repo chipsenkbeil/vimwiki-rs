@@ -74,11 +74,8 @@ impl<'a> ListItem<'a> {
             .fold(None, |acc, c| match &c.element {
                 ListItemContent::InlineContent(_) => acc,
                 ListItemContent::List(list) => {
-                    let (mut sum, mut count) = list
-                        .as_typed()
-                        .items
-                        .iter()
-                        .fold((0.0, 0), |acc, item| {
+                    let (mut sum, mut count) =
+                        list.items.iter().fold((0.0, 0), |acc, item| {
                             // NOTE: This is a recursive call that is NOT
                             //       tail recursive, but I do not want to
                             //       spend the time needed to translate it
@@ -445,9 +442,7 @@ pub struct ListItemAttributes {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::elements::{
-        List, ListItemContent, Located, Text, TypedBlockElement,
-    };
+    use crate::elements::{List, ListItemContent, Located, Text};
 
     macro_rules! unordered_item {
         ($type:ident, $pos:expr, $content:expr) => {
@@ -584,9 +579,7 @@ mod tests {
                 Default::default(),
                 0,
                 vec![From::from(ListItemContent::List(
-                    TypedBlockElement::from_list(
-                        List::new(vec![$($child),+])
-                    ),
+                    List::new(vec![$($child),+])
                 ))].into(),
                 ListItemAttributes {
                     todo_status: Some(ListItemTodoStatus::$type),

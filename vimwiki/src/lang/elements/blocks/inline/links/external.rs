@@ -30,7 +30,8 @@ impl ExternalFileLink<'_> {
             Borrowed(x) => *x,
             Owned(x) => x.as_path(),
         });
-        let description = self.description.map(|x| x.to_borrowed());
+        let description =
+            self.description.as_ref().map(Description::to_borrowed);
 
         ExternalFileLink {
             scheme,
@@ -42,7 +43,7 @@ impl ExternalFileLink<'_> {
     pub fn into_owned(self) -> ExternalFileLink<'static> {
         let scheme = self.scheme;
         let path = Cow::from(self.path.into_owned());
-        let description = self.description.map(|x| x.into_owned());
+        let description = self.description.map(Description::into_owned);
 
         ExternalFileLink {
             scheme,

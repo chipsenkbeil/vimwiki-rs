@@ -3,9 +3,8 @@ use derive_more::{
     Constructor, Deref, DerefMut, Display, From, Index, IndexMut, Into,
     IntoIterator,
 };
-use paste::paste;
 use serde::{Deserialize, Serialize};
-use std::{fmt, marker::PhantomData};
+use std::fmt;
 
 mod code;
 pub use code::*;
@@ -37,7 +36,7 @@ impl InlineElement<'_> {
         match self {
             Self::Text(x) => InlineElement::from(x.as_borrowed()),
             Self::DecoratedText(x) => InlineElement::from(x.to_borrowed()),
-            Self::Keyword(x) => InlineElement::from(x.as_borrowed()),
+            Self::Keyword(x) => InlineElement::from(*x),
             Self::Link(x) => InlineElement::from(x.to_borrowed()),
             Self::Tags(x) => InlineElement::from(x.to_borrowed()),
             Self::Code(x) => InlineElement::from(x.as_borrowed()),
@@ -45,11 +44,11 @@ impl InlineElement<'_> {
         }
     }
 
-    pub fn into_owned(&self) -> InlineElement<'static> {
+    pub fn into_owned(self) -> InlineElement<'static> {
         match self {
             Self::Text(x) => InlineElement::from(x.into_owned()),
             Self::DecoratedText(x) => InlineElement::from(x.into_owned()),
-            Self::Keyword(x) => InlineElement::from(x.into_owned()),
+            Self::Keyword(x) => InlineElement::from(x),
             Self::Link(x) => InlineElement::from(x.into_owned()),
             Self::Tags(x) => InlineElement::from(x.into_owned()),
             Self::Code(x) => InlineElement::from(x.into_owned()),
@@ -57,94 +56,6 @@ impl InlineElement<'_> {
         }
     }
 }
-
-/// Represents a wrapper around a `InlineElement` where we already know the
-/// type it will be and can therefore convert to either the `InlineElement`
-/// or the inner type
-#[derive(Clone, Debug, Display, Eq, PartialEq, Hash, Serialize, Deserialize)]
-#[display(fmt = "{}", inner)]
-pub struct TypedInlineElement<'a, T> {
-    inner: InlineElement<'a>,
-    phantom: PhantomData<T>,
-}
-
-impl<'a, T> TypedInlineElement<'a, T> {
-    pub fn into_inner(self) -> InlineElement<'a> {
-        self.inner
-    }
-
-    pub fn as_inner(&self) -> &InlineElement {
-        &self.inner
-    }
-
-    pub fn as_mut_inner(&mut self) -> &mut InlineElement<'a> {
-        &mut self.inner
-    }
-}
-
-impl<T> TypedInlineElement<'_, T> {
-    pub fn to_borrowed(&self) -> TypedInlineElement<'_, T> {
-        let inner = self.inner.to_borrowed();
-
-        TypedInlineElement {
-            inner,
-            phantom: PhantomData,
-        }
-    }
-
-    pub fn into_owned(self) -> TypedInlineElement<'static, T> {
-        let inner = self.inner.into_owned();
-
-        TypedInlineElement {
-            inner,
-            phantom: PhantomData,
-        }
-    }
-}
-
-macro_rules! typed_inline_element_impl {
-    ($type:ty, $variant:ident, $name:ident) => {
-        paste! {
-            impl<'a> TypedInlineElement<'a, $type> {
-                pub fn [<from_ $name>](x: $type) -> Self {
-                    Self {
-                        inner: InlineElement::from(x),
-                        phantom: PhantomData,
-                    }
-                }
-
-                pub fn into_typed(self) -> $type {
-                    match self.inner {
-                        InlineElement::$variant(x) => x,
-                        _ => unreachable!(),
-                    }
-                }
-
-                pub fn as_typed(&self) -> &$type {
-                    match self.inner {
-                        InlineElement::$variant(ref x) => x,
-                        _ => unreachable!(),
-                    }
-                }
-
-                pub fn as_mut_typed(&mut self) -> &mut $type {
-                    match self.inner {
-                        InlineElement::$variant(ref mut x) => x,
-                        _ => unreachable!(),
-                    }
-                }
-            }
-        }
-    };
-}
-
-typed_inline_element_impl!(Text<'a>, Text, text);
-typed_inline_element_impl!(DecoratedText<'a>, DecoratedText, decorated_text);
-typed_inline_element_impl!(Keyword, Keyword, keyword);
-typed_inline_element_impl!(Link<'a>, Link, link);
-typed_inline_element_impl!(Tags<'a>, Tags, tags);
-typed_inline_element_impl!(CodeInline<'a>, Code, code_inline);
-typed_inline_element_impl!(MathInline<'a>, Math, math_inline);
 
 /// Represents a convenience wrapper around a series of inline elements
 #[derive(
@@ -173,7 +84,7 @@ impl InlineElementContainer<'_> {
         let elements = self
             .elements
             .iter()
-            .map(|x| Located::new(x.as_inner().to_borrowed(), x.region))
+            .map(|x| x.as_ref().map(InlineElement::to_borrowed))
             .collect();
 
         InlineElementContainer { elements }
@@ -182,8 +93,8 @@ impl InlineElementContainer<'_> {
     pub fn into_owned(self) -> InlineElementContainer<'static> {
         let elements = self
             .elements
-            .iter()
-            .map(|x| Located::new(x.as_inner().into_owned(), x.region))
+            .into_iter()
+            .map(|x| x.map(InlineElement::into_owned))
             .collect();
 
         InlineElementContainer { elements }
