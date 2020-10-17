@@ -80,19 +80,18 @@ fn link_path<'a>(input: Span<'a>) -> IResult<Cow<'a, Path>> {
 
 /// Extracts the anchor-portion of a link
 fn link_anchor<'a>(input: Span<'a>) -> IResult<Anchor<'a>> {
-    preceded(
-        tag("#"),
-        map(
-            separated_list(
+    let (input, _) = tag("#")(input)?;
+
+    map(
+        separated_list(
+            tag("#"),
+            cow_str(take_line_while1(not(alt((
+                tag("|"),
                 tag("#"),
-                cow_str(take_line_while1(not(alt((
-                    tag("|"),
-                    tag("#"),
-                    tag("]]"),
-                ))))),
-            ),
-            Anchor::new,
+                tag("]]"),
+            ))))),
         ),
+        Anchor::new,
     )(input)
 }
 

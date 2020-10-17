@@ -62,7 +62,33 @@ mod tests {
         },
         parsers::Span,
     };
+    use indoc::indoc;
     use std::path::PathBuf;
+
+    #[test]
+    fn inline_element_container_should_prioritize_comments_over_other_ongoing_elements(
+    ) {
+        // CHIP CHIP CHIP
+        // An inline element container should look ahead for comments starting
+        // with %% (regardless of single line or multi line) and split input
+        // to before and after so that it can apply the normal inline loop
+        // to the before and just apply a comment to the after
+        let input = Span::from(indoc! {r#"
+            *not %%bold*
+            _not %%italic_
+            ~~not %%strikeout~~
+            ^not %%superscript^
+            ,,not %%subscript,,
+            $not %%math$
+            `not %%code`
+            [[link|not %%link]]
+            TO%%+DO+%%DO
+            some text%%comment
+            some%%+comment+%%text
+        "#});
+
+        todo!();
+    }
 
     #[test]
     fn inline_element_container_should_correctly_identify_elements() {
