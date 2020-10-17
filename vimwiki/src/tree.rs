@@ -1,473 +1,85 @@
 use crate::elements::*;
 use std::{
-    collections::HashMap,
+    cell::RefCell,
+    rc::Rc,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-//
-// CHIP CHIP CHIP CHIP
-//
-// This should be rewritten (again) since we've refactored a lot of code
-// and it's easier to pass around owned references of elements. It also may
-// make sense to have a separate struct for a page tree versus an element
-// tree so we don't have a boatload of page references floating around
-//
-// Make something like this:
-//
-// pub struct ElementTree<'a> {
-//     parent: Option<Box<Tree<'a>>>,
-//     element: Element<'a>,
-// }
-//
-// impl<'a> ElementTree<'a> {
-//     pub fn from(element: impl Into<Element<'a>>) -> Self {
-//         // ...
-//     }
-// }
-//
-// impl<'a> From<Header<'a>> for ElementTree<'a> {
-//     // ...
-// }
-//
-//
-
-/// Represents an immutable tree containing references to elements within a page
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug)]
 pub struct ElementTree<'a> {
-    page: Page<'a>,
-    root_nodes: Vec<usize>,
-    nodes: HashMap<usize, ElementNode<'a>>,
+    root: Rc<RefCell<ElementTreeNode<'a>>>,
 }
 
-impl ElementTree<'_> {
-    pub fn to_borrowed(&self) -> ElementTree {
-        ElementTree {
-            page: self.page.to_borrowed(),
-            root_nodes: self.root_nodes.clone(),
-            nodes: self
-                .nodes
-                .iter()
-                .map(|(key, value)| (*key, value.to_borrowed()))
-                .collect(),
-        }
-    }
+#[derive(Clone, Debug)]
+struct ElementTreeNode<'a> {
+    /// Used to determine uniqueness of location in tree
+    id: usize,
 
-    pub fn into_owned(self) -> ElementTree<'static> {
-        ElementTree {
-            page: self.page.into_owned(),
-            root_nodes: self.root_nodes.clone(),
-            nodes: self
-                .nodes
-                .into_iter()
-                .map(|(key, value)| (key, value.into_owned()))
-                .collect(),
-        }
-    }
+    /// Optional parent; if not present, this is the root of the tree
+    parent: Option<Rc<RefCell<ElementTreeNode<'a>>>>,
+
+    /// Element contained within this node in the tree
+    element: Rc<Element<'a>>,
+
+    /// Region associated with this node in the tree
+    region: Region,
+
+    /// Children found below this node in the tree
+    children: Vec<Rc<RefCell<ElementTreeNode<'a>>>>,
 }
 
-impl<'a> ElementTree<'a> {
-    /// Default id for situations where a node is required but there is no node
-    const EMPTY_NODE: usize = 0;
+impl<'a> ElementTreeNode<'a> {
+    pub fn from(
+        element: impl Into<Element<'a>>,
+        region: Region,
+    ) -> Rc<RefCell<Self>> {
+        fn inner<'a>(
+            counter: &AtomicUsize,
+            element: Rc<Element<'a>>,
+            region: Region,
+            parent: Option<Rc<RefCell<ElementTreeNode<'a>>>>,
+        ) -> Rc<RefCell<ElementTreeNode<'a>>> {
+            let id = counter.fetch_add(1, Ordering::Relaxed);
 
-    /// Borrowed version of the page this tree references
-    pub fn page(&self) -> &Page<'a> {
-        &self.page
-    }
+            let node = Rc::new(RefCell::new(ElementTreeNode {
+                id,
+                parent,
+                element: Rc::clone(&element),
+                region,
+                children: vec![],
+            }));
 
-    /// Finds the node deepest in the tree that has a region containing
-    /// the specified position
-    pub fn find_deepest_at(
-        &self,
-        position: Position,
-    ) -> Option<&ElementNode<'a>> {
-        match self.find_root_at(position) {
-            Some(root) => {
-                let mut curr = root;
-
-                // NOTE: This doesn't check for any cycles within nodes, but
-                //       this shouldn't be an issue given this is a tree and
-                //       not a graph
-                loop {
-                    match self
-                        .children_for(curr)
-                        .iter()
-                        .find(|n| n.region().contains(position))
-                    {
-                        Some(next) => curr = next,
-                        _ => break Some(curr),
-                    }
-                }
+            for located_child in
+                node.borrow().as_element().to_children().into_iter()
+            {
+                let region = located_child.region;
+                let child_node = inner(
+                    counter,
+                    Rc::new(located_child.into_inner()),
+                    region,
+                    Some(Rc::clone(&node)),
+                );
+                node.borrow_mut().children.push(child_node);
             }
-            _ => None,
-        }
-    }
 
-    /// Finds the root node whose region contains the specified position
-    pub fn find_root_at(&self, position: Position) -> Option<&ElementNode<'a>> {
-        self.root_nodes()
-            .iter()
-            .find(|n| n.region().contains(position))
-            .copied()
-    }
-
-    /// Retrieves all of the root-level nodes within the tree
-    pub fn root_nodes(&self) -> Vec<&ElementNode<'a>> {
-        self.root_nodes
-            .iter()
-            .flat_map(|id| self.nodes.get(id))
-            .collect()
-    }
-
-    /// Retrieve the root node for the given node
-    pub fn root_for(&self, node: &ElementNode<'a>) -> &ElementNode<'a> {
-        self.nodes
-            .get(&node.root_id)
-            .expect("Tree mutated after construction")
-    }
-
-    /// Retrieve the parent node for the given node
-    pub fn parent_for(
-        &self,
-        node: &ElementNode<'a>,
-    ) -> Option<&ElementNode<'a>> {
-        node.parent_id.and_then(|id| self.nodes.get(&id))
-    }
-
-    /// Retrieve the children nodes for the given node
-    pub fn children_for<'b>(
-        &'b self,
-        node: &'b ElementNode<'a>,
-    ) -> Vec<&'b ElementNode<'a>> {
-        node.children_ids
-            .iter()
-            .flat_map(|id| self.nodes.get(id))
-            .collect()
-    }
-
-    /// Retrieve the sibling nodes for the given node (does not include self)
-    pub fn siblings_for<'b>(
-        &'b self,
-        node: &'b ElementNode<'a>,
-    ) -> Vec<&'b ElementNode<'a>> {
-        let node_id = node.id();
-
-        // Check if we have a parent and, if we do, gather its children to
-        // return as siblings; otherwise, we are a root node and need to
-        // check against all root nodes instead
-        match self.parent_for(node) {
-            Some(parent) => self.children_for(parent),
-            _ => self.root_nodes(),
-        }
-        .drain(..)
-        .filter(|sibling| sibling.id() != node_id)
-        .collect()
-    }
-
-    /// Constructs a tree based on the top-level elements
-    /// within the provided page
-    pub fn from_page(page: Page<'a>) -> ElementTree<'a> {
-        let mut instance = Self {
-            page,
-            root_nodes: vec![],
-            nodes: HashMap::new(),
-        };
-
-        let counter = AtomicUsize::new(Self::EMPTY_NODE + 1);
-        for element in instance.page.elements.iter() {
-            let id = add_block_element(
-                &mut instance.nodes,
-                &counter,
-                Self::EMPTY_NODE,
-                None,
-                element.to_borrowed(),
-                element.region,
-            );
-            instance.root_nodes.push(id);
+            Rc::clone(&node)
         }
 
-        instance
-    }
-}
-
-/// Adds a new node to the tree that is a `BlockElement` reference,
-/// returning the id of the newly-added node
-fn add_block_element<'a>(
-    nodes: &mut HashMap<usize, ElementNode<'a>>,
-    counter: &AtomicUsize,
-    root_id: usize,
-    parent_id: Option<usize>,
-    element: BlockElement<'a>,
-    region: Region,
-) -> usize {
-    let element_id = counter.fetch_add(1, Ordering::Relaxed);
-
-    // If provided a root id that is nothing, this indicates that we are
-    // the root and should therefore use our element's id
-    let root_id = if root_id != ElementTree::EMPTY_NODE {
-        root_id
-    } else {
-        element_id
-    };
-
-    let node = ElementNode {
-        root_id,
-        parent_id,
-        element_id,
-        element: Element::from(element),
-        region,
-        children_ids: match element {
-            BlockElement::DefinitionList(x) => x
-                .iter()
-                .flat_map(|(term, defs)| {
-                    let mut ids = add_inline_elements_from_container(
-                        nodes,
-                        counter,
-                        root_id,
-                        Some(element_id),
-                        term.as_inner().to_borrowed(),
-                    );
-
-                    let mut def_ids = defs
-                        .iter()
-                        .flat_map(|d| {
-                            add_inline_elements_from_container(
-                                nodes,
-                                counter,
-                                root_id,
-                                Some(element_id),
-                                d.as_inner().to_borrowed(),
-                            )
-                        })
-                        .collect();
-                    ids.append(&mut def_ids);
-
-                    ids
-                })
-                .collect(),
-            BlockElement::Header(x) => add_inline_elements_from_container(
-                nodes,
-                counter,
-                root_id,
-                Some(element_id),
-                x.content.to_borrowed(),
-            ),
-            BlockElement::List(x) => x
-                .items
-                .iter()
-                .flat_map(|item| {
-                    item.as_inner()
-                        .contents
-                        .iter()
-                        .flat_map(|c| match c.as_inner() {
-                            ListItemContent::InlineContent(x) => {
-                                add_inline_elements_from_container(
-                                    nodes,
-                                    counter,
-                                    root_id,
-                                    Some(element_id),
-                                    x.to_borrowed(),
-                                )
-                            }
-                            ListItemContent::List(x) => {
-                                vec![add_block_element(
-                                    nodes,
-                                    counter,
-                                    root_id,
-                                    Some(element_id),
-                                    BlockElement::List(x.to_borrowed()),
-                                    c.region,
-                                )]
-                            }
-                        })
-                        .collect::<Vec<usize>>()
-                })
-                .collect(),
-            BlockElement::Paragraph(x) => add_inline_elements_from_container(
-                nodes,
-                counter,
-                root_id,
-                Some(element_id),
-                x.content.to_borrowed(),
-            ),
-            BlockElement::Table(x) => x
-                .rows
-                .iter()
-                .flat_map(|r| match r.as_inner() {
-                    Row::Content { cells } => cells
-                        .iter()
-                        .flat_map(|c| match c.as_inner() {
-                            Cell::Content(x) => {
-                                add_inline_elements_from_container(
-                                    nodes,
-                                    counter,
-                                    root_id,
-                                    Some(element_id),
-                                    x.to_borrowed(),
-                                )
-                            }
-                            _ => vec![],
-                        })
-                        .collect(),
-                    _ => vec![],
-                })
-                .collect(),
-            _ => vec![],
-        },
-    };
-
-    nodes.insert(element_id, node);
-    element_id
-}
-
-/// Adds new nodes to the tree, one for each `InlineElement` reference
-/// held within the provided container, returning the ids of the
-/// newly-added nodes
-fn add_inline_elements_from_container<'a>(
-    nodes: &mut HashMap<usize, ElementNode<'a>>,
-    counter: &AtomicUsize,
-    root_id: usize,
-    parent_id: Option<usize>,
-    container: InlineElementContainer<'a>,
-) -> Vec<usize> {
-    let mut ids = Vec::with_capacity(container.elements.len());
-    for e in container.elements.iter() {
-        ids.push(add_inline_element(
-            nodes,
-            counter,
-            root_id,
-            parent_id,
-            e.to_borrowed(),
-            e.region,
-        ));
-    }
-    ids
-}
-
-/// Adds a new node to the tree that is an `InlineElement` reference,
-/// returning the id of the newly-added node
-fn add_inline_element<'a>(
-    nodes: &mut HashMap<usize, ElementNode<'a>>,
-    counter: &AtomicUsize,
-    root_id: usize,
-    parent_id: Option<usize>,
-    element: InlineElement<'a>,
-    region: Region,
-) -> usize {
-    let element_id = counter.fetch_add(1, Ordering::Relaxed);
-    let children_ids = match element.to_borrowed() {
-        InlineElement::DecoratedText(x) => add_decorated_text(
-            nodes,
-            counter,
-            root_id,
-            Some(element_id),
-            x,
-            region,
-        ),
-        _ => vec![],
-    };
-
-    let node = ElementNode {
-        root_id,
-        parent_id,
-        element_id,
-        element: Element::from(element),
-        region,
-        children_ids,
-    };
-
-    nodes.insert(element_id, node);
-    element_id
-}
-
-fn add_decorated_text<'a>(
-    nodes: &mut HashMap<usize, ElementNode<'a>>,
-    counter: &AtomicUsize,
-    root_id: usize,
-    parent_id: Option<usize>,
-    element: DecoratedText<'a>,
-    region: Region,
-) -> Vec<usize> {
-    let mut children = Vec::new();
-    for c in element.as_contents().iter() {
-        children.push(add_inline_element(
-            nodes,
-            counter,
-            root_id,
-            parent_id,
-            c.element.to_inline_element(),
-            c.region,
-        ));
-    }
-    children
-}
-
-/// A node within an `ElementTree` that points to either a `BlockElement` or
-/// an `InlineElement`
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ElementNode<'a> {
-    root_id: usize,
-    parent_id: Option<usize>,
-    element_id: usize,
-    element: Element<'a>,
-    region: Region,
-    children_ids: Vec<usize>,
-}
-
-impl ElementNode<'_> {
-    pub fn to_borrowed(&self) -> ElementNode {
-        ElementNode {
-            root_id: self.root_id,
-            parent_id: self.parent_id,
-            element_id: self.element_id,
-            element: self.element.to_borrowed(),
-            region: self.region,
-            children_ids: self.children_ids.clone(),
-        }
+        inner(&AtomicUsize::new(0), Rc::new(element.into()), region, None)
     }
 
-    pub fn into_owned(self) -> ElementNode<'static> {
-        ElementNode {
-            root_id: self.root_id,
-            parent_id: self.parent_id,
-            element_id: self.element_id,
-            element: self.element.into_owned(),
-            region: self.region,
-            children_ids: self.children_ids.clone(),
-        }
-    }
-}
-
-impl<'a> ElementNode<'a> {
-    /// Id of node, which maps to the element it references
-    pub fn id(&self) -> usize {
-        self.element_id
-    }
-
-    /// Whether or not the node represents a root-level element
     pub fn is_root(&self) -> bool {
-        self.root_id == self.element_id
+        self.parent.is_none()
     }
 
-    /// The region of the element referenced by the node
-    pub fn region(&self) -> &Region {
-        &self.region
-    }
-
-    /// Converts to ref of inner `Element`
-    pub fn as_inner(&self) -> &Element<'a> {
+    pub fn as_element(&self) -> &Element<'a> {
         &self.element
-    }
-
-    /// Converts to inner `Element`
-    pub fn into_inner(self) -> Element<'a> {
-        self.element
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::elements::Located;
 
     fn test_page() -> Page<'static> {
         Page::new(

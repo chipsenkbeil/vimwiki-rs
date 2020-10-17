@@ -21,6 +21,12 @@ impl Paragraph<'_> {
     }
 }
 
+impl<'a> Paragraph<'a> {
+    pub fn to_children(&'a self) -> Vec<Located<InlineElement<'a>>> {
+        self.content.to_children()
+    }
+}
+
 impl<'a> From<Vec<Located<InlineElement<'a>>>> for Paragraph<'a> {
     fn from(elements: Vec<Located<InlineElement<'a>>>) -> Self {
         Self::new(elements.into())

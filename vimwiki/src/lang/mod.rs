@@ -162,43 +162,6 @@ impl Language<'_> {
     }
 }
 
-//
-//
-// CHIP CHIP CHIP
-//
-// Two things:
-// 1. Language doesn't really make sense. Rename it to something like LangStr
-// 2. We're very, very close to supporting the mix of owned/borrowed across the
-//    elements (I think), but Page is a blocker as it requires special handling.
-//
-//    Can we refactor comments to be parsed inline instead of separately at
-//    the beginning? If so, we wouldn't have to try to mutate a string and we
-//    could refactor the page parser to accept Span and fall in line with the
-//    rest of the parsers again.
-//
-//    Both LineComment and MultiLineComment could be inline as they can start
-//    anywhere. For LineComment, we would consume to newline, like usual. For
-//    MultiLineComment, I think it's okay to consume until end and treat
-//    whatever line we end up on as the line which we will continue to
-//    consume as inline content
-//
-//    Alternatively, the other way to handle multi-line would be to determine
-//    if it goes beyond the current line. If so, we mark that as the "end
-//    of the line" for parsing inline content, which parsers should then
-//    check if they continue on the next line
-//
-impl<'a> FromLanguage<'a> for Page<'static> {
-    type Error = nom::Err<parsers::Error>;
-
-    fn from_language(s: &'a Language<'a>) -> Result<Self, Self::Error> {
-        if s.is_vimwiki() {
-            vimwiki::page(s.as_str().to_string())
-        } else {
-            Err(nom::Err::Failure(parsers::Error::unsupported()))
-        }
-    }
-}
-
 macro_rules! impl_try_from {
     ($t:ty, $f:expr) => {
         impl<'a> FromLanguage<'a> for $t {
@@ -215,6 +178,7 @@ macro_rules! impl_try_from {
 }
 
 // Top-level types
+impl_try_from!(Page<'a>, vimwiki::page);
 impl_try_from!(Located<BlockElement<'a>>, vimwiki::blocks::block_element);
 impl_try_from!(
     Located<InlineElementContainer<'a>>,
@@ -238,11 +202,17 @@ impl_try_from!(
 );
 
 // Comments
-impl_try_from!(Located<Comment<'a>>, vimwiki::comments::comment);
-impl_try_from!(Located<LineComment<'a>>, vimwiki::comments::line_comment);
+impl_try_from!(
+    Located<Comment<'a>>,
+    vimwiki::blocks::inline::comments::comment
+);
+impl_try_from!(
+    Located<LineComment<'a>>,
+    vimwiki::blocks::inline::comments::line_comment
+);
 impl_try_from!(
     Located<MultiLineComment<'a>>,
-    vimwiki::comments::multi_line_comment
+    vimwiki::blocks::inline::comments::multi_line_comment
 );
 
 // Definitions (NOTE: Generic LocatedElement def above handles term & def)

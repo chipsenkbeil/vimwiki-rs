@@ -8,6 +8,7 @@ use crate::lang::{
 use nom::{branch::alt, combinator::map, multi::many1};
 
 pub mod code;
+pub mod comments;
 pub mod links;
 pub mod math;
 pub mod tags;
@@ -34,9 +35,12 @@ pub fn inline_element(input: Span) -> IResult<Located<InlineElement>> {
     // NOTE: Ordering matters here as the first match is used as the
     //       element. This means that we want to ensure that text,
     //       which can match any character, is the last of our elements.
+    //       Additionally, we place comments first as they take priority
+    //       over any other type.
     context(
         "Inline Element",
         alt((
+            map(comments::comment, |c| c.map(InlineElement::from)),
             map(math::math_inline, |c| c.map(InlineElement::from)),
             map(code::code_inline, |c| c.map(InlineElement::from)),
             map(tags::tags, |c| c.map(InlineElement::from)),

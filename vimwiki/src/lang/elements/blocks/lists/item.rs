@@ -1,4 +1,4 @@
-use super::{ListItemContent, ListItemContents};
+use super::{Element, ListItemContent, ListItemContents, Located};
 use derive_more::{Constructor, From};
 use numerals::roman::Roman;
 use serde::{Deserialize, Serialize};
@@ -39,6 +39,10 @@ impl ListItem<'_> {
 }
 
 impl<'a> ListItem<'a> {
+    pub fn to_children(&'a self) -> Vec<Located<Element<'a>>> {
+        self.contents.to_children()
+    }
+
     /// Indicates whether or not this list item represents an unordered item
     pub fn is_unordered(&self) -> bool {
         self.item_type.is_unordered()

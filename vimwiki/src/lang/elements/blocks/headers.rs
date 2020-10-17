@@ -1,4 +1,4 @@
-use super::InlineElementContainer;
+use super::{InlineElement, InlineElementContainer, Located};
 use derive_more::Constructor;
 use serde::{Deserialize, Serialize};
 
@@ -35,4 +35,8 @@ impl<'a> Header<'a> {
 
     /// Represents teh largest a header's level can be
     pub const MAX_LEVEL: usize = 6;
+
+    pub fn to_children(&'a self) -> Vec<Located<InlineElement<'a>>> {
+        self.content.to_children()
+    }
 }

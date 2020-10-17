@@ -57,6 +57,7 @@ impl<'a> From<&'a str> for Text<'a> {
 )]
 pub enum DecoratedTextContent<'a> {
     Text(Text<'a>),
+    DecoratedText(DecoratedText<'a>),
     Keyword(Keyword),
     Link(Link<'a>),
 }
@@ -65,6 +66,9 @@ impl DecoratedTextContent<'_> {
     pub fn to_borrowed(&self) -> DecoratedTextContent {
         match self {
             Self::Text(x) => DecoratedTextContent::from(x.as_borrowed()),
+            Self::DecoratedText(x) => {
+                DecoratedTextContent::from(x.to_borrowed())
+            }
             Self::Keyword(x) => DecoratedTextContent::from(*x),
             Self::Link(x) => DecoratedTextContent::from(x.to_borrowed()),
         }
@@ -73,6 +77,9 @@ impl DecoratedTextContent<'_> {
     pub fn into_owned(self) -> DecoratedTextContent<'static> {
         match self {
             Self::Text(x) => DecoratedTextContent::from(x.into_owned()),
+            Self::DecoratedText(x) => {
+                DecoratedTextContent::from(x.into_owned())
+            }
             Self::Keyword(x) => DecoratedTextContent::from(x),
             Self::Link(x) => DecoratedTextContent::from(x.into_owned()),
         }
@@ -84,8 +91,16 @@ impl<'a> DecoratedTextContent<'a> {
     pub fn to_inline_element(&'a self) -> InlineElement<'a> {
         match self {
             Self::Text(ref x) => x.as_borrowed().into(),
+            Self::DecoratedText(ref x) => x.to_borrowed().into(),
             Self::Keyword(x) => (*x).into(),
             Self::Link(ref x) => x.to_borrowed().into(),
+        }
+    }
+
+    pub fn to_children(&'a self) -> Vec<Located<InlineElement<'a>>> {
+        match self {
+            Self::DecoratedText(x) => x.to_children(),
+            _ => vec![],
         }
     }
 }
@@ -159,6 +174,24 @@ impl<'a> DecoratedText<'a> {
             Self::Strikeout(ref x) => x.as_slice(),
             Self::Superscript(ref x) => x.as_slice(),
             Self::Subscript(ref x) => x.as_slice(),
+        }
+    }
+
+    pub fn to_children(&'a self) -> Vec<Located<InlineElement<'a>>> {
+        macro_rules! vec_to_owned {
+            ($vec:expr) => {
+                $vec.iter()
+                    .flat_map(|x| x.as_inner().to_children())
+                    .collect()
+            };
+        }
+        match self {
+            Self::Bold(x) => vec_to_owned!(x),
+            Self::Italic(x) => vec_to_owned!(x),
+            Self::BoldItalic(x) => vec_to_owned!(x),
+            Self::Strikeout(x) => vec_to_owned!(x),
+            Self::Superscript(x) => vec_to_owned!(x),
+            Self::Subscript(x) => vec_to_owned!(x),
         }
     }
 }

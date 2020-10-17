@@ -1,8 +1,10 @@
-use derive_more::{Constructor, From};
+use derive_more::{Constructor, Display, From};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 
-#[derive(Clone, Debug, From, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Clone, Debug, Display, Hash, From, Eq, PartialEq, Serialize, Deserialize,
+)]
 pub enum Comment<'a> {
     Line(LineComment<'a>),
     MultiLine(MultiLineComment<'a>),
@@ -25,8 +27,17 @@ impl Comment<'_> {
 }
 
 #[derive(
-    Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
+    Constructor,
+    Clone,
+    Debug,
+    Display,
+    Eq,
+    PartialEq,
+    Hash,
+    Serialize,
+    Deserialize,
 )]
+#[display(fmt = "{}", "_0.trim()")]
 pub struct LineComment<'a>(pub Cow<'a, str>);
 
 impl LineComment<'_> {
@@ -59,8 +70,17 @@ impl<'a> From<String> for LineComment<'a> {
 }
 
 #[derive(
-    Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
+    Constructor,
+    Clone,
+    Debug,
+    Display,
+    Eq,
+    PartialEq,
+    Hash,
+    Serialize,
+    Deserialize,
 )]
+#[display(fmt = "{}", "_0.join(\"\n\")")]
 pub struct MultiLineComment<'a>(pub Vec<Cow<'a, str>>);
 
 impl MultiLineComment<'_> {

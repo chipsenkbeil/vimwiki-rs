@@ -1,4 +1,4 @@
-use crate::lang::elements::{InlineElementContainer, Located};
+use crate::lang::elements::{InlineElement, InlineElementContainer, Located};
 use derive_more::{Constructor, Display};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -142,15 +142,25 @@ impl<'a> DefinitionList<'a> {
     pub fn definitions(&self) -> impl Iterator<Item = &Definition<'a>> {
         self.mapping.values().flatten()
     }
+
+    pub fn to_children(&'a self) -> Vec<Located<InlineElement<'a>>> {
+        self.iter()
+            .flat_map(|(term, defs)| {
+                std::iter::once(term)
+                    .chain(defs.iter())
+                    .flat_map(|x| x.as_inner().to_children())
+            })
+            .collect()
+    }
 }
 
 impl<'a> From<Vec<(Term<'a>, Vec<Definition<'a>>)>> for DefinitionList<'a> {
     fn from(
-        mut terms_and_definitions: Vec<(Term<'a>, Vec<Definition<'a>>)>,
+        terms_and_definitions: Vec<(Term<'a>, Vec<Definition<'a>>)>,
     ) -> Self {
         let mut dl = Self::default();
 
-        for (term, definitions) in terms_and_definitions.drain(..) {
+        for (term, definitions) in terms_and_definitions.into_iter() {
             dl.mapping.insert(term, definitions);
         }
 

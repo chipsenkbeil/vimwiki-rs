@@ -8,6 +8,8 @@ use std::fmt;
 
 mod code;
 pub use code::*;
+mod comments;
+pub use comments::*;
 mod links;
 pub use links::*;
 mod math;
@@ -29,6 +31,11 @@ pub enum InlineElement<'a> {
     Tags(Tags<'a>),
     Code(CodeInline<'a>),
     Math(MathInline<'a>),
+
+    /// Comments exist as inline elements, but do not show up when displaying
+    /// an inline element enum
+    #[display(fmt = "")]
+    Comment(Comment<'a>),
 }
 
 impl InlineElement<'_> {
@@ -41,6 +48,7 @@ impl InlineElement<'_> {
             Self::Tags(x) => InlineElement::from(x.to_borrowed()),
             Self::Code(x) => InlineElement::from(x.as_borrowed()),
             Self::Math(x) => InlineElement::from(x.as_borrowed()),
+            Self::Comment(x) => InlineElement::from(x.to_borrowed()),
         }
     }
 
@@ -53,6 +61,16 @@ impl InlineElement<'_> {
             Self::Tags(x) => InlineElement::from(x.into_owned()),
             Self::Code(x) => InlineElement::from(x.into_owned()),
             Self::Math(x) => InlineElement::from(x.into_owned()),
+            Self::Comment(x) => InlineElement::from(x.into_owned()),
+        }
+    }
+}
+
+impl<'a> InlineElement<'a> {
+    pub fn to_children(&'a self) -> Vec<Located<InlineElement<'a>>> {
+        match self {
+            Self::DecoratedText(x) => x.to_children(),
+            _ => vec![],
         }
     }
 }
@@ -98,6 +116,15 @@ impl InlineElementContainer<'_> {
             .collect();
 
         InlineElementContainer { elements }
+    }
+}
+
+impl<'a> InlineElementContainer<'a> {
+    pub fn to_children(&'a self) -> Vec<Located<InlineElement<'a>>> {
+        self.elements
+            .iter()
+            .map(|x| x.as_ref().map(InlineElement::to_borrowed))
+            .collect()
     }
 }
 

@@ -1,4 +1,4 @@
-use crate::lang::elements::Located;
+use crate::lang::elements::{Element, Located};
 use derive_more::From;
 use serde::{Deserialize, Serialize};
 
@@ -72,6 +72,35 @@ impl BlockElement<'_> {
                 BlockElement::PreformattedText(x.into_owned())
             }
             Self::Table(x) => BlockElement::Table(x.into_owned()),
+        }
+    }
+}
+
+impl<'a> BlockElement<'a> {
+    pub fn to_children(&'a self) -> Vec<Located<Element<'a>>> {
+        match self {
+            Self::DefinitionList(x) => x
+                .to_children()
+                .into_iter()
+                .map(|x| x.map(Element::from))
+                .collect(),
+            Self::Header(x) => x
+                .to_children()
+                .into_iter()
+                .map(|x| x.map(Element::from))
+                .collect(),
+            Self::List(x) => x.to_children(),
+            Self::Paragraph(x) => x
+                .to_children()
+                .into_iter()
+                .map(|x| x.map(Element::from))
+                .collect(),
+            Self::Table(x) => x
+                .to_children()
+                .into_iter()
+                .map(|x| x.map(Element::from))
+                .collect(),
+            _ => vec![],
         }
     }
 }

@@ -1,4 +1,4 @@
-use super::{InlineElementContainer, Located};
+use super::{InlineElement, InlineElementContainer, Located};
 use derive_more::{Constructor, From};
 use serde::{Deserialize, Serialize};
 
@@ -45,6 +45,13 @@ impl<'a> Table<'a> {
             _ => None,
         })
     }
+
+    pub fn to_children(&'a self) -> Vec<Located<InlineElement<'a>>> {
+        self.rows
+            .iter()
+            .flat_map(|x| x.as_inner().to_children())
+            .collect()
+    }
 }
 
 #[derive(Clone, Debug, From, Eq, PartialEq, Hash, Serialize, Deserialize)]
@@ -82,6 +89,18 @@ impl Row<'_> {
     }
 }
 
+impl<'a> Row<'a> {
+    pub fn to_children(&'a self) -> Vec<Located<InlineElement<'a>>> {
+        match self {
+            Self::Content { cells } => cells
+                .iter()
+                .flat_map(|x| x.as_inner().to_children())
+                .collect(),
+            _ => vec![],
+        }
+    }
+}
+
 #[derive(Clone, Debug, From, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum Cell<'a> {
     Content(InlineElementContainer<'a>),
@@ -103,6 +122,15 @@ impl Cell<'_> {
             Self::Content(x) => Cell::Content(x.into_owned()),
             Self::SpanLeft => Cell::SpanLeft,
             Self::SpanAbove => Cell::SpanAbove,
+        }
+    }
+}
+
+impl<'a> Cell<'a> {
+    pub fn to_children(&'a self) -> Vec<Located<InlineElement<'a>>> {
+        match self {
+            Self::Content(x) => x.to_children(),
+            _ => vec![],
         }
     }
 }

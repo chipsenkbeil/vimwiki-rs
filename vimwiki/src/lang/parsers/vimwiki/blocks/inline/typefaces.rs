@@ -1,4 +1,7 @@
-use super::{code::code_inline, links::link, math::math_inline, tags::tags};
+use super::{
+    code::code_inline, comments::comment, links::link, math::math_inline,
+    tags::tags,
+};
 use crate::lang::{
     elements::{
         DecoratedText, DecoratedTextContent, Keyword, Link, Located, Text,
@@ -24,6 +27,7 @@ pub fn text(input: Span) -> IResult<Located<Text>> {
     // Uses combination of short-circuiting and full checks to ensure we
     // can continue consuming text
     fn is_text(input: Span) -> IResult<()> {
+        let (input, _) = not(comment)(input)?;
         let (input, _) = not(code_inline)(input)?;
         let (input, _) = not(math_inline)(input)?;
         let (input, _) = not(tags)(input)?;

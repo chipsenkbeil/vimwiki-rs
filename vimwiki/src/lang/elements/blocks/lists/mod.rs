@@ -1,4 +1,4 @@
-use super::{InlineElement, InlineElementContainer, Located};
+use super::{Element, InlineElement, InlineElementContainer, Located};
 use derive_more::{
     Constructor, Deref, DerefMut, From, Index, IndexMut, Into, IntoIterator,
 };
@@ -68,6 +68,13 @@ impl<'a> List<'a> {
         }
 
         self
+    }
+
+    pub fn to_children(&'a self) -> Vec<Located<Element<'a>>> {
+        self.items
+            .iter()
+            .flat_map(|x| x.as_inner().to_children())
+            .collect()
     }
 }
 
@@ -184,5 +191,22 @@ impl<'a> ListItemContents<'a> {
             ListItemContent::List(x) => Some(x),
             _ => None,
         })
+    }
+
+    pub fn to_children(&'a self) -> Vec<Located<Element<'a>>> {
+        self.contents
+            .iter()
+            .flat_map(|x| match x.as_inner() {
+                ListItemContent::InlineContent(content) => content
+                    .to_children()
+                    .into_iter()
+                    .map(|x| x.map(Element::from))
+                    .collect(),
+                ListItemContent::List(list) => vec![Located::new(
+                    Element::from(list.to_borrowed()),
+                    x.region,
+                )],
+            })
+            .collect()
     }
 }
