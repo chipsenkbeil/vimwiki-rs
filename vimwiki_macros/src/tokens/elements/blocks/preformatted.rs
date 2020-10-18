@@ -1,6 +1,6 @@
 use crate::tokens::{
     utils::{
-        element_path, tokenize_hashmap, tokenize_option, tokenize_string_type,
+        element_path, tokenize_cow_str_type, tokenize_hashmap, tokenize_option,
     },
     Tokenize,
 };
@@ -16,8 +16,8 @@ fn tokenize_preformatted_text(
     let lang = tokenize_option(&preformatted_text.lang, |x| do_tokenize!(x));
     let metadata = tokenize_hashmap(
         &preformatted_text.metadata,
-        tokenize_string_type(),
-        tokenize_string_type(),
+        tokenize_cow_str_type(),
+        tokenize_cow_str_type(),
         |x| do_tokenize!(x),
         |x| do_tokenize!(x),
     );

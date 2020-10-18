@@ -30,15 +30,8 @@ pub fn vendor_path() -> TokenStream {
 
 /// Produces a `TokenStream` for the `String` type
 #[inline]
-pub fn tokenize_string_type() -> TokenStream {
-    tokenize_type("String")
-}
-
-/// Produces a `TokenStream` for a type with the given name
-#[inline]
-pub fn tokenize_type(name: &str) -> TokenStream {
-    let t = Ident::new(name, Span::call_site());
-    quote! { #t }
+pub fn tokenize_cow_str_type() -> TokenStream {
+    quote! { Cow<'_, str >}
 }
 
 /// Tokenizes a `HashMap<K, V>` where both the key and value implement the

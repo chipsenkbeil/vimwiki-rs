@@ -13,17 +13,18 @@ impl_tokenize!(f64);
 impl_tokenize!(str);
 impl_tokenize!(String);
 
-impl<'a, T: ?Sized + ToOwned + ToTokens> Tokenize for Cow<'a, T> {
-    fn tokenize(&self, stream: &mut TokenStream) {
-        self.to_tokens(stream)
-    }
+impl_tokenize!(tokenize_cow_str, Cow<'a, str>, 'a);
+pub fn tokenize_cow_str(inner: &str) -> TokenStream {
+    quote! { std::borrow::Cow::from(#inner) }
 }
 
-// Implement primitives that need custom logic using a manual tokenize function
-impl_tokenize!(tokenize_naive_date, NaiveDate);
-impl_tokenize!(tokenize_uri, URI<'a>, 'a);
-impl_tokenize!(tokenize_path, Path);
+impl_tokenize!(tokenize_cow_path, Cow<'a, Path>, 'a);
+pub fn tokenize_cow_path(path: &Path) -> TokenStream {
+    let inner = path.to_str().expect("Unable to translate path to str");
+    quote! { std::borrow::Cow::from(std::path::Path::new(#inner)) }
+}
 
+impl_tokenize!(tokenize_naive_date, NaiveDate);
 fn tokenize_naive_date(naive_date: &NaiveDate) -> TokenStream {
     use vimwiki::vendor::chrono::Datelike;
     let root = vendor_path();
@@ -33,6 +34,7 @@ fn tokenize_naive_date(naive_date: &NaiveDate) -> TokenStream {
     quote! { #root::chrono::NaiveDate::from_ymd(#year, #month, #day) }
 }
 
+impl_tokenize!(tokenize_uri, URI<'a>, 'a);
 fn tokenize_uri(uri: &URI) -> TokenStream {
     let root = vendor_path();
     let uri_string = uri.to_string();
@@ -45,6 +47,7 @@ fn tokenize_uri(uri: &URI) -> TokenStream {
     }
 }
 
+impl_tokenize!(tokenize_path, Path);
 fn tokenize_path(path: &Path) -> TokenStream {
     // TODO: Support cases where pathbuf cannot be converted back to Rust str
     let t = path.to_str().expect("Path cannot be converted to &str");
