@@ -2335,7 +2335,6 @@ name = "vimwiki"
 version = "0.1.0-alpha.2"
 dependencies = [
  "bytecount",
- "bytes",
  "chrono",
  "derive_more",
  "indoc",
@@ -2343,7 +2342,6 @@ dependencies = [
  "memchr",
  "nom",
  "numerals",
- "paste",
  "serde",
  "uriparse",
  "vimwiki_macros",

@@ -4,13 +4,10 @@ use vimwiki_macros::*;
 
 #[test]
 fn test() {
-    vimwiki::timekeeper::enable();
     let language = Language::from_vimwiki_string(
         VimwikiFile::PandocVimwikiReader.load().unwrap(),
     );
     let _page: Page = language.parse().unwrap();
-    vimwiki::timekeeper::print_report(true);
-    vimwiki::timekeeper::disable();
     todo!();
 
     // let expected = vec![
