@@ -1,4 +1,4 @@
-use memchr::{memchr2, memchr_iter, memrchr};
+use memchr::{memchr2_iter, memchr_iter, memrchr};
 use nom::{
     error::{ErrorKind, ParseError},
     AsBytes, Compare, CompareResult, Err, ExtendInto, FindSubstring, FindToken,
@@ -137,7 +137,28 @@ impl<'a> Span<'a> {
     /// Whether or not the remaining bytes are comprised of only spaces
     /// or tabs
     pub fn is_only_whitespace(&self) -> bool {
-        memchr2(b' ', b'\t', self.as_remaining()).is_some()
+        let len = self.remaining_len();
+        if len == 0 {
+            return true;
+        }
+
+        // Iterate through all space and tabs until either we detect some
+        // character that is not space (gap in index) or we find no more
+        // whitespace even though we have more bytes remaining
+        let mut last_pos = 0;
+        for pos in memchr2_iter(b' ', b'\t', self.as_remaining()) {
+            // If we skipped at least one position beyond what would be next,
+            // there was something that didn't match and we can exit
+            if pos - last_pos > 1 {
+                return false;
+            }
+
+            last_pos = pos;
+        }
+
+        // If our last position doesn't correspond to the end of the remaining
+        // bytes, there is something that is not whitespace
+        last_pos == (len - 1)
     }
 
     /// Calculates the line position of this span using newline (\n) chars

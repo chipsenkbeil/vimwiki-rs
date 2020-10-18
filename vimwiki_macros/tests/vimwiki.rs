@@ -73,6 +73,7 @@ fn vimwiki_line_comment() {
 #[test]
 fn vimwiki_multi_line_comment() {
     let x = vimwiki_multi_line_comment!("%%+ some comment +%%");
+    println!("MULTILINE: {:?}", x);
     assert_eq!(
         x.into_inner(),
         MultiLineComment::new(vec![Cow::from(" some comment ")])

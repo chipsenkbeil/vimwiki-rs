@@ -10,9 +10,8 @@ use crate::lang::{
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_until},
-    combinator::{map, map_parser},
-    multi::many1,
-    sequence::terminated,
+    combinator::{map, map_parser, rest},
+    multi::separated_list,
 };
 
 pub fn comment<'a>(input: Span<'a>) -> IResult<'a, Located<Comment<'a>>> {
@@ -28,7 +27,7 @@ pub fn comment<'a>(input: Span<'a>) -> IResult<'a, Located<Comment<'a>>> {
 pub fn line_comment<'a>(
     input: Span<'a>,
 ) -> IResult<'a, Located<LineComment<'a>>> {
-    fn inner<'a>(input: Span<'a>) -> IResult<'a, LineComment<'a>> {
+    fn inner(input: Span) -> IResult<LineComment> {
         let (input, _) = tag("%%")(input)?;
         let (input, text) = cow_str(take_until_end_of_line_or_input)(input)?;
 
@@ -41,13 +40,13 @@ pub fn line_comment<'a>(
 pub fn multi_line_comment<'a>(
     input: Span<'a>,
 ) -> IResult<'a, Located<MultiLineComment<'a>>> {
-    fn inner<'a>(input: Span<'a>) -> IResult<'a, MultiLineComment<'a>> {
+    fn inner(input: Span) -> IResult<MultiLineComment> {
         let (input, _) = tag("%%+")(input)?;
 
         // Capture all content between comments as individual lines
         let (input, lines) = map_parser(
             take_until("+%%"),
-            many1(cow_str(terminated(take_until("\n"), tag("\n")))),
+            separated_list(tag("\n"), cow_str(alt((take_until("\n"), rest)))),
         )(input)?;
 
         let (input, _) = tag("+%%")(input)?;
