@@ -7,10 +7,7 @@ use crate::lang::{
         DecoratedText, DecoratedTextContent, Keyword, Link, Located, Text,
     },
     parsers::{
-        utils::{
-            capture, context, cow_str, locate, surround_in_line1,
-            take_line_while1,
-        },
+        utils::{capture, context, cow_str, locate, surround_in_line1},
         IResult, Span,
     },
 };
@@ -214,7 +211,7 @@ mod tests {
             "$math$",
             "Unexpected input consumption"
         );
-        assert_eq!(t.element, Text::from("abc123"));
+        assert_eq!(t.into_inner(), Text::from("abc123"));
     }
 
     #[test]
@@ -226,7 +223,7 @@ mod tests {
             ":tag:",
             "Unexpected input consumption"
         );
-        assert_eq!(t.element, Text::from("abc123"));
+        assert_eq!(t.into_inner(), Text::from("abc123"));
     }
 
     #[test]
@@ -238,7 +235,7 @@ mod tests {
             "[[some link]]",
             "Unexpected input consumption"
         );
-        assert_eq!(t.element, Text::from("abc123"));
+        assert_eq!(t.into_inner(), Text::from("abc123"));
     }
 
     #[test]
@@ -250,7 +247,7 @@ mod tests {
             "*bold text*",
             "Unexpected input consumption"
         );
-        assert_eq!(t.element, Text::from("abc123"));
+        assert_eq!(t.into_inner(), Text::from("abc123"));
     }
 
     #[test]
@@ -262,7 +259,7 @@ mod tests {
             "TODO",
             "Unexpected input consumption"
         );
-        assert_eq!(t.element, Text::from("abc123 "));
+        assert_eq!(t.into_inner(), Text::from("abc123 "));
     }
 
     #[test]
@@ -274,7 +271,7 @@ mod tests {
             "\nsome other text",
             "Unexpected input consumption"
         );
-        assert_eq!(t.element, Text::from("abc123"));
+        assert_eq!(t.into_inner(), Text::from("abc123"));
     }
 
     #[test]
@@ -286,7 +283,7 @@ mod tests {
             "",
             "Unexpected input consumption"
         );
-        assert_eq!(t.element, Text::from("abc123"));
+        assert_eq!(t.into_inner(), Text::from("abc123"));
     }
 
     #[test]
@@ -307,7 +304,7 @@ mod tests {
         let (input, dt) = decorated_text(input).unwrap();
         assert!(input.is_empty(), "Did not consume decorated text");
         assert_eq!(
-            dt.element,
+            dt.into_inner(),
             DecoratedText::Bold(vec![Located::from(
                 DecoratedTextContent::from(Text::from("bold text"))
             )])
@@ -320,7 +317,7 @@ mod tests {
         let (input, dt) = decorated_text(input).unwrap();
         assert!(input.is_empty(), "Did not consume decorated text");
         assert_eq!(
-            dt.element,
+            dt.into_inner(),
             DecoratedText::Italic(vec![Located::from(
                 DecoratedTextContent::from(Text::from("italic text"))
             )])
@@ -333,7 +330,7 @@ mod tests {
         let (input, dt) = decorated_text(input).unwrap();
         assert!(input.is_empty(), "Did not consume decorated text");
         assert_eq!(
-            dt.element,
+            dt.into_inner(),
             DecoratedText::BoldItalic(vec![Located::from(
                 DecoratedTextContent::from(Text::from("bold italic text"))
             )])
@@ -346,7 +343,7 @@ mod tests {
         let (input, dt) = decorated_text(input).unwrap();
         assert!(input.is_empty(), "Did not consume decorated text");
         assert_eq!(
-            dt.element,
+            dt.into_inner(),
             DecoratedText::BoldItalic(vec![Located::from(
                 DecoratedTextContent::from(Text::from("bold italic text"))
             )])
@@ -359,7 +356,7 @@ mod tests {
         let (input, dt) = decorated_text(input).unwrap();
         assert!(input.is_empty(), "Did not consume decorated text");
         assert_eq!(
-            dt.element,
+            dt.into_inner(),
             DecoratedText::Strikeout(vec![Located::from(
                 DecoratedTextContent::from(Text::from("strikeout text"))
             )])
@@ -372,7 +369,7 @@ mod tests {
         let (input, dt) = decorated_text(input).unwrap();
         assert!(input.is_empty(), "Did not consume decorated text");
         assert_eq!(
-            dt.element,
+            dt.into_inner(),
             DecoratedText::Superscript(vec![Located::from(
                 DecoratedTextContent::from(Text::from("superscript text"))
             )])
@@ -385,7 +382,7 @@ mod tests {
         let (input, dt) = decorated_text(input).unwrap();
         assert!(input.is_empty(), "Did not consume decorated text");
         assert_eq!(
-            dt.element,
+            dt.into_inner(),
             DecoratedText::Subscript(vec![Located::from(
                 DecoratedTextContent::from(Text::from("subscript text"))
             )])
@@ -398,7 +395,7 @@ mod tests {
         let (input, dt) = decorated_text(input).unwrap();
         assert!(input.is_empty(), "Did not consume decorated text");
         assert_eq!(
-            dt.element,
+            dt.into_inner(),
             DecoratedText::Bold(vec![Located::from(
                 DecoratedTextContent::from(Link::Wiki(WikiLink::from(
                     "some link"
@@ -413,7 +410,7 @@ mod tests {
         let (input, dt) = decorated_text(input).unwrap();
         assert!(input.is_empty(), "Did not consume decorated text");
         assert_eq!(
-            dt.element,
+            dt.into_inner(),
             DecoratedText::Bold(vec![Located::from(
                 DecoratedTextContent::from(Keyword::TODO)
             )])
@@ -436,26 +433,26 @@ mod tests {
     fn keyword_should_consume_specific_keywords() {
         let input = Span::from("DONE");
         let (_, k) = keyword(input).unwrap();
-        assert_eq!(k.element, Keyword::DONE);
+        assert_eq!(k.into_inner(), Keyword::DONE);
 
         let input = Span::from("FIXED");
         let (_, k) = keyword(input).unwrap();
-        assert_eq!(k.element, Keyword::FIXED);
+        assert_eq!(k.into_inner(), Keyword::FIXED);
 
         let input = Span::from("FIXME");
         let (_, k) = keyword(input).unwrap();
-        assert_eq!(k.element, Keyword::FIXME);
+        assert_eq!(k.into_inner(), Keyword::FIXME);
 
         let input = Span::from("STARTED");
         let (_, k) = keyword(input).unwrap();
-        assert_eq!(k.element, Keyword::STARTED);
+        assert_eq!(k.into_inner(), Keyword::STARTED);
 
         let input = Span::from("TODO");
         let (_, k) = keyword(input).unwrap();
-        assert_eq!(k.element, Keyword::TODO);
+        assert_eq!(k.into_inner(), Keyword::TODO);
 
         let input = Span::from("XXX");
         let (_, k) = keyword(input).unwrap();
-        assert_eq!(k.element, Keyword::XXX);
+        assert_eq!(k.into_inner(), Keyword::XXX);
     }
 }

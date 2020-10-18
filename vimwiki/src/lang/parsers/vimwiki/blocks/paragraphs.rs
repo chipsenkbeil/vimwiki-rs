@@ -102,7 +102,7 @@ mod tests {
             p.content
                 .elements
                 .drain(..)
-                .map(|c| c.element)
+                .map(|c| c.into_inner())
                 .collect::<Vec<InlineElement>>(),
             vec![
                 InlineElement::Text(Text::from("Some paragraph with ")),
@@ -135,7 +135,7 @@ mod tests {
             p.content
                 .elements
                 .drain(..)
-                .map(|c| c.element)
+                .map(|c| c.into_inner())
                 .collect::<Vec<InlineElement>>(),
             vec![
                 InlineElement::Text(Text::from("Some paragraph with ")),
@@ -169,7 +169,7 @@ mod tests {
             p.content
                 .elements
                 .drain(..)
-                .map(|c| c.element)
+                .map(|c| c.into_inner())
                 .collect::<Vec<InlineElement>>(),
             vec![
                 InlineElement::Text(Text::from("Some paragraph with ")),
@@ -208,7 +208,7 @@ mod tests {
             p.content
                 .elements
                 .drain(..)
-                .map(|c| c.element)
+                .map(|c| c.into_inner())
                 .collect::<Vec<InlineElement>>(),
             vec![
                 InlineElement::Text(Text::from("Some paragraph with ")),

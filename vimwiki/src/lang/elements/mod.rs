@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 mod blocks;
 pub use blocks::*;
 mod location;
-pub use location::{Located, Position, Region};
+pub use location::{Located, Region};
 
 /// Represents a full page containing different elements
 #[derive(

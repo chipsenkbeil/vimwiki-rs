@@ -154,9 +154,9 @@ impl<'a> ListItemContents<'a> {
     ) -> impl Iterator<Item = &InlineElement> + '_ {
         self.contents
             .iter()
-            .filter_map(|c| match &c.element {
+            .filter_map(|c| match c.as_inner() {
                 ListItemContent::InlineContent(x) => {
-                    Some(x.elements.iter().map(|y| &y.element))
+                    Some(x.elements.iter().map(|y| y.as_inner()))
                 }
                 _ => None,
             })
@@ -168,9 +168,9 @@ impl<'a> ListItemContents<'a> {
     ) -> impl Iterator<Item = &mut InlineElement<'a>> + '_ {
         self.contents
             .iter_mut()
-            .filter_map(|c| match &mut c.element {
+            .filter_map(|c| match c.as_mut_inner() {
                 ListItemContent::InlineContent(x) => {
-                    Some(x.elements.iter_mut().map(|y| &mut y.element))
+                    Some(x.elements.iter_mut().map(|y| y.as_mut_inner()))
                 }
                 _ => None,
             })
@@ -178,7 +178,7 @@ impl<'a> ListItemContents<'a> {
     }
 
     pub fn sublist_iter(&self) -> impl Iterator<Item = &List> + '_ {
-        self.contents.iter().flat_map(|c| match &c.element {
+        self.contents.iter().flat_map(|c| match c.as_inner() {
             ListItemContent::List(x) => Some(x),
             _ => None,
         })
@@ -187,10 +187,12 @@ impl<'a> ListItemContents<'a> {
     pub fn sublist_iter_mut(
         &mut self,
     ) -> impl Iterator<Item = &mut List<'a>> + '_ {
-        self.contents.iter_mut().flat_map(|c| match &mut c.element {
-            ListItemContent::List(x) => Some(x),
-            _ => None,
-        })
+        self.contents
+            .iter_mut()
+            .flat_map(|c| match c.as_mut_inner() {
+                ListItemContent::List(x) => Some(x),
+                _ => None,
+            })
     }
 
     pub fn to_children(&'a self) -> Vec<Located<Element<'a>>> {
@@ -204,7 +206,7 @@ impl<'a> ListItemContents<'a> {
                     .collect(),
                 ListItemContent::List(list) => vec![Located::new(
                     Element::from(list.to_borrowed()),
-                    x.region,
+                    x.region(),
                 )],
             })
             .collect()

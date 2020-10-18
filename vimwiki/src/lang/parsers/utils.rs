@@ -1,5 +1,5 @@
 use crate::lang::{
-    elements::{Located, Position, Region},
+    elements::{Located, Region},
     parsers::{Captured, Error, IResult, Span},
 };
 use memchr::{memchr, memchr_iter};
@@ -38,10 +38,9 @@ pub fn locate<'a, T>(
     parser: impl Fn(Span<'a>) -> IResult<Captured<T>>,
 ) -> impl Fn(Span<'a>) -> IResult<Located<T>> {
     context("Locate", move |input: Span| {
+        let offset = input.start_offset();
         let (input, c) = parser(input)?;
-        let start_pos = Position::new(c.input().line(), c.input().column());
-        let end_pos = Position::new(c.input().line(), c.input().column());
-        let region = Region::new(start_pos, end_pos);
+        let region = Region::new(offset, input.start_offset() - offset);
 
         Ok((input, Located::new(c.into_inner(), region)))
     })

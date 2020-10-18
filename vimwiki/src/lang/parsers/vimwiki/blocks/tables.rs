@@ -34,7 +34,7 @@ pub fn table(input: Span) -> IResult<Located<Table>> {
     context(
         "Table",
         locate(capture(verify(inner, |t| {
-            !t.rows.iter().all(|r| matches!(r.element, Row::Divider))
+            !t.rows.iter().all(|r| matches!(r.as_inner(), Row::Divider))
         }))),
     )(input)
 }
@@ -117,7 +117,7 @@ mod tests {
                     1,
                     "Unexpected number of inline elements in cell"
                 );
-                f(&x.elements[0].element);
+                f(x.elements[0].as_inner());
             }
             x => panic!("Unexpected cell: {:?}", x),
         }
@@ -170,33 +170,33 @@ mod tests {
         assert!(input.is_empty(), "Did not consume table");
         assert!(!t.centered, "Table unexpectedly centered");
 
-        let cell = &t.get_cell(0, 0).unwrap().element;
+        let cell = t.get_cell(0, 0).unwrap().as_inner();
         check_cell_text_value(cell, "name");
 
-        let cell = &t.get_cell(0, 1).unwrap().element;
+        let cell = t.get_cell(0, 1).unwrap().as_inner();
         check_cell_text_value(cell, " age");
 
-        assert_eq!(t.rows[1].element, Row::Divider);
+        assert_eq!(t.rows[1].as_inner(), &Row::Divider);
 
-        let cell = &t.get_cell(2, 0).unwrap().element;
+        let cell = t.get_cell(2, 0).unwrap().as_inner();
         check_cell_text_value(cell, "abcd");
 
-        let cell = &t.get_cell(2, 1).unwrap().element;
+        let cell = t.get_cell(2, 1).unwrap().as_inner();
         check_cell_text_value(cell, "1111");
 
-        let cell = &t.get_cell(3, 0).unwrap().element;
+        let cell = t.get_cell(3, 0).unwrap().as_inner();
         check_cell_text_value(cell, "efgh");
 
-        let cell = &t.get_cell(3, 1).unwrap().element;
+        let cell = t.get_cell(3, 1).unwrap().as_inner();
         check_cell_text_value(cell, "2222");
 
-        let cell = &t.get_cell(3, 2).unwrap().element;
+        let cell = t.get_cell(3, 2).unwrap().as_inner();
         check_cell_text_value(cell, "3333");
 
-        let cell = &t.get_cell(4, 0).unwrap().element;
+        let cell = t.get_cell(4, 0).unwrap().as_inner();
         check_cell_text_value(cell, "ijkl");
 
-        let cell = &t.get_cell(4, 1).unwrap().element;
+        let cell = t.get_cell(4, 1).unwrap().as_inner();
         check_cell_text_value(cell, "4444");
     }
 
@@ -207,7 +207,7 @@ mod tests {
         assert!(input.is_empty(), "Did not consume table");
         assert!(!t.centered, "Table unexpectedly centered");
 
-        let cell = &t.get_cell(0, 0).unwrap().element;
+        let cell = t.get_cell(0, 0).unwrap().as_inner();
         check_cell_text_value(cell, "value1");
     }
 
@@ -218,10 +218,10 @@ mod tests {
         assert!(input.is_empty(), "Did not consume table");
         assert!(!t.centered, "Table unexpectedly centered");
 
-        let cell = &t.get_cell(0, 0).unwrap().element;
+        let cell = t.get_cell(0, 0).unwrap().as_inner();
         check_cell_text_value(cell, "value1");
 
-        let cell = &t.get_cell(0, 1).unwrap().element;
+        let cell = t.get_cell(0, 1).unwrap().as_inner();
         check_cell_text_value(cell, "value2");
     }
 
@@ -235,10 +235,10 @@ mod tests {
         assert!(input.is_empty(), "Did not consume table");
         assert!(!t.centered, "Table unexpectedly centered");
 
-        let cell = &t.get_cell(0, 0).unwrap().element;
+        let cell = t.get_cell(0, 0).unwrap().as_inner();
         check_cell_text_value(cell, "value1");
 
-        let cell = &t.get_cell(1, 0).unwrap().element;
+        let cell = t.get_cell(1, 0).unwrap().as_inner();
         check_cell_text_value(cell, "value2");
     }
 
@@ -252,16 +252,16 @@ mod tests {
         assert!(input.is_empty(), "Did not consume table");
         assert!(!t.centered, "Table unexpectedly centered");
 
-        let cell = &t.get_cell(0, 0).unwrap().element;
+        let cell = t.get_cell(0, 0).unwrap().as_inner();
         check_cell_text_value(cell, "value1");
 
-        let cell = &t.get_cell(0, 1).unwrap().element;
+        let cell = t.get_cell(0, 1).unwrap().as_inner();
         check_cell_text_value(cell, "value2");
 
-        let cell = &t.get_cell(1, 0).unwrap().element;
+        let cell = t.get_cell(1, 0).unwrap().as_inner();
         check_cell_text_value(cell, "value3");
 
-        let cell = &t.get_cell(1, 1).unwrap().element;
+        let cell = t.get_cell(1, 1).unwrap().as_inner();
         check_cell_text_value(cell, "value4");
     }
 
@@ -279,10 +279,10 @@ mod tests {
         );
         assert!(!t.centered, "Table unexpectedly centered");
 
-        let cell = &t.get_cell(0, 0).unwrap().element;
+        let cell = t.get_cell(0, 0).unwrap().as_inner();
         check_cell_text_value(cell, "value1");
 
-        assert_eq!(t.rows[1].element, Row::Divider);
+        assert_eq!(t.rows[1].as_inner(), &Row::Divider);
     }
 
     #[test]
@@ -299,13 +299,13 @@ mod tests {
         );
         assert!(!t.centered, "Table unexpectedly centered");
 
-        let cell = &t.get_cell(0, 0).unwrap().element;
+        let cell = t.get_cell(0, 0).unwrap().as_inner();
         check_cell_text_value(cell, "value1");
 
-        let cell = &t.get_cell(0, 1).unwrap().element;
+        let cell = t.get_cell(0, 1).unwrap().as_inner();
         check_cell_text_value(cell, "value2");
 
-        assert_eq!(t.rows[1].element, Row::Divider);
+        assert_eq!(t.rows[1].as_inner(), &Row::Divider);
     }
 
     #[test]
@@ -315,7 +315,7 @@ mod tests {
         assert!(input.is_empty(), "Did not consume table");
         assert!(!t.centered, "Table unexpectedly centered");
 
-        let cell = &t.get_cell(0, 0).unwrap().element;
+        let cell = t.get_cell(0, 0).unwrap().as_inner();
         assert_eq!(cell, &Cell::SpanLeft);
     }
 
@@ -326,7 +326,7 @@ mod tests {
         assert!(input.is_empty(), "Did not consume table");
         assert!(!t.centered, "Table unexpectedly centered");
 
-        let cell = &t.get_cell(0, 0).unwrap().element;
+        let cell = t.get_cell(0, 0).unwrap().as_inner();
         assert_eq!(cell, &Cell::SpanAbove);
     }
 
@@ -337,7 +337,7 @@ mod tests {
         assert!(input.is_empty(), "Did not consume table");
         assert!(t.centered, "Table unexpectedly not centered");
 
-        let cell = &t.get_cell(0, 0).unwrap().element;
+        let cell = t.get_cell(0, 0).unwrap().as_inner();
         check_cell_text_value(cell, "value1");
     }
 
@@ -348,7 +348,7 @@ mod tests {
         assert!(input.is_empty(), "Did not consume table");
         assert!(!t.centered, "Table unexpectedly centered");
 
-        let cell = &t.get_cell(0, 0).unwrap().element;
+        let cell = t.get_cell(0, 0).unwrap().as_inner();
         check_cell_value(cell, |c| {
             assert_eq!(
                 c,

@@ -11,7 +11,8 @@ pub fn compare_page_elements<'a>(
     for (i, (ac, ec)) in actual.iter().zip(expected.iter()).enumerate() {
         assert_eq!(ac, ec, "Elements at index {} are not equal!", i);
         assert_eq!(
-            ac.region, ec.region,
+            ac.region(),
+            ec.region(),
             "Element regions at index {} are not equal!",
             i
         );

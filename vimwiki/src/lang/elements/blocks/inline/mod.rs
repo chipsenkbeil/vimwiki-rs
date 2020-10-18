@@ -131,7 +131,7 @@ impl<'a> InlineElementContainer<'a> {
 impl<'a> fmt::Display for InlineElementContainer<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for le in self.elements.iter() {
-            write!(f, "{}", le.element.to_string())?;
+            write!(f, "{}", le.as_inner().to_string())?;
         }
         Ok(())
     }

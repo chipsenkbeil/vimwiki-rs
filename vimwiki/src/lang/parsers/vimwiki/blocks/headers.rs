@@ -96,7 +96,7 @@ mod tests {
     macro_rules! check {
         ($header:expr, $index:expr, $type:ident, $text:expr) => {
             assert!(matches!(
-                $header.content[$index].element,
+                $header.content[$index].as_inner(),
                 InlineElement::$type(_)
             ));
             assert_eq!($header.content[$index].to_string(), $text);

@@ -57,9 +57,9 @@ mod tests {
     use super::*;
     use crate::lang::{
         elements::{
-            CodeInline, Comment, DecoratedText, DecoratedTextContent,
-            InlineElement, Keyword, LineComment, Link, MathInline,
-            MultiLineComment, Tags, Text, WikiLink,
+            CodeInline, DecoratedText, DecoratedTextContent, InlineElement,
+            Keyword, LineComment, Link, MathInline, MultiLineComment, Tags,
+            Text, WikiLink,
         },
         parsers::Span,
     };
@@ -249,7 +249,7 @@ mod tests {
             container
                 .elements
                 .drain(..)
-                .map(|c| c.element)
+                .map(|c| c.into_inner())
                 .collect::<Vec<InlineElement>>(),
             vec![
                 InlineElement::DecoratedText(DecoratedText::Bold(vec![

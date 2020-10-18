@@ -40,7 +40,7 @@ impl<'a> Table<'a> {
         row: usize,
         col: usize,
     ) -> Option<&Located<Cell<'a>>> {
-        self.rows.get(row).and_then(|r| match &r.element {
+        self.rows.get(row).and_then(|r| match r.as_inner() {
             Row::Content { cells } => cells.get(col),
             _ => None,
         })

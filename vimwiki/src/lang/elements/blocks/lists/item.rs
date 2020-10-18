@@ -75,7 +75,7 @@ impl<'a> ListItem<'a> {
     pub fn compute_todo_progress(&self) -> Option<f32> {
         self.contents
             .iter()
-            .fold(None, |acc, c| match &c.element {
+            .fold(None, |acc, c| match c.as_inner() {
                 ListItemContent::InlineContent(_) => acc,
                 ListItemContent::List(list) => {
                     let (mut sum, mut count) =
@@ -88,7 +88,7 @@ impl<'a> ListItem<'a> {
                             //       determining the progress of the current
                             //       todo list item
                             if let Some(p) =
-                                item.element.compute_todo_progress()
+                                item.as_inner().compute_todo_progress()
                             {
                                 (acc.0 + p, acc.1 + 1)
                             } else {

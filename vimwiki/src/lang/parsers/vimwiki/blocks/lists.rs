@@ -350,13 +350,13 @@ mod tests {
         item_suffix: ListItemSuffix,
         text: &str,
     ) {
-        let item = &l.items[0].element;
+        let item = &l.items[0].as_inner();
         assert_eq!(item.item_type, item_type);
         assert_eq!(item.suffix, item_suffix);
         assert_eq!(item.pos, 0);
 
-        let element = match &item.contents[0].element {
-            ListItemContent::InlineContent(c) => &c.elements[0].element,
+        let element = match &item.contents[0].as_inner() {
+            ListItemContent::InlineContent(c) => c.elements[0].as_inner(),
             x => panic!("Unexpected list item content: {:?}", x),
         };
         assert_eq!(element, &InlineElement::Text(Text::from(text)));
@@ -389,7 +389,7 @@ mod tests {
         assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
-            &l.element,
+            l.as_inner(),
             ListItemType::from(UnorderedListItemType::Hyphen),
             ListItemSuffix::None,
             "list item 1",
@@ -404,7 +404,7 @@ mod tests {
         assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
-            &l.element,
+            l.as_inner(),
             ListItemType::from(UnorderedListItemType::Asterisk),
             ListItemSuffix::None,
             "list item 1",
@@ -419,7 +419,7 @@ mod tests {
         assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
-            &l.element,
+            l.as_inner(),
             ListItemType::from(OrderedListItemType::Pound),
             ListItemSuffix::None,
             "list item 1",
@@ -434,7 +434,7 @@ mod tests {
         assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
-            &l.element,
+            l.as_inner(),
             ListItemType::from(OrderedListItemType::Number),
             ListItemSuffix::Period,
             "list item 1",
@@ -449,7 +449,7 @@ mod tests {
         assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
-            &l.element,
+            l.as_inner(),
             ListItemType::from(OrderedListItemType::Number),
             ListItemSuffix::Paren,
             "list item 1",
@@ -464,7 +464,7 @@ mod tests {
         assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
-            &l.element,
+            l.as_inner(),
             ListItemType::from(OrderedListItemType::LowercaseAlphabet),
             ListItemSuffix::Paren,
             "list item 1",
@@ -479,7 +479,7 @@ mod tests {
         assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
-            &l.element,
+            l.as_inner(),
             ListItemType::from(OrderedListItemType::UppercaseAlphabet),
             ListItemSuffix::Paren,
             "list item 1",
@@ -494,7 +494,7 @@ mod tests {
         assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
-            &l.element,
+            l.as_inner(),
             ListItemType::from(OrderedListItemType::LowercaseRoman),
             ListItemSuffix::Paren,
             "list item 1",
@@ -509,7 +509,7 @@ mod tests {
         assert_eq!(l.items.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
-            &l.element,
+            l.as_inner(),
             ListItemType::from(OrderedListItemType::UppercaseRoman),
             ListItemSuffix::Paren,
             "list item 1",
