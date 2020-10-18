@@ -161,7 +161,18 @@ impl<'a> Span<'a> {
         last_pos == (len - 1)
     }
 
+    /// Calculates the line and column position of this span using newline (\n)
+    /// chars and returning them as (line, column) with base index of 1
+    pub fn line_and_column(&self) -> (usize, usize) {
+        // TODO: We can optimize this a little bit by counting and keeping
+        //       track of the last line position such that with the column
+        //       we do not need to look backwards first to get the start
+        //       of the line
+        (self.line(), self.column())
+    }
+
     /// Calculates the line position of this span using newline (\n) chars
+    /// with base index of 1
     pub fn line(&self) -> usize {
         // Count the number of newline (\n) characters that take place before
         // our current position; increment by 1 since our first line is 1, not 0
@@ -172,7 +183,8 @@ impl<'a> Span<'a> {
     }
 
     /// Calculates the column position of this span by looking backwards from
-    /// the offset for the last newline and then counting code points
+    /// the offset for the last newline and then counting code points with
+    /// base index of 1
     pub fn column(&self) -> usize {
         // Determine the offset position that represents the start of the line,
         // which is just after a newline or the beginning of the entire inner

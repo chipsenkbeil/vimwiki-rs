@@ -1,5 +1,5 @@
 mod lang;
-// mod tree;
+mod tree;
 
 #[cfg(feature = "timekeeper")]
 pub mod timekeeper;
@@ -9,7 +9,7 @@ pub use lang::{
     parsers::Error as ParseError,
     FromLanguage, Language,
 };
-// pub use tree::ElementTree;
+pub use tree::ElementTree;
 
 // Re-export the vendor libraries so we're able to reconstruct their
 // structs from macros

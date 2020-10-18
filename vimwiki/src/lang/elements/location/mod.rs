@@ -9,6 +9,7 @@ pub use region::Region;
 /// within some string/file
 #[derive(
     Constructor,
+    Copy,
     Clone,
     Debug,
     Display,
