@@ -1,26 +1,39 @@
 use super::Span;
 use nom::error::{ErrorKind, ParseError};
-use std::fmt;
+use std::{borrow::Cow, fmt};
 
 /// Represents an encapsulated error that is encountered
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub struct LangParserError {
-    ctx: String,
-    sample: String,
-    offset: usize,
-    line: usize,
-    column: usize,
+pub struct LangParserError<'a> {
+    ctx: Cow<'a, str>,
+    input: Span<'a>,
     next: Option<Box<Self>>,
 }
 
-impl fmt::Display for LangParserError {
+impl<'a> fmt::Display for LangParserError<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Display our context along with the starting line/column
+        // NOTE: This is an expensive operation to calculate the line/column
         writeln!(
             f,
             "{}: Line {}, Column {}",
-            self.ctx, self.line, self.column
+            self.ctx,
+            self.input.line(),
+            self.input.column()
         )?;
-        writeln!(f, "Input: {}", self.sample)?;
+
+        // Produce the first line of our input, limiting to no more than
+        // 100 characters to prevent really long lines
+        writeln!(
+            f,
+            "{}",
+            &self
+                .input
+                .as_unsafe_remaining_str()
+                .lines()
+                .next()
+                .unwrap_or_default()[..100]
+        )?;
 
         if let Some(next) = self.next.as_ref() {
             next.fmt(f)?;
@@ -30,101 +43,62 @@ impl fmt::Display for LangParserError {
     }
 }
 
-impl std::error::Error for LangParserError {}
+impl<'a> std::error::Error for LangParserError<'a> {}
 
-impl LangParserError {
+impl<'a> LangParserError<'a> {
     pub fn unsupported() -> Self {
         Self {
-            ctx: "Unsupported".to_string(),
-            sample: "".to_string(),
-            offset: 0,
-            line: 0,
-            column: 0,
+            ctx: Cow::from("Unsupported"),
+            input: Span::from(""),
             next: None,
         }
     }
 
-    pub fn from_ctx(input: &Span, ctx: &'static str) -> Self {
-        let line = input.line();
-        let column = input.column();
+    pub fn from_ctx(input: &Span<'a>, ctx: &'static str) -> Self {
         Self {
-            ctx: ctx.to_string(),
-            sample: input
-                .as_unsafe_remaining_str()
-                .get(..16)
-                .map(|x| x.to_string())
-                .unwrap_or_default(),
-            offset: input.start_offset(),
-            line,
-            column,
+            ctx: Cow::from(ctx),
+            input: *input,
             next: None,
         }
     }
 }
 
-impl ParseError<Span<'_>> for LangParserError {
-    fn from_error_kind(input: Span, kind: ErrorKind) -> Self {
-        let line = input.line();
-        let column = input.column();
+impl<'a> ParseError<Span<'a>> for LangParserError<'a> {
+    fn from_error_kind(input: Span<'a>, kind: ErrorKind) -> Self {
         Self {
-            ctx: kind.description().to_string(),
-            sample: input
-                .as_unsafe_remaining_str()
-                .get(..16)
-                .map(|x| x.to_string())
-                .unwrap_or_default(),
-            offset: input.start_offset(),
-            line,
-            column,
+            ctx: Cow::from(kind.description().to_string()),
+            input,
             next: None,
         }
     }
 
-    fn append(input: Span, kind: ErrorKind, other: Self) -> Self {
+    fn append(input: Span<'a>, kind: ErrorKind, other: Self) -> Self {
         let mut e = Self::from_error_kind(input, kind);
         e.next = Some(Box::new(other));
         e
     }
 
-    fn from_char(input: Span, c: char) -> Self {
-        let line = input.line();
-        let column = input.column();
+    fn from_char(input: Span<'a>, c: char) -> Self {
         Self {
-            ctx: format!("Char {}", c),
-            sample: input
-                .as_unsafe_remaining_str()
-                .get(..16)
-                .map(|x| x.to_string())
-                .unwrap_or_default(),
-            offset: input.start_offset(),
-            line,
-            column,
+            ctx: Cow::from(format!("Char {}", c)),
+            input,
             next: None,
         }
     }
 
     fn or(self, other: Self) -> Self {
         // Pick error that has progressed further
-        if self.offset > other.offset {
+        if self.input.start_offset() > other.input.start_offset() {
             self
         } else {
             other
         }
     }
 
-    fn add_context(input: Span, ctx: &'static str, other: Self) -> Self {
-        let line = input.line();
-        let column = input.column();
+    fn add_context(input: Span<'a>, ctx: &'static str, other: Self) -> Self {
         Self {
-            ctx: ctx.to_string(),
-            sample: input
-                .as_unsafe_remaining_str()
-                .get(..16)
-                .map(|x| x.to_string())
-                .unwrap_or_default(),
-            offset: input.start_offset(),
-            line,
-            column,
+            ctx: Cow::from(ctx),
+            input,
             next: Some(Box::new(other)),
         }
     }

@@ -85,8 +85,8 @@ pub mod parsers {
     use super::*;
     use nom::error::ParseError;
         
-    type Error = crate::lang::parsers::Error;
-    type IResult<'a, O> = Result<(Span<'a>, O), nom::Err<Error>>;
+    type Error<'a> = crate::lang::parsers::Error<'a>;
+    type IResult<'a, O> = Result<(Span<'a>, O), nom::Err<Error<'a>>>;
 
     pub fn context<'a, T>(
         ctx: &'static str,

@@ -12,7 +12,7 @@ pub use span::Span;
 pub use errors::LangParserError as Error;
 
 /// Alias to an Result using our custom error and span
-pub type IResult<'a, O> = Result<(Span<'a>, O), nom::Err<Error>>;
+pub type IResult<'a, O> = Result<(Span<'a>, O), nom::Err<Error<'a>>>;
 
 /// Represents some data captured with the input used to create it
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]

@@ -165,7 +165,7 @@ impl Language<'_> {
 macro_rules! impl_from_language {
     ($t:ty, $f:expr) => {
         impl<'a> FromLanguage<'a> for $t {
-            type Error = nom::Err<parsers::Error>;
+            type Error = nom::Err<parsers::Error<'a>>;
 
             fn from_language(s: &'a Language<'a>) -> Result<Self, Self::Error> {
                 match s {

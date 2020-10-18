@@ -27,8 +27,8 @@ pub use nom::error::context;
 #[cfg(feature = "timekeeper")]
 pub fn context<'a, T>(
     ctx: &'static str,
-    f: impl Fn(Span<'a>) -> IResult<T>,
-) -> impl Fn(Span<'a>) -> IResult<T> {
+    f: impl Fn(Span<'a>) -> IResult<'a, T>,
+) -> impl Fn(Span<'a>) -> IResult<'a, T> {
     crate::timekeeper::parsers::context(ctx, f)
 }
 
