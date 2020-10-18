@@ -1,9 +1,9 @@
-use vimwiki::{elements::BlockElement, LE};
+use vimwiki::elements::{BlockElement, Located};
 
 /// Compares top-level block elements from a page against an expected set
-pub fn compare_page_elements(
-    actual: &[LE<BlockElement>],
-    expected: &[LE<BlockElement>],
+pub fn compare_page_elements<'a>(
+    actual: &[Located<BlockElement<'a>>],
+    expected: &[Located<BlockElement<'a>>],
 ) {
     // NOTE: Rather than comparing vecs directly, we iterate through the
     //       page elements with a zip so we can get finer-grain details on

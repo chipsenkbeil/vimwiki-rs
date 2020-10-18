@@ -1,15 +1,13 @@
 use super::{fixtures::VimwikiFile, utils::compare_page_elements};
-use std::convert::TryInto;
-use vimwiki::{elements::*, RawStr, Region, LE};
+use vimwiki::{elements::*, Language, Region};
 use vimwiki_macros::*;
 
 #[test]
 fn test() {
-    let page: LE<Page> = RawStr::from_vimwiki_string(
+    let language = Language::from_vimwiki_string(
         VimwikiFile::VimwikiWikiTroubleshooting.load().unwrap(),
-    )
-    .try_into()
-    .unwrap();
+    );
+    let page: Page = language.parse().unwrap();
     let expected = vec![
         vimwiki_header!("= Troubleshooting =")
             .take_with_region(Region::from((1, 1, 1, 20)))

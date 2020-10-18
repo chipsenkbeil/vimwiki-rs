@@ -220,7 +220,7 @@ mod tests {
         ]));
 
         let mut hs = HashMap::new();
-        hs.insert(t1, vec![]);
+        hs.insert(t1, vec![Definition::from("definition")]);
         assert_eq!(hs.len(), 1);
         assert!(hs.get(&t2).is_some());
     }

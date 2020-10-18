@@ -53,7 +53,7 @@ impl Position {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lang::utils::Span;
+    use crate::lang::parsers::Span;
 
     #[test]
     fn position_ordering_should_have_position_with_earliest_line_first() {

@@ -31,7 +31,7 @@ pub fn vendor_path() -> TokenStream {
 /// Produces a `TokenStream` for the `String` type
 #[inline]
 pub fn tokenize_cow_str_type() -> TokenStream {
-    quote! { Cow<'_, str >}
+    quote! { std::borrow::Cow<'_, str >}
 }
 
 /// Tokenizes a `HashMap<K, V>` where both the key and value implement the

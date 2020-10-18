@@ -75,8 +75,8 @@ fn take_segment(input: Span) -> IResult<Span> {
 
 #[cfg(test)]
 mod tests {
-    use super::super::elements::Description;
     use super::*;
+    use crate::lang::elements::Description;
     use std::path::PathBuf;
 
     #[test]

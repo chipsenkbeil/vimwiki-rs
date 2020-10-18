@@ -148,8 +148,8 @@ mod tests {
         "});
         let (input, p) = preformatted_text(input).unwrap();
         assert!(input.is_empty(), "Did not consume preformatted block");
-        assert_eq!(p.lang, Some("c++".to_string()));
-        assert_eq!(p.lines, vec!["some code".to_string()]);
+        assert_eq!(p.lang, Some(Cow::from("c++")));
+        assert_eq!(p.lines, vec![Cow::from("some code")]);
         assert!(p.metadata.is_empty(), "Has unexpected metadata");
     }
 
@@ -162,9 +162,9 @@ mod tests {
         "#});
         let (input, p) = preformatted_text(input).unwrap();
         assert!(input.is_empty(), "Did not consume preformatted block");
-        assert_eq!(p.lang, Some("c++".to_string()));
-        assert_eq!(p.lines, vec!["some code".to_string()]);
-        assert_eq!(p.metadata.get("key"), Some(&"value".to_string()));
+        assert_eq!(p.lang, Some(Cow::from("c++")));
+        assert_eq!(p.lines, vec![Cow::from("some code")]);
+        assert_eq!(p.metadata.get("key"), Some(&Cow::from("value")));
     }
 
     #[test]
@@ -219,7 +219,7 @@ mod tests {
                 r#"        print("Hello {0} number {1}".format(world, x))"#,
             ]
         );
-        assert_eq!(p.metadata.get("class"), Some(&"brush: python".to_string()));
+        assert_eq!(p.metadata.get("class"), Some(&Cow::from("brush: python")));
     }
 
     #[test]
@@ -242,10 +242,10 @@ mod tests {
             ]
         );
         assert!(p.lang.is_none(), "Has unexpected language");
-        assert_eq!(p.metadata.get("class"), Some(&"brush: python".to_string()));
+        assert_eq!(p.metadata.get("class"), Some(&Cow::from("brush: python")));
         assert_eq!(
             p.metadata.get("style"),
-            Some(&"position: relative".to_string())
+            Some(&Cow::from("position: relative"))
         );
     }
 }

@@ -1,14 +1,16 @@
 use super::{fixtures::VimwikiFile, utils::compare_page_elements};
-use std::convert::TryInto;
-use vimwiki::{elements::*, RawStr, LE};
+use vimwiki::{elements::*, Language};
 use vimwiki_macros::*;
 
 /// For testing purposes:
 ///
-/// 1. Converts the provided input to an LE<BlockElement>
+/// 1. Converts the provided input to a Located<BlockElement>
 /// 2. Moves the located element to the specified line
 /// 3. Pushes its column out by one so we cover newlines without needing to include them
-fn adjust(le: impl Into<LE<BlockElement>>, line: usize) -> LE<BlockElement> {
+fn adjust<'a>(
+    le: impl Into<Located<BlockElement<'a>>>,
+    line: usize,
+) -> Located<BlockElement<'a>> {
     let mut le = le.into().take_at_line(line);
     le.region.end.column += 1;
     le
@@ -17,11 +19,10 @@ fn adjust(le: impl Into<LE<BlockElement>>, line: usize) -> LE<BlockElement> {
 #[test]
 fn test() {
     vimwiki::timekeeper::enable();
-    let page: LE<Page> = RawStr::from_vimwiki_string(
+    let language = Language::from_vimwiki_string(
         VimwikiFile::PandocVimwikiReader.load().unwrap(),
-    )
-    .try_into()
-    .unwrap();
+    );
+    let page: Page = language.parse().unwrap();
     vimwiki::timekeeper::print_report(true);
     vimwiki::timekeeper::disable();
 

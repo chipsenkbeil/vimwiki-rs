@@ -146,6 +146,6 @@ mod tests {
         let (input, m) = math_block(input).unwrap();
         assert!(input.is_empty(), "Did not consume math block");
         assert_eq!(m.lines, vec![r"\sum_i a_i^2 &= 1 + 1 \\", r"&= 2."]);
-        assert_eq!(m.environment, Some("align".to_string()));
+        assert_eq!(m.environment, Some(Cow::from("align")));
     }
 }

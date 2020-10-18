@@ -89,7 +89,7 @@ mod tests {
         assert!(input.is_empty(), "Did not consume comment");
 
         match c.into_inner() {
-            Comment::Line(x) => assert_eq!(x, " comment"),
+            Comment::Line(x) => assert_eq!(x.0, " comment"),
             x => panic!("Unexpected element: {:?}", x),
         }
     }
@@ -104,7 +104,6 @@ mod tests {
             x => panic!("Unexpected element: {:?}", x),
         }
 
-        // NOTE: Line comment doesn't consume the newline; it leaves a blank line
         let input = Span::from("%% comment\nnext line");
         let (input, c) = comment(input).unwrap();
         assert_eq!(
@@ -124,7 +123,7 @@ mod tests {
         let (input, c) = comment(input).unwrap();
         assert!(input.is_empty(), "Did not consume comment");
         match c.into_inner() {
-            Comment::MultiLine(x) => assert_eq!(x.0, " comment "),
+            Comment::MultiLine(x) => assert_eq!(x.0, vec![" comment "]),
             x => panic!("Unexpected element: {:?}", x),
         }
 
@@ -132,7 +131,9 @@ mod tests {
         let (input, c) = comment(input).unwrap();
         assert!(input.is_empty(), "Did not consume comment");
         match c.into_inner() {
-            Comment::MultiLine(x) => assert_eq!(x.0, " comment\nnext line "),
+            Comment::MultiLine(x) => {
+                assert_eq!(x.0, vec![" comment", "next line "])
+            }
             x => panic!("Unexpected element: {:?}", x),
         }
 
@@ -144,7 +145,9 @@ mod tests {
             "Unexpected input consumed"
         );
         match c.into_inner() {
-            Comment::MultiLine(x) => assert_eq!(x.0, " comment\nnext line "),
+            Comment::MultiLine(x) => {
+                assert_eq!(x.0, vec![" comment", "next line "])
+            }
             x => panic!("Unexpected element: {:?}", x),
         }
     }
