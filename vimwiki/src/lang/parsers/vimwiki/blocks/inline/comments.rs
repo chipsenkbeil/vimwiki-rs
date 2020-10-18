@@ -18,8 +18,8 @@ pub fn comment<'a>(input: Span<'a>) -> IResult<'a, Located<Comment<'a>>> {
     context(
         "Comment",
         alt((
-            map(line_comment, |c| c.map(Comment::from)),
             map(multi_line_comment, |c| c.map(Comment::from)),
+            map(line_comment, |c| c.map(Comment::from)),
         )),
     )(input)
 }

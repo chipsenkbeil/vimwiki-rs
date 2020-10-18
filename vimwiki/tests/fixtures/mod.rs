@@ -7,6 +7,7 @@ pub enum VimwikiFile {
     VimwikiWikiTipsAndSnips,
     VimwikiWikiRelatedTools,
     PandocVimwikiReader,
+    VimwikiSpecification,
 }
 
 impl VimwikiFile {
@@ -33,6 +34,9 @@ impl VimwikiFile {
             }
             Self::PandocVimwikiReader => {
                 PathBuf::from("pandoc/vimwiki-reader.wiki")
+            }
+            Self::VimwikiSpecification => {
+                PathBuf::from("vimwiki/specification.wiki")
             }
         };
         PathBuf::from(head).join(tail)

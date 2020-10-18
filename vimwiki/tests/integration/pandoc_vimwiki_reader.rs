@@ -18,13 +18,10 @@ fn adjust<'a>(
 
 #[test]
 fn test() {
-    vimwiki::timekeeper::enable();
     let language = Language::from_vimwiki_string(
         VimwikiFile::PandocVimwikiReader.load().unwrap(),
     );
     let page: Page = language.parse().unwrap();
-    vimwiki::timekeeper::print_report(true);
-    vimwiki::timekeeper::disable();
 
     let expected = vec![
         adjust(vimwiki_header!("= _*implemented*_ ="), 1),

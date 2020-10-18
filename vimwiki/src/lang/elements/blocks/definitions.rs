@@ -277,6 +277,6 @@ mod tests {
             ),
             (Term::from("term2"), vec![]),
         ]);
-        assert!(dl.get("term 1").is_some());
+        assert!(dl.get("term1").is_some());
     }
 }

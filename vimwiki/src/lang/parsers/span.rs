@@ -165,11 +165,10 @@ impl<'a> Span<'a> {
     pub fn line(&self) -> usize {
         // Count the number of newline (\n) characters that take place before
         // our current position; increment by 1 since our first line is 1, not 0
-        // memchr_iter(b'\n', self.inner)
-        //     .take_while(|pos| pos < &self.start)
-        //     .count()
-        //     + 1
-        1
+        memchr_iter(b'\n', self.inner)
+            .take_while(|pos| pos < &self.start)
+            .count()
+            + 1
     }
 
     /// Calculates the column position of this span by looking backwards from
@@ -178,18 +177,17 @@ impl<'a> Span<'a> {
         // Determine the offset position that represents the start of the line,
         // which is just after a newline or the beginning of the entire inner
         // slice if we are on the first line
-        // let start_of_line = memrchr(b'\n', self.as_consumed())
-        //     .map(|pos| pos + 1)
-        //     .unwrap_or_default();
+        let start_of_line = memrchr(b'\n', self.as_consumed())
+            .map(|pos| pos + 1)
+            .unwrap_or_default();
 
         // Get a slice for the line starting at the beginning
-        // let line_up_to_offset = &self.inner[start_of_line..self.start];
+        let line_up_to_offset = &self.inner[start_of_line..self.start];
 
         // Count the codepoints thus far and increment by 1 since our first
         // column is 1, not 0 (meaning if we are within the first code point,
         // we are in column 1)
-        // bytecount::num_chars(line_up_to_offset) + 1
-        1
+        bytecount::num_chars(line_up_to_offset) + 1
     }
 }
 

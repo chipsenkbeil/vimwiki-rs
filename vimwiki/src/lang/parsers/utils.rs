@@ -12,7 +12,7 @@ use nom::{
     sequence::{pair, preceded, terminated},
     AsBytes, InputLength, InputTake,
 };
-use std::{borrow::Cow, convert::TryFrom, ops::Range, path::Path};
+use std::{borrow::Cow, convert::TryFrom, path::Path};
 use uriparse::URI;
 
 /// Wraps a parser in a contextual label, which makes it easier to identify
@@ -61,18 +61,6 @@ pub fn capture<'a, T>(
     })
 }
 
-/// Parser that unwraps another parser's output of `Data` into the
-/// underlying output
-pub fn unwrap_captured<'a, T>(
-    parser: impl Fn(Span<'a>) -> IResult<Captured<T>>,
-) -> impl Fn(Span<'a>) -> IResult<T> {
-    context("Unwrap Captured", move |input: Span| {
-        let (input, captured) = parser(input)?;
-
-        Ok((input, captured.into_inner()))
-    })
-}
-
 /// Parser that transforms the result of one parser to that of `Cow<'a, str>`
 /// where the lifetime is bound to the resulting `Span<'a>`
 pub fn cow_str<'a>(
@@ -87,19 +75,6 @@ pub fn cow_path<'a>(
     parser: impl Fn(Span<'a>) -> IResult<Span<'a>>,
 ) -> impl Fn(Span<'a>) -> IResult<Cow<'a, Path>> {
     context("Cow Path", map(parser, |s: Span<'a>| s.into()))
-}
-
-/// Parser that wraps another parser's output in a tuple that also echos out
-/// the offset range (starting offset and ending exclusive offset beyond consumed)
-pub fn range<'a, T>(
-    parser: impl Fn(Span<'a>) -> IResult<T>,
-) -> impl Fn(Span<'a>) -> IResult<(Range<usize>, T)> {
-    move |input: Span| {
-        let start = input.start_offset();
-        let (input, x) = parser(input)?;
-        let end = input.start_offset();
-        Ok((input, (start..end, x)))
-    }
 }
 
 /// Parser that will consume an end of line (\n or \r\n) or do nothing if
@@ -226,13 +201,16 @@ pub fn take_until_end_of_line_or_input(input: Span) -> IResult<Span> {
 }
 
 /// Parser that will consume input until the specified byte is found,
-/// consuming the entire input if the byte is not found
+/// failing if the byte is never found
 pub fn take_until_byte<'a>(byte: u8) -> impl Fn(Span<'a>) -> IResult<Span<'a>> {
     move |input: Span| {
         if let Some(pos) = memchr(byte, input.as_bytes()) {
             Ok(input.take_split(pos))
         } else {
-            rest(input)
+            Err(nom::Err::Error(Error::from_ctx(
+                &input,
+                "Unable to find byte",
+            )))
         }
     }
 }
@@ -304,62 +282,6 @@ pub fn single_multispace(input: Span) -> IResult<()> {
         "Single Multispace",
         value((), alt((crlf, tag("\n"), tag("\t"), tag(" ")))),
     )(input)
-}
-
-/// Parser that transforms the output of a parser into an allocated string
-pub fn pstring<'a>(
-    parser: impl Fn(Span<'a>) -> IResult<Span<'a>>,
-) -> impl Fn(Span<'a>) -> IResult<String> {
-    context("Pstring", move |input: Span| {
-        let (input, result) = parser(input)?;
-        Ok((input, result.as_unsafe_remaining_str().to_string()))
-    })
-}
-
-/// Parser that scans through the entire input, stepping N across the input
-/// using the given step function, applying the provided parser
-/// and returning a series of results whenever a parser succeeds; does not
-/// consume the input
-pub fn scan_with_step<'a, T, U>(
-    parser: impl Fn(Span<'a>) -> IResult<T>,
-    step: impl Fn(Span<'a>) -> IResult<U>,
-) -> impl Fn(Span<'a>) -> IResult<Vec<T>> {
-    move |mut input: Span| {
-        let mut output = Vec::new();
-        let original_input = input;
-
-        loop {
-            if let Ok((i, item)) = parser(input) {
-                // No advancement happened, so error to prevent infinite loop
-                if i == input {
-                    return Err(nom::Err::Error(Error::from_ctx(
-                        &i,
-                        "scan detected infinite loop",
-                    )));
-                }
-
-                output.push(item);
-                input = i;
-                continue;
-            }
-
-            match step(input) {
-                Ok((i, _)) => input = i,
-                _ => break,
-            }
-        }
-
-        Ok((original_input, output))
-    }
-}
-
-/// Parser that scans through the entire input one character at a time,
-/// applying the provided parser and returning a series of results whenever
-/// a parser succeeds; does not consume the input
-pub fn scan<'a, T>(
-    parser: impl Fn(Span<'a>) -> IResult<T>,
-) -> impl Fn(Span<'a>) -> IResult<Vec<T>> {
-    scan_with_step(parser, value((), take(1usize)))
 }
 
 /// Parser for a general purpose URI.
@@ -654,6 +576,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn uri_should_succeed_if_starts_with_www_and_will_add_https_as_scheme() {
         let input = Span::from("www.example.com");
         let (input, u) = uri(input).expect("Failed to parse uri");
@@ -663,6 +586,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn uri_should_succeed_if_starts_with_absolute_path_and_will_add_file_as_scheme(
     ) {
         let input = Span::from("//some/absolute/path");
@@ -799,60 +723,5 @@ mod tests {
         let (input, taken) = take_line_while1(char('-'))(input).unwrap();
         assert_eq!(input.as_unsafe_remaining_str(), "");
         assert_eq!(taken.as_unsafe_remaining_str(), "-----");
-    }
-
-    #[test]
-    fn scan_should_fail_if_no_advancement_is_made_with_parser() {
-        let input = Span::from("aaa");
-        assert!(scan(not(char('b')))(input).is_err());
-    }
-
-    #[test]
-    fn scan_should_yield_an_empty_vec_if_input_empty() {
-        let input = Span::from("");
-        let (_, results) = scan(char('a'))(input).unwrap();
-        assert!(results.is_empty(), "Unexpectedly found parser results");
-    }
-
-    #[test]
-    fn scan_should_consume_all_input() {
-        let input = Span::from("abc");
-        let (input, _) = scan(char('a'))(input).unwrap();
-        assert!(input.is_empty(), "scan did not consume all input");
-    }
-
-    #[test]
-    fn scan_should_yield_an_empty_vec_if_parser_never_succeeds() {
-        let input = Span::from("bbb");
-        let (input, results) = scan(char('a'))(input).unwrap();
-        assert!(input.is_empty(), "scan did not consume all input");
-        assert!(results.is_empty(), "Unexpectedly found results");
-    }
-
-    #[test]
-    fn scan_should_yield_a_vec_containing_all_of_parser_successes() {
-        let input = Span::from("aba");
-        let (input, results) = scan(char('a'))(input).unwrap();
-        assert!(input.is_empty(), "scan did not consume all input");
-        assert_eq!(results, vec!['a', 'a']);
-    }
-
-    #[test]
-    fn range_should_include_the_starting_and_ending_offset_of_consumed_parser()
-    {
-        let input = Span::from("aba");
-        let (input, (r, results)) = range(take(2usize))(input).unwrap();
-        assert_eq!(
-            input.as_unsafe_remaining_str(),
-            "a",
-            "offset did not consume expected input"
-        );
-        assert_eq!(r.start, 0, "Start was wrong position");
-        assert_eq!(r.end, 2, "End was wrong position");
-        assert_eq!(
-            results.as_unsafe_remaining_str(),
-            "ab",
-            "Parser did not function properly"
-        );
     }
 }

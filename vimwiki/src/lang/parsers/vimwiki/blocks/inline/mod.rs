@@ -57,37 +57,185 @@ mod tests {
     use super::*;
     use crate::lang::{
         elements::{
-            CodeInline, DecoratedText, DecoratedTextContent, InlineElement,
-            Keyword, Link, MathInline, Tags, Text, WikiLink,
+            CodeInline, Comment, DecoratedText, DecoratedTextContent,
+            InlineElement, Keyword, LineComment, Link, MathInline,
+            MultiLineComment, Tags, Text, WikiLink,
         },
         parsers::Span,
     };
-    use indoc::indoc;
     use std::path::PathBuf;
 
     #[test]
-    fn inline_element_container_should_prioritize_comments_over_other_ongoing_elements(
-    ) {
-        // CHIP CHIP CHIP
-        // An inline element container should look ahead for comments starting
-        // with %% (regardless of single line or multi line) and split input
-        // to before and after so that it can apply the normal inline loop
-        // to the before and just apply a comment to the after
-        let input = Span::from(indoc! {r#"
-            *not %%bold*
-            _not %%italic_
-            ~~not %%strikeout~~
-            ^not %%superscript^
-            ,,not %%subscript,,
-            $not %%math$
-            `not %%code`
-            [[link|not %%link]]
-            TO%%+DO+%%DO
-            some text%%comment
-            some%%+comment+%%text
-        "#});
+    fn inline_element_container_should_prioritize_comments_over_bold_text() {
+        let input = Span::from(r"*not %%bold*");
+        let (input, container) = inline_element_container(input).unwrap();
+        assert!(input.is_empty(), "Did not consume all of input");
+        assert_eq!(
+            container.elements[0],
+            InlineElement::from(Text::from(r"*not "))
+        );
+        assert_eq!(
+            container.elements[1],
+            InlineElement::Comment(LineComment::from(r"bold*").into())
+        );
+    }
 
-        todo!();
+    #[test]
+    fn inline_element_container_should_prioritize_comments_over_italic_text() {
+        let input = Span::from(r"_not %%italic_");
+        let (input, container) = inline_element_container(input).unwrap();
+        assert!(input.is_empty(), "Did not consume all of input");
+        assert_eq!(
+            container.elements[0],
+            InlineElement::from(Text::from(r"_not "))
+        );
+        assert_eq!(
+            container.elements[1],
+            InlineElement::Comment(LineComment::from(r"italic_").into())
+        );
+    }
+
+    #[test]
+    fn inline_element_container_should_prioritize_comments_over_strikeout_text()
+    {
+        let input = Span::from(r"~~not %%strikeout~~");
+        let (input, container) = inline_element_container(input).unwrap();
+        assert!(input.is_empty(), "Did not consume all of input");
+        assert_eq!(
+            container.elements[0],
+            InlineElement::from(Text::from(r"~~not "))
+        );
+        assert_eq!(
+            container.elements[1],
+            InlineElement::Comment(LineComment::from(r"strikeout~~").into())
+        );
+    }
+
+    #[test]
+    fn inline_element_container_should_prioritize_comments_over_superscript_text(
+    ) {
+        let input = Span::from(r"^not %%superscript^");
+        let (input, container) = inline_element_container(input).unwrap();
+        assert!(input.is_empty(), "Did not consume all of input");
+        assert_eq!(
+            container.elements[0],
+            InlineElement::from(Text::from(r"^not "))
+        );
+        assert_eq!(
+            container.elements[1],
+            InlineElement::Comment(LineComment::from(r"superscript^").into())
+        );
+    }
+
+    #[test]
+    fn inline_element_container_should_prioritize_comments_over_subscript_text()
+    {
+        let input = Span::from(r",,not %%subscript,,");
+        let (input, container) = inline_element_container(input).unwrap();
+        assert!(input.is_empty(), "Did not consume all of input");
+        assert_eq!(
+            container.elements[0],
+            InlineElement::from(Text::from(r",,not "))
+        );
+        assert_eq!(
+            container.elements[1],
+            InlineElement::Comment(LineComment::from(r"subscript,,").into())
+        );
+    }
+
+    #[test]
+    fn inline_element_container_should_prioritize_comments_over_math() {
+        let input = Span::from(r"$not %%math$");
+        let (input, container) = inline_element_container(input).unwrap();
+        assert!(input.is_empty(), "Did not consume all of input");
+        assert_eq!(
+            container.elements[0],
+            InlineElement::from(Text::from(r"$not "))
+        );
+        assert_eq!(
+            container.elements[1],
+            InlineElement::Comment(LineComment::from(r"math$").into())
+        );
+    }
+
+    #[test]
+    fn inline_element_container_should_prioritize_comments_over_code() {
+        let input = Span::from(r"`not %%code`");
+        let (input, container) = inline_element_container(input).unwrap();
+        assert!(input.is_empty(), "Did not consume all of input");
+        assert_eq!(
+            container.elements[0],
+            InlineElement::from(Text::from(r"`not "))
+        );
+        assert_eq!(
+            container.elements[1],
+            InlineElement::Comment(LineComment::from(r"code`").into())
+        );
+    }
+
+    #[test]
+    fn inline_element_container_should_prioritize_comments_over_link() {
+        let input = Span::from(r"[[link|not %%link]]");
+        let (input, container) = inline_element_container(input).unwrap();
+        assert!(input.is_empty(), "Did not consume all of input");
+        assert_eq!(
+            container.elements[0],
+            InlineElement::from(Text::from(r"[[link|not "))
+        );
+        assert_eq!(
+            container.elements[1],
+            InlineElement::Comment(LineComment::from(r"link]]").into())
+        );
+    }
+
+    #[test]
+    fn inline_element_container_should_prioritize_comments_over_keyword() {
+        let input = Span::from(r"TO%%+DO+%%DO");
+        let (input, container) = inline_element_container(input).unwrap();
+        assert!(input.is_empty(), "Did not consume all of input");
+        assert_eq!(
+            container.elements[0],
+            InlineElement::from(Text::from(r"TO"))
+        );
+        assert_eq!(
+            container.elements[1],
+            InlineElement::Comment(MultiLineComment::from(r"DO").into())
+        );
+        assert_eq!(
+            container.elements[2],
+            InlineElement::from(Text::from(r"DO"))
+        );
+    }
+
+    #[test]
+    fn inline_element_container_should_prioritize_comments_over_text() {
+        let input = Span::from(r"some text%%comment");
+        let (input, container) = inline_element_container(input).unwrap();
+        assert!(input.is_empty(), "Did not consume all of input");
+        assert_eq!(
+            container.elements[0],
+            InlineElement::from(Text::from(r"some text"))
+        );
+        assert_eq!(
+            container.elements[1],
+            InlineElement::Comment(LineComment::from(r"comment").into())
+        );
+
+        let input = Span::from(r"some%%+comment+%%text");
+        let (input, container) = inline_element_container(input).unwrap();
+        assert!(input.is_empty(), "Did not consume all of input");
+        assert_eq!(
+            container.elements[0],
+            InlineElement::from(Text::from(r"some"))
+        );
+        assert_eq!(
+            container.elements[1],
+            InlineElement::Comment(MultiLineComment::from(r"comment").into())
+        );
+        assert_eq!(
+            container.elements[2],
+            InlineElement::from(Text::from(r"text"))
+        );
     }
 
     #[test]

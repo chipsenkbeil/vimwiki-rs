@@ -52,6 +52,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn raw_link_should_support_no_scheme_with_www() {
         let input = Span::from("www.example.com");
         let (input, link) = raw_link(input).expect("Failed to parse uri");

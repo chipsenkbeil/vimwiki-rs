@@ -17,9 +17,11 @@ use crate::lang::{
 
 use nom::{
     branch::alt,
-    bytes::complete::tag,
-    combinator::{map, map_parser, not},
+    bytes::complete::{tag, take, take_till1},
+    character::complete::newline,
+    combinator::{map, map_parser, not, recognize},
     multi::many1,
+    sequence::preceded,
 };
 
 #[inline]
@@ -27,6 +29,7 @@ pub fn text(input: Span) -> IResult<Located<Text>> {
     // Uses combination of short-circuiting and full checks to ensure we
     // can continue consuming text
     fn is_text(input: Span) -> IResult<()> {
+        let (input, _) = not(newline)(input)?;
         let (input, _) = not(comment)(input)?;
         let (input, _) = not(code_inline)(input)?;
         let (input, _) = not(math_inline)(input)?;
@@ -37,10 +40,36 @@ pub fn text(input: Span) -> IResult<Located<Text>> {
         Ok((input, ()))
     }
 
-    context(
-        "Text",
-        locate(capture(map(cow_str(take_line_while1(is_text)), Text::new))),
-    )(input)
+    /// Checks for a byte that is the start of anything inline that would not
+    /// be regular text
+    #[inline]
+    fn start_of_non_text(b: u8) -> bool {
+        b == b'\n'
+            || b == b'%'
+            || b == b'`'
+            || b == b'$'
+            || b == b':'
+            || b == b'['
+            || b == b'*'
+            || b == b'_'
+            || b == b'~'
+            || b == b'^'
+            || b == b','
+            || b == b'D'
+            || b == b'F'
+            || b == b'S'
+            || b == b'T'
+            || b == b'X'
+    }
+
+    fn text_line(input: Span) -> IResult<Span> {
+        recognize(many1(alt((
+            take_till1(start_of_non_text),
+            preceded(is_text, take(1usize)),
+        ))))(input)
+    }
+
+    context("Text", locate(capture(map(cow_str(text_line), Text::new))))(input)
 }
 
 #[inline]
