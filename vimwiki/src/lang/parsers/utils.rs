@@ -38,9 +38,10 @@ pub fn locate<'a, T>(
     parser: impl Fn(Span<'a>) -> IResult<Captured<T>>,
 ) -> impl Fn(Span<'a>) -> IResult<Located<T>> {
     context("Locate", move |input: Span| {
-        let offset = input.start_offset();
         let (input, c) = parser(input)?;
-        let region = Region::new(offset, input.start_offset() - offset);
+
+        // Construct a region that does NOT compute the line & column
+        let region = Region::from(c.input());
 
         Ok((input, Located::new(c.into_inner(), region)))
     })

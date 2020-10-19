@@ -51,6 +51,14 @@ impl<'a> Span<'a> {
         Self::new(self.inner, self.start, self.start + end)
     }
 
+    /// Creates a copy of the span starting at the end of its range. The
+    /// new span will point to the very last byte (not after it).
+    ///
+    /// e.g. start = 2, end = 4, at_end() yields start = 3
+    pub fn at_end(&self) -> Self {
+        self.starting_at(if self.end > 0 { self.end - 1 } else { 0 })
+    }
+
     /// Creates a copy of the span whose ending offset is adjusted to fit
     /// the desired length.
     ///
@@ -171,6 +179,15 @@ impl<'a> Span<'a> {
         (self.line(), self.column())
     }
 
+    /// Calculates the line and column position at the end of this span
+    pub fn end_line_and_column(&self) -> (usize, usize) {
+        // TODO: We can optimize this a little bit by counting and keeping
+        //       track of the last line position such that with the column
+        //       we do not need to look backwards first to get the start
+        //       of the line
+        (self.end_line(), self.end_column())
+    }
+
     /// Calculates the line position of this span using newline (\n) chars
     /// with base index of 1
     pub fn line(&self) -> usize {
@@ -180,6 +197,12 @@ impl<'a> Span<'a> {
             .take_while(|pos| pos < &self.start)
             .count()
             + 1
+    }
+
+    /// Calculates the line position at the end of this span by jumping to
+    /// the end at then invoking `self.line()`
+    pub fn end_line(&self) -> usize {
+        self.at_end().line()
     }
 
     /// Calculates the column position of this span by looking backwards from
@@ -200,6 +223,12 @@ impl<'a> Span<'a> {
         // column is 1, not 0 (meaning if we are within the first code point,
         // we are in column 1)
         bytecount::num_chars(line_up_to_offset) + 1
+    }
+
+    /// Calculates the column position at the end of this span by jumping to
+    /// the end at then invoking `self.column()`
+    pub fn end_column(&self) -> usize {
+        self.at_end().column()
     }
 }
 
