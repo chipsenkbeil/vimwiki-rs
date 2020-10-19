@@ -77,26 +77,26 @@ impl BlockElement<'_> {
 }
 
 impl<'a> BlockElement<'a> {
-    pub fn to_children(&'a self) -> Vec<Located<Element<'a>>> {
+    pub fn into_children(self) -> Vec<Located<Element<'a>>> {
         match self {
             Self::DefinitionList(x) => x
-                .to_children()
+                .into_children()
                 .into_iter()
                 .map(|x| x.map(Element::from))
                 .collect(),
             Self::Header(x) => x
-                .to_children()
+                .into_children()
                 .into_iter()
                 .map(|x| x.map(Element::from))
                 .collect(),
-            Self::List(x) => x.to_children(),
+            Self::List(x) => x.into_children(),
             Self::Paragraph(x) => x
-                .to_children()
+                .into_children()
                 .into_iter()
                 .map(|x| x.map(Element::from))
                 .collect(),
             Self::Table(x) => x
-                .to_children()
+                .into_children()
                 .into_iter()
                 .map(|x| x.map(Element::from))
                 .collect(),

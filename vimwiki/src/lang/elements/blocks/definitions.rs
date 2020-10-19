@@ -143,12 +143,13 @@ impl<'a> DefinitionList<'a> {
         self.mapping.values().flatten()
     }
 
-    pub fn to_children(&'a self) -> Vec<Located<InlineElement<'a>>> {
-        self.iter()
+    pub fn into_children(mut self) -> Vec<Located<InlineElement<'a>>> {
+        self.mapping
+            .drain()
             .flat_map(|(term, defs)| {
                 std::iter::once(term)
-                    .chain(defs.iter())
-                    .flat_map(|x| x.as_inner().to_children())
+                    .chain(defs.into_iter())
+                    .flat_map(|x| x.into_inner().into_children())
             })
             .collect()
     }

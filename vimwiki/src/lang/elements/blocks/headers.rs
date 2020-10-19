@@ -36,7 +36,7 @@ impl<'a> Header<'a> {
     /// Represents teh largest a header's level can be
     pub const MAX_LEVEL: usize = 6;
 
-    pub fn to_children(&'a self) -> Vec<Located<InlineElement<'a>>> {
-        self.content.to_children()
+    pub fn into_children(self) -> Vec<Located<InlineElement<'a>>> {
+        self.content.into_children()
     }
 }

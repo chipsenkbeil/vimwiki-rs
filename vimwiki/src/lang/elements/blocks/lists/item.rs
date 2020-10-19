@@ -39,8 +39,8 @@ impl ListItem<'_> {
 }
 
 impl<'a> ListItem<'a> {
-    pub fn to_children(&'a self) -> Vec<Located<Element<'a>>> {
-        self.contents.to_children()
+    pub fn into_children(self) -> Vec<Located<Element<'a>>> {
+        self.contents.into_children()
     }
 
     /// Indicates whether or not this list item represents an unordered item

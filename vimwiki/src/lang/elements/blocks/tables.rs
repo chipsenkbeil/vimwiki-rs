@@ -46,10 +46,10 @@ impl<'a> Table<'a> {
         })
     }
 
-    pub fn to_children(&'a self) -> Vec<Located<InlineElement<'a>>> {
+    pub fn into_children(self) -> Vec<Located<InlineElement<'a>>> {
         self.rows
-            .iter()
-            .flat_map(|x| x.as_inner().to_children())
+            .into_iter()
+            .flat_map(|x| x.into_inner().into_children())
             .collect()
     }
 }
@@ -90,11 +90,11 @@ impl Row<'_> {
 }
 
 impl<'a> Row<'a> {
-    pub fn to_children(&'a self) -> Vec<Located<InlineElement<'a>>> {
+    pub fn into_children(self) -> Vec<Located<InlineElement<'a>>> {
         match self {
             Self::Content { cells } => cells
-                .iter()
-                .flat_map(|x| x.as_inner().to_children())
+                .into_iter()
+                .flat_map(|x| x.into_inner().into_children())
                 .collect(),
             _ => vec![],
         }
@@ -127,9 +127,9 @@ impl Cell<'_> {
 }
 
 impl<'a> Cell<'a> {
-    pub fn to_children(&'a self) -> Vec<Located<InlineElement<'a>>> {
+    pub fn into_children(self) -> Vec<Located<InlineElement<'a>>> {
         match self {
-            Self::Content(x) => x.to_children(),
+            Self::Content(x) => x.into_children(),
             _ => vec![],
         }
     }

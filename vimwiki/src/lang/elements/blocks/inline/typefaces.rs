@@ -97,9 +97,19 @@ impl<'a> DecoratedTextContent<'a> {
         }
     }
 
-    pub fn to_children(&'a self) -> Vec<Located<InlineElement<'a>>> {
+    /// Consumes content, producing the result wrapped in an `InlineElement`
+    pub fn into_inline_element(self) -> InlineElement<'a> {
         match self {
-            Self::DecoratedText(x) => x.to_children(),
+            Self::Text(x) => x.into(),
+            Self::DecoratedText(x) => x.into(),
+            Self::Keyword(x) => x.into(),
+            Self::Link(x) => x.into(),
+        }
+    }
+
+    pub fn into_children(self) -> Vec<Located<InlineElement<'a>>> {
+        match self {
+            Self::DecoratedText(x) => x.into_children(),
             _ => vec![],
         }
     }
@@ -177,11 +187,11 @@ impl<'a> DecoratedText<'a> {
         }
     }
 
-    pub fn to_children(&'a self) -> Vec<Located<InlineElement<'a>>> {
+    pub fn into_children(self) -> Vec<Located<InlineElement<'a>>> {
         macro_rules! vec_to_owned {
             ($vec:expr) => {
-                $vec.iter()
-                    .flat_map(|x| x.as_inner().to_children())
+                $vec.into_iter()
+                    .map(|x| x.map(DecoratedTextContent::into_inline_element))
                     .collect()
             };
         }

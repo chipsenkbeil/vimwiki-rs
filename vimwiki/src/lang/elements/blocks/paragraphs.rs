@@ -22,8 +22,8 @@ impl Paragraph<'_> {
 }
 
 impl<'a> Paragraph<'a> {
-    pub fn to_children(&'a self) -> Vec<Located<InlineElement<'a>>> {
-        self.content.to_children()
+    pub fn into_children(self) -> Vec<Located<InlineElement<'a>>> {
+        self.content.into_children()
     }
 }
 

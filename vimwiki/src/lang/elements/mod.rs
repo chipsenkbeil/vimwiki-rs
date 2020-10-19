@@ -37,7 +37,8 @@ impl Page<'_> {
     }
 }
 
-/// Represents either a `BlockElement` or `InlineElement`
+/// Represents either a `BlockElement` or `InlineElement`, and can contain
+/// either an owned copy or a reference to either one
 #[derive(Clone, Debug, From, PartialEq, Eq)]
 pub enum Element<'a> {
     Block(BlockElement<'a>),
@@ -61,12 +62,12 @@ impl Element<'_> {
 }
 
 impl<'a> Element<'a> {
-    /// Borrows all children below this `Element`
-    pub fn to_children(&'a self) -> Vec<Located<Element<'a>>> {
+    /// Consumes element and returns all children
+    pub fn into_children(self) -> Vec<Located<Element<'a>>> {
         match self {
-            Self::Block(x) => x.to_children(),
+            Self::Block(x) => x.into_children(),
             Self::Inline(x) => x
-                .to_children()
+                .into_children()
                 .into_iter()
                 .map(|x| x.map(Element::from))
                 .collect(),

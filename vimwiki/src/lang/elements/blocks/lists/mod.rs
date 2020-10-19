@@ -70,10 +70,10 @@ impl<'a> List<'a> {
         self
     }
 
-    pub fn to_children(&'a self) -> Vec<Located<Element<'a>>> {
+    pub fn into_children(self) -> Vec<Located<Element<'a>>> {
         self.items
-            .iter()
-            .flat_map(|x| x.as_inner().to_children())
+            .into_iter()
+            .flat_map(|x| x.into_inner().into_children())
             .collect()
     }
 }
@@ -195,19 +195,21 @@ impl<'a> ListItemContents<'a> {
             })
     }
 
-    pub fn to_children(&'a self) -> Vec<Located<Element<'a>>> {
+    pub fn into_children(self) -> Vec<Located<Element<'a>>> {
         self.contents
-            .iter()
-            .flat_map(|x| match x.as_inner() {
-                ListItemContent::InlineContent(content) => content
-                    .to_children()
-                    .into_iter()
-                    .map(|x| x.map(Element::from))
-                    .collect(),
-                ListItemContent::List(list) => vec![Located::new(
-                    Element::from(list.to_borrowed()),
-                    x.region(),
-                )],
+            .into_iter()
+            .flat_map(|x| {
+                let region = x.region();
+                match x.into_inner() {
+                    ListItemContent::InlineContent(content) => content
+                        .into_children()
+                        .into_iter()
+                        .map(|x| x.map(Element::from))
+                        .collect(),
+                    ListItemContent::List(list) => {
+                        vec![Located::new(Element::from(list), region)]
+                    }
+                }
             })
             .collect()
     }

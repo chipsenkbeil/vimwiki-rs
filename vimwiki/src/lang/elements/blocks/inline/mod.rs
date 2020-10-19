@@ -67,9 +67,9 @@ impl InlineElement<'_> {
 }
 
 impl<'a> InlineElement<'a> {
-    pub fn to_children(&'a self) -> Vec<Located<InlineElement<'a>>> {
+    pub fn into_children(self) -> Vec<Located<InlineElement<'a>>> {
         match self {
-            Self::DecoratedText(x) => x.to_children(),
+            Self::DecoratedText(x) => x.into_children(),
             _ => vec![],
         }
     }
@@ -120,11 +120,8 @@ impl InlineElementContainer<'_> {
 }
 
 impl<'a> InlineElementContainer<'a> {
-    pub fn to_children(&'a self) -> Vec<Located<InlineElement<'a>>> {
+    pub fn into_children(self) -> Vec<Located<InlineElement<'a>>> {
         self.elements
-            .iter()
-            .map(|x| x.as_ref().map(InlineElement::to_borrowed))
-            .collect()
     }
 }
 
