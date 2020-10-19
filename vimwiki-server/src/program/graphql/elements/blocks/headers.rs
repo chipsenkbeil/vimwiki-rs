@@ -1,11 +1,11 @@
 use super::{InlineElement, Region};
-use vimwiki::{elements, LE};
+use vimwiki::{elements, Located};
 
 #[derive(Debug)]
 pub struct Header {
     region: Region,
     level: i32,
-    content: elements::InlineElementContainer,
+    content: elements::InlineElementContainer<'static>,
     centered: bool,
 }
 
@@ -43,14 +43,15 @@ impl Header {
     }
 }
 
-impl From<LE<elements::Header>> for Header {
-    fn from(le: LE<elements::Header>) -> Self {
-        let region = Region::from(le.region);
+impl<'a> From<Located<elements::Header<'a>>> for Header {
+    fn from(le: Located<elements::Header<'a>>) -> Self {
+        let region = Region::from(le.region());
+        let element = le.into_inner();
         Self {
             region,
-            level: le.element.level as i32,
-            content: le.element.content,
-            centered: le.element.centered,
+            level: element.level as i32,
+            content: element.content.into_owned(),
+            centered: element.centered,
         }
     }
 }

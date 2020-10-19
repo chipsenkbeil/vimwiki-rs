@@ -1,8 +1,10 @@
 use super::Region;
-use vimwiki::{elements, LE};
+use vimwiki::{elements, Located};
 
 mod code;
 pub use code::*;
+mod comments;
+pub use comments::*;
 mod links;
 pub use links::*;
 mod math;
@@ -22,31 +24,37 @@ pub enum InlineElement {
     Tags(Tags),
     Code(CodeInline),
     Math(MathInline),
+    #[graphql(flatten)]
+    Comment(Comment),
 }
 
-impl From<LE<elements::InlineElement>> for InlineElement {
-    fn from(le: LE<elements::InlineElement>) -> Self {
-        match le.element {
+impl<'a> From<Located<elements::InlineElement<'a>>> for InlineElement {
+    fn from(le: Located<elements::InlineElement<'a>>) -> Self {
+        let region = le.region();
+        match le.into_inner() {
             elements::InlineElement::Text(x) => {
-                Self::from(Text::from(LE::new(x, le.region)))
+                Self::from(Text::from(Located::new(x, region)))
             }
             elements::InlineElement::DecoratedText(x) => {
-                Self::from(DecoratedText::from(LE::new(x, le.region)))
+                Self::from(DecoratedText::from(Located::new(x, region)))
             }
             elements::InlineElement::Keyword(x) => {
-                Self::from(Keyword::from(LE::new(x, le.region)))
+                Self::from(Keyword::from(Located::new(x, region)))
             }
             elements::InlineElement::Link(x) => {
-                Self::from(Link::from(LE::new(x, le.region)))
+                Self::from(Link::from(Located::new(x, region)))
             }
             elements::InlineElement::Tags(x) => {
-                Self::from(Tags::from(LE::new(x, le.region)))
+                Self::from(Tags::from(Located::new(x, region)))
             }
             elements::InlineElement::Code(x) => {
-                Self::from(CodeInline::from(LE::new(x, le.region)))
+                Self::from(CodeInline::from(Located::new(x, region)))
             }
             elements::InlineElement::Math(x) => {
-                Self::from(MathInline::from(LE::new(x, le.region)))
+                Self::from(MathInline::from(Located::new(x, region)))
+            }
+            elements::InlineElement::Comment(x) => {
+                Self::from(Comment::from(Located::new(x, region)))
             }
         }
     }

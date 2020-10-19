@@ -1,5 +1,5 @@
 use super::{InlineElement, Region};
-use vimwiki::{elements, LE};
+use vimwiki::{elements, Located};
 
 /// Represents a single document list
 #[derive(async_graphql::SimpleObject, Debug)]
@@ -11,11 +11,17 @@ pub struct List {
     items: Vec<ListItem>,
 }
 
-impl From<LE<elements::List>> for List {
-    fn from(mut le: LE<elements::List>) -> Self {
+impl<'a> From<Located<elements::List<'a>>> for List {
+    fn from(le: Located<elements::List<'a>>) -> Self {
+        let region = Region::from(le.region());
         Self {
-            region: Region::from(le.region),
-            items: le.element.items.drain(..).map(ListItem::from).collect(),
+            region,
+            items: le
+                .into_inner()
+                .items
+                .into_iter()
+                .map(ListItem::from)
+                .collect(),
         }
     }
 }
@@ -42,10 +48,10 @@ pub struct ListItem {
     attributes: ListItemAttributes,
 }
 
-impl From<LE<elements::ListItem>> for ListItem {
-    fn from(le: LE<elements::ListItem>) -> Self {
-        let region = Region::from(le.region);
-        let mut item = le.element;
+impl<'a> From<Located<elements::ListItem<'a>>> for ListItem {
+    fn from(le: Located<elements::ListItem<'a>>) -> Self {
+        let region = Region::from(le.region());
+        let item = le.into_inner();
 
         Self {
             region,
@@ -55,7 +61,7 @@ impl From<LE<elements::ListItem>> for ListItem {
             contents: item
                 .contents
                 .contents
-                .drain(..)
+                .into_iter()
                 .map(ListItemContent::from)
                 .collect(),
             attributes: ListItemAttributes::from(item.attributes),
@@ -77,8 +83,8 @@ pub enum ListItemType {
     Other,
 }
 
-impl From<elements::ListItemType> for ListItemType {
-    fn from(t: elements::ListItemType) -> Self {
+impl<'a> From<elements::ListItemType<'a>> for ListItemType {
+    fn from(t: elements::ListItemType<'a>) -> Self {
         match t {
             elements::ListItemType::Ordered(x) => match x {
                 elements::OrderedListItemType::LowercaseAlphabet => {
@@ -128,20 +134,21 @@ pub enum ListItemContent {
     List(List),
 }
 
-impl From<LE<elements::ListItemContent>> for ListItemContent {
-    fn from(le: LE<elements::ListItemContent>) -> Self {
-        match le.element {
-            elements::ListItemContent::InlineContent(mut x) => {
+impl<'a> From<Located<elements::ListItemContent<'a>>> for ListItemContent {
+    fn from(le: Located<elements::ListItemContent<'a>>) -> Self {
+        let region = le.region();
+        match le.into_inner() {
+            elements::ListItemContent::InlineContent(x) => {
                 Self::InlineContent(InlineContent {
                     elements: x
                         .elements
-                        .drain(..)
+                        .into_iter()
                         .map(InlineElement::from)
                         .collect(),
                 })
             }
             elements::ListItemContent::List(x) => {
-                Self::List(List::from(LE::new(x.into_typed(), le.region)))
+                Self::List(List::from(Located::new(x, region)))
             }
         }
     }

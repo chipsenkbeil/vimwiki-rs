@@ -1,8 +1,7 @@
 use super::Region;
 use vimwiki::{
-    elements,
+    elements::{self, Located},
     vendor::{chrono::NaiveDate, uriparse::URI},
-    LE,
 };
 
 #[derive(async_graphql::Union, Debug)]
@@ -16,29 +15,30 @@ pub enum Link {
     Transclusion(TransclusionLink),
 }
 
-impl From<LE<elements::Link>> for Link {
-    fn from(le: LE<elements::Link>) -> Self {
-        match le.element {
+impl<'a> From<Located<elements::Link<'a>>> for Link {
+    fn from(le: Located<elements::Link<'a>>) -> Self {
+        let region = le.region();
+        match le.into_inner() {
             elements::Link::Wiki(x) => {
-                Self::from(WikiLink::from(LE::new(x, le.region)))
+                Self::from(WikiLink::from(Located::new(x, region)))
             }
             elements::Link::InterWiki(elements::InterWikiLink::Indexed(x)) => {
-                Self::from(IndexedInterWikiLink::from(LE::new(x, le.region)))
+                Self::from(IndexedInterWikiLink::from(Located::new(x, region)))
             }
             elements::Link::InterWiki(elements::InterWikiLink::Named(x)) => {
-                Self::from(NamedInterWikiLink::from(LE::new(x, le.region)))
+                Self::from(NamedInterWikiLink::from(Located::new(x, region)))
             }
             elements::Link::Diary(x) => {
-                Self::from(DiaryLink::from(LE::new(x, le.region)))
+                Self::from(DiaryLink::from(Located::new(x, region)))
             }
             elements::Link::Raw(x) => {
-                Self::from(RawLink::from(LE::new(x, le.region)))
+                Self::from(RawLink::from(Located::new(x, region)))
             }
             elements::Link::ExternalFile(x) => {
-                Self::from(ExternalFileLink::from(LE::new(x, le.region)))
+                Self::from(ExternalFileLink::from(Located::new(x, region)))
             }
             elements::Link::Transclusion(x) => {
-                Self::from(TransclusionLink::from(LE::new(x, le.region)))
+                Self::from(TransclusionLink::from(Located::new(x, region)))
             }
         }
     }
@@ -67,15 +67,17 @@ pub struct WikiLink {
     anchor: Option<Anchor>,
 }
 
-impl From<LE<elements::WikiLink>> for WikiLink {
-    fn from(le: LE<elements::WikiLink>) -> Self {
+impl<'a> From<Located<elements::WikiLink<'a>>> for WikiLink {
+    fn from(le: Located<elements::WikiLink<'a>>) -> Self {
+        let region = Region::from(le.region());
+        let element = le.into_inner();
         Self {
-            region: Region::from(le.region),
-            is_dir: le.element.is_path_dir(),
-            is_local_anchor: le.element.is_local_anchor(),
-            path: le.element.path.to_string_lossy().to_string(),
-            description: le.element.description.map(Description::from),
-            anchor: le.element.anchor.map(Anchor::from),
+            region,
+            is_dir: element.is_path_dir(),
+            is_local_anchor: element.is_local_anchor(),
+            path: element.path.to_string_lossy().to_string(),
+            description: element.description.map(Description::from),
+            anchor: element.anchor.map(Anchor::from),
         }
     }
 }
@@ -107,16 +109,20 @@ pub struct IndexedInterWikiLink {
     anchor: Option<Anchor>,
 }
 
-impl From<LE<elements::IndexedInterWikiLink>> for IndexedInterWikiLink {
-    fn from(le: LE<elements::IndexedInterWikiLink>) -> Self {
+impl<'a> From<Located<elements::IndexedInterWikiLink<'a>>>
+    for IndexedInterWikiLink
+{
+    fn from(le: Located<elements::IndexedInterWikiLink<'a>>) -> Self {
+        let region = Region::from(le.region());
+        let element = le.into_inner();
         Self {
-            region: Region::from(le.region),
-            index: le.element.index as i32,
-            is_dir: le.element.link.is_path_dir(),
-            is_local_anchor: le.element.link.is_local_anchor(),
-            path: le.element.link.path.to_string_lossy().to_string(),
-            description: le.element.link.description.map(Description::from),
-            anchor: le.element.link.anchor.map(Anchor::from),
+            region,
+            index: element.index as i32,
+            is_dir: element.link.is_path_dir(),
+            is_local_anchor: element.link.is_local_anchor(),
+            path: element.link.path.to_string_lossy().to_string(),
+            description: element.link.description.map(Description::from),
+            anchor: element.link.anchor.map(Anchor::from),
         }
     }
 }
@@ -148,16 +154,20 @@ pub struct NamedInterWikiLink {
     anchor: Option<Anchor>,
 }
 
-impl From<LE<elements::NamedInterWikiLink>> for NamedInterWikiLink {
-    fn from(le: LE<elements::NamedInterWikiLink>) -> Self {
+impl<'a> From<Located<elements::NamedInterWikiLink<'a>>>
+    for NamedInterWikiLink
+{
+    fn from(le: Located<elements::NamedInterWikiLink<'a>>) -> Self {
+        let region = Region::from(le.region());
+        let element = le.into_inner();
         Self {
-            region: Region::from(le.region),
-            name: le.element.name,
-            is_dir: le.element.link.is_path_dir(),
-            is_local_anchor: le.element.link.is_local_anchor(),
-            path: le.element.link.path.to_string_lossy().to_string(),
-            description: le.element.link.description.map(Description::from),
-            anchor: le.element.link.anchor.map(Anchor::from),
+            region,
+            name: element.name.to_string(),
+            is_dir: element.link.is_path_dir(),
+            is_local_anchor: element.link.is_local_anchor(),
+            path: element.link.path.to_string_lossy().to_string(),
+            description: element.link.description.map(Description::from),
+            anchor: element.link.anchor.map(Anchor::from),
         }
     }
 }
@@ -178,13 +188,15 @@ pub struct DiaryLink {
     anchor: Option<Anchor>,
 }
 
-impl From<LE<elements::DiaryLink>> for DiaryLink {
-    fn from(le: LE<elements::DiaryLink>) -> Self {
+impl<'a> From<Located<elements::DiaryLink<'a>>> for DiaryLink {
+    fn from(le: Located<elements::DiaryLink<'a>>) -> Self {
+        let region = Region::from(le.region());
+        let element = le.into_inner();
         Self {
-            region: Region::from(le.region),
-            date: le.element.date,
-            description: le.element.description.map(Description::from),
-            anchor: le.element.anchor.map(Anchor::from),
+            region,
+            date: element.date,
+            description: element.description.map(Description::from),
+            anchor: element.anchor.map(Anchor::from),
         }
     }
 }
@@ -205,13 +217,15 @@ pub struct ExternalFileLink {
     description: Option<Description>,
 }
 
-impl From<LE<elements::ExternalFileLink>> for ExternalFileLink {
-    fn from(le: LE<elements::ExternalFileLink>) -> Self {
+impl<'a> From<Located<elements::ExternalFileLink<'a>>> for ExternalFileLink {
+    fn from(le: Located<elements::ExternalFileLink<'a>>) -> Self {
+        let region = Region::from(le.region());
+        let element = le.into_inner();
         Self {
-            region: Region::from(le.region),
-            scheme: ExternalFileLinkScheme::from(le.element.scheme),
-            path: le.element.path.to_string_lossy().to_string(),
-            description: le.element.description.map(Description::from),
+            region,
+            scheme: ExternalFileLinkScheme::from(element.scheme),
+            path: element.path.to_string_lossy().to_string(),
+            description: element.description.map(Description::from),
         }
     }
 }
@@ -244,11 +258,12 @@ pub struct RawLink {
     uri: Uri,
 }
 
-impl From<LE<elements::RawLink>> for RawLink {
-    fn from(le: LE<elements::RawLink>) -> Self {
+impl<'a> From<Located<elements::RawLink<'a>>> for RawLink {
+    fn from(le: Located<elements::RawLink<'a>>) -> Self {
+        let region = Region::from(le.region());
         Self {
-            region: Region::from(le.region),
-            uri: Uri(le.element.uri),
+            region,
+            uri: Uri::from(le.into_inner().uri),
         }
     }
 }
@@ -269,17 +284,21 @@ pub struct TransclusionLink {
     properties: Vec<Property>,
 }
 
-impl From<LE<elements::TransclusionLink>> for TransclusionLink {
-    fn from(mut le: LE<elements::TransclusionLink>) -> Self {
+impl<'a> From<Located<elements::TransclusionLink<'a>>> for TransclusionLink {
+    fn from(le: Located<elements::TransclusionLink<'a>>) -> Self {
+        let region = Region::from(le.region());
+        let element = le.into_inner();
         Self {
-            region: Region::from(le.region),
-            uri: Uri(le.element.uri),
-            description: le.element.description.map(Description::from),
-            properties: le
-                .element
+            region,
+            uri: Uri::from(element.uri),
+            description: element.description.map(Description::from),
+            properties: element
                 .properties
-                .drain()
-                .map(|(key, value)| Property { key, value })
+                .into_iter()
+                .map(|(key, value)| Property {
+                    key: key.to_string(),
+                    value: value.to_string(),
+                })
                 .collect(),
         }
     }
@@ -297,11 +316,11 @@ pub enum Description {
     URI(Uri),
 }
 
-impl From<elements::Description> for Description {
-    fn from(d: elements::Description) -> Self {
+impl<'a> From<elements::Description<'a>> for Description {
+    fn from(d: elements::Description<'a>) -> Self {
         match d {
-            elements::Description::Text(x) => Self::Text(x),
-            elements::Description::URI(x) => Self::URI(Uri(x)),
+            elements::Description::Text(x) => Self::Text(x.to_string()),
+            elements::Description::URI(x) => Self::URI(Uri::from(x)),
         }
     }
 }
@@ -341,16 +360,22 @@ pub struct Anchor {
     elements: Vec<String>,
 }
 
-impl From<elements::Anchor> for Anchor {
-    fn from(a: elements::Anchor) -> Self {
+impl<'a> From<elements::Anchor<'a>> for Anchor {
+    fn from(a: elements::Anchor<'a>) -> Self {
         Self {
-            elements: a.elements,
+            elements: a.elements.iter().map(ToString::to_string).collect(),
         }
     }
 }
 
 #[derive(Debug)]
 pub struct Uri(URI<'static>);
+
+impl<'a> From<URI<'a>> for Uri {
+    fn from(uri: URI<'a>) -> Self {
+        Self(uri.into_owned())
+    }
+}
 
 /// Represents a traditional URI
 #[async_graphql::Object]

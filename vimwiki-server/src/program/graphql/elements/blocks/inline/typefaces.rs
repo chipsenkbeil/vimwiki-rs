@@ -1,5 +1,5 @@
 use super::{Link, Region};
-use vimwiki::{elements, LE};
+use vimwiki::{elements, Located};
 
 /// Represents raw text within a single document
 #[derive(async_graphql::SimpleObject, Debug)]
@@ -11,11 +11,12 @@ pub struct Text {
     content: String,
 }
 
-impl From<LE<elements::Text>> for Text {
-    fn from(le: LE<elements::Text>) -> Self {
+impl<'a> From<Located<elements::Text<'a>>> for Text {
+    fn from(le: Located<elements::Text<'a>>) -> Self {
+        let region = Region::from(le.region());
         Self {
-            region: Region::from(le.region),
-            content: le.element.into(),
+            region,
+            content: le.into_inner().to_string(),
         }
     }
 }
@@ -27,28 +28,35 @@ pub enum DecoratedTextContent {
     Keyword(Keyword),
     #[graphql(flatten)]
     Link(Link),
+    DecoratedText(DecoratedText),
 }
 
-impl From<LE<elements::DecoratedTextContent>> for DecoratedTextContent {
-    fn from(le: LE<elements::DecoratedTextContent>) -> Self {
-        match le.element {
+impl<'a> From<Located<elements::DecoratedTextContent<'a>>>
+    for DecoratedTextContent
+{
+    fn from(le: Located<elements::DecoratedTextContent<'a>>) -> Self {
+        let region = le.region();
+        match le.into_inner() {
             elements::DecoratedTextContent::Text(x) => Self::from(Text {
-                region: Region::from(le.region),
-                content: x.into_typed().into(),
+                region: Region::from(region),
+                content: x.to_string(),
             }),
+            elements::DecoratedTextContent::DecoratedText(x) => {
+                Self::from(DecoratedText::from(Located::new(x, region)))
+            }
             elements::DecoratedTextContent::Keyword(x) => Self::from(Keyword {
-                region: Region::from(le.region),
-                r#type: KeywordType::from(x.into_typed()),
+                region: Region::from(region),
+                r#type: KeywordType::from(x),
             }),
             elements::DecoratedTextContent::Link(x) => {
-                Self::from(Link::from(LE::new(x.into_typed(), le.region)))
+                Self::from(Link::from(Located::new(x, region)))
             }
         }
     }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct DecoratedText(LE<elements::DecoratedText>);
+pub struct DecoratedText(Located<elements::DecoratedText<'static>>);
 
 /// Represents some text (or series of inline content) that has a decoration
 /// applied to it
@@ -56,7 +64,7 @@ pub struct DecoratedText(LE<elements::DecoratedText>);
 impl DecoratedText {
     /// The segment of the document this header covers
     async fn region(&self) -> Region {
-        Region::from(self.0.region)
+        Region::from(self.0.region())
     }
 
     /// The content within the decoration as individual elements
@@ -76,7 +84,7 @@ impl DecoratedText {
 
     /// Represents the decoration applied to some text
     async fn decoration(&self) -> Decoration {
-        match self.0.element {
+        match self.0.as_inner() {
             elements::DecoratedText::Bold(_) => Decoration::Bold,
             elements::DecoratedText::Italic(_) => Decoration::Italic,
             elements::DecoratedText::BoldItalic(_) => Decoration::BoldItalic,
@@ -87,9 +95,10 @@ impl DecoratedText {
     }
 }
 
-impl From<LE<elements::DecoratedText>> for DecoratedText {
-    fn from(le: LE<elements::DecoratedText>) -> Self {
-        Self(le)
+impl<'a> From<Located<elements::DecoratedText<'a>>> for DecoratedText {
+    fn from(le: Located<elements::DecoratedText<'a>>) -> Self {
+        let region = le.region();
+        Self(Located::new(le.into_inner().into_owned(), region))
     }
 }
 
@@ -138,11 +147,12 @@ pub struct Keyword {
     r#type: KeywordType,
 }
 
-impl From<LE<elements::Keyword>> for Keyword {
-    fn from(le: LE<elements::Keyword>) -> Self {
+impl From<Located<elements::Keyword>> for Keyword {
+    fn from(le: Located<elements::Keyword>) -> Self {
+        let region = Region::from(le.region());
         Self {
-            region: Region::from(le.region),
-            r#type: KeywordType::from(le.element),
+            region,
+            r#type: KeywordType::from(le.into_inner()),
         }
     }
 }

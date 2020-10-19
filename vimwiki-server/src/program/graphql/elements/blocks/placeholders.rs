@@ -1,5 +1,5 @@
 use super::Region;
-use vimwiki::{elements, vendor::chrono::NaiveDate, LE};
+use vimwiki::{elements, vendor::chrono::NaiveDate, Located};
 
 #[derive(async_graphql::Union, Debug)]
 pub enum Placeholder {
@@ -10,18 +10,24 @@ pub enum Placeholder {
     Other(PlaceholderOther),
 }
 
-impl From<LE<elements::Placeholder>> for Placeholder {
-    fn from(le: LE<elements::Placeholder>) -> Self {
-        let region = Region::from(le.region);
-        match le.element {
+impl<'a> From<Located<elements::Placeholder<'a>>> for Placeholder {
+    fn from(le: Located<elements::Placeholder<'a>>) -> Self {
+        let region = Region::from(le.region());
+        match le.into_inner() {
             elements::Placeholder::Title(title) => {
-                Self::from(PlaceholderTitle { region, title })
+                Self::from(PlaceholderTitle {
+                    region,
+                    title: title.to_string(),
+                })
             }
             elements::Placeholder::NoHtml => {
                 Self::from(PlaceholderNoHtml { region })
             }
             elements::Placeholder::Template(template) => {
-                Self::from(PlaceholderTemplate { region, template })
+                Self::from(PlaceholderTemplate {
+                    region,
+                    template: template.to_string(),
+                })
             }
             elements::Placeholder::Date(date) => {
                 Self::from(PlaceholderDate { region, date })
@@ -29,8 +35,8 @@ impl From<LE<elements::Placeholder>> for Placeholder {
             elements::Placeholder::Other { name, value } => {
                 Self::from(PlaceholderOther {
                     region,
-                    name,
-                    value,
+                    name: name.to_string(),
+                    value: value.to_string(),
                 })
             }
         }

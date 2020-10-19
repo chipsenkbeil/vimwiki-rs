@@ -1,5 +1,5 @@
 use super::Region;
-use vimwiki::{elements, LE};
+use vimwiki::{elements, Located};
 
 /// Represents a single document inline math formula
 #[derive(async_graphql::SimpleObject, Debug)]
@@ -11,11 +11,12 @@ pub struct MathInline {
     formula: String,
 }
 
-impl From<LE<elements::MathInline>> for MathInline {
-    fn from(le: LE<elements::MathInline>) -> Self {
+impl<'a> From<Located<elements::MathInline<'a>>> for MathInline {
+    fn from(le: Located<elements::MathInline<'a>>) -> Self {
+        let region = Region::from(le.region());
         Self {
-            region: Region::from(le.region),
-            formula: le.element.formula,
+            region,
+            formula: le.into_inner().formula.to_string(),
         }
     }
 }

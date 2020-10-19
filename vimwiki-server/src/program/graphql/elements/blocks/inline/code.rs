@@ -1,5 +1,5 @@
 use super::Region;
-use vimwiki::{elements, LE};
+use vimwiki::{elements, Located};
 
 /// Represents a single document inline code
 #[derive(async_graphql::SimpleObject, Debug)]
@@ -11,11 +11,12 @@ pub struct CodeInline {
     code: String,
 }
 
-impl From<LE<elements::CodeInline>> for CodeInline {
-    fn from(le: LE<elements::CodeInline>) -> Self {
+impl<'a> From<Located<elements::CodeInline<'a>>> for CodeInline {
+    fn from(le: Located<elements::CodeInline<'a>>) -> Self {
+        let region = Region::from(le.region());
         Self {
-            region: Region::from(le.region),
-            code: le.element.code,
+            region,
+            code: le.into_inner().code.to_string(),
         }
     }
 }

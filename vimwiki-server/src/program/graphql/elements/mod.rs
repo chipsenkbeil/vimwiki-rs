@@ -1,9 +1,5 @@
-use vimwiki::elements::{self, Located};
-
 mod blocks;
 pub use blocks::*;
-mod comments;
-pub use comments::*;
 mod utils;
 pub use utils::*;
 
@@ -12,31 +8,14 @@ pub use utils::*;
 pub struct Page {
     /// The elements contained within the page
     elements: Vec<BlockElement>,
-
-    /// The comments contained within the page
-    comments: Vec<Comment>,
-
-    /// The area where the page resides
-    region: Region,
 }
 
-impl From<Located<elements::Page>> for Page {
-    fn from(mut le: Located<elements::Page>) -> Self {
-        let elements = le
-            .element
-            .elements
-            .drain(..)
-            .map(BlockElement::from)
-            .collect();
-        let comments =
-            le.element.comments.drain(..).map(Comment::from).collect();
-        let region = Region::from(le.region);
+impl<'a> From<vimwiki::elements::Page<'a>> for Page {
+    fn from(page: vimwiki::elements::Page<'a>) -> Self {
+        let elements =
+            page.elements.into_iter().map(BlockElement::from).collect();
 
-        Self {
-            elements,
-            comments,
-            region,
-        }
+        Self { elements }
     }
 }
 

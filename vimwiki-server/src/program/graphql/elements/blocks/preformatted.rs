@@ -1,6 +1,6 @@
 use super::Region;
 use std::collections::HashMap;
-use vimwiki::{elements, LE};
+use vimwiki::{elements, Located};
 
 #[derive(Debug)]
 pub struct PreformattedText {
@@ -58,13 +58,19 @@ impl PreformattedText {
     }
 }
 
-impl From<LE<elements::PreformattedText>> for PreformattedText {
-    fn from(le: LE<elements::PreformattedText>) -> Self {
+impl<'a> From<Located<elements::PreformattedText<'a>>> for PreformattedText {
+    fn from(le: Located<elements::PreformattedText<'a>>) -> Self {
+        let region = Region::from(le.region());
+        let element = le.into_inner();
         Self {
-            region: Region::from(le.region),
-            language: le.element.lang,
-            metadata: le.element.metadata,
-            lines: le.element.lines,
+            region,
+            language: element.lang.as_ref().map(ToString::to_string),
+            metadata: element
+                .metadata
+                .iter()
+                .map(|(k, v)| (k.to_string(), v.to_string()))
+                .collect(),
+            lines: element.lines.iter().map(ToString::to_string).collect(),
         }
     }
 }

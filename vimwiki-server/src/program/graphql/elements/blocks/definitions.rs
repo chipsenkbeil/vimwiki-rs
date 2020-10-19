@@ -1,12 +1,12 @@
 use super::InlineElement;
-use vimwiki::{elements, LE};
+use vimwiki::elements::{self, Located};
 
 #[derive(Debug)]
-pub struct DefinitionList(LE<elements::DefinitionList>);
+pub struct DefinitionList(Located<elements::DefinitionList<'static>>);
 
-impl From<LE<elements::DefinitionList>> for DefinitionList {
-    fn from(le: LE<elements::DefinitionList>) -> Self {
-        Self(le)
+impl<'a> From<Located<elements::DefinitionList<'a>>> for DefinitionList {
+    fn from(le: Located<elements::DefinitionList<'a>>) -> Self {
+        Self(le.map(|x| x.into_owned()))
     }
 }
 
@@ -16,7 +16,7 @@ impl DefinitionList {
     /// The terms found within the list
     async fn terms(&self) -> Vec<Term> {
         self.0
-            .element
+            .as_inner()
             .terms()
             .map(|x| Term::new(x.to_owned()))
             .collect()
@@ -24,8 +24,10 @@ impl DefinitionList {
 
     /// The definitions for a specific term
     async fn definitions_for_term(&self, term: String) -> Vec<Definition> {
-        match self.0.element.defs_for_term(&term) {
-            Some(defs) => defs.map(|x| Definition::new(x.to_owned())).collect(),
+        match self.0.as_inner().get(term.as_str()) {
+            Some(defs) => {
+                defs.iter().map(|x| Definition::new(x.to_owned())).collect()
+            }
             None => vec![],
         }
     }
@@ -33,9 +35,11 @@ impl DefinitionList {
     /// The terms and their respective definitions
     async fn terms_and_definitions(&self) -> Vec<TermAndDefinitions> {
         self.0
-            .element
+            .as_inner()
             .iter()
-            .map(|x| TermAndDefinitions::from(x.to_owned()))
+            .map(|(term, defs)| {
+                TermAndDefinitions::from((term.to_owned(), defs.to_owned()))
+            })
             .collect()
     }
 }
@@ -47,24 +51,24 @@ pub struct TermAndDefinitions {
     definitions: Vec<Definition>,
 }
 
-impl From<elements::TermAndDefinitions> for TermAndDefinitions {
-    fn from(mut td: elements::TermAndDefinitions) -> Self {
+impl<'a> From<(elements::Term<'a>, Vec<elements::Definition<'a>>)>
+    for TermAndDefinitions
+{
+    fn from(
+        (term, defs): (elements::Term<'a>, Vec<elements::Definition<'a>>),
+    ) -> Self {
         Self {
-            term: Term::new(td.term),
-            definitions: td
-                .definitions
-                .drain(..)
-                .map(Definition::new)
-                .collect(),
+            term: Term::new(term),
+            definitions: defs.into_iter().map(Definition::new).collect(),
         }
     }
 }
 
-pub struct Term(elements::Term);
+pub struct Term(elements::Term<'static>);
 
 impl Term {
-    pub fn new(term: elements::Term) -> Self {
-        Self(term)
+    pub fn new<'a>(term: elements::Term<'a>) -> Self {
+        Self(term.into_owned())
     }
 }
 
@@ -80,18 +84,18 @@ impl Term {
     /// The content within the term as individual elements
     async fn content_elements(&self) -> Vec<InlineElement> {
         self.0
-            .elements
+            .as_inner()
             .iter()
             .map(|e| InlineElement::from(e.clone()))
             .collect()
     }
 }
 
-pub struct Definition(elements::Definition);
+pub struct Definition(elements::Definition<'static>);
 
 impl Definition {
-    pub fn new(definition: elements::Definition) -> Self {
-        Self(definition)
+    pub fn new<'a>(definition: elements::Definition<'a>) -> Self {
+        Self(definition.into_owned())
     }
 }
 
@@ -107,7 +111,7 @@ impl Definition {
     /// The content within the definition as individual elements
     async fn content_elements(&self) -> Vec<InlineElement> {
         self.0
-            .elements
+            .as_inner()
             .iter()
             .map(|e| InlineElement::from(e.clone()))
             .collect()

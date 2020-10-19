@@ -1,5 +1,5 @@
 use super::Region;
-use vimwiki::{elements, LE};
+use vimwiki::{elements, Located};
 
 /// Represents a single document comment
 #[derive(async_graphql::Union, Debug)]
@@ -58,16 +58,18 @@ impl MultiLineComment {
     }
 }
 
-impl From<LE<elements::Comment>> for Comment {
-    fn from(le: LE<elements::Comment>) -> Self {
-        let region = Region::from(le.region);
-        match le.element {
-            elements::Comment::Line(x) => {
-                Self::from(LineComment { region, line: x.0 })
-            }
-            elements::Comment::MultiLine(x) => {
-                Self::from(MultiLineComment { region, lines: x.0 })
-            }
+impl<'a> From<Located<elements::Comment<'a>>> for Comment {
+    fn from(le: Located<elements::Comment<'a>>) -> Self {
+        let region = Region::from(le.region());
+        match le.into_inner() {
+            elements::Comment::Line(x) => Self::from(LineComment {
+                region,
+                line: x.0.to_string(),
+            }),
+            elements::Comment::MultiLine(x) => Self::from(MultiLineComment {
+                region,
+                lines: x.0.iter().map(ToString::to_string).collect(),
+            }),
         }
     }
 }

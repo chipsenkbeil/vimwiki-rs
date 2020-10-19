@@ -1,5 +1,5 @@
 use super::Region;
-use vimwiki::{elements, LE};
+use vimwiki::{elements, Located};
 
 #[derive(Debug)]
 pub struct MathBlock {
@@ -32,12 +32,14 @@ impl MathBlock {
     }
 }
 
-impl From<LE<elements::MathBlock>> for MathBlock {
-    fn from(le: LE<elements::MathBlock>) -> Self {
+impl<'a> From<Located<elements::MathBlock<'a>>> for MathBlock {
+    fn from(le: Located<elements::MathBlock<'a>>) -> Self {
+        let region = Region::from(le.region());
+        let element = le.into_inner();
         Self {
-            region: Region::from(le.region),
-            lines: le.element.lines,
-            environment: le.element.environment,
+            region,
+            lines: element.lines.iter().map(ToString::to_string).collect(),
+            environment: element.environment.as_ref().map(ToString::to_string),
         }
     }
 }

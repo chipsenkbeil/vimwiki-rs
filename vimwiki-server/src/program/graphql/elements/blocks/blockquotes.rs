@@ -1,5 +1,5 @@
 use super::Region;
-use vimwiki::{elements, LE};
+use vimwiki::elements::{self, Located};
 
 #[derive(Debug)]
 pub struct Blockquote {
@@ -26,12 +26,17 @@ impl Blockquote {
     }
 }
 
-impl From<LE<elements::Blockquote>> for Blockquote {
-    fn from(le: LE<elements::Blockquote>) -> Self {
-        let region = Region::from(le.region);
+impl<'a> From<Located<elements::Blockquote<'a>>> for Blockquote {
+    fn from(le: Located<elements::Blockquote<'a>>) -> Self {
+        let region = Region::from(le.region());
         Self {
             region,
-            lines: le.element.lines,
+            lines: le
+                .into_inner()
+                .lines
+                .iter()
+                .map(ToString::to_string)
+                .collect(),
         }
     }
 }

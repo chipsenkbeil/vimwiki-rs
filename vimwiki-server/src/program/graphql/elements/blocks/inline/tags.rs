@@ -1,5 +1,5 @@
 use super::Region;
-use vimwiki::{elements, LE};
+use vimwiki::{elements, Located};
 
 /// Represents a single document inline set of tags
 #[derive(async_graphql::SimpleObject, Debug)]
@@ -11,11 +11,12 @@ pub struct Tags {
     names: Vec<String>,
 }
 
-impl From<LE<elements::Tags>> for Tags {
-    fn from(mut le: LE<elements::Tags>) -> Self {
+impl<'a> From<Located<elements::Tags<'a>>> for Tags {
+    fn from(le: Located<elements::Tags<'a>>) -> Self {
+        let region = Region::from(le.region());
         Self {
-            region: Region::from(le.region),
-            names: le.element.0.drain(..).map(|x| x.0).collect(),
+            region,
+            names: le.into_inner().0.iter().map(ToString::to_string).collect(),
         }
     }
 }

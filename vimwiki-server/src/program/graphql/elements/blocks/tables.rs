@@ -1,5 +1,5 @@
 use super::{InlineElement, Region};
-use vimwiki::{elements, LE};
+use vimwiki::{elements, Located};
 
 /// Represents a single document table
 #[derive(async_graphql::SimpleObject, Debug)]
@@ -14,19 +14,19 @@ pub struct Table {
     centered: bool,
 }
 
-impl From<LE<elements::Table>> for Table {
-    fn from(mut le: LE<elements::Table>) -> Self {
-        let region = Region::from(le.region);
+impl<'a> From<Located<elements::Table<'a>>> for Table {
+    fn from(le: Located<elements::Table<'a>>) -> Self {
+        let region = Region::from(le.region());
+        let element = le.into_inner();
         Self {
             region,
-            rows: le
-                .element
+            rows: element
                 .rows
-                .drain(..)
+                .into_iter()
                 .enumerate()
                 .map(|(pos, row)| Row::from_at_pos(pos as i32, row))
                 .collect(),
-            centered: le.element.centered,
+            centered: element.centered,
         }
     }
 }
@@ -39,15 +39,15 @@ pub enum Row {
 }
 
 impl Row {
-    fn from_at_pos(position: i32, le: LE<elements::Row>) -> Self {
-        let region = Region::from(le.region);
+    fn from_at_pos<'a>(position: i32, le: Located<elements::Row<'a>>) -> Self {
+        let region = Region::from(le.region());
 
-        match le.element {
-            elements::Row::Content { mut cells } => Self::from(ContentRow {
+        match le.into_inner() {
+            elements::Row::Content { cells } => Self::from(ContentRow {
                 region,
                 position,
                 cells: cells
-                    .drain(..)
+                    .into_iter()
                     .enumerate()
                     .map(|(pos, cell)| {
                         Cell::from_at_pos(position, pos as i32, cell)
@@ -94,21 +94,20 @@ pub enum Cell {
 }
 
 impl Cell {
-    fn from_at_pos(
+    fn from_at_pos<'a>(
         row_position: i32,
         position: i32,
-        le: LE<elements::Cell>,
+        le: Located<elements::Cell<'a>>,
     ) -> Self {
-        let region = Region::from(le.region);
-
-        match le.element {
-            elements::Cell::Content(mut x) => Self::from(ContentCell {
+        let region = Region::from(le.region());
+        match le.into_inner() {
+            elements::Cell::Content(x) => Self::from(ContentCell {
                 region,
                 row_position,
                 position,
                 contents: x
                     .elements
-                    .drain(..)
+                    .into_iter()
                     .map(InlineElement::from)
                     .collect(),
             }),

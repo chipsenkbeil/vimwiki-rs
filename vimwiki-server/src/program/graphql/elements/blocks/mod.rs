@@ -1,5 +1,5 @@
 use super::Region;
-use vimwiki::{elements, LE};
+use vimwiki::{elements, Located};
 
 mod blockquotes;
 pub use blockquotes::*;
@@ -40,39 +40,39 @@ pub enum BlockElement {
     Table(Table),
 }
 
-impl From<LE<elements::BlockElement>> for BlockElement {
-    fn from(le: LE<elements::BlockElement>) -> Self {
-        let region = le.region;
-        match le.element {
+impl<'a> From<Located<elements::BlockElement<'a>>> for BlockElement {
+    fn from(le: Located<elements::BlockElement<'a>>) -> Self {
+        let region = le.region();
+        match le.into_inner() {
             elements::BlockElement::Header(x) => {
-                Self::from(Header::from(LE::new(x, region)))
+                Self::from(Header::from(Located::new(x, region)))
             }
             elements::BlockElement::Paragraph(x) => {
-                Self::from(Paragraph::from(LE::new(x, region)))
+                Self::from(Paragraph::from(Located::new(x, region)))
             }
             elements::BlockElement::DefinitionList(x) => {
-                Self::from(DefinitionList::from(LE::new(x, region)))
+                Self::from(DefinitionList::from(Located::new(x, region)))
             }
             elements::BlockElement::List(x) => {
-                Self::from(List::from(LE::new(x, region)))
+                Self::from(List::from(Located::new(x, region)))
             }
             elements::BlockElement::Table(x) => {
-                Self::from(Table::from(LE::new(x, region)))
+                Self::from(Table::from(Located::new(x, region)))
             }
             elements::BlockElement::PreformattedText(x) => {
-                Self::from(PreformattedText::from(LE::new(x, region)))
+                Self::from(PreformattedText::from(Located::new(x, region)))
             }
             elements::BlockElement::Math(x) => {
-                Self::from(MathBlock::from(LE::new(x, region)))
+                Self::from(MathBlock::from(Located::new(x, region)))
             }
             elements::BlockElement::Blockquote(x) => {
-                Self::from(Blockquote::from(LE::new(x, region)))
+                Self::from(Blockquote::from(Located::new(x, region)))
             }
             elements::BlockElement::Divider(x) => {
-                Self::from(Divider::from(LE::new(x, region)))
+                Self::from(Divider::from(Located::new(x, region)))
             }
             elements::BlockElement::Placeholder(x) => {
-                Self::from(Placeholder::from(LE::new(x, region)))
+                Self::from(Placeholder::from(Located::new(x, region)))
             }
         }
     }

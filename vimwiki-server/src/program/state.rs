@@ -1,14 +1,10 @@
 use super::{Config, WikiConfig};
+use crate::program::graphql::elements::Page as GqlPage;
 use indicatif::{HumanDuration, ProgressBar, ProgressStyle};
 use log::{debug, error, info, trace};
 use snafu::{ResultExt, Snafu};
-use std::{
-    collections::HashMap, convert::TryInto, path::PathBuf, time::Instant,
-};
-use vimwiki::{
-    elements::{ElementRef, Page},
-    ElementTree, Position, RawStr, LE,
-};
+use std::{collections::HashMap, path::PathBuf, time::Instant};
+use vimwiki::{elements::Page, Language};
 
 /// Contains the state of the program while it is running
 #[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
@@ -123,7 +119,7 @@ pub struct Wiki {
     index: u32,
     name: Option<String>,
     path: PathBuf,
-    files: HashMap<PathBuf, LE<Page>>,
+    files: HashMap<PathBuf, Page<'static>>,
 }
 
 #[async_graphql::Object]
@@ -140,48 +136,10 @@ impl Wiki {
         self.path.to_string_lossy().to_string()
     }
 
-    async fn page(
-        &self,
-        path: String,
-    ) -> Option<super::graphql::elements::Page> {
+    async fn page(&self, path: String) -> Option<GqlPage> {
         self.files
             .get(&self.path.join(path))
-            .map(|x| super::graphql::elements::Page::from(x.clone()))
-    }
-
-    async fn element_in_page_at_pos(
-        &self,
-        path: String,
-        line: i32,
-        column: i32,
-    ) -> Option<super::graphql::elements::Element> {
-        self.files.get(&self.path.join(path)).and_then(|page| {
-            // TODO: Pre-compute the tree so we don't have to regenerate it on
-            //       every request
-            let tree = ElementTree::from_page(page);
-            match tree.find_deepest_at(Position::from((
-                line as usize,
-                column as usize,
-            ))) {
-                Some(node) => {
-                    Some(match node.as_inner() {
-                        ElementRef::Block(x) => {
-                            super::graphql::elements::BlockElement::from(
-                                LE::new((*x).clone(), *node.region()),
-                            )
-                            .into()
-                        }
-                        ElementRef::Inline(x) => {
-                            super::graphql::elements::InlineElement::from(
-                                LE::new((*x).clone(), *node.region()),
-                            )
-                            .into()
-                        }
-                    })
-                }
-                _ => None,
-            }
-        })
+            .map(|x| GqlPage::from(x.clone()))
     }
 }
 
@@ -225,7 +183,7 @@ async fn build_wiki(wiki_config: WikiConfig, mut paths: Vec<PathBuf>) -> Wiki {
 
     // Because this can take awhile, we will be presenting a progress bar
     // TODO: Parallelize this effort
-    // TODO: Cache LE<Page> instances for paths that haven't changed?
+    // TODO: Cache Page instances for paths that haven't changed?
     let progress = ProgressBar::new(paths.len() as u64).with_style(
         ProgressStyle::default_bar().template("{msg} {wide_bar} {pos}/{len}"),
     );
@@ -243,7 +201,10 @@ async fn build_wiki(wiki_config: WikiConfig, mut paths: Vec<PathBuf>) -> Wiki {
             }
         };
 
-        let page: LE<Page> = match RawStr::Vimwiki(&contents).try_into() {
+        let page: Page<'static> = match Language::from_vimwiki_string(contents)
+            .parse()
+            .map(Page::into_owned)
+        {
             Ok(x) => x,
             Err(x) => {
                 error!("Failed to parse {}: {}", path.to_string_lossy(), x);
