@@ -13,7 +13,7 @@ pub mod vendor {
 }
 
 mod tree;
-pub use tree::ElementTree;
+pub use tree::{ElementTree, ElementTreeNode};
 
 #[cfg(feature = "timekeeper")]
 pub mod timekeeper;

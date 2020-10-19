@@ -52,32 +52,45 @@ impl<'a> ElementTreeNode<'a> {
     }
 
     /// Returns reference to data contained within node
-    ///
-    /// NOTE: This will panic if the data has been detached!
     pub fn as_inner(&'a self) -> &'a Located<Element<'a>> {
         &self.data
     }
 
+    /// Consumes node and returns the inner data
+    pub fn into_inner(self) -> Located<Element<'a>> {
+        self.data
+    }
+
     /// Returns a copy of the region associated with this node
-    ///
-    /// NOTE: This will panic if the data has been detached!
     pub fn region(&'a self) -> Region {
         self.as_inner().region()
     }
 
     /// Converts to the underlying reference to the element at this point
     /// in the tree
-    ///
-    /// NOTE: This will panic if the data has been detached!
     pub fn as_element(&'a self) -> &Element<'a> {
         self.as_inner().as_inner()
     }
 
+    /// Consumes node and returns the element contained within
+    pub fn into_element(self) -> Element<'a> {
+        self.into_inner().into_inner()
+    }
+
     /// Returns whether or not this node's region contains the given offset
-    ///
-    /// NOTE: This will panic if the data has been detached!
     pub fn contains_offset(&'a self, offset: usize) -> bool {
         self.region().contains(offset)
+    }
+
+    /// Produces a node that has full ownership over its data, usually through
+    /// allocating a complete copy
+    pub fn into_owned(self) -> ElementTreeNode<'static> {
+        ElementTreeNode {
+            id: self.id,
+            parent: self.parent,
+            children: self.children,
+            data: self.data.map(Element::into_owned),
+        }
     }
 }
 
@@ -116,6 +129,18 @@ impl<'a> ElementTree<'a> {
     /// a region containing the given offset
     pub fn find_at_offset(&'a self, offset: usize) -> Option<&'a Node<'a>> {
         self._find_at_offset(self.root(), offset, 0).map(|x| x.1)
+    }
+
+    /// Produces a fully-copied tree that owns all nodes and data within
+    pub fn into_owned(mut self) -> ElementTree<'static> {
+        ElementTree {
+            nodes: self
+                .nodes
+                .drain()
+                .map(|(id, node)| (id, node.into_owned()))
+                .collect(),
+            root_id: self.root_id,
+        }
     }
 }
 
