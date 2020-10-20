@@ -1,5 +1,5 @@
 use super::Element;
-use std::{iter, sync::Arc};
+use std::sync::Arc;
 use vimwiki::elements;
 
 #[derive(Debug)]

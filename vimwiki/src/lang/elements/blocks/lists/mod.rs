@@ -73,7 +73,7 @@ impl<'a> List<'a> {
     pub fn into_children(self) -> Vec<Located<Element<'a>>> {
         self.items
             .into_iter()
-            .flat_map(|x| x.into_inner().into_children())
+            .map(|x| x.map(Element::from))
             .collect()
     }
 }

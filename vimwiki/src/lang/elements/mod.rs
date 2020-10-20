@@ -39,12 +39,13 @@ impl Page<'_> {
     }
 }
 
-/// Represents either a `BlockElement` or `InlineElement`, and can contain
-/// either an owned copy or a reference to either one
+/// Represents a `BlockElement`, an `InlineElement`, or one of a handful of
+/// special inbetween types like `ListItem`
 #[derive(Clone, Debug, From, PartialEq, Eq)]
 pub enum Element<'a> {
     Block(BlockElement<'a>),
     Inline(InlineElement<'a>),
+    ListItem(ListItem<'a>),
 }
 
 impl Element<'_> {
@@ -52,6 +53,7 @@ impl Element<'_> {
         match self {
             Self::Block(x) => Element::Block(x.to_borrowed()),
             Self::Inline(x) => Element::Inline(x.to_borrowed()),
+            Self::ListItem(x) => Element::ListItem(x.to_borrowed()),
         }
     }
 
@@ -59,6 +61,7 @@ impl Element<'_> {
         match self {
             Self::Block(x) => Element::Block(x.into_owned()),
             Self::Inline(x) => Element::Inline(x.into_owned()),
+            Self::ListItem(x) => Element::ListItem(x.into_owned()),
         }
     }
 }
@@ -73,6 +76,7 @@ impl<'a> Element<'a> {
                 .into_iter()
                 .map(|x| x.map(Element::from))
                 .collect(),
+            Self::ListItem(x) => x.into_children(),
         }
     }
 
@@ -84,7 +88,10 @@ impl<'a> Element<'a> {
         matches!(self, Self::Inline(_))
     }
 
-    #[inline]
+    pub fn is_list_item(&self) -> bool {
+        matches!(self, Self::ListItem(_))
+    }
+
     pub fn as_block_element(&self) -> Option<&BlockElement<'a>> {
         match self {
             Self::Block(ref x) => Some(x),
@@ -92,7 +99,13 @@ impl<'a> Element<'a> {
         }
     }
 
-    #[inline]
+    pub fn into_block_element(self) -> Option<BlockElement<'a>> {
+        match self {
+            Self::Block(x) => Some(x),
+            _ => None,
+        }
+    }
+
     pub fn as_inline_element(&self) -> Option<&InlineElement<'a>> {
         match self {
             Self::Inline(ref x) => Some(x),
@@ -100,18 +113,23 @@ impl<'a> Element<'a> {
         }
     }
 
-    #[inline]
-    pub fn as_mut_block_element(&mut self) -> Option<&mut BlockElement<'a>> {
+    pub fn into_inline_element(self) -> Option<InlineElement<'a>> {
         match self {
-            Self::Block(ref mut x) => Some(x),
+            Self::Inline(x) => Some(x),
             _ => None,
         }
     }
 
-    #[inline]
-    pub fn as_mut_inline_element(&mut self) -> Option<&mut InlineElement<'a>> {
+    pub fn as_list_item(&self) -> Option<&ListItem<'a>> {
         match self {
-            Self::Inline(ref mut x) => Some(x),
+            Self::ListItem(ref x) => Some(x),
+            _ => None,
+        }
+    }
+
+    pub fn into_list_item(self) -> Option<ListItem<'a>> {
+        match self {
+            Self::ListItem(x) => Some(x),
             _ => None,
         }
     }

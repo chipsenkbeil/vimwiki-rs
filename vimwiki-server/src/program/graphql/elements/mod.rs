@@ -59,6 +59,8 @@ pub enum Element {
 
     #[graphql(flatten)]
     Inline(InlineElement),
+
+    ListItem(ListItem),
 }
 
 impl<'a> From<Located<elements::Element<'a>>> for Element {
@@ -70,6 +72,9 @@ impl<'a> From<Located<elements::Element<'a>>> for Element {
             }
             elements::Element::Inline(x) => {
                 Element::from(InlineElement::from(Located::new(x, region)))
+            }
+            elements::Element::ListItem(x) => {
+                Element::from(ListItem::from(Located::new(x, region)))
             }
         }
     }
