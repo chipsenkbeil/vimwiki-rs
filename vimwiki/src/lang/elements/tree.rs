@@ -5,8 +5,9 @@ use std::{
 };
 
 /// Alias to full node type stored internally and passed around
-pub type Node<'a> = ElementTreeNode<'a>;
+type Node<'a> = ElementTreeNode<'a>;
 
+/// Alias to the storage used to maintain tree nodes
 type TreeNodeStore<'a> = HashMap<usize, Node<'a>>;
 
 /// Represents a tree structure for some `Element` and all of its decendents.

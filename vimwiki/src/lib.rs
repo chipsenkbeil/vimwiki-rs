@@ -12,8 +12,5 @@ pub mod vendor {
     pub use uriparse;
 }
 
-mod tree;
-pub use tree::{ElementTree, ElementTreeNode};
-
 #[cfg(feature = "timekeeper")]
 pub mod timekeeper;

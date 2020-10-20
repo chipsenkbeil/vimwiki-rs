@@ -3,7 +3,10 @@ pub use blocks::*;
 mod utils;
 pub use utils::*;
 
-use vimwiki::{elements, ElementTree, ElementTreeNode, Located};
+use vimwiki::{
+    elements::{self, ElementTree, ElementTreeNode},
+    Located,
+};
 
 /// Represents a single document page
 #[derive(Debug)]
