@@ -102,12 +102,47 @@ impl<'a> ElementTree<'a> {
             .expect("Root of tree is missing")
     }
 
+    /// Iterates over all ancestors for given node by moving up one parent at
+    /// a time, stopping after the root node is reached
+    pub fn ancestors(
+        &'a self,
+        node: &'a Node<'a>,
+    ) -> impl Iterator<Item = &'a Node<'a>> {
+        let mut curr_node = node;
+        std::iter::from_fn(move || {
+            if let Some(node) = self.parent(curr_node) {
+                curr_node = node;
+                Some(curr_node)
+            } else {
+                None
+            }
+        })
+    }
+
     /// Gets parent for given node
     pub fn parent(&'a self, node: &'a Node<'a>) -> Option<&'a Node<'a>> {
         node.parent.and_then(|id| self.nodes.get(&id))
     }
 
-    /// Iterates over children for given node
+    /// Iterates over all descendants for given node by moving down one level
+    /// of children at a time (BFS)
+    pub fn descendants(
+        &'a self,
+        node: &'a Node<'a>,
+    ) -> impl Iterator<Item = &'a Node<'a>> {
+        let mut queue = self.children(node);
+        std::iter::from_fn(move || {
+            if !queue.is_empty() {
+                let node = queue.remove(0);
+                queue.append(&mut self.children(node));
+                Some(node)
+            } else {
+                None
+            }
+        })
+    }
+
+    /// Represents all children for given node
     pub fn children(&'a self, node: &'a Node<'a>) -> Vec<&'a Node<'a>> {
         node.children
             .iter()
@@ -115,7 +150,7 @@ impl<'a> ElementTree<'a> {
             .collect()
     }
 
-    /// Converts to sibling tree nodes (not including self)
+    /// Represents all sibling tree nodes (not including self)
     pub fn siblings(&'a self, node: &'a Node<'a>) -> Vec<&'a Node<'a>> {
         let id = node.id;
         self.parent(node)
@@ -347,6 +382,46 @@ mod tests {
     }
 
     #[test]
+    fn ancestors_should_return_iterator_through_all_ancestor_nodes_in_order() {
+        let element = test_element();
+        let tree = ElementTree::from(&element);
+
+        // Get a child at the very bottom of paragraph -> bold -> text
+        let node = tree.find_at_offset(4).expect("Failed to find node");
+
+        // Verify parent node loaded (this is the bold text container)
+        let mut it = tree.ancestors(node);
+
+        let ancestor = it.next().expect("Missing first ancestor");
+        assert!(
+            matches!(
+                ancestor
+                    .as_element()
+                    .as_inline_element()
+                    .expect("Didn't find inline element"),
+                InlineElement::DecoratedText(_)
+            ),
+            "Unexpected element: {:?}",
+            ancestor.as_element()
+        );
+
+        let ancestor = it.next().expect("Missing second ancestor");
+        assert!(
+            matches!(
+                ancestor
+                    .as_element()
+                    .as_block_element()
+                    .expect("Didn't find block element"),
+                BlockElement::Paragraph(_)
+            ),
+            "Unexpected element: {:?}",
+            ancestor.as_element()
+        );
+
+        assert!(it.next().is_none(), "Unexpectedly got an extra ancestor");
+    }
+
+    #[test]
     fn children_should_return_all_children_tree_nodes_of_given_tree_node() {
         let element = test_element();
         let tree = ElementTree::from(&element);
@@ -368,6 +443,34 @@ mod tests {
                 )])),
             ]
         );
+    }
+
+    #[test]
+    fn descendants_should_return_iterator_through_all_descendants_one_level_at_a_time(
+    ) {
+        let element = test_element();
+        let tree = ElementTree::from(&element);
+        let mut it = tree.descendants(tree.root());
+
+        let descendant = it.next().expect("Missing first descendant");
+        assert_eq!(
+            descendant.as_element().clone(),
+            Element::from(Text::from("abc"))
+        );
+
+        let descendant = it.next().expect("Missing second descendant");
+        assert_eq!(
+            descendant.as_element().clone(),
+            Element::from(DecoratedText::Bold(vec![Located::new(
+                Text::from("bold").into(),
+                Region::from(4..8),
+            )])),
+        );
+
+        let descendant = it.next().expect("Missing third descendant");
+        assert_eq!(descendant.as_element().clone(), Text::from("bold").into());
+
+        assert!(it.next().is_none(), "Unexpectedly got an extra descendant");
     }
 
     #[test]

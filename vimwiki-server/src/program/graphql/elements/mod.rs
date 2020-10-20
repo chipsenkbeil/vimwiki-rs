@@ -1,18 +1,17 @@
 mod blocks;
 pub use blocks::*;
+mod trees;
+pub use trees::*;
 mod utils;
 pub use utils::*;
 
-use vimwiki::{
-    elements::{self, ElementTree, ElementTreeNode},
-    Located,
-};
+use vimwiki::{elements, Located};
 
 /// Represents a single document page
 #[derive(Debug)]
 pub struct Page {
     /// The elements contained within the page
-    elements_and_trees: Vec<(BlockElement, ElementTree<'static>)>,
+    elements_and_trees: Vec<(BlockElement, ElementTree)>,
 }
 
 #[async_graphql::Object]
@@ -22,13 +21,10 @@ impl Page {
         self.elements_and_trees.iter().map(|(e, _)| e).collect()
     }
 
-    async fn element_at_offset(&self, offset: i32) -> Option<Element> {
+    async fn element_at_offset(&self, offset: i32) -> Option<ElementTreeNode> {
         self.elements_and_trees
             .iter()
-            .find_map(|(_, tree)| tree.find_at_offset(offset as usize))
-            .map(ElementTreeNode::clone)
-            .map(ElementTreeNode::into_inner)
-            .map(Element::from)
+            .find_map(|(_, tree)| tree.element_at_offset(offset))
     }
 }
 
@@ -41,8 +37,12 @@ impl<'a> From<vimwiki::elements::Page<'a>> for Page {
                 let e2 = e.clone();
                 (
                     BlockElement::from(e),
-                    ElementTree::from(e2.map(elements::Element::from))
+                    ElementTree::from(
+                        elements::ElementTree::from(
+                            e2.map(elements::Element::from),
+                        )
                         .into_owned(),
+                    ),
                 )
             })
             .collect();
