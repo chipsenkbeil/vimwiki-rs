@@ -27,6 +27,18 @@ pub struct Position {
     end: LineColumn,
 }
 
+impl Position {
+    #[inline]
+    pub fn start(&self) -> LineColumn {
+        self.start
+    }
+
+    #[inline]
+    pub fn end(&self) -> LineColumn {
+        self.end
+    }
+}
+
 /// Represents some position in the form of line/column
 #[derive(
     Constructor, Copy, Clone, Debug, Hash, Eq, PartialEq, Serialize, Deserialize,
@@ -34,6 +46,18 @@ pub struct Position {
 pub struct LineColumn {
     line: usize,
     column: usize,
+}
+
+impl LineColumn {
+    #[inline]
+    pub fn line(&self) -> usize {
+        self.line
+    }
+
+    #[inline]
+    pub fn column(&self) -> usize {
+        self.column
+    }
 }
 
 impl Region {

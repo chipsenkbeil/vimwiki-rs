@@ -1,6 +1,6 @@
 mod lang;
 pub use lang::{
-    elements::{self, Located, Region},
+    elements::{self, LineColumn, Located, Position, Region},
     parsers::Error as ParseError,
     FromLanguage, Language,
 };
