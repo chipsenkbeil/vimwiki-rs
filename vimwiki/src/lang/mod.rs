@@ -16,6 +16,24 @@ pub trait FromLanguage<'a>: Sized {
 
 /// Represents a raw, unparsed representation of some language
 /// (vimwiki, markdown, mediawiki)
+///
+/// ## Examples
+///
+/// ```
+/// use vimwiki::{Language, elements::*};
+///
+/// // Load some language as a string
+/// let language = Language::from_vimwiki_str(r#"
+/// = My Header =
+///
+/// Some paragraph with *decorations* and [[links]] that you would normally
+/// see in a vimwiki file.
+/// "#);
+///
+/// // Parse the input as a page using vimwiki format
+/// let page: Page = language.parse().unwrap();
+/// ```
+///
 #[derive(Clone, Debug, Eq, PartialEq, Display)]
 pub enum Language<'a> {
     Vimwiki(Cow<'a, str>),
@@ -26,32 +44,32 @@ pub enum Language<'a> {
 impl<'a> Language<'a> {
     /// Wraps provided `&str` as a `Language` for *vimwiki*
     pub fn from_vimwiki_str(inner: &'a str) -> Self {
-        Self::Vimwiki(Cow::from(inner))
+        Self::Vimwiki(Cow::Borrowed(inner))
     }
 
     /// Wraps provided `String` as a `Language` for *vimwiki*
     pub fn from_vimwiki_string(inner: String) -> Self {
-        Self::Vimwiki(Cow::from(inner))
+        Self::Vimwiki(Cow::Owned(inner)).into_owned()
     }
 
     /// Wraps provided `&str` as a `Language` for *markdown*
     pub fn from_markdown_str(inner: &'a str) -> Self {
-        Self::Markdown(Cow::from(inner))
+        Self::Markdown(Cow::Borrowed(inner))
     }
 
     /// Wraps provided `String` as a `Language` for *markdown*
     pub fn from_markdown_string(inner: String) -> Self {
-        Self::Markdown(Cow::from(inner))
+        Self::Markdown(Cow::Owned(inner)).into_owned()
     }
 
     /// Wraps provided `&str` as a `Language` for *mediawiki*
     pub fn from_mediawiki_str(inner: &'a str) -> Self {
-        Self::Mediawiki(Cow::from(inner))
+        Self::Mediawiki(Cow::Borrowed(inner))
     }
 
     /// Wraps provided `String` as a `Language` for *mediawiki*
     pub fn from_mediawiki_string(inner: String) -> Self {
-        Self::Mediawiki(Cow::from(inner))
+        Self::Mediawiki(Cow::Owned(inner)).into_owned()
     }
 
     /// Converts into a byte slice

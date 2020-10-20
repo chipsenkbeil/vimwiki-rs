@@ -40,8 +40,14 @@ pub fn locate<'a, T>(
     context("Locate", move |input: Span| {
         let (input, c) = parser(input)?;
 
-        // Construct a region that does NOT compute the line & column
-        let region = Region::from(c.input());
+        // If enabled, we construct a region that includes line & column
+        // information, otherwise we construct a region with just the offset
+        // and length of the span
+        let region = if cfg!(feature = "location") {
+            Region::from_span_with_position(c.input())
+        } else {
+            Region::from(c.input())
+        };
 
         Ok((input, Located::new(c.into_inner(), region)))
     })

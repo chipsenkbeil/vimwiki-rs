@@ -16,14 +16,32 @@ vimwiki = "0.1.0-alpha.2"
 ## Examples
 
 ```rust
-use vimwiki::{RawStr, LE, elements::*};
+use vimwiki::{Language, elements::*};
 
-// Load a file into a String
-let input = std::fs::read_to_string("/path/to/file.wiki").unwrap();
+// Load some language as a string
+let language = Language::from_vimwiki_str(r#"
+= My Header =
+///
+Some paragraph with *decorations* and [[links]] that you would normally
+see in a vimwiki file.
+"#);
 
-// Parse the input as a LocatedElement of Page
-let page: LE<Page> = RawStr::Vimwiki(&input).try_into().unwrap();
+// Parse the input as a page using vimwiki format
+let page: Page = language.parse().unwrap();
 ```
+
+## Features
+
+By default, no features are enable, but the following are offered:
+
+- **location**: If specified, all elements parsed will automatically have
+their line and column information encoded in the `Region` of `Located<...>`.
+This is particularly expensive and is therefore gated behind a feature. This
+operation can always be done manually on a region-by-region basis.
+- **timekeeper**: If specified, all parser logic runs through a
+statically-allocated `HashMap` that logs the time taken to parse various
+elements and can print out results in a human-readable format. This is
+predominately useful for performance optimizations internally.
 
 ## License
 
