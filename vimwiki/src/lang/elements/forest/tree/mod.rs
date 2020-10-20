@@ -4,11 +4,11 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-/// Alias to full node type stored internally and passed around
-type Node<'a> = ElementTreeNode<'a>;
+mod node;
+pub use node::ElementNode;
 
 /// Alias to the storage used to maintain tree nodes
-type TreeNodeStore<'a> = HashMap<usize, Node<'a>>;
+type TreeNodeStore<'a> = HashMap<usize, ElementNode<'a>>;
 
 /// Represents a tree structure for some `Element` and all of its decendents.
 ///
@@ -26,77 +26,8 @@ pub struct ElementTree<'a> {
     root_id: usize,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ElementTreeNode<'a> {
-    /// Id of this node
-    id: usize,
-
-    /// Id of parent node in tree
-    parent: Option<usize>,
-
-    /// Id of children nodes in tree
-    children: Vec<usize>,
-
-    /// Located element contained within this node in the tree
-    data: Located<Element<'a>>,
-}
-
-impl<'a> ElementTreeNode<'a> {
-    #[inline]
-    pub fn is_root(&'a self) -> bool {
-        self.parent.is_none()
-    }
-
-    #[inline]
-    pub fn is_leaf(&'a self) -> bool {
-        self.children.is_empty()
-    }
-
-    /// Returns reference to data contained within node
-    pub fn as_inner(&'a self) -> &'a Located<Element<'a>> {
-        &self.data
-    }
-
-    /// Consumes node and returns the inner data
-    pub fn into_inner(self) -> Located<Element<'a>> {
-        self.data
-    }
-
-    /// Returns a copy of the region associated with this node
-    pub fn region(&'a self) -> Region {
-        self.as_inner().region()
-    }
-
-    /// Converts to the underlying reference to the element at this point
-    /// in the tree
-    pub fn as_element(&'a self) -> &Element<'a> {
-        self.as_inner().as_inner()
-    }
-
-    /// Consumes node and returns the element contained within
-    pub fn into_element(self) -> Element<'a> {
-        self.into_inner().into_inner()
-    }
-
-    /// Returns whether or not this node's region contains the given offset
-    pub fn contains_offset(&'a self, offset: usize) -> bool {
-        self.region().contains(offset)
-    }
-
-    /// Produces a node that has full ownership over its data, usually through
-    /// allocating a complete copy
-    pub fn into_owned(self) -> ElementTreeNode<'static> {
-        ElementTreeNode {
-            id: self.id,
-            parent: self.parent,
-            children: self.children,
-            data: self.data.map(Element::into_owned),
-        }
-    }
-}
-
 impl<'a> ElementTree<'a> {
-    pub fn root(&'a self) -> &'a Node<'a> {
+    pub fn root(&'a self) -> &'a ElementNode<'a> {
         self.nodes
             .get(&self.root_id)
             .expect("Root of tree is missing")
@@ -106,8 +37,8 @@ impl<'a> ElementTree<'a> {
     /// a time, stopping after the root node is reached
     pub fn ancestors(
         &'a self,
-        node: &'a Node<'a>,
-    ) -> impl Iterator<Item = &'a Node<'a>> {
+        node: &'a ElementNode<'a>,
+    ) -> impl Iterator<Item = &'a ElementNode<'a>> {
         let mut curr_node = node;
         std::iter::from_fn(move || {
             if let Some(node) = self.parent(curr_node) {
@@ -120,7 +51,10 @@ impl<'a> ElementTree<'a> {
     }
 
     /// Gets parent for given node
-    pub fn parent(&'a self, node: &'a Node<'a>) -> Option<&'a Node<'a>> {
+    pub fn parent(
+        &'a self,
+        node: &'a ElementNode<'a>,
+    ) -> Option<&'a ElementNode<'a>> {
         node.parent.and_then(|id| self.nodes.get(&id))
     }
 
@@ -128,8 +62,8 @@ impl<'a> ElementTree<'a> {
     /// of children at a time (BFS)
     pub fn descendants(
         &'a self,
-        node: &'a Node<'a>,
-    ) -> impl Iterator<Item = &'a Node<'a>> {
+        node: &'a ElementNode<'a>,
+    ) -> impl Iterator<Item = &'a ElementNode<'a>> {
         let mut queue = self.children(node);
         std::iter::from_fn(move || {
             if !queue.is_empty() {
@@ -143,7 +77,10 @@ impl<'a> ElementTree<'a> {
     }
 
     /// Represents all children for given node
-    pub fn children(&'a self, node: &'a Node<'a>) -> Vec<&'a Node<'a>> {
+    pub fn children(
+        &'a self,
+        node: &'a ElementNode<'a>,
+    ) -> Vec<&'a ElementNode<'a>> {
         node.children
             .iter()
             .filter_map(|id| self.nodes.get(id))
@@ -151,7 +88,10 @@ impl<'a> ElementTree<'a> {
     }
 
     /// Represents all sibling tree nodes (not including self)
-    pub fn siblings(&'a self, node: &'a Node<'a>) -> Vec<&'a Node<'a>> {
+    pub fn siblings(
+        &'a self,
+        node: &'a ElementNode<'a>,
+    ) -> Vec<&'a ElementNode<'a>> {
         let id = node.id;
         self.parent(node)
             .iter()
@@ -163,7 +103,10 @@ impl<'a> ElementTree<'a> {
     /// Finds the deepest node in the tree whose region contains the
     /// given offset, or returns none if no element in the tree has
     /// a region containing the given offset
-    pub fn find_at_offset(&'a self, offset: usize) -> Option<&'a Node<'a>> {
+    pub fn find_at_offset(
+        &'a self,
+        offset: usize,
+    ) -> Option<&'a ElementNode<'a>> {
         self._find_at_offset(self.root(), offset, 0).map(|x| x.1)
     }
 
@@ -184,10 +127,10 @@ impl<'a> ElementTree<'a> {
     /// Finds the deepest node that supports the given offset
     fn _find_at_offset(
         &'a self,
-        node: &'a Node<'a>,
+        node: &'a ElementNode<'a>,
         offset: usize,
         depth: usize,
-    ) -> Option<(usize, &'a Node<'a>)> {
+    ) -> Option<(usize, &'a ElementNode<'a>)> {
         if node.contains_offset(offset) {
             if let Some((depth, child)) = self
                 .children(node)
@@ -257,7 +200,7 @@ fn make_nodes<'a>(
 
     // Third, construct the node mapping (without data) and insert it into
     // the node storage
-    let node = ElementTreeNode {
+    let node = ElementNode {
         id,
         parent,
         children,
@@ -494,64 +437,5 @@ mod tests {
                 Region::from(4..8),
             )]))],
         );
-    }
-
-    #[test]
-    fn is_root_should_return_true_if_tree_node_represents_root_of_tree() {
-        let element = test_element();
-        let tree = ElementTree::from(&element);
-
-        assert!(tree.root().is_root());
-    }
-
-    #[test]
-    fn is_root_should_return_false_if_tree_node_does_not_represent_root_of_tree(
-    ) {
-        let element = test_element();
-        let tree = ElementTree::from(&element);
-
-        let node = tree.find_at_offset(0).expect("Failed to find node");
-
-        assert!(!node.is_root());
-    }
-
-    #[test]
-    fn is_leaf_should_return_true_if_tree_node_has_no_children() {
-        let element = test_element();
-        let tree = ElementTree::from(&element);
-
-        // Paragraph -> Text has no children
-        let node = tree.find_at_offset(0).expect("Failed to find node");
-        assert!(node.is_leaf());
-
-        // Paragraph -> Bold -> Text has no children
-        let node = tree.find_at_offset(4).expect("Failed to find node");
-        assert!(node.is_leaf());
-    }
-
-    #[test]
-    fn is_leaf_should_return_false_if_tree_node_has_children() {
-        let element = test_element();
-        let tree = ElementTree::from(&element);
-
-        // Paragraph has children
-        let node = tree.root();
-        assert!(!node.is_leaf());
-
-        // Paragraph -> Bold has children
-        let node = tree.find_at_offset(3).expect("Failed to find node");
-        assert!(!node.is_leaf());
-    }
-
-    #[test]
-    fn region_should_return_region_of_underlying_element() {
-        let element = test_element();
-        let tree = ElementTree::from(&element);
-
-        let node = tree.root();
-        assert_eq!(node.region(), Region::from(0..9));
-
-        let node = tree.find_at_offset(0).expect("Failed to find node");
-        assert_eq!(node.region(), Region::from(0..3));
     }
 }
