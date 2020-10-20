@@ -1,13 +1,12 @@
 use super::InlineElement;
-use derive_more::From;
 use vimwiki::elements::{self, Located};
 
 #[derive(Debug)]
 pub struct DefinitionList(Located<elements::DefinitionList<'static>>);
 
 impl<'a> From<Located<elements::DefinitionList<'a>>> for DefinitionList {
-    fn from(le: Located<elements::DefinitionList<'a>>) -> Self {
-        Self(le.map(|x| x.into_owned()))
+    fn from(located: Located<elements::DefinitionList<'a>>) -> Self {
+        Self(located.map(elements::DefinitionList::into_owned))
     }
 }
 
@@ -19,16 +18,21 @@ impl DefinitionList {
         self.0
             .as_inner()
             .terms()
-            .map(|x| Term::new(x.to_owned()))
+            .map(|x| Term::from(x.as_ref().map(elements::Term::to_borrowed)))
             .collect()
     }
 
     /// The definitions for a specific term
     async fn definitions_for_term(&self, term: String) -> Vec<Definition> {
         match self.0.as_inner().get(term.as_str()) {
-            Some(defs) => {
-                defs.iter().map(|x| Definition::new(x.to_owned())).collect()
-            }
+            Some(defs) => defs
+                .iter()
+                .map(|x| {
+                    Definition::from(
+                        x.as_ref().map(elements::Definition::to_borrowed),
+                    )
+                })
+                .collect(),
             None => vec![],
         }
     }
@@ -52,25 +56,31 @@ pub struct TermAndDefinitions {
     definitions: Vec<Definition>,
 }
 
-impl<'a> From<(elements::Term<'a>, Vec<elements::Definition<'a>>)>
-    for TermAndDefinitions
+impl<'a>
+    From<(
+        Located<elements::Term<'a>>,
+        Vec<Located<elements::Definition<'a>>>,
+    )> for TermAndDefinitions
 {
     fn from(
-        (term, defs): (elements::Term<'a>, Vec<elements::Definition<'a>>),
+        (term, defs): (
+            Located<elements::Term<'a>>,
+            Vec<Located<elements::Definition<'a>>>,
+        ),
     ) -> Self {
         Self {
-            term: Term::new(term),
-            definitions: defs.into_iter().map(Definition::new).collect(),
+            term: Term::from(term),
+            definitions: defs.into_iter().map(Definition::from).collect(),
         }
     }
 }
 
-#[derive(Debug, From)]
-pub struct Term(elements::Term<'static>);
+#[derive(Debug)]
+pub struct Term(Located<elements::Term<'static>>);
 
-impl Term {
-    pub fn new<'a>(term: elements::Term<'a>) -> Self {
-        Self(term.into_owned())
+impl<'a> From<Located<elements::Term<'a>>> for Term {
+    fn from(located: Located<elements::Term<'a>>) -> Self {
+        Self(located.map(elements::Term::into_owned))
     }
 }
 
@@ -87,18 +97,20 @@ impl Term {
     async fn content_elements(&self) -> Vec<InlineElement> {
         self.0
             .as_inner()
-            .iter()
-            .map(|e| InlineElement::from(e.clone()))
+            .to_borrowed()
+            .into_children()
+            .into_iter()
+            .map(InlineElement::from)
             .collect()
     }
 }
 
-#[derive(Debug, From)]
-pub struct Definition(elements::Definition<'static>);
+#[derive(Debug)]
+pub struct Definition(Located<elements::Definition<'static>>);
 
-impl Definition {
-    pub fn new<'a>(definition: elements::Definition<'a>) -> Self {
-        Self(definition.into_owned())
+impl<'a> From<Located<elements::Definition<'a>>> for Definition {
+    fn from(located: Located<elements::Definition<'a>>) -> Self {
+        Self(located.map(elements::Definition::into_owned))
     }
 }
 
@@ -115,8 +127,10 @@ impl Definition {
     async fn content_elements(&self) -> Vec<InlineElement> {
         self.0
             .as_inner()
-            .iter()
-            .map(|e| InlineElement::from(e.clone()))
+            .to_borrowed()
+            .into_children()
+            .into_iter()
+            .map(InlineElement::from)
             .collect()
     }
 }
