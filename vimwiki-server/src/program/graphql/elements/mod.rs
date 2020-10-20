@@ -60,7 +60,8 @@ pub enum Element {
     #[graphql(flatten)]
     Inline(InlineElement),
 
-    ListItem(ListItem),
+    #[graphql(flatten)]
+    InlineBlock(InlineBlockElement),
 }
 
 impl<'a> From<Located<elements::Element<'a>>> for Element {
@@ -73,8 +74,39 @@ impl<'a> From<Located<elements::Element<'a>>> for Element {
             elements::Element::Inline(x) => {
                 Element::from(InlineElement::from(Located::new(x, region)))
             }
-            elements::Element::ListItem(x) => {
-                Element::from(ListItem::from(Located::new(x, region)))
+            elements::Element::InlineBlock(x) => {
+                Element::from(InlineBlockElement::from(Located::new(x, region)))
+            }
+        }
+    }
+}
+
+/// Represents some inline block element in a document page
+#[derive(async_graphql::Union, Debug)]
+pub enum InlineBlockElement {
+    ListItem(ListItem),
+    Term(Term),
+    Definition(Definition),
+}
+
+impl<'a> From<Located<elements::InlineBlockElement<'a>>>
+    for InlineBlockElement
+{
+    fn from(located: Located<elements::InlineBlockElement<'a>>) -> Self {
+        let region = located.region();
+        match located.into_inner() {
+            elements::InlineBlockElement::ListItem(x) => {
+                InlineBlockElement::from(ListItem::from(Located::new(
+                    x, region,
+                )))
+            }
+            elements::InlineBlockElement::Term(x) => {
+                InlineBlockElement::from(Term::from(Located::new(x, region)))
+            }
+            elements::InlineBlockElement::Definition(x) => {
+                InlineBlockElement::from(Definition::from(Located::new(
+                    x, region,
+                )))
             }
         }
     }

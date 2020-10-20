@@ -1,4 +1,6 @@
-use crate::lang::elements::{InlineElement, InlineElementContainer, Located};
+use crate::lang::elements::{
+    InlineBlockElement, InlineElement, InlineElementContainer, Located,
+};
 use derive_more::{Constructor, Display};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -29,6 +31,10 @@ impl<'a> DefinitionListValue<'a> {
 
     pub fn into_inner(self) -> InlineElementContainer<'a> {
         self.0
+    }
+
+    pub fn into_children(self) -> Vec<Located<InlineElement<'a>>> {
+        self.0.into_children()
     }
 }
 
@@ -84,7 +90,7 @@ pub type Definition<'a> = DefinitionListValue<'a>;
     Constructor, Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize,
 )]
 pub struct DefinitionList<'a> {
-    mapping: HashMap<Term<'a>, Vec<Definition<'a>>>,
+    mapping: HashMap<Located<Term<'a>>, Vec<Located<Definition<'a>>>>,
 }
 
 impl DefinitionList<'_> {
@@ -94,8 +100,13 @@ impl DefinitionList<'_> {
             .iter()
             .map(|(key, value)| {
                 (
-                    key.to_borrowed(),
-                    value.iter().map(|x| x.to_borrowed()).collect(),
+                    key.as_ref().map(DefinitionListValue::to_borrowed),
+                    value
+                        .iter()
+                        .map(|x| {
+                            x.as_ref().map(DefinitionListValue::to_borrowed)
+                        })
+                        .collect(),
                 )
             })
             .collect();
@@ -109,8 +120,11 @@ impl DefinitionList<'_> {
             .into_iter()
             .map(|(key, value)| {
                 (
-                    key.into_owned(),
-                    value.into_iter().map(|x| x.into_owned()).collect(),
+                    key.map(DefinitionListValue::into_owned),
+                    value
+                        .into_iter()
+                        .map(|x| x.map(DefinitionListValue::into_owned))
+                        .collect(),
                 )
             })
             .collect();
@@ -124,40 +138,54 @@ impl<'a> DefinitionList<'a> {
     pub fn get(
         &'a self,
         term: impl Into<Term<'a>>,
-    ) -> Option<&Vec<Definition<'a>>> {
-        self.mapping.get(&term.into())
+    ) -> Option<&Vec<Located<Definition<'a>>>> {
+        self.mapping.get(&Located::from(term.into()))
     }
 
     /// Iterates through all terms and their associated definitions in the list
-    pub fn iter(&self) -> hash_map::Iter<'_, Term<'a>, Vec<Definition<'a>>> {
+    pub fn iter(
+        &self,
+    ) -> hash_map::Iter<'_, Located<Term<'a>>, Vec<Located<Definition<'a>>>>
+    {
         self.mapping.iter()
     }
 
     /// Iterates through all terms in the list
-    pub fn terms(&self) -> hash_map::Keys<'_, Term<'a>, Vec<Definition<'a>>> {
+    pub fn terms(
+        &self,
+    ) -> hash_map::Keys<'_, Located<Term<'a>>, Vec<Located<Definition<'a>>>>
+    {
         self.mapping.keys()
     }
 
     /// Iterates through all definitions in the list
-    pub fn definitions(&self) -> impl Iterator<Item = &Definition<'a>> {
+    pub fn definitions(
+        &self,
+    ) -> impl Iterator<Item = &Located<Definition<'a>>> {
         self.mapping.values().flatten()
     }
 
-    pub fn into_children(mut self) -> Vec<Located<InlineElement<'a>>> {
+    pub fn into_children(mut self) -> Vec<Located<InlineBlockElement<'a>>> {
         self.mapping
             .drain()
             .flat_map(|(term, defs)| {
-                std::iter::once(term)
-                    .chain(defs.into_iter())
-                    .flat_map(|x| x.into_inner().into_children())
+                std::iter::once(term.map(InlineBlockElement::Term)).chain(
+                    defs.into_iter()
+                        .map(|x| x.map(InlineBlockElement::Definition)),
+                )
             })
             .collect()
     }
 }
 
-impl<'a> From<Vec<(Term<'a>, Vec<Definition<'a>>)>> for DefinitionList<'a> {
+impl<'a> From<Vec<(Located<Term<'a>>, Vec<Located<Definition<'a>>>)>>
+    for DefinitionList<'a>
+{
     fn from(
-        terms_and_definitions: Vec<(Term<'a>, Vec<Definition<'a>>)>,
+        terms_and_definitions: Vec<(
+            Located<Term<'a>>,
+            Vec<Located<Definition<'a>>>,
+        )>,
     ) -> Self {
         let mut dl = Self::default();
 
@@ -229,8 +257,8 @@ mod tests {
     #[test]
     fn definition_list_should_be_able_to_iterate_through_terms() {
         let dl = DefinitionList::from(vec![
-            (Term::from("term1"), vec![]),
-            (Term::from("term2"), vec![]),
+            (Located::from(Term::from("term1")), vec![]),
+            (Located::from(Term::from("term2")), vec![]),
         ]);
 
         let term_names =
@@ -244,8 +272,11 @@ mod tests {
     fn definition_list_should_be_able_to_iterate_through_definitions_for_term()
     {
         let dl = DefinitionList::from(vec![
-            (Term::from("term1"), vec![Definition::from("definition")]),
-            (Term::from("term2"), vec![]),
+            (
+                Located::from(Term::from("term1")),
+                vec![Located::from(Definition::from("definition"))],
+            ),
+            (Located::from(Term::from("term2")), vec![]),
         ]);
 
         let defs = dl
@@ -273,10 +304,13 @@ mod tests {
     ) {
         let dl = DefinitionList::from(vec![
             (
-                Term::from("term1"),
-                vec![Definition::from("def1"), Definition::from("def2")],
+                Located::from(Term::from("term1")),
+                vec![
+                    Located::from(Definition::from("def1")),
+                    Located::from(Definition::from("def2")),
+                ],
             ),
-            (Term::from("term2"), vec![]),
+            (Located::from(Term::from("term2")), vec![]),
         ]);
         assert!(dl.get("term1").is_some());
     }

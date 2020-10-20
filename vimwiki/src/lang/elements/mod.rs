@@ -45,7 +45,7 @@ impl Page<'_> {
 pub enum Element<'a> {
     Block(BlockElement<'a>),
     Inline(InlineElement<'a>),
-    ListItem(ListItem<'a>),
+    InlineBlock(InlineBlockElement<'a>),
 }
 
 impl Element<'_> {
@@ -53,7 +53,7 @@ impl Element<'_> {
         match self {
             Self::Block(x) => Element::Block(x.to_borrowed()),
             Self::Inline(x) => Element::Inline(x.to_borrowed()),
-            Self::ListItem(x) => Element::ListItem(x.to_borrowed()),
+            Self::InlineBlock(x) => Element::InlineBlock(x.to_borrowed()),
         }
     }
 
@@ -61,7 +61,7 @@ impl Element<'_> {
         match self {
             Self::Block(x) => Element::Block(x.into_owned()),
             Self::Inline(x) => Element::Inline(x.into_owned()),
-            Self::ListItem(x) => Element::ListItem(x.into_owned()),
+            Self::InlineBlock(x) => Element::InlineBlock(x.into_owned()),
         }
     }
 }
@@ -76,20 +76,8 @@ impl<'a> Element<'a> {
                 .into_iter()
                 .map(|x| x.map(Element::from))
                 .collect(),
-            Self::ListItem(x) => x.into_children(),
+            Self::InlineBlock(x) => x.into_children(),
         }
-    }
-
-    pub fn is_block_element(&self) -> bool {
-        matches!(self, Self::Block(_))
-    }
-
-    pub fn is_inline_element(&self) -> bool {
-        matches!(self, Self::Inline(_))
-    }
-
-    pub fn is_list_item(&self) -> bool {
-        matches!(self, Self::ListItem(_))
     }
 
     pub fn as_block_element(&self) -> Option<&BlockElement<'a>> {
@@ -120,17 +108,72 @@ impl<'a> Element<'a> {
         }
     }
 
-    pub fn as_list_item(&self) -> Option<&ListItem<'a>> {
+    pub fn as_inline_block_element(&self) -> Option<&InlineBlockElement<'a>> {
         match self {
-            Self::ListItem(ref x) => Some(x),
+            Self::InlineBlock(ref x) => Some(x),
             _ => None,
         }
     }
 
-    pub fn into_list_item(self) -> Option<ListItem<'a>> {
+    pub fn into_inline_block_element(self) -> Option<InlineBlockElement<'a>> {
         match self {
-            Self::ListItem(x) => Some(x),
+            Self::InlineBlock(x) => Some(x),
             _ => None,
+        }
+    }
+}
+
+/// Represents a some element that is a descendant of a `BlockElement`, but
+/// is not an `InlineElement` such as `ListItem`
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum InlineBlockElement<'a> {
+    ListItem(ListItem<'a>),
+    Term(Term<'a>),
+    Definition(Definition<'a>),
+}
+
+impl<'a> From<ListItem<'a>> for InlineBlockElement<'a> {
+    fn from(list_item: ListItem<'a>) -> Self {
+        Self::ListItem(list_item)
+    }
+}
+
+impl InlineBlockElement<'_> {
+    pub fn to_borrowed(&self) -> InlineBlockElement {
+        match self {
+            Self::ListItem(x) => InlineBlockElement::ListItem(x.to_borrowed()),
+            Self::Term(x) => InlineBlockElement::Term(x.to_borrowed()),
+            Self::Definition(x) => {
+                InlineBlockElement::Definition(x.to_borrowed())
+            }
+        }
+    }
+
+    pub fn into_owned(self) -> InlineBlockElement<'static> {
+        match self {
+            Self::ListItem(x) => InlineBlockElement::ListItem(x.into_owned()),
+            Self::Term(x) => InlineBlockElement::Term(x.into_owned()),
+            Self::Definition(x) => {
+                InlineBlockElement::Definition(x.into_owned())
+            }
+        }
+    }
+}
+
+impl<'a> InlineBlockElement<'a> {
+    pub fn into_children(self) -> Vec<Located<Element<'a>>> {
+        match self {
+            Self::ListItem(x) => x.into_children(),
+            Self::Term(x) => x
+                .into_children()
+                .into_iter()
+                .map(|x| x.map(Element::from))
+                .collect(),
+            Self::Definition(x) => x
+                .into_children()
+                .into_iter()
+                .map(|x| x.map(Element::from))
+                .collect(),
         }
     }
 }
@@ -163,3 +206,5 @@ element_impl_from!(Link<'a>, InlineElement);
 element_impl_from!(Tags<'a>, InlineElement);
 element_impl_from!(CodeInline<'a>, InlineElement);
 element_impl_from!(MathInline<'a>, InlineElement);
+
+element_impl_from!(ListItem<'a>, InlineBlockElement);

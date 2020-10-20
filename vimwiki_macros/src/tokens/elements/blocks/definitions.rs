@@ -13,7 +13,7 @@ fn tokenize_definition_list(definition_list: &DefinitionList) -> TokenStream {
 }
 
 fn tokenize_term_and_definitions(
-    (term, definitions): (&Term, &Vec<Definition>),
+    (term, definitions): (&Located<Term>, &Vec<Located<Definition>>),
 ) -> TokenStream {
     let term = do_tokenize!(term);
     let definitions = definitions.iter().map(|x| do_tokenize!(x));

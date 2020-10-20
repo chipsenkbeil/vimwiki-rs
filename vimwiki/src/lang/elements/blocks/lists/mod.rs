@@ -1,4 +1,6 @@
-use super::{Element, InlineElement, InlineElementContainer, Located};
+use crate::lang::elements::{
+    Element, InlineBlockElement, InlineElement, InlineElementContainer, Located,
+};
 use derive_more::{
     Constructor, Deref, DerefMut, From, Index, IndexMut, Into, IntoIterator,
 };
@@ -70,10 +72,10 @@ impl<'a> List<'a> {
         self
     }
 
-    pub fn into_children(self) -> Vec<Located<Element<'a>>> {
+    pub fn into_children(self) -> Vec<Located<InlineBlockElement<'a>>> {
         self.items
             .into_iter()
-            .map(|x| x.map(Element::from))
+            .map(|x| x.map(InlineBlockElement::from))
             .collect()
     }
 }

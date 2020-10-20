@@ -34,11 +34,11 @@ pub fn definition_list(input: Span) -> IResult<Located<DefinitionList>> {
 #[inline]
 fn term_and_definitions<'a>(
     input: Span<'a>,
-) -> IResult<(Term<'a>, Vec<Definition<'a>>)> {
+) -> IResult<(Located<Term<'a>>, Vec<Located<Definition<'a>>>)> {
     let (input, _) = beginning_of_line(input)?;
     let (input, (term, maybe_def)) = term_line(input)?;
     let (input, mut defs) =
-        verify(many0(definition_line), |defs: &Vec<Definition>| {
+        verify(many0(definition_line), |defs: &Vec<Located<Definition>>| {
             maybe_def.is_some() || !defs.is_empty()
         })(input)?;
 
@@ -51,23 +51,25 @@ fn term_and_definitions<'a>(
 
 /// Parsers a line as a term (with optional definition)
 #[inline]
-fn term_line(input: Span) -> IResult<(Term, Option<Definition>)> {
+fn term_line(
+    input: Span,
+) -> IResult<(Located<Term>, Option<Located<Definition>>)> {
     let (input, _) = beginning_of_line(input)?;
 
     // Parse our term and provide location information for it
-    let (input, term) = terminated(
+    let (input, term) = locate(capture(terminated(
         map_parser(
             take_line_while1(not(tag("::"))),
             map(
                 inline_element_container,
-                |l: Located<InlineElementContainer>| l.into_inner(),
+                |l: Located<InlineElementContainer>| Term::new(l.into_inner()),
             ),
         ),
         tag("::"),
-    )(input)?;
+    )))(input)?;
 
     // Now check if we have a definition following
-    let (input, maybe_def) = opt(preceded(
+    let (input, maybe_def) = opt(locate(capture(preceded(
         space1,
         map_parser(
             take_until_end_of_line_or_input,
@@ -78,30 +80,34 @@ fn term_line(input: Span) -> IResult<(Term, Option<Definition>)> {
                 },
             ),
         ),
-    ))(input)?;
+    ))))(input)?;
 
     // Conclude with any lingering space and newline
     let (input, _) = pair(space0, end_of_line_or_input)(input)?;
 
-    Ok((input, (Term::new(term), maybe_def)))
+    Ok((input, (term, maybe_def)))
 }
 
 /// Parses a line as a definition
 #[inline]
-fn definition_line(input: Span) -> IResult<Definition> {
-    let (input, _) = beginning_of_line(input)?;
-    let (input, _) = tag("::")(input)?;
-    let (input, _) = space1(input)?;
-    let (input, def) = map_parser(
-        take_until_end_of_line_or_input,
-        map(
-            inline_element_container,
-            |l: Located<InlineElementContainer>| l.into_inner(),
-        ),
-    )(input)?;
-    let (input, _) = end_of_line_or_input(input)?;
+fn definition_line(input: Span) -> IResult<Located<Definition>> {
+    fn inner(input: Span) -> IResult<Definition> {
+        let (input, _) = beginning_of_line(input)?;
+        let (input, _) = tag("::")(input)?;
+        let (input, _) = space1(input)?;
+        let (input, def) = map_parser(
+            take_until_end_of_line_or_input,
+            map(
+                inline_element_container,
+                |l: Located<InlineElementContainer>| l.into_inner(),
+            ),
+        )(input)?;
+        let (input, _) = end_of_line_or_input(input)?;
 
-    Ok((input, Definition::new(def)))
+        Ok((input, Definition::new(def)))
+    }
+
+    context("Definition Line", locate(capture(inner)))(input)
 }
 
 #[cfg(test)]
@@ -174,7 +180,12 @@ mod tests {
         let (input, l) = definition_list(input).unwrap();
         assert!(input.is_empty(), "Did not consume def list");
 
-        let defs = l.get("term 1").unwrap().iter().collect();
+        let defs = l
+            .get("term 1")
+            .unwrap()
+            .iter()
+            .map(Located::as_inner)
+            .collect();
         check_text_defs(defs, vec!["def 1"]);
     }
 
@@ -187,7 +198,12 @@ mod tests {
         let (input, l) = definition_list(input).unwrap();
         assert!(input.is_empty(), "Did not consume def list");
 
-        let defs = l.get("term 1").unwrap().iter().collect();
+        let defs = l
+            .get("term 1")
+            .unwrap()
+            .iter()
+            .map(Located::as_inner)
+            .collect();
         check_text_defs(defs, vec!["def 1"]);
     }
 
@@ -201,7 +217,12 @@ mod tests {
         let (input, l) = definition_list(input).unwrap();
         assert!(input.is_empty(), "Did not consume def list");
 
-        let defs = l.get("term 1").unwrap().iter().collect();
+        let defs = l
+            .get("term 1")
+            .unwrap()
+            .iter()
+            .map(Located::as_inner)
+            .collect();
         check_text_defs(defs, vec!["def 1", "def 2"]);
     }
 
@@ -215,7 +236,12 @@ mod tests {
         let (input, l) = definition_list(input).unwrap();
         assert!(input.is_empty(), "Did not consume def list");
 
-        let defs = l.get("term 1").unwrap().iter().collect();
+        let defs = l
+            .get("term 1")
+            .unwrap()
+            .iter()
+            .map(Located::as_inner)
+            .collect();
         check_text_defs(defs, vec!["def 1", "def 2"]);
     }
 
@@ -228,10 +254,20 @@ mod tests {
         let (input, l) = definition_list(input).unwrap();
         assert!(input.is_empty(), "Did not consume def list");
 
-        let defs = l.get("term 1").unwrap().iter().collect();
+        let defs = l
+            .get("term 1")
+            .unwrap()
+            .iter()
+            .map(Located::as_inner)
+            .collect();
         check_text_defs(defs, vec!["def 1"]);
 
-        let defs = l.get("term 2").unwrap().iter().collect();
+        let defs = l
+            .get("term 2")
+            .unwrap()
+            .iter()
+            .map(Located::as_inner)
+            .collect();
         check_text_defs(defs, vec!["def 2"]);
     }
 
@@ -246,10 +282,20 @@ mod tests {
         let (input, l) = definition_list(input).unwrap();
         assert!(input.is_empty(), "Did not consume def list");
 
-        let defs = l.get("term 1").unwrap().iter().collect();
+        let defs = l
+            .get("term 1")
+            .unwrap()
+            .iter()
+            .map(Located::as_inner)
+            .collect();
         check_text_defs(defs, vec!["def 1"]);
 
-        let defs = l.get("term 2").unwrap().iter().collect();
+        let defs = l
+            .get("term 2")
+            .unwrap()
+            .iter()
+            .map(Located::as_inner)
+            .collect();
         check_text_defs(defs, vec!["def 2"]);
     }
 
@@ -264,10 +310,20 @@ mod tests {
         let (input, l) = definition_list(input).unwrap();
         assert!(input.is_empty(), "Did not consume def list");
 
-        let defs = l.get("term 1").unwrap().iter().collect();
+        let defs = l
+            .get("term 1")
+            .unwrap()
+            .iter()
+            .map(Located::as_inner)
+            .collect();
         check_text_defs(defs, vec!["def 1", "def 2"]);
 
-        let defs = l.get("term 2").unwrap().iter().collect();
+        let defs = l
+            .get("term 2")
+            .unwrap()
+            .iter()
+            .map(Located::as_inner)
+            .collect();
         check_text_defs(defs, vec!["def 3", "def 4"]);
     }
 
@@ -281,7 +337,7 @@ mod tests {
         let (input, l) = definition_list(input).unwrap();
         assert!(input.is_empty(), "Did not consume def list");
 
-        let terms: Vec<&Term> = l.terms().collect();
+        let terms: Vec<&Term> = l.terms().map(Located::as_inner).collect();
         assert_eq!(
             terms,
             vec![&InlineElementContainer::new(vec![
@@ -294,7 +350,12 @@ mod tests {
             ])]
         );
 
-        let defs: Vec<&Definition> = l.get("term 1").unwrap().iter().collect();
+        let defs: Vec<&Definition> = l
+            .get("term 1")
+            .unwrap()
+            .iter()
+            .map(Located::as_inner)
+            .collect();
         assert_eq!(defs.len(), 2, "Wrong number of definitions found");
         assert_eq!(
             defs[0],

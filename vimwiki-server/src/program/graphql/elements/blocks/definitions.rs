@@ -1,4 +1,5 @@
 use super::InlineElement;
+use derive_more::From;
 use vimwiki::elements::{self, Located};
 
 #[derive(Debug)]
@@ -45,7 +46,7 @@ impl DefinitionList {
 }
 
 /// Represents a term and its associated definitions
-#[derive(async_graphql::SimpleObject)]
+#[derive(async_graphql::SimpleObject, Debug)]
 pub struct TermAndDefinitions {
     term: Term,
     definitions: Vec<Definition>,
@@ -64,6 +65,7 @@ impl<'a> From<(elements::Term<'a>, Vec<elements::Definition<'a>>)>
     }
 }
 
+#[derive(Debug, From)]
 pub struct Term(elements::Term<'static>);
 
 impl Term {
@@ -91,6 +93,7 @@ impl Term {
     }
 }
 
+#[derive(Debug, From)]
 pub struct Definition(elements::Definition<'static>);
 
 impl Definition {

@@ -89,7 +89,11 @@ impl<'a> BlockElement<'a> {
                 .into_iter()
                 .map(|x| x.map(Element::from))
                 .collect(),
-            Self::List(x) => x.into_children(),
+            Self::List(x) => x
+                .into_children()
+                .into_iter()
+                .map(|x| x.map(Element::from))
+                .collect(),
             Self::Paragraph(x) => x
                 .into_children()
                 .into_iter()

@@ -86,12 +86,16 @@ fn vimwiki_definition_list() {
     assert_eq!(
         x.into_inner(),
         DefinitionList::from(vec![(
-            DefinitionListValue::new(InlineElementContainer::new(vec![
-                Located::from(InlineElement::from(Text::from("term")))
-            ])),
-            vec![DefinitionListValue::new(InlineElementContainer::new(vec![
-                Located::from(InlineElement::from(Text::from("definition")))
-            ]))],
+            Located::from(DefinitionListValue::new(
+                InlineElementContainer::new(vec![Located::from(
+                    InlineElement::from(Text::from("term"))
+                )])
+            )),
+            vec![Located::from(DefinitionListValue::new(
+                InlineElementContainer::new(vec![Located::from(
+                    InlineElement::from(Text::from("definition"))
+                )])
+            ))],
         )])
     );
 }
