@@ -1,7 +1,9 @@
 use crate::lang::{
     elements::{Anchor, Description, Link, Located},
     parsers::{
-        utils::{context, cow_path, cow_str, take_line_while1, uri},
+        utils::{
+            context, cow_path, cow_str, take_line_until1, take_line_while1, uri,
+        },
         IResult, Span,
     },
 };
@@ -98,7 +100,7 @@ fn link_anchor<'a>(input: Span<'a>) -> IResult<Anchor<'a>> {
 /// Extracts the description-portion of a link
 fn link_description<'a>(input: Span<'a>) -> IResult<Description<'a>> {
     map_parser(
-        take_line_while1(not(tag("]]"))),
+        take_line_until1("]]"),
         alt((
             description_from_uri,
             map(rest, |s: Span| Description::Text(s.into())),
@@ -114,7 +116,7 @@ fn description_from_uri<'a>(input: Span<'a>) -> IResult<Description<'a>> {
     map(
         delimited(
             tag("{{"),
-            map_parser(take_line_while1(not(tag("}}"))), uri),
+            map_parser(take_line_until1("}}"), uri),
             tag("}}"),
         ),
         Description::from,

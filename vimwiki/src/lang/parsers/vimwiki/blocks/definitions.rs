@@ -5,7 +5,7 @@ use crate::lang::{
     parsers::{
         utils::{
             beginning_of_line, capture, context, end_of_line_or_input, locate,
-            take_line_while1, take_until_end_of_line_or_input,
+            take_line_until1, take_until_end_of_line_or_input,
         },
         vimwiki::blocks::inline::inline_element_container,
         IResult, Span,
@@ -14,7 +14,7 @@ use crate::lang::{
 use nom::{
     bytes::complete::tag,
     character::complete::{space0, space1},
-    combinator::{map, map_parser, not, opt, verify},
+    combinator::{map, map_parser, opt, verify},
     multi::{many0, many1},
     sequence::{pair, preceded, terminated},
 };
@@ -59,7 +59,7 @@ fn term_line(
     // Parse our term and provide location information for it
     let (input, term) = locate(capture(terminated(
         map_parser(
-            take_line_while1(not(tag("::"))),
+            take_line_until1("::"),
             map(
                 inline_element_container,
                 |l: Located<InlineElementContainer>| Term::new(l.into_inner()),

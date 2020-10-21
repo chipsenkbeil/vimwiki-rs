@@ -3,7 +3,7 @@ use crate::lang::{
     parsers::{
         utils::{
             any_line, beginning_of_line, capture, context, cow_str,
-            end_of_line_or_input, locate, take_line_while1,
+            end_of_line_or_input, locate, take_line_until1,
         },
         IResult, Span,
     },
@@ -40,7 +40,7 @@ fn beginning_of_math_block<'a>(
     input: Span<'a>,
 ) -> IResult<Option<Cow<'a, str>>> {
     let environment_parser =
-        delimited(char('%'), take_line_while1(not(char('%'))), char('%'));
+        delimited(char('%'), take_line_until1("%"), char('%'));
 
     let (input, _) = beginning_of_line(input)?;
     let (input, _) = space0(input)?;

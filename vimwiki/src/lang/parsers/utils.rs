@@ -2,7 +2,7 @@ use crate::lang::{
     elements::{Located, Region},
     parsers::{Captured, Error, IResult, Span},
 };
-use memchr::{memchr, memchr_iter};
+use memchr::{memchr, memchr2_iter, memchr_iter};
 use nom::{
     branch::alt,
     bytes::complete::{tag, take, take_while},
@@ -32,8 +32,10 @@ pub fn context<'a, T>(
     crate::timekeeper::parsers::context(ctx, f)
 }
 
-/// Parser that transforms a `Captured<T>` to a `Located<T>`, which involves
-/// calculating the line and column information; so, this is expensive!
+/// Parser that transforms a `Captured<T>` to a `Located<T>`.
+///
+/// If the feature "location" is enabled, this will also compute the line
+/// and column information for the captured input.
 pub fn locate<'a, T>(
     parser: impl Fn(Span<'a>) -> IResult<Captured<T>>,
 ) -> impl Fn(Span<'a>) -> IResult<Located<T>> {
@@ -191,6 +193,50 @@ pub fn take_line_while1<'a, T>(
     context(
         "Take Line While 1",
         verify(take_line_while(parser), |s| !s.is_empty()),
+    )
+}
+
+/// Parser that consumes input until the pattern succeeds or we reach the end
+/// of the line. Note that this does NOT consume the pattern or the line
+/// termination.
+pub fn take_line_until<'a>(
+    pattern: &'static str,
+) -> impl Fn(Span<'a>) -> IResult<Span<'a>> {
+    context("Take Line Until", move |input: Span| {
+        let bytes = input.as_bytes();
+        for pos in memchr2_iter(b'\n', pattern.as_bytes()[0], bytes) {
+            // If we have reached the end of line, return with everything
+            // but the end of line
+            if bytes[pos] == b'\n' {
+                return Ok(input.take_split(pos));
+            }
+
+            // Grab everything but the possible pattern
+            let (input, content) = input.take_split(pos);
+
+            // Verify that the pattern would be next, and if so return our
+            // result, otherwise continue
+            let (_, span) = take(pattern.len())(input)?;
+            if span.as_bytes() == pattern.as_bytes() {
+                return Ok((input, content));
+            } else {
+                continue;
+            }
+        }
+
+        Ok(input.take_split(input.input_len()))
+    })
+}
+
+/// Parser that consumes input until the pattern succeeds or we reach the end
+/// of the line. Note that this does NOT consume the pattern or the line
+/// termination.
+pub fn take_line_until1<'a>(
+    pattern: &'static str,
+) -> impl Fn(Span<'a>) -> IResult<Span<'a>> {
+    context(
+        "Take Line Until 1",
+        verify(take_line_until(pattern), |s| !s.is_empty()),
     )
 }
 

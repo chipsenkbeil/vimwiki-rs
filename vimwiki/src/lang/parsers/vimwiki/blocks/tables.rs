@@ -3,7 +3,8 @@ use crate::lang::{
     elements::{Cell, InlineElementContainer, Located, Row, Table},
     parsers::{
         utils::{
-            capture, context, end_of_line_or_input, locate, take_line_while1,
+            capture, context, end_of_line_or_input, locate, take_line_until1,
+            take_line_while1,
         },
         IResult, Span,
     },
@@ -12,7 +13,7 @@ use nom::{
     branch::alt,
     bytes::complete::tag,
     character::complete::{char, space0},
-    combinator::{map, map_parser, not, value, verify},
+    combinator::{map, map_parser, value, verify},
     multi::{many0, separated_nonempty_list},
     sequence::{delimited, pair, preceded, terminated},
 };
@@ -72,10 +73,7 @@ fn cell(input: Span) -> IResult<Located<Cell>> {
             cell_span_above,
             cell_span_left,
             map(
-                map_parser(
-                    take_line_while1(not(char('|'))),
-                    inline_element_container,
-                ),
+                map_parser(take_line_until1("|"), inline_element_container),
                 |l: Located<InlineElementContainer>| {
                     Cell::Content(l.into_inner())
                 },

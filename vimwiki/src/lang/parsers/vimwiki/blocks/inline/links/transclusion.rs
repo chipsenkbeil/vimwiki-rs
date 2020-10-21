@@ -2,8 +2,8 @@ use crate::lang::{
     elements::{Description, Located, TransclusionLink},
     parsers::{
         utils::{
-            capture, context, cow_str, locate, take_line_while,
-            take_line_while1, uri,
+            capture, context, cow_str, locate, take_line_until,
+            take_line_until1, take_line_while, take_line_while1, uri,
         },
         IResult, Span,
     },
@@ -60,11 +60,11 @@ fn transclusion_properties<'a>(
             map_parser(
                 take_line_while1(not(alt((tag("|"), tag("}}"))))),
                 separated_pair(
-                    cow_str(take_line_while1(not(tag("=")))),
+                    cow_str(take_line_until1("=")),
                     tag("="),
                     cow_str(delimited(
                         tag("\""),
-                        take_line_while(not(tag("\""))),
+                        take_line_until("\""),
                         tag("\""),
                     )),
                 ),

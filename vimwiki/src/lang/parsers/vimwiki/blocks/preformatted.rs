@@ -3,7 +3,7 @@ use crate::lang::{
     parsers::{
         utils::{
             any_line, beginning_of_line, capture, context, cow_str,
-            end_of_line_or_input, locate, take_line_while, take_line_while1,
+            end_of_line_or_input, locate, take_line_until, take_line_until1,
         },
         IResult, Span,
     },
@@ -46,7 +46,7 @@ fn preformatted_text_start<'a>(
     //
     // e.g. {{{c++ -> Some("c++")
     let (input, maybe_lang) = opt(terminated(
-        cow_str(verify(take_line_while1(not(char(';'))), |s: &Span| {
+        cow_str(verify(take_line_until1(";"), |s: &Span| {
             !s.as_remaining().contains(&b'=')
         })),
         opt(char(';')),
@@ -56,13 +56,9 @@ fn preformatted_text_start<'a>(
     let (input, mut pairs) = separated_list(
         char(';'),
         separated_pair(
-            cow_str(take_line_while1(not(char('=')))),
+            cow_str(take_line_until1("=")),
             char('='),
-            delimited(
-                char('"'),
-                cow_str(take_line_while(not(char('"')))),
-                char('"'),
-            ),
+            delimited(char('"'), cow_str(take_line_until("\"")), char('"')),
         ),
     )(input)?;
 

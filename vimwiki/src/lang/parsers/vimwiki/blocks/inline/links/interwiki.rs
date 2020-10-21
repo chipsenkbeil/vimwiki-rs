@@ -7,7 +7,7 @@ use crate::lang::{
     parsers::{
         utils::{
             capture, context, cow_str, locate, surround_in_line1,
-            take_line_while1,
+            take_line_until1,
         },
         IResult, Span,
     },
@@ -15,7 +15,7 @@ use crate::lang::{
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    combinator::{map, map_parser, map_res, not, opt},
+    combinator::{map, map_parser, map_res, opt},
     sequence::{delimited, pair, preceded},
 };
 use std::{borrow::Cow, path::Path};
@@ -55,17 +55,13 @@ pub fn inter_wiki_link(input: Span) -> IResult<Located<InterWikiLink>> {
 
 fn indexed_link_index(input: Span) -> IResult<u32> {
     map_res(
-        delimited(tag("wiki"), take_line_while1(not(tag(":"))), tag(":")),
+        delimited(tag("wiki"), take_line_until1(":"), tag(":")),
         |s| s.as_unsafe_remaining_str().parse::<u32>(),
     )(input)
 }
 
 fn named_link_name<'a>(input: Span<'a>) -> IResult<Cow<'a, str>> {
-    cow_str(delimited(
-        tag("wn."),
-        take_line_while1(not(tag(":"))),
-        tag(":"),
-    ))(input)
+    cow_str(delimited(tag("wn."), take_line_until1(":"), tag(":")))(input)
 }
 
 fn rest_of_link<'a>(
