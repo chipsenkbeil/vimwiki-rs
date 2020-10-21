@@ -81,6 +81,26 @@ impl<T> Located<T> {
     }
 }
 
+impl<T> Located<Option<T>> {
+    /// Transposes a `Located` of an [`Option`] into an [`Option`] of a `Located`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use vimwiki::Located;
+    /// let x: Located<Option<usize>> = Located::from(Some(5));
+    /// let y: Option<Located<usize>> = Some(Located::from(5));
+    /// assert_eq!(x.transpose(), y);
+    /// ```
+    pub fn transpose(self) -> Option<Located<T>> {
+        let region = self.region();
+        match self.into_inner() {
+            Some(inner) => Some(Located::new(inner, region)),
+            _ => None,
+        }
+    }
+}
+
 impl<T: PartialEq> PartialEq for Located<T> {
     fn eq(&self, other: &Self) -> bool {
         self.inner == other.inner

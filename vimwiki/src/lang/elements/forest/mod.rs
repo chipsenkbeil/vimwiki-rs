@@ -43,7 +43,20 @@ impl<'a> ElementForest<'a> {
         self.trees.into_iter()
     }
 
+    /// Returns an iterator over the root nodes of the trees in the forest
+    pub fn roots(&'a self) -> impl Iterator<Item = &'a ElementNode<'a>> {
+        self.trees().map(ElementTree::root)
+    }
+
     /// Returns an iterator over pairs of references to trees and their
+    /// respective root nodes
+    pub fn trees_and_roots(
+        &'a self,
+    ) -> impl Iterator<Item = (&'a ElementTree<'a>, &'a ElementNode<'a>)> {
+        self.trees().map(|tree| (tree, tree.root()))
+    }
+
+    /// Returns an iterator over pairs of references to trees and all of their
     /// respective nodes
     pub fn trees_and_nodes(
         &self,
@@ -64,7 +77,7 @@ impl<'a> ElementForest<'a> {
     /// Finds the first node in the forest to match the given predicate and
     /// returns both the node and its tree. If no match is found, none is
     /// returned
-    pub fn find_node<P>(
+    pub fn find_tree_and_node<P>(
         &self,
         predicate: P,
     ) -> Option<(&ElementTree<'a>, &ElementNode<'a>)>
@@ -88,7 +101,7 @@ impl<'a> ElementForest<'a> {
     /// Finds the deepest node in the first tree where both tree and node
     /// contain the given offset, or returns none if no element in the
     /// entire forest has a region containing the given offset
-    pub fn find_node_at_offset(
+    pub fn find_tree_and_node_at_offset(
         &'a self,
         offset: usize,
     ) -> Option<(&'a ElementTree<'a>, &'a ElementNode<'a>)> {

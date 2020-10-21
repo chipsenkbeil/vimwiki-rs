@@ -1,7 +1,7 @@
 mod blocks;
 pub use blocks::*;
-mod trees;
-pub use trees::*;
+mod node;
+pub use node::*;
 mod utils;
 pub use utils::*;
 
@@ -10,44 +10,41 @@ use vimwiki::{elements, Located};
 /// Represents a single document page
 #[derive(Debug)]
 pub struct Page {
-    /// The elements contained within the page
-    elements_and_trees: Vec<(BlockElement, ElementTree)>,
+    forest: elements::ElementForest<'static>,
 }
 
 #[async_graphql::Object]
 impl Page {
     /// Returns all elements in a page
-    async fn elements(&self) -> Vec<&BlockElement> {
-        self.elements_and_trees.iter().map(|(e, _)| e).collect()
+    async fn elements(&self) -> Vec<BlockElement> {
+        self.forest
+            .roots()
+            .filter_map(|root| {
+                root.as_inner()
+                    .as_ref()
+                    .map(elements::Element::to_borrowed)
+                    .map(elements::Element::into_block_element)
+                    .transpose()
+            })
+            .map(BlockElement::from)
+            .collect()
     }
 
-    async fn element_at_offset(&self, offset: i32) -> Option<ElementTreeNode> {
-        self.elements_and_trees
-            .iter()
-            .find_map(|(_, tree)| tree.element_at_offset(offset))
+    /// Finds the element at the specified offset
+    async fn element_at_offset<'a>(
+        &'a self,
+        offset: i32,
+    ) -> Option<ElementNode<'a>> {
+        self.forest
+            .find_tree_and_node_at_offset(offset as usize)
+            .map(ElementNode::from)
     }
 }
 
 impl<'a> From<vimwiki::elements::Page<'a>> for Page {
     fn from(page: vimwiki::elements::Page<'a>) -> Self {
-        let elements_and_trees = page
-            .elements
-            .into_iter()
-            .map(|e| {
-                let e2 = e.clone();
-                (
-                    BlockElement::from(e),
-                    ElementTree::from(
-                        elements::ElementTree::from(
-                            e2.map(elements::Element::from),
-                        )
-                        .into_owned(),
-                    ),
-                )
-            })
-            .collect();
-
-        Self { elements_and_trees }
+        let forest = elements::ElementForest::from(page).into_owned();
+        Self { forest }
     }
 }
 
