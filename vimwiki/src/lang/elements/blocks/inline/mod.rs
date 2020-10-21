@@ -148,7 +148,7 @@ impl<'a> From<Located<InlineElement<'a>>> for InlineElementContainer<'a> {
 
 impl<'a> From<Located<&'a str>> for InlineElementContainer<'a> {
     fn from(element: Located<&'a str>) -> Self {
-        Self::from(element.map(|x| Text::from(x)))
+        Self::from(element.map(Text::from))
     }
 }
 

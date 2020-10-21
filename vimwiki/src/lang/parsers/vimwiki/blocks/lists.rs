@@ -121,7 +121,7 @@ fn list_item_tail(
         let (input, mut contents) = many0(preceded(
             verify(indentation_level(false), |level| *level > indentation),
             alt((
-                map(list, |c| c.map(|l| ListItemContent::from(l))),
+                map(list, |c| c.map(ListItemContent::from)),
                 map(preceded(space0, list_item_line_content), |c| {
                     c.map(ListItemContent::from)
                 }),

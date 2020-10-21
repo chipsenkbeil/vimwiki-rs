@@ -17,6 +17,9 @@ use nom::{
 };
 use std::{borrow::Cow, collections::HashMap};
 
+type MaybeLang<'a> = Option<Cow<'a, str>>;
+type Metadata<'a> = HashMap<Cow<'a, str>, Cow<'a, str>>;
+
 #[inline]
 pub fn preformatted_text(input: Span) -> IResult<Located<PreformattedText>> {
     fn inner(input: Span) -> IResult<PreformattedText> {
@@ -36,7 +39,7 @@ pub fn preformatted_text(input: Span) -> IResult<Located<PreformattedText>> {
 #[inline]
 fn preformatted_text_start<'a>(
     input: Span<'a>,
-) -> IResult<(Option<Cow<'a, str>>, HashMap<Cow<'a, str>, Cow<'a, str>>)> {
+) -> IResult<(MaybeLang<'a>, Metadata<'a>)> {
     // First, verify we have the start of a block and consume it
     let (input, _) = beginning_of_line(input)?;
     let (input, _) = space0(input)?;

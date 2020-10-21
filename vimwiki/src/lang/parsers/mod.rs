@@ -26,27 +26,6 @@ impl<'a, T> Captured<'a, T> {
         Self { inner, input }
     }
 
-    /// Converts `Captured<'a, T>` to `Captured<'a, U>`
-    ///
-    /// NOTE: This should only be used to wrap the inner type in situations
-    ///       where you have an enum that can contain the inner type;
-    ///       converting to an arbitrary type that doesn't correspond
-    ///       to the underlying inner input will cause problems
-    pub fn map<U>(self, f: impl Fn(T) -> U) -> Captured<'a, U> {
-        Captured {
-            inner: f(self.inner),
-            input: self.input,
-        }
-    }
-
-    pub fn as_inner(&self) -> &T {
-        &self.inner
-    }
-
-    pub fn as_mut_inner(&mut self) -> &mut T {
-        &mut self.inner
-    }
-
     pub fn into_inner(self) -> T {
         self.inner
     }

@@ -1,5 +1,5 @@
 use crate::tokens::Tokenize;
-use proc_macro2::{Ident, Span, TokenStream};
+use proc_macro2::TokenStream;
 use quote::quote;
 use std::collections::HashMap;
 

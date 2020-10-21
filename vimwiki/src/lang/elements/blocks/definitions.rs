@@ -47,12 +47,14 @@ impl<'a> Hash for DefinitionListValue<'a> {
 impl<'a> Eq for DefinitionListValue<'a> {}
 
 impl<'a> PartialEq for DefinitionListValue<'a> {
+    #[allow(clippy::cmp_owned)]
     fn eq(&self, other: &Self) -> bool {
         self.to_string() == other.to_string()
     }
 }
 
 impl<'a, 'b> PartialEq<InlineElementContainer<'b>> for DefinitionListValue<'a> {
+    #[allow(clippy::cmp_owned)]
     fn eq(&self, other: &InlineElementContainer<'b>) -> bool {
         self.to_string() == other.to_string()
     }

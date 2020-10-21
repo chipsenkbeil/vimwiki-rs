@@ -5,7 +5,7 @@ use crate::lang::{
 use memchr::{memchr, memchr2_iter, memchr_iter};
 use nom::{
     branch::alt,
-    bytes::complete::{tag, take, take_while},
+    bytes::complete::{tag, take_while},
     character::complete::{anychar, crlf, line_ending, space0, space1},
     combinator::{map, map_res, not, recognize, rest, rest_len, value, verify},
     multi::{many0, many1},
@@ -273,17 +273,6 @@ pub fn take_until<'a>(
             "Unable to find pattern",
         )))
     }
-}
-
-/// Parser that will consume input until the specified pattern is found,
-/// failing if the pattern is never found or no bytes are consumed
-pub fn take_until1<'a>(
-    pattern: &'static str,
-) -> impl Fn(Span<'a>) -> IResult<Span<'a>> {
-    context(
-        "Take Until 1",
-        verify(take_until(pattern), |output| !output.is_empty()),
-    )
 }
 
 /// Parser that will succeed if input is at the beginning of a line; input
