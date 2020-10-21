@@ -4,7 +4,8 @@ use crate::lang::{
     },
     parsers::{
         utils::{
-            capture, context, cow_path, cow_str, locate, take_line_while1,
+            capture, context, cow_path, cow_str, locate,
+            take_line_until_one_of_two1,
         },
         IResult, Span,
     },
@@ -12,7 +13,7 @@ use crate::lang::{
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    combinator::{map, not, opt},
+    combinator::{map, opt},
     sequence::{pair, preceded},
 };
 use std::{borrow::Cow, path::Path};
@@ -69,8 +70,7 @@ fn take_path_and_description<'a>(
 
 #[inline]
 fn take_segment(input: Span) -> IResult<Span> {
-    let not_end = not(alt((tag("|"), tag("]]"))));
-    take_line_while1(not_end)(input)
+    take_line_until_one_of_two1("|", "]]")(input)
 }
 
 #[cfg(test)]

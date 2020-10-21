@@ -1,14 +1,13 @@
 use crate::lang::{
     elements::{Located, Tag, Tags},
     parsers::{
-        utils::{capture, context, cow_str, locate, take_line_while1},
+        utils::{
+            capture, context, cow_str, locate, take_line_until_one_of_three1,
+        },
         IResult, Span,
     },
 };
-use nom::{
-    character::complete::char, combinator::not, multi::many1,
-    sequence::terminated,
-};
+use nom::{character::complete::char, multi::many1, sequence::terminated};
 
 #[inline]
 pub fn tags(input: Span) -> IResult<Located<Tags>> {
@@ -24,14 +23,8 @@ pub fn tags(input: Span) -> IResult<Located<Tags>> {
 }
 
 fn tag_content(input: Span) -> IResult<Tag> {
-    fn has_more(input: Span) -> IResult<()> {
-        let (input, _) = not(char(':'))(input)?;
-        let (input, _) = not(char(' '))(input)?;
-        let (input, _) = not(char('\t'))(input)?;
-        Ok((input, ()))
-    }
-
-    let (input, s) = cow_str(take_line_while1(has_more))(input)?;
+    let (input, s) =
+        cow_str(take_line_until_one_of_three1(":", " ", "\t"))(input)?;
     Ok((input, Tag::new(s)))
 }
 

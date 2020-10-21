@@ -2,7 +2,7 @@ use crate::lang::{
     elements::{Located, Region},
     parsers::{Captured, Error, IResult, Span},
 };
-use memchr::{memchr, memchr2_iter, memchr_iter};
+use memchr::{memchr, memchr2_iter, memchr3_iter, memchr_iter};
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_while},
@@ -236,6 +236,124 @@ pub fn take_line_until1<'a>(
     context(
         "Take Line Until 1",
         verify(take_line_until(pattern), |s| !s.is_empty()),
+    )
+}
+
+/// Parser that consumes input until one of the two patterns succeed or we
+/// reach the end of the line. Note that this does NOT consume the pattern or
+/// the line termination.
+pub fn take_line_until_one_of_two<'a>(
+    pattern1: &'static str,
+    pattern2: &'static str,
+) -> impl Fn(Span<'a>) -> IResult<Span<'a>> {
+    context("Take Line Until One of Two", move |input: Span| {
+        let bytes = input.as_bytes();
+
+        let p1_bytes = pattern1.as_bytes();
+        let p2_bytes = pattern2.as_bytes();
+
+        for pos in memchr3_iter(b'\n', p1_bytes[0], p2_bytes[0], bytes) {
+            // If we have reached the end of line, return everything
+            // before the line position
+            if bytes[pos] == b'\n' {
+                return Ok(input.take_split(pos));
+            }
+
+            // Grab everything but the possible pattern
+            let (input, content) = input.take_split(pos);
+
+            // Verify that the pattern would be next, and if so return our
+            // result, otherwise continue
+            if &bytes[pos..(pos + p1_bytes.len())] == p1_bytes.as_bytes()
+                || &bytes[pos..(pos + p2_bytes.len())] == p2_bytes.as_bytes()
+            {
+                return Ok((input, content));
+            } else {
+                continue;
+            }
+        }
+
+        Ok(input.take_split(input.input_len()))
+    })
+}
+
+/// Parser that consumes input until one of the two patterns succeed or we
+/// reach the end of the line. Note that this does NOT consume the pattern or
+/// the line termination.
+pub fn take_line_until_one_of_two1<'a>(
+    pattern1: &'static str,
+    pattern2: &'static str,
+) -> impl Fn(Span<'a>) -> IResult<Span<'a>> {
+    context(
+        "Take Line Until One of Two 1",
+        verify(take_line_until_one_of_two(pattern1, pattern2), |s| {
+            !s.is_empty()
+        }),
+    )
+}
+
+/// Parser that consumes input until one of the three patterns succeed or we
+/// reach the end of the line. Note that this does NOT consume the pattern or
+/// the line termination.
+pub fn take_line_until_one_of_three<'a>(
+    pattern1: &'static str,
+    pattern2: &'static str,
+    pattern3: &'static str,
+) -> impl Fn(Span<'a>) -> IResult<Span<'a>> {
+    context("Take Line Until One of Three", move |input: Span| {
+        let bytes = input.as_bytes();
+
+        let maybe_line_pos = memchr(b'\n', bytes);
+        let p1_bytes = pattern1.as_bytes();
+        let p1_start = p1_bytes[0];
+        let p2_bytes = pattern2.as_bytes();
+        let p2_start = p2_bytes[0];
+        let p3_bytes = pattern3.as_bytes();
+        let p3_start = p3_bytes[0];
+
+        for pos in memchr3_iter(p1_start, p2_start, p3_start, bytes) {
+            // If we have reached or passed the end of line, return everything
+            // before the line position
+            match maybe_line_pos {
+                Some(line_pos) if line_pos >= pos => {
+                    return Ok(input.take_split(pos));
+                }
+                _ => {}
+            }
+
+            // Grab everything but the possible pattern
+            let (input, content) = input.take_split(pos);
+
+            // Verify that the pattern would be next, and if so return our
+            // result, otherwise continue
+            if &bytes[pos..(pos + p1_bytes.len())] == p1_bytes.as_bytes()
+                || &bytes[pos..(pos + p2_bytes.len())] == p2_bytes.as_bytes()
+                || &bytes[pos..(pos + p3_bytes.len())] == p3_bytes.as_bytes()
+            {
+                return Ok((input, content));
+            } else {
+                continue;
+            }
+        }
+
+        Ok(input.take_split(input.input_len()))
+    })
+}
+
+/// Parser that consumes input until one of the three patterns succeed or we
+/// reach the end of the line. Note that this does NOT consume the pattern or
+/// the line termination.
+pub fn take_line_until_one_of_three1<'a>(
+    pattern1: &'static str,
+    pattern2: &'static str,
+    pattern3: &'static str,
+) -> impl Fn(Span<'a>) -> IResult<Span<'a>> {
+    context(
+        "Take Line Until One of Three 1",
+        verify(
+            take_line_until_one_of_three(pattern1, pattern2, pattern3),
+            |s| !s.is_empty(),
+        ),
     )
 }
 

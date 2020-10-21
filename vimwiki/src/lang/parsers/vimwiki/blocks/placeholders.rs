@@ -3,7 +3,8 @@ use crate::lang::{
     parsers::{
         utils::{
             beginning_of_line, capture, context, cow_str, end_of_line_or_input,
-            locate, take_line_while1, take_until_end_of_line_or_input,
+            locate, take_line_until_one_of_three1,
+            take_until_end_of_line_or_input,
         },
         IResult, Span,
     },
@@ -97,11 +98,8 @@ fn placeholder_other(input: Span) -> IResult<Placeholder> {
         let (input, _) = not(tag("%date"))(input)?;
 
         let (input, _) = tag("%")(input)?;
-        let (input, name) = cow_str(take_line_while1(not(alt((
-            tag(" "),
-            tag("\t"),
-            tag("%"),
-        )))))(input)?;
+        let (input, name) =
+            cow_str(take_line_until_one_of_three1(" ", "\t", "%"))(input)?;
         let (input, _) = space1(input)?;
         let (input, value) =
             cow_str(verify(take_until_end_of_line_or_input, |s: &Span| {

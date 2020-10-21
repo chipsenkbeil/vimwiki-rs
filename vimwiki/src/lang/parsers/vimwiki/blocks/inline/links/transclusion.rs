@@ -3,15 +3,15 @@ use crate::lang::{
     parsers::{
         utils::{
             capture, context, cow_str, locate, take_line_until,
-            take_line_until1, take_line_while, take_line_while1, uri,
+            take_line_until1, take_line_until_one_of_two,
+            take_line_until_one_of_two1, uri,
         },
         IResult, Span,
     },
 };
 use nom::{
-    branch::alt,
     bytes::complete::tag,
-    combinator::{map, map_parser, not, opt},
+    combinator::{map, map_parser, opt},
     multi::separated_nonempty_list,
     sequence::{delimited, preceded, separated_pair},
 };
@@ -20,15 +20,10 @@ use std::{borrow::Cow, collections::HashMap};
 pub fn transclusion_link(input: Span) -> IResult<Located<TransclusionLink>> {
     fn inner(input: Span) -> IResult<TransclusionLink> {
         let (input, _) = tag("{{")(input)?;
-        let (input, link_uri) = map_parser(
-            take_line_while1(not(alt((tag("|"), tag("}}"))))),
-            uri,
-        )(input)?;
+        let (input, link_uri) =
+            map_parser(take_line_until_one_of_two1("|", "}}"), uri)(input)?;
         let (input, maybe_description) = opt(map(
-            cow_str(preceded(
-                tag("|"),
-                take_line_while(not(alt((tag("|"), tag("}}"))))),
-            )),
+            cow_str(preceded(tag("|"), take_line_until_one_of_two("|", "}}"))),
             Description::from,
         ))(input)?;
         let (input, maybe_properties) =
@@ -58,7 +53,7 @@ fn transclusion_properties<'a>(
         separated_nonempty_list(
             tag("|"),
             map_parser(
-                take_line_while1(not(alt((tag("|"), tag("}}"))))),
+                take_line_until_one_of_two1("|", "}}"),
                 separated_pair(
                     cow_str(take_line_until1("=")),
                     tag("="),

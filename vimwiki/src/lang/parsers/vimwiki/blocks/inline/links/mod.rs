@@ -2,7 +2,8 @@ use crate::lang::{
     elements::{Anchor, Description, Link, Located},
     parsers::{
         utils::{
-            context, cow_path, cow_str, take_line_until1, take_line_while1, uri,
+            context, cow_path, cow_str, take_line_until1,
+            take_line_until_one_of_three1, uri,
         },
         IResult, Span,
     },
@@ -76,7 +77,7 @@ pub fn link(input: Span) -> IResult<Located<Link>> {
 fn link_path<'a>(input: Span<'a>) -> IResult<Cow<'a, Path>> {
     preceded(
         not(tag("#")),
-        cow_path(take_line_while1(not(alt((tag("|"), tag("#"), tag("]]")))))),
+        cow_path(take_line_until_one_of_three1("|", "#", "]]")),
     )(input)
 }
 
@@ -87,11 +88,7 @@ fn link_anchor<'a>(input: Span<'a>) -> IResult<Anchor<'a>> {
     map(
         separated_list(
             tag("#"),
-            cow_str(take_line_while1(not(alt((
-                tag("|"),
-                tag("#"),
-                tag("]]"),
-            ))))),
+            cow_str(take_line_until_one_of_three1("|", "#", "]]")),
         ),
         Anchor::new,
     )(input)
