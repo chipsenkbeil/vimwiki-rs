@@ -1103,9 +1103,23 @@ mod tests {
         }
 
         #[test]
-        fn slice_with_range_should_adjust_start_and_end_offsets_accordingly() {
-            let span1 = Span::from(b"abc123").starting_at(2);
+        fn slice_should_adjust_start_and_end_offsets_accordingly() {
+            let span1 = Span::from(b"abc123");
+
             let span2 = span1.slice(0..2);
+            assert_eq!(span2.start_offset(), 0);
+            assert_eq!(span2.end_offset(), 2);
+            assert_eq!(span2.as_bytes(), b"ab");
+
+            let span2 = span1.slice(2..);
+            assert_eq!(span2.start_offset(), 2);
+            assert_eq!(span2.end_offset(), 6);
+            assert_eq!(span2.as_bytes(), b"c123");
+
+            let span2 = span1.slice(..2);
+            assert_eq!(span2.start_offset(), 0);
+            assert_eq!(span2.end_offset(), 2);
+            assert_eq!(span2.as_bytes(), b"ab");
         }
     }
 }

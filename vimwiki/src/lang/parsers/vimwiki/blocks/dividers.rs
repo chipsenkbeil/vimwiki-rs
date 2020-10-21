@@ -50,21 +50,21 @@ mod tests {
     #[test]
     fn divider_should_succeed_if_four_hyphens_at_start_of_line() {
         let input = Span::from("----");
-        let (input, d) = divider(input).unwrap();
+        let (input, _) = divider(input).unwrap();
         assert!(input.is_empty(), "Divider not consumed");
     }
 
     #[test]
     fn divider_should_succeed_if_more_than_four_hyphens_at_start_of_line() {
         let input = Span::from("-----");
-        let (input, d) = divider(input).unwrap();
+        let (input, _) = divider(input).unwrap();
         assert!(input.is_empty(), "Divider not consumed");
     }
 
     #[test]
     fn divider_should_consume_end_of_line() {
         let input = Span::from("----\nabcd");
-        let (input, d) = divider(input).unwrap();
+        let (input, _) = divider(input).unwrap();
         assert_eq!(input.as_unsafe_remaining_str(), "abcd");
     }
 }
