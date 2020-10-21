@@ -2,14 +2,15 @@ use crate::lang::{
     elements::{Comment, LineComment, Located, MultiLineComment},
     parsers::{
         utils::{
-            capture, context, cow_str, locate, take_until_end_of_line_or_input,
+            capture, context, cow_str, locate, take_until,
+            take_until_end_of_line_or_input,
         },
         IResult, Span,
     },
 };
 use nom::{
     branch::alt,
-    bytes::complete::{tag, take_until},
+    bytes::complete::tag,
     combinator::{map, map_parser, rest},
     multi::separated_list,
 };

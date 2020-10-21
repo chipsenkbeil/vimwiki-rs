@@ -143,8 +143,8 @@ pub fn surround_in_line1<'a>(
                 let (input, content) = input.take_split(pos);
 
                 // Verify that the right would be next, and if so return our
-                // result, otherwise continue
-                let (input, right_span) = take(right.len())(input)?;
+                // result having consumed it, otherwise continue
+                let (input, right_span) = input.take_split(right.len());
                 if right_span.as_bytes() == right.as_bytes() {
                     return Ok((input, content));
                 } else {
@@ -216,8 +216,7 @@ pub fn take_line_until<'a>(
 
             // Verify that the pattern would be next, and if so return our
             // result, otherwise continue
-            let (_, span) = take(pattern.len())(input)?;
-            if span.as_bytes() == pattern.as_bytes() {
+            if &bytes[pos..(pos + pattern.len())] == pattern.as_bytes() {
                 return Ok((input, content));
             } else {
                 continue;
@@ -252,30 +251,38 @@ pub fn take_until_end_of_line_or_input(input: Span) -> IResult<Span> {
     context("Take Until End of Line or Input", inner)(input)
 }
 
-/// Parser that will consume input until the specified byte is found,
-/// failing if the byte is never found
-pub fn take_until_byte<'a>(byte: u8) -> impl Fn(Span<'a>) -> IResult<Span<'a>> {
+/// Parser that will consume input until the specified pattern is found,
+/// failing if the pattern is never found
+pub fn take_until<'a>(
+    pattern: &'static str,
+) -> impl Fn(Span<'a>) -> IResult<Span<'a>> {
     move |input: Span| {
-        if let Some(pos) = memchr(byte, input.as_bytes()) {
-            Ok(input.take_split(pos))
-        } else {
-            Err(nom::Err::Error(Error::from_ctx(
-                &input,
-                "Unable to find byte",
-            )))
+        let bytes = input.as_bytes();
+        for pos in memchr_iter(pattern.as_bytes()[0], bytes) {
+            let (input, content) = input.take_split(pos);
+
+            if &bytes[pos..(pos + pattern.len())] == pattern.as_bytes() {
+                return Ok((input, content));
+            } else {
+                continue;
+            }
         }
+
+        Err(nom::Err::Error(Error::from_ctx(
+            &input,
+            "Unable to find pattern",
+        )))
     }
 }
 
-/// Parser that will consume input until the specified byte is found,
-/// consuming the entire input if the byte is not found; fails if does
-/// not consume at least 1 byte
-pub fn take_until_byte1<'a>(
-    byte: u8,
+/// Parser that will consume input until the specified pattern is found,
+/// failing if the pattern is never found or no bytes are consumed
+pub fn take_until1<'a>(
+    pattern: &'static str,
 ) -> impl Fn(Span<'a>) -> IResult<Span<'a>> {
     context(
-        "Take Until Byte 1",
-        verify(take_until_byte(byte), |output| !output.is_empty()),
+        "Take Until 1",
+        verify(take_until(pattern), |output| !output.is_empty()),
     )
 }
 
