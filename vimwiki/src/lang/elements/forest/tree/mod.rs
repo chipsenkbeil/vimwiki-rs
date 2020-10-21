@@ -1,4 +1,5 @@
 use crate::elements::*;
+use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     sync::atomic::{AtomicUsize, Ordering},
@@ -17,7 +18,7 @@ type TreeNodeStore<'a> = HashMap<usize, ElementNode<'a>>;
 /// can be used to search for `Element` instances by their `Region` as well
 /// as provide means to move up and down levels of elements via their
 /// parent and children references.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ElementTree<'a> {
     /// Internal storage of all nodes within the tree
     nodes: TreeNodeStore<'a>,
@@ -26,11 +27,43 @@ pub struct ElementTree<'a> {
     root_id: usize,
 }
 
+impl ElementTree<'_> {
+    /// Produces a tree that has borrowed node values from this tree
+    pub fn to_borrowed(&self) -> ElementTree {
+        ElementTree {
+            nodes: self
+                .nodes
+                .iter()
+                .map(|(id, node)| (*id, node.to_borrowed()))
+                .collect(),
+            root_id: self.root_id,
+        }
+    }
+
+    /// Produces a fully-copied tree that owns all nodes and data within
+    pub fn into_owned(self) -> ElementTree<'static> {
+        ElementTree {
+            nodes: self
+                .nodes
+                .into_iter()
+                .map(|(id, node)| (id, node.into_owned()))
+                .collect(),
+            root_id: self.root_id,
+        }
+    }
+}
+
 impl<'a> ElementTree<'a> {
+    /// Returns a reference to the root node of the tree
     pub fn root(&'a self) -> &'a ElementNode<'a> {
         self.nodes
             .get(&self.root_id)
             .expect("Root of tree is missing")
+    }
+
+    /// Iterates over all nodes contained within the tree in arbitrary order
+    pub fn nodes(&self) -> impl Iterator<Item = &ElementNode<'a>> {
+        self.nodes.values()
     }
 
     /// Iterates over all ancestors for given node by moving up one parent at
@@ -59,7 +92,7 @@ impl<'a> ElementTree<'a> {
     }
 
     /// Iterates over all descendants for given node by moving down one level
-    /// of children at a time (BFS)
+    /// of children at a time via breadth-first traversal
     pub fn descendants(
         &'a self,
         node: &'a ElementNode<'a>,
@@ -110,20 +143,6 @@ impl<'a> ElementTree<'a> {
         self._find_at_offset(self.root(), offset, 0).map(|x| x.1)
     }
 
-    /// Produces a fully-copied tree that owns all nodes and data within
-    pub fn into_owned(mut self) -> ElementTree<'static> {
-        ElementTree {
-            nodes: self
-                .nodes
-                .drain()
-                .map(|(id, node)| (id, node.into_owned()))
-                .collect(),
-            root_id: self.root_id,
-        }
-    }
-}
-
-impl<'a> ElementTree<'a> {
     /// Finds the deepest node that supports the given offset
     fn _find_at_offset(
         &'a self,
@@ -149,18 +168,33 @@ impl<'a> ElementTree<'a> {
 }
 
 impl<'a> From<&'a Located<Element<'a>>> for ElementTree<'a> {
+    /// Builds a new tree using the provided located element as the root. This
+    /// will involving cloning data, although the tree will maintain any
+    /// borrowed elements.
+    ///
+    /// This will first convert the provided referenced located element into
+    /// a borrowed form for use in this tree.
     fn from(located: &'a Located<Element<'a>>) -> Self {
         Self::from(located.as_ref())
     }
 }
 
 impl<'a> From<Located<&'a Element<'a>>> for ElementTree<'a> {
+    /// Builds a new tree using the provided located element as the root. This
+    /// will involving cloning data, although the tree will maintain any
+    /// borrowed elements.
+    ///
+    /// This will first convert the provided element reference into a borrowed
+    /// form for use in this tree.
     fn from(located: Located<&'a Element<'a>>) -> Self {
         Self::from(located.map(Element::to_borrowed))
     }
 }
 
 impl<'a> From<Located<Element<'a>>> for ElementTree<'a> {
+    /// Builds a new tree using the provided located element as the root. This
+    /// will involving cloning data, although the tree will maintain any
+    /// borrowed elements.
     fn from(located: Located<Element<'a>>) -> Self {
         let counter = AtomicUsize::new(0);
         let mut nodes = HashMap::new();

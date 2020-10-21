@@ -1,8 +1,9 @@
 use crate::elements::*;
+use serde::{Deserialize, Serialize};
 
 /// Represents a node in an `ElementTree` that points to or contains singular
 /// data about some located element.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ElementNode<'a> {
     /// Id of this node
     pub(super) id: usize,
@@ -15,6 +16,29 @@ pub struct ElementNode<'a> {
 
     /// Located element contained within this node in the tree
     pub(super) data: Located<Element<'a>>,
+}
+
+impl ElementNode<'_> {
+    /// Produces a node whose inner value is borrowed
+    pub fn to_borrowed(&self) -> ElementNode {
+        ElementNode {
+            id: self.id,
+            parent: self.parent,
+            children: self.children.clone(),
+            data: self.data.as_ref().map(Element::to_borrowed),
+        }
+    }
+
+    /// Produces a node that has full ownership over its data, usually through
+    /// allocating a complete copy
+    pub fn into_owned(self) -> ElementNode<'static> {
+        ElementNode {
+            id: self.id,
+            parent: self.parent,
+            children: self.children,
+            data: self.data.map(Element::into_owned),
+        }
+    }
 }
 
 impl<'a> ElementNode<'a> {
@@ -57,17 +81,6 @@ impl<'a> ElementNode<'a> {
     /// Returns whether or not this node's region contains the given offset
     pub fn contains_offset(&'a self, offset: usize) -> bool {
         self.region().contains(offset)
-    }
-
-    /// Produces a node that has full ownership over its data, usually through
-    /// allocating a complete copy
-    pub fn into_owned(self) -> ElementNode<'static> {
-        ElementNode {
-            id: self.id,
-            parent: self.parent,
-            children: self.children,
-            data: self.data.map(Element::into_owned),
-        }
     }
 }
 

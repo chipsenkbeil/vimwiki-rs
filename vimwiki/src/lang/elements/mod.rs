@@ -41,7 +41,7 @@ impl Page<'_> {
 
 /// Represents a `BlockElement`, an `InlineElement`, or one of a handful of
 /// special inbetween types like `ListItem`
-#[derive(Clone, Debug, From, PartialEq, Eq)]
+#[derive(Clone, Debug, From, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Element<'a> {
     Block(BlockElement<'a>),
     Inline(InlineElement<'a>),
@@ -125,7 +125,7 @@ impl<'a> Element<'a> {
 
 /// Represents a some element that is a descendant of a `BlockElement`, but
 /// is not an `InlineElement` such as `ListItem`
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum InlineBlockElement<'a> {
     ListItem(ListItem<'a>),
     Term(Term<'a>),
