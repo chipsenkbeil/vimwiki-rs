@@ -15,8 +15,8 @@ pub struct Page {
 
 #[async_graphql::Object]
 impl Page {
-    /// Returns all elements in a page
-    async fn elements(&self) -> Vec<BlockElement> {
+    /// Returns all root-level elements in a page
+    async fn root_elements(&self) -> Vec<BlockElement> {
         self.forest
             .roots()
             .filter_map(|root| {
@@ -30,8 +30,16 @@ impl Page {
             .collect()
     }
 
-    /// Finds the element at the specified offset
-    async fn element_at_offset<'a>(
+    /// Returns all elements in a page as traversable nodes
+    async fn nodes<'a>(&'a self) -> Vec<ElementNode<'a>> {
+        self.forest
+            .trees_and_nodes()
+            .map(ElementNode::from)
+            .collect()
+    }
+
+    /// Finds the element at the specified offset as a traversable node
+    async fn node_at_offset<'a>(
         &'a self,
         offset: i32,
     ) -> Option<ElementNode<'a>> {
