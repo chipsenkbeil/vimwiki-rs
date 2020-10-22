@@ -10,7 +10,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-vimwiki = "0.1.0-alpha.2"
+vimwiki = "0.1.0-alpha.3"
 ```
 
 ## Examples
