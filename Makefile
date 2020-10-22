@@ -9,7 +9,7 @@ build: ## Build debug version
 
 release: ## Build release version and strip the binary
 	@cargo build --release
-	@strip target/release/vimwikid
+	@strip target/release/vimwiki-server
 
 clean: ## Cleans build resources
 	@cargo clean
