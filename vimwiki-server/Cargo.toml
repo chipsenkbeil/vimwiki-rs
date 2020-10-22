@@ -2,7 +2,7 @@
 name = "vimwiki-server"
 description = "Daemon that supports parsing and modifying vimwiki files."
 categories = ["web-programming::http-server"]
-version = "0.1.0-alpha.2"
+version = "0.1.0-alpha.3"
 authors = ["Chip Senkbeil <chip@senkbeil.org>"]
 edition = "2018"
 homepage = "https://github.com/chipsenkbeil/vimwiki-server"
@@ -33,6 +33,6 @@ serde = { version = "1.0.115", features = ["derive"] }
 serde_json = "1.0.58"
 snafu = "0.6.9"
 tokio = { version = "0.2.22", features = ["full"] }
-vimwiki = { version = "0.1.0-alpha.2", path = "../vimwiki" }
+vimwiki = { version = "0.1.0-alpha.3", path = "../vimwiki" }
 walkdir = "2.3.1"
 warp = "0.2.5"

@@ -2,7 +2,7 @@
 name = "vimwiki"
 description = "Library that provides support to parse, generate, and manipulate vimwiki langauge."
 categories = ["parser-implementations", "template-engine"]
-version = "0.1.0-alpha.2"
+version = "0.1.0-alpha.3"
 authors = ["Chip Senkbeil <chip@senkbeil.org>"]
 edition = "2018"
 homepage = "https://github.com/chipsenkbeil/vimwiki-server"
@@ -47,4 +47,4 @@ features = [
 
 [dev-dependencies]
 indoc = "1.0.2"
-vimwiki_macros = { version = "0.1.0-alpha.2", path = "../vimwiki_macros" }
+vimwiki_macros = { version = "0.1.0-alpha.3", path = "../vimwiki_macros" }
