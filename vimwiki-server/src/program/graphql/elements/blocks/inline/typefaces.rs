@@ -87,7 +87,6 @@ impl DecoratedText {
         match self.0.as_inner() {
             elements::DecoratedText::Bold(_) => Decoration::Bold,
             elements::DecoratedText::Italic(_) => Decoration::Italic,
-            elements::DecoratedText::BoldItalic(_) => Decoration::BoldItalic,
             elements::DecoratedText::Strikeout(_) => Decoration::Strikeout,
             elements::DecoratedText::Superscript(_) => Decoration::Superscript,
             elements::DecoratedText::Subscript(_) => Decoration::Subscript,
@@ -107,7 +106,6 @@ impl<'a> From<Located<elements::DecoratedText<'a>>> for DecoratedText {
 pub enum Decoration {
     Bold,
     Italic,
-    BoldItalic,
     Strikeout,
     Superscript,
     Subscript,
