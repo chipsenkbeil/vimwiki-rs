@@ -42,34 +42,44 @@ impl ElementNode<'_> {
 }
 
 impl<'a> ElementNode<'a> {
+    /// Returns the unique id of the node
     #[inline]
-    pub fn is_root(&'a self) -> bool {
+    pub fn id(&self) -> usize {
+        self.id
+    }
+
+    /// Returns true if this node represents the root of a tree
+    #[inline]
+    pub fn is_root(&self) -> bool {
         self.parent.is_none()
     }
 
+    /// Returns true if this node has no children
     #[inline]
-    pub fn is_leaf(&'a self) -> bool {
+    pub fn is_leaf(&self) -> bool {
         self.children.is_empty()
     }
 
     /// Returns reference to data contained within node
-    pub fn as_inner(&'a self) -> &'a Located<Element<'a>> {
+    #[inline]
+    pub fn as_inner(&self) -> &Located<Element<'a>> {
         &self.data
     }
 
     /// Consumes node and returns the inner data
+    #[inline]
     pub fn into_inner(self) -> Located<Element<'a>> {
         self.data
     }
 
     /// Returns a copy of the region associated with this node
-    pub fn region(&'a self) -> Region {
+    pub fn region(&self) -> Region {
         self.as_inner().region()
     }
 
     /// Converts to the underlying reference to the element at this point
     /// in the tree
-    pub fn as_element(&'a self) -> &Element<'a> {
+    pub fn as_element(&self) -> &Element<'a> {
         self.as_inner().as_inner()
     }
 
@@ -79,7 +89,7 @@ impl<'a> ElementNode<'a> {
     }
 
     /// Returns whether or not this node's region contains the given offset
-    pub fn contains_offset(&'a self, offset: usize) -> bool {
+    pub fn contains_offset(&self, offset: usize) -> bool {
         self.region().contains(offset)
     }
 }

@@ -55,7 +55,7 @@ impl ElementTree<'_> {
 
 impl<'a> ElementTree<'a> {
     /// Returns a reference to the root node of the tree
-    pub fn root(&'a self) -> &'a ElementNode<'a> {
+    pub fn root(&self) -> &ElementNode<'a> {
         self.nodes
             .get(&self.root_id)
             .expect("Root of tree is missing")
@@ -64,6 +64,12 @@ impl<'a> ElementTree<'a> {
     /// Iterates over all nodes contained within the tree in arbitrary order
     pub fn nodes(&self) -> impl Iterator<Item = &ElementNode<'a>> {
         self.nodes.values()
+    }
+
+    /// Returns the node in the tree who has the matching id
+    #[inline]
+    pub fn node(&self, id: usize) -> Option<&ElementNode<'a>> {
+        self.nodes.get(&id)
     }
 
     /// Iterates over all ancestors for given node by moving up one parent at
@@ -84,19 +90,16 @@ impl<'a> ElementTree<'a> {
     }
 
     /// Gets parent for given node
-    pub fn parent(
-        &'a self,
-        node: &'a ElementNode<'a>,
-    ) -> Option<&'a ElementNode<'a>> {
+    pub fn parent(&self, node: &ElementNode<'a>) -> Option<&ElementNode<'a>> {
         node.parent.and_then(|id| self.nodes.get(&id))
     }
 
     /// Iterates over all descendants for given node by moving down one level
     /// of children at a time via breadth-first traversal
     pub fn descendants(
-        &'a self,
-        node: &'a ElementNode<'a>,
-    ) -> impl Iterator<Item = &'a ElementNode<'a>> {
+        &self,
+        node: &ElementNode<'a>,
+    ) -> impl Iterator<Item = &ElementNode<'a>> {
         let mut queue = self.children(node);
         std::iter::from_fn(move || {
             if !queue.is_empty() {
@@ -110,10 +113,7 @@ impl<'a> ElementTree<'a> {
     }
 
     /// Represents all children for given node
-    pub fn children(
-        &'a self,
-        node: &'a ElementNode<'a>,
-    ) -> Vec<&'a ElementNode<'a>> {
+    pub fn children(&self, node: &ElementNode<'a>) -> Vec<&ElementNode<'a>> {
         node.children
             .iter()
             .filter_map(|id| self.nodes.get(id))
@@ -121,10 +121,7 @@ impl<'a> ElementTree<'a> {
     }
 
     /// Represents all sibling tree nodes (not including self)
-    pub fn siblings(
-        &'a self,
-        node: &'a ElementNode<'a>,
-    ) -> Vec<&'a ElementNode<'a>> {
+    pub fn siblings(&self, node: &ElementNode<'a>) -> Vec<&ElementNode<'a>> {
         let id = node.id;
         self.parent(node)
             .iter()
@@ -197,24 +194,37 @@ impl<'a> From<Located<Element<'a>>> for ElementTree<'a> {
     /// borrowed elements.
     fn from(located: Located<Element<'a>>) -> Self {
         let counter = AtomicUsize::new(0);
+        Self::build(located, move || counter.fetch_add(1, Ordering::Relaxed))
+    }
+}
+
+impl<'a> ElementTree<'a> {
+    /// Builds a new tree using the provided located element as the root. This
+    /// will involving cloning data, although the tree will maintain any
+    /// borrowed elements.
+    ///
+    /// Uses the provided function to generate ids for nodes. These should be
+    /// unique ids!
+    pub fn build(
+        located: Located<Element<'a>>,
+        new_id: impl Fn() -> usize,
+    ) -> Self {
         let mut nodes = HashMap::new();
-
-        let root_id = make_nodes(&counter, None, &mut nodes, located);
-
-        ElementTree { nodes, root_id }
+        let root_id = make_nodes(&new_id, None, &mut nodes, located);
+        Self { nodes, root_id }
     }
 }
 
 /// Builds out the ids for a node without creating the node itself
 fn make_nodes<'a>(
-    counter: &AtomicUsize,
+    new_id: &impl Fn() -> usize,
     parent: Option<usize>,
     nodes: &mut TreeNodeStore<'a>,
     located_element: Located<Element<'a>>,
 ) -> usize {
     // First, generate the id used for both the node and its data and store
     // the data into our data storage
-    let id = counter.fetch_add(1, Ordering::Relaxed);
+    let id = new_id();
 
     // Second, process all children of the given data and add as nodes,
     // retaining their ids for use in the node being built
@@ -229,7 +239,7 @@ fn make_nodes<'a>(
         .clone()
         .into_children()
         .into_iter()
-        .map(|child| make_nodes(counter, Some(id), nodes, child))
+        .map(|child| make_nodes(new_id, Some(id), nodes, child))
         .collect();
 
     // Third, construct the node mapping (without data) and insert it into

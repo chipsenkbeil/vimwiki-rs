@@ -30,6 +30,13 @@ impl Page {
             .collect()
     }
 
+    /// Returns element in page with specified id as traversable node
+    async fn node<'a>(&'a self, id: i32) -> Option<ElementNode<'a>> {
+        self.forest
+            .find_tree_and_node_by_id(id as usize)
+            .map(ElementNode::from)
+    }
+
     /// Returns all elements in a page as traversable nodes
     async fn nodes<'a>(&'a self) -> Vec<ElementNode<'a>> {
         self.forest

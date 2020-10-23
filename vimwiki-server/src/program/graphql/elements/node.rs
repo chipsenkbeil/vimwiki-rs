@@ -10,6 +10,11 @@ pub struct ElementNode<'a> {
 
 #[async_graphql::Object]
 impl<'a> ElementNode<'a> {
+    /// Represents the id of the current node
+    async fn id(&self) -> i32 {
+        self.node.id() as i32
+    }
+
     /// True if this node is at the root of a document
     async fn is_root(&self) -> bool {
         self.node.is_root()

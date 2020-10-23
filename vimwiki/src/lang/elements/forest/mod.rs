@@ -1,7 +1,6 @@
 use crate::lang::elements::{Element, Page};
 use derive_more::From;
 use serde::{Deserialize, Serialize};
-use std::iter::FromIterator;
 
 mod tree;
 pub use tree::{ElementNode, ElementTree};
@@ -88,6 +87,16 @@ impl<'a> ElementForest<'a> {
             .find(|(tree, node)| predicate(tree, node))
     }
 
+    /// Finds the node with the specified id and returns the node and its
+    /// tree if found
+    pub fn find_tree_and_node_by_id(
+        &'a self,
+        id: usize,
+    ) -> Option<(&'a ElementTree<'a>, &'a ElementNode<'a>)> {
+        self.trees()
+            .find_map(|tree| tree.node(id).map(|node| (tree, node)))
+    }
+
     /// Finds the first tree in the forest whose region contains the
     /// given offset, or returns none if no tree in the entire forest has
     /// a region containing the given offset
@@ -116,7 +125,9 @@ impl<'a> ElementForest<'a> {
 
 impl<'a> From<&'a Page<'a>> for ElementForest<'a> {
     /// Borrows the page and then constructs a forest from the trees produced
-    /// for each of the page's top-level elements
+    /// for each of the page's top-level elements. A singular id namespace is
+    /// used across all trees, which means that nodes will have distinct ids
+    /// across different trees as well as within their own trees.
     fn from(page: &'a Page<'a>) -> Self {
         Self::from(page.to_borrowed())
     }
@@ -124,20 +135,24 @@ impl<'a> From<&'a Page<'a>> for ElementForest<'a> {
 
 impl<'a> From<Page<'a>> for ElementForest<'a> {
     /// Constructs a forest from the trees produced for each of the page's
-    /// top-level elements
+    /// top-level elements. A singular id namespace is used across all trees,
+    /// which means that nodes will have distinct ids across different trees
+    /// as well as within their own trees.
     fn from(page: Page<'a>) -> Self {
-        page.elements
-            .into_iter()
-            .map(|x| ElementTree::from(x.map(Element::from)))
-            .collect()
-    }
-}
+        // NOTE: We want to maintain one set of ids across all of our trees
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        let counter = AtomicUsize::new(0);
 
-impl<'a> FromIterator<ElementTree<'a>> for ElementForest<'a> {
-    /// Converts the iterator of trees into a forest
-    fn from_iter<I: IntoIterator<Item = ElementTree<'a>>>(iter: I) -> Self {
         Self {
-            trees: iter.into_iter().collect(),
+            trees: page
+                .elements
+                .into_iter()
+                .map(|x| {
+                    ElementTree::build(x.map(Element::from), || {
+                        counter.fetch_add(1, Ordering::Relaxed)
+                    })
+                })
+                .collect(),
         }
     }
 }
