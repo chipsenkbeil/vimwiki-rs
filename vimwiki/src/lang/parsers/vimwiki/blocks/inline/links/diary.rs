@@ -2,7 +2,7 @@ use super::{link_anchor, link_description, link_path};
 use crate::lang::{
     elements::{DiaryLink, Located},
     parsers::{
-        utils::{capture, context, locate, surround_in_line1},
+        utils::{capture, context, locate, not_contains, surround_in_line1},
         IResult, Span,
     },
 };
@@ -40,7 +40,10 @@ pub fn diary_link(input: Span) -> IResult<Located<DiaryLink>> {
 
     context(
         "DiaryLink",
-        locate(capture(map_parser(surround_in_line1("[[", "]]"), inner))),
+        locate(capture(map_parser(
+            not_contains("%%", surround_in_line1("[[", "]]")),
+            inner,
+        ))),
     )(input)
 }
 

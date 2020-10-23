@@ -50,16 +50,6 @@ fn tokenize_decorated_text(decorated_text: &DecoratedText) -> TokenStream {
                 )
             }
         }
-        DecoratedText::BoldItalic(x) => {
-            let contents = x.iter().map(|x| do_tokenize!(x));
-            {
-                quote! {
-                    #root::DecoratedText::BoldItalic(
-                        vec![#(#contents),*],
-                    )
-                }
-            }
-        }
         DecoratedText::Italic(x) => {
             let contents = x.iter().map(|x| do_tokenize!(x));
             {

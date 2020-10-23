@@ -1,7 +1,9 @@
 use crate::lang::{
     elements::{CodeInline, Located},
     parsers::{
-        utils::{capture, context, cow_str, locate, surround_in_line1},
+        utils::{
+            capture, context, cow_str, locate, not_contains, surround_in_line1,
+        },
         IResult, Span,
     },
 };
@@ -10,7 +12,10 @@ use nom::combinator::map;
 #[inline]
 pub fn code_inline(input: Span) -> IResult<Located<CodeInline>> {
     fn inner(input: Span) -> IResult<CodeInline> {
-        map(cow_str(surround_in_line1("`", "`")), CodeInline::new)(input)
+        map(
+            cow_str(not_contains("%%", surround_in_line1("`", "`"))),
+            CodeInline::new,
+        )(input)
     }
 
     context("Code Inline", locate(capture(inner)))(input)

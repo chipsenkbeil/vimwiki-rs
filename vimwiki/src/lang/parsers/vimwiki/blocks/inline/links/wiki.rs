@@ -2,7 +2,7 @@ use super::{link_anchor, link_description, link_path};
 use crate::lang::{
     elements::{Located, WikiLink},
     parsers::{
-        utils::{capture, context, locate, surround_in_line1},
+        utils::{capture, context, locate, not_contains, surround_in_line1},
         Error, IResult, Span,
     },
 };
@@ -52,7 +52,10 @@ pub fn wiki_link(input: Span) -> IResult<Located<WikiLink>> {
 
     context(
         "WikiLink",
-        locate(capture(map_parser(surround_in_line1("[[", "]]"), inner))),
+        locate(capture(map_parser(
+            not_contains("%%", surround_in_line1("[[", "]]")),
+            inner,
+        ))),
     )(input)
 }
 

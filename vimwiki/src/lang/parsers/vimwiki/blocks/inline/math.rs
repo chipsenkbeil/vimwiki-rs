@@ -1,7 +1,9 @@
 use crate::lang::{
     elements::{Located, MathInline},
     parsers::{
-        utils::{capture, context, cow_str, locate, take_line_until1},
+        utils::{
+            capture, context, cow_str, locate, not_contains, take_line_until1,
+        },
         IResult, Span,
     },
 };
@@ -13,7 +15,11 @@ pub fn math_inline(input: Span) -> IResult<Located<MathInline>> {
         // TODO: Is there any way to escape a $ inside a formula? If so, we will
         //       need to support detecting that
         map(
-            cow_str(delimited(char('$'), take_line_until1("$"), char('$'))),
+            cow_str(delimited(
+                char('$'),
+                not_contains("%%", take_line_until1("$")),
+                char('$'),
+            )),
             MathInline::new,
         )(input)
     }

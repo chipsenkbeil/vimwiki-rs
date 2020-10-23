@@ -7,7 +7,9 @@ use crate::lang::{
         DecoratedText, DecoratedTextContent, Keyword, Link, Located, Text,
     },
     parsers::{
-        utils::{capture, context, cow_str, locate, surround_in_line1},
+        utils::{
+            capture, context, cow_str, locate, not_contains, surround_in_line1,
+        },
         IResult, Span,
     },
 };
@@ -74,8 +76,6 @@ pub fn decorated_text(input: Span) -> IResult<Located<DecoratedText>> {
     context(
         "Decorated Text",
         locate(capture(alt((
-            bold_italic_text_1,
-            bold_italic_text_2,
             bold_text,
             italic_text,
             strikeout_text,
@@ -85,31 +85,14 @@ pub fn decorated_text(input: Span) -> IResult<Located<DecoratedText>> {
     )(input)
 }
 
-fn bold_italic_text_1(input: Span) -> IResult<DecoratedText> {
-    context(
-        "Bold Italic 1 Decorated Text",
-        map(
-            map_parser(surround_in_line1("_*", "*_"), decorated_text_contents),
-            DecoratedText::BoldItalic,
-        ),
-    )(input)
-}
-
-fn bold_italic_text_2(input: Span) -> IResult<DecoratedText> {
-    context(
-        "Bold Italic 2 Decorated Text",
-        map(
-            map_parser(surround_in_line1("*_", "_*"), decorated_text_contents),
-            DecoratedText::BoldItalic,
-        ),
-    )(input)
-}
-
 fn italic_text(input: Span) -> IResult<DecoratedText> {
     context(
         "Italic Decorated Text",
         map(
-            map_parser(surround_in_line1("_", "_"), decorated_text_contents),
+            map_parser(
+                not_contains("%%", surround_in_line1("_", "_")),
+                decorated_text_contents,
+            ),
             DecoratedText::Italic,
         ),
     )(input)
@@ -119,7 +102,10 @@ fn bold_text(input: Span) -> IResult<DecoratedText> {
     context(
         "Bold Decorated Text",
         map(
-            map_parser(surround_in_line1("*", "*"), decorated_text_contents),
+            map_parser(
+                not_contains("%%", surround_in_line1("*", "*")),
+                decorated_text_contents,
+            ),
             DecoratedText::Bold,
         ),
     )(input)
@@ -129,7 +115,10 @@ fn strikeout_text(input: Span) -> IResult<DecoratedText> {
     context(
         "Strikeout Decorated Text",
         map(
-            map_parser(surround_in_line1("~~", "~~"), decorated_text_contents),
+            map_parser(
+                not_contains("%%", surround_in_line1("~~", "~~")),
+                decorated_text_contents,
+            ),
             DecoratedText::Strikeout,
         ),
     )(input)
@@ -139,7 +128,10 @@ fn superscript_text(input: Span) -> IResult<DecoratedText> {
     context(
         "Superscript Decorated Text",
         map(
-            map_parser(surround_in_line1("^", "^"), decorated_text_contents),
+            map_parser(
+                not_contains("%%", surround_in_line1("^", "^")),
+                decorated_text_contents,
+            ),
             DecoratedText::Superscript,
         ),
     )(input)
@@ -149,7 +141,10 @@ fn subscript_text(input: Span) -> IResult<DecoratedText> {
     context(
         "Subscript Decorated Text",
         map(
-            map_parser(surround_in_line1(",,", ",,"), decorated_text_contents),
+            map_parser(
+                not_contains("%%", surround_in_line1(",,", ",,")),
+                decorated_text_contents,
+            ),
             DecoratedText::Subscript,
         ),
     )(input)
@@ -162,6 +157,9 @@ fn decorated_text_contents<'a>(
         many1(alt((
             map(link, |l: Located<Link>| l.map(DecoratedTextContent::from)),
             map(keyword, |l: Located<Keyword>| {
+                l.map(DecoratedTextContent::from)
+            }),
+            map(decorated_text, |l: Located<DecoratedText>| {
                 l.map(DecoratedTextContent::from)
             }),
             map(text, |l: Located<Text>| l.map(DecoratedTextContent::from)),
@@ -325,32 +323,6 @@ mod tests {
     }
 
     #[test]
-    fn decorated_text_should_support_bold_italic_1() {
-        let input = Span::from("_*bold italic text*_");
-        let (input, dt) = decorated_text(input).unwrap();
-        assert!(input.is_empty(), "Did not consume decorated text");
-        assert_eq!(
-            dt.into_inner(),
-            DecoratedText::BoldItalic(vec![Located::from(
-                DecoratedTextContent::from(Text::from("bold italic text"))
-            )])
-        );
-    }
-
-    #[test]
-    fn decorated_text_should_support_bold_italic_2() {
-        let input = Span::from("*_bold italic text_*");
-        let (input, dt) = decorated_text(input).unwrap();
-        assert!(input.is_empty(), "Did not consume decorated text");
-        assert_eq!(
-            dt.into_inner(),
-            DecoratedText::BoldItalic(vec![Located::from(
-                DecoratedTextContent::from(Text::from("bold italic text"))
-            )])
-        );
-    }
-
-    #[test]
     fn decorated_text_should_support_strikeout() {
         let input = Span::from("~~strikeout text~~");
         let (input, dt) = decorated_text(input).unwrap();
@@ -414,6 +386,24 @@ mod tests {
             DecoratedText::Bold(vec![Located::from(
                 DecoratedTextContent::from(Keyword::TODO)
             )])
+        );
+    }
+
+    #[test]
+    fn decorated_text_should_support_nested_decorated_text() {
+        let input = Span::from("*bold _italic_*");
+        let (input, dt) = decorated_text(input).unwrap();
+        assert!(input.is_empty(), "Did not consume decorated text");
+        assert_eq!(
+            dt.into_inner(),
+            DecoratedText::Bold(vec![
+                Located::from(DecoratedTextContent::from(Text::from("bold "))),
+                Located::from(DecoratedTextContent::from(
+                    DecoratedText::Italic(vec![Located::from(
+                        DecoratedTextContent::from(Text::from("italic"))
+                    )])
+                ))
+            ])
         );
     }
 

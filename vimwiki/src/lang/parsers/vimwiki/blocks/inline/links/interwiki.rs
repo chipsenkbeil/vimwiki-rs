@@ -6,7 +6,7 @@ use crate::lang::{
     },
     parsers::{
         utils::{
-            capture, context, cow_str, locate, surround_in_line1,
+            capture, context, cow_str, locate, not_contains, surround_in_line1,
             take_line_until1,
         },
         IResult, Span,
@@ -49,7 +49,10 @@ pub fn inter_wiki_link(input: Span) -> IResult<Located<InterWikiLink>> {
 
     context(
         "InterWikiLink",
-        locate(capture(map_parser(surround_in_line1("[[", "]]"), inner))),
+        locate(capture(map_parser(
+            not_contains("%%", surround_in_line1("[[", "]]")),
+            inner,
+        ))),
     )(input)
 }
 

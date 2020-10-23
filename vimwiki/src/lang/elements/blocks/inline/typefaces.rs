@@ -120,7 +120,6 @@ impl<'a> DecoratedTextContent<'a> {
 pub enum DecoratedText<'a> {
     Bold(Vec<Located<DecoratedTextContent<'a>>>),
     Italic(Vec<Located<DecoratedTextContent<'a>>>),
-    BoldItalic(Vec<Located<DecoratedTextContent<'a>>>),
     Strikeout(Vec<Located<DecoratedTextContent<'a>>>),
     Superscript(Vec<Located<DecoratedTextContent<'a>>>),
     Subscript(Vec<Located<DecoratedTextContent<'a>>>),
@@ -139,9 +138,6 @@ impl DecoratedText<'_> {
         match self {
             Self::Bold(x) => DecoratedText::Bold(vec_to_borrowed!(x)),
             Self::Italic(x) => DecoratedText::Italic(vec_to_borrowed!(x)),
-            Self::BoldItalic(x) => {
-                DecoratedText::BoldItalic(vec_to_borrowed!(x))
-            }
             Self::Strikeout(x) => DecoratedText::Strikeout(vec_to_borrowed!(x)),
             Self::Superscript(x) => {
                 DecoratedText::Superscript(vec_to_borrowed!(x))
@@ -162,9 +158,6 @@ impl DecoratedText<'_> {
         match self {
             Self::Bold(x) => DecoratedText::Bold(vec_into_owned!(x)),
             Self::Italic(x) => DecoratedText::Italic(vec_into_owned!(x)),
-            Self::BoldItalic(x) => {
-                DecoratedText::BoldItalic(vec_into_owned!(x))
-            }
             Self::Strikeout(x) => DecoratedText::Strikeout(vec_into_owned!(x)),
             Self::Superscript(x) => {
                 DecoratedText::Superscript(vec_into_owned!(x))
@@ -180,7 +173,6 @@ impl<'a> DecoratedText<'a> {
         match self {
             Self::Bold(ref x) => x.as_slice(),
             Self::Italic(ref x) => x.as_slice(),
-            Self::BoldItalic(ref x) => x.as_slice(),
             Self::Strikeout(ref x) => x.as_slice(),
             Self::Superscript(ref x) => x.as_slice(),
             Self::Subscript(ref x) => x.as_slice(),
@@ -198,7 +190,6 @@ impl<'a> DecoratedText<'a> {
         match self {
             Self::Bold(x) => vec_to_owned!(x),
             Self::Italic(x) => vec_to_owned!(x),
-            Self::BoldItalic(x) => vec_to_owned!(x),
             Self::Strikeout(x) => vec_to_owned!(x),
             Self::Superscript(x) => vec_to_owned!(x),
             Self::Subscript(x) => vec_to_owned!(x),

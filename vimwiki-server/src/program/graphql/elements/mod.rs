@@ -45,6 +45,20 @@ impl Page {
             .collect()
     }
 
+    /// Returns all tags in a page as traversable nodes
+    async fn tags<'a>(&'a self) -> Vec<ElementNode<'a>> {
+        self.forest
+            .trees_and_nodes()
+            .filter(|(_, node)| {
+                node.as_element()
+                    .as_inline_element()
+                    .map(|e| matches!(e, elements::InlineElement::Tags(_)))
+                    .unwrap_or_default()
+            })
+            .map(ElementNode::from)
+            .collect()
+    }
+
     /// Finds the element at the specified offset as a traversable node
     async fn node_at_offset<'a>(
         &'a self,

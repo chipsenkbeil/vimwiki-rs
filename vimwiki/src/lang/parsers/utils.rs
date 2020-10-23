@@ -100,6 +100,42 @@ pub fn end_of_line_or_input(input: Span) -> IResult<()> {
     context("End of Line/Input", inner)(input)
 }
 
+/// Parser that runs child parser and succeeds if the parser yields output
+/// that does not contain the given pattern
+pub fn not_contains<'a>(
+    pattern: &'static str,
+    parser: impl Fn(Span<'a>) -> IResult<Span<'a>>,
+) -> impl Fn(Span<'a>) -> IResult<Span<'a>> {
+    move |input: Span| {
+        let (input, result) = parser(input)?;
+        let (result, _) = not(offset(pattern))(result)?;
+        Ok((input, result))
+    }
+}
+
+/// Parser that finds with byte offset of the given pattern within the provided
+/// input, or fails if not found; does not consume input
+pub fn offset(pattern: &'static str) -> impl Fn(Span) -> IResult<usize> {
+    move |input: Span| {
+        let bytes = input.as_bytes();
+        for pos in memchr_iter(pattern.as_bytes()[0], bytes) {
+            let end = pos + pattern.len();
+            if end >= bytes.len() {
+                break;
+            }
+
+            if &bytes[pos..end] == pattern.as_bytes() {
+                return Ok((input, pos));
+            }
+        }
+
+        Err(nom::Err::Error(Error::from_ctx(
+            &input,
+            "Input does not contain pattern",
+        )))
+    }
+}
+
 /// Parser that consumes input inside the surrounding left and right sides,
 /// failing if not starting with the left or if the right is not found prior
 /// to the end of a line. The result is the content WITHIN the surroundings.
@@ -141,6 +177,9 @@ pub fn surround_in_line1<'a>(
 
                 // Grab everything but the possible start of the right
                 let (input, content) = input.take_split(pos);
+                if input.input_len() < right.len() {
+                    break;
+                }
 
                 // Verify that the right would be next, and if so return our
                 // result having consumed it, otherwise continue
@@ -213,10 +252,14 @@ pub fn take_line_until<'a>(
 
             // Grab everything but the possible pattern
             let (input, content) = input.take_split(pos);
+            let end = pos + pattern.len();
+            if end >= bytes.len() {
+                break;
+            }
 
             // Verify that the pattern would be next, and if so return our
             // result, otherwise continue
-            if &bytes[pos..(pos + pattern.len())] == pattern.as_bytes() {
+            if &bytes[pos..end] == pattern.as_bytes() {
                 return Ok((input, content));
             } else {
                 continue;
@@ -261,11 +304,14 @@ pub fn take_line_until_one_of_two<'a>(
 
             // Grab everything but the possible pattern
             let (input, content) = input.take_split(pos);
+            let end1 = pos + p1_bytes.len();
+            let end2 = pos + p2_bytes.len();
 
             // Verify that the pattern would be next, and if so return our
             // result, otherwise continue
-            if &bytes[pos..(pos + p1_bytes.len())] == p1_bytes.as_bytes()
-                || &bytes[pos..(pos + p2_bytes.len())] == p2_bytes.as_bytes()
+            if (end1 < bytes.len() && &bytes[pos..end1] == p1_bytes.as_bytes())
+                || (end2 < bytes.len()
+                    && &bytes[pos..end2] == p2_bytes.as_bytes())
             {
                 return Ok((input, content));
             } else {
@@ -316,19 +362,24 @@ pub fn take_line_until_one_of_three<'a>(
             // before the line position
             match maybe_line_pos {
                 Some(line_pos) if line_pos >= pos => {
-                    return Ok(input.take_split(pos));
+                    return Ok(input.take_split(line_pos));
                 }
                 _ => {}
             }
 
             // Grab everything but the possible pattern
             let (input, content) = input.take_split(pos);
+            let end1 = pos + p1_bytes.len();
+            let end2 = pos + p2_bytes.len();
+            let end3 = pos + p3_bytes.len();
 
             // Verify that the pattern would be next, and if so return our
             // result, otherwise continue
-            if &bytes[pos..(pos + p1_bytes.len())] == p1_bytes.as_bytes()
-                || &bytes[pos..(pos + p2_bytes.len())] == p2_bytes.as_bytes()
-                || &bytes[pos..(pos + p3_bytes.len())] == p3_bytes.as_bytes()
+            if (end1 < bytes.len() && &bytes[pos..end1] == p1_bytes.as_bytes())
+                || (end2 < bytes.len()
+                    && &bytes[pos..end2] == p2_bytes.as_bytes())
+                || (end3 < bytes.len()
+                    && &bytes[pos..end3] == p3_bytes.as_bytes())
             {
                 return Ok((input, content));
             } else {
@@ -378,8 +429,12 @@ pub fn take_until<'a>(
         let bytes = input.as_bytes();
         for pos in memchr_iter(pattern.as_bytes()[0], bytes) {
             let (input, content) = input.take_split(pos);
+            let end = pos + pattern.len();
+            if end >= bytes.len() {
+                break;
+            }
 
-            if &bytes[pos..(pos + pattern.len())] == pattern.as_bytes() {
+            if &bytes[pos..end] == pattern.as_bytes() {
                 return Ok((input, content));
             } else {
                 continue;
