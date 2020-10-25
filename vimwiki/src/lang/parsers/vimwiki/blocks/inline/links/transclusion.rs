@@ -23,7 +23,10 @@ pub fn transclusion_link(input: Span) -> IResult<Located<TransclusionLink>> {
         let (input, link_uri) =
             map_parser(take_line_until_one_of_two1("|", "}}"), uri)(input)?;
         let (input, maybe_description) = opt(map(
-            cow_str(preceded(tag("|"), take_line_until_one_of_two("|", "}}"))),
+            map_parser(
+                preceded(tag("|"), take_line_until_one_of_two("|", "}}")),
+                cow_str,
+            ),
             Description::from,
         ))(input)?;
         let (input, maybe_properties) =
@@ -55,13 +58,12 @@ fn transclusion_properties<'a>(
             map_parser(
                 take_line_until_one_of_two1("|", "}}"),
                 separated_pair(
-                    cow_str(take_line_until1("=")),
+                    map_parser(take_line_until1("="), cow_str),
                     tag("="),
-                    cow_str(delimited(
-                        tag("\""),
-                        take_line_until("\""),
-                        tag("\""),
-                    )),
+                    map_parser(
+                        delimited(tag("\""), take_line_until("\""), tag("\"")),
+                        cow_str,
+                    ),
                 ),
             ),
         ),

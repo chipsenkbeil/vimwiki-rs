@@ -64,7 +64,10 @@ fn indexed_link_index(input: Span) -> IResult<u32> {
 }
 
 fn named_link_name<'a>(input: Span<'a>) -> IResult<Cow<'a, str>> {
-    cow_str(delimited(tag("wn."), take_line_until1(":"), tag(":")))(input)
+    map_parser(
+        delimited(tag("wn."), take_line_until1(":"), tag(":")),
+        cow_str,
+    )(input)
 }
 
 fn rest_of_link<'a>(

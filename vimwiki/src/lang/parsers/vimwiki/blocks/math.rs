@@ -11,7 +11,7 @@ use crate::lang::{
 use nom::{
     bytes::complete::tag,
     character::complete::{char, line_ending, space0},
-    combinator::{not, opt},
+    combinator::{map_parser, not, opt},
     multi::many1,
     sequence::{delimited, preceded},
 };
@@ -23,8 +23,10 @@ pub fn math_block<'a>(input: Span<'a>) -> IResult<Located<MathBlock<'a>>> {
         let (input, environment) = beginning_of_math_block(input)?;
 
         // Second, parse all lines while we don't encounter the closing block
-        let (input, lines) =
-            many1(preceded(not(end_of_math_block), cow_str(any_line)))(input)?;
+        let (input, lines) = many1(preceded(
+            not(end_of_math_block),
+            map_parser(any_line, cow_str),
+        ))(input)?;
 
         // Third, parse the closing block
         let (input, _) = end_of_math_block(input)?;
@@ -45,7 +47,8 @@ fn beginning_of_math_block<'a>(
     let (input, _) = beginning_of_line(input)?;
     let (input, _) = space0(input)?;
     let (input, _) = tag("{{$")(input)?;
-    let (input, environment) = opt(cow_str(environment_parser))(input)?;
+    let (input, environment) =
+        opt(map_parser(environment_parser, cow_str))(input)?;
     let (input, _) = space0(input)?;
     let (input, _) = line_ending(input)?;
 

@@ -13,7 +13,7 @@ use crate::lang::{
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    combinator::{map, opt},
+    combinator::{map, map_parser, opt},
     sequence::{pair, preceded},
 };
 use std::{borrow::Cow, path::Path};
@@ -60,10 +60,10 @@ fn take_path_and_description<'a>(
     input: Span<'a>,
 ) -> IResult<(Cow<'a, Path>, Option<Description<'a>>)> {
     pair(
-        cow_path(take_segment),
+        map_parser(take_segment, cow_path),
         opt(preceded(
             tag("|"),
-            map(cow_str(take_segment), Description::from),
+            map(map_parser(take_segment, cow_str), Description::from),
         )),
     )(input)
 }

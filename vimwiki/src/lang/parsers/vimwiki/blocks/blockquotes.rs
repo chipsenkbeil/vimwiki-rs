@@ -12,7 +12,7 @@ use nom::{
     branch::alt,
     bytes::complete::tag,
     character::complete::{not_line_ending, space0},
-    combinator::{map, value, verify},
+    combinator::{map, map_parser, value, verify},
     multi::{many0, many1},
     sequence::pair,
 };
@@ -57,9 +57,10 @@ pub fn blockquote<'a>(input: Span<'a>) -> IResult<'a, Located<Blockquote<'a>>> {
 fn blockquote_line_1<'a>(input: Span<'a>) -> IResult<Cow<'a, str>> {
     let (input, _) = beginning_of_line(input)?;
     let (input, _) = verify(space0, |s: &Span| s.remaining_len() >= 4)(input)?;
-    let (input, text) = cow_str(verify(not_line_ending, |s: &Span<'a>| {
-        !s.is_only_whitespace()
-    }))(input)?;
+    let (input, text) = map_parser(
+        verify(not_line_ending, |s: &Span<'a>| !s.is_only_whitespace()),
+        cow_str,
+    )(input)?;
     let (input, _) = end_of_line_or_input(input)?;
 
     Ok((input, text))
@@ -70,7 +71,7 @@ fn blockquote_line_1<'a>(input: Span<'a>) -> IResult<Cow<'a, str>> {
 fn blockquote_line_2<'a>(input: Span<'a>) -> IResult<Cow<'a, str>> {
     let (input, _) = beginning_of_line(input)?;
     let (input, _) = tag("> ")(input)?;
-    let (input, text) = cow_str(not_line_ending)(input)?;
+    let (input, text) = map_parser(not_line_ending, cow_str)(input)?;
     let (input, _) = end_of_line_or_input(input)?;
 
     Ok((input, text))

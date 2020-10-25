@@ -30,7 +30,8 @@ pub fn line_comment<'a>(
 ) -> IResult<'a, Located<LineComment<'a>>> {
     fn inner(input: Span) -> IResult<LineComment> {
         let (input, _) = tag("%%")(input)?;
-        let (input, text) = cow_str(take_until_end_of_line_or_input)(input)?;
+        let (input, text) =
+            map_parser(take_until_end_of_line_or_input, cow_str)(input)?;
 
         Ok((input, LineComment::new(text)))
     }
@@ -47,7 +48,10 @@ pub fn multi_line_comment<'a>(
         // Capture all content between comments as individual lines
         let (input, lines) = map_parser(
             take_until("+%%"),
-            separated_list(tag("\n"), cow_str(alt((take_until("\n"), rest)))),
+            separated_list(
+                tag("\n"),
+                map_parser(alt((take_until("\n"), rest)), cow_str),
+            ),
         )(input)?;
 
         let (input, _) = tag("+%%")(input)?;

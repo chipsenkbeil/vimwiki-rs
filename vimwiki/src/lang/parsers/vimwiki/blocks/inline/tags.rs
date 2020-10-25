@@ -7,7 +7,10 @@ use crate::lang::{
         IResult, Span,
     },
 };
-use nom::{character::complete::char, multi::many1, sequence::terminated};
+use nom::{
+    character::complete::char, combinator::map_parser, multi::many1,
+    sequence::terminated,
+};
 
 #[inline]
 pub fn tags(input: Span) -> IResult<Located<Tags>> {
@@ -23,8 +26,10 @@ pub fn tags(input: Span) -> IResult<Located<Tags>> {
 }
 
 fn tag_content(input: Span) -> IResult<Tag> {
-    let (input, s) =
-        cow_str(take_line_until_one_of_three1(":", " ", "\t"))(input)?;
+    let (input, s) = map_parser(
+        take_line_until_one_of_three1(":", " ", "\t"),
+        cow_str,
+    )(input)?;
     Ok((input, Tag::new(s)))
 }
 

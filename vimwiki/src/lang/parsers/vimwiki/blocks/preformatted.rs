@@ -11,7 +11,7 @@ use crate::lang::{
 use nom::{
     bytes::complete::tag,
     character::complete::{char, space0},
-    combinator::{not, opt, verify},
+    combinator::{map_parser, not, opt, verify},
     multi::{many1, separated_list},
     sequence::{delimited, preceded, separated_pair, terminated},
 };
@@ -26,7 +26,7 @@ pub fn preformatted_text(input: Span) -> IResult<Located<PreformattedText>> {
         let (input, (maybe_lang, metadata)) = preformatted_text_start(input)?;
         let (input, lines) = many1(preceded(
             not(preformatted_text_end),
-            cow_str(any_line),
+            map_parser(any_line, cow_str),
         ))(input)?;
         let (input, _) = preformatted_text_end(input)?;
 
@@ -49,9 +49,12 @@ fn preformatted_text_start<'a>(
     //
     // e.g. {{{c++ -> Some("c++")
     let (input, maybe_lang) = opt(terminated(
-        cow_str(verify(take_line_until1(";"), |s: &Span| {
-            !s.as_remaining().contains(&b'=')
-        })),
+        map_parser(
+            verify(take_line_until1(";"), |s: &Span| {
+                !s.as_remaining().contains(&b'=')
+            }),
+            cow_str,
+        ),
         opt(char(';')),
     ))(input)?;
 
@@ -59,9 +62,13 @@ fn preformatted_text_start<'a>(
     let (input, mut pairs) = separated_list(
         char(';'),
         separated_pair(
-            cow_str(take_line_until1("=")),
+            map_parser(take_line_until1("="), cow_str),
             char('='),
-            delimited(char('"'), cow_str(take_line_until("\"")), char('"')),
+            delimited(
+                char('"'),
+                map_parser(take_line_until("\""), cow_str),
+                char('"'),
+            ),
         ),
     )(input)?;
 

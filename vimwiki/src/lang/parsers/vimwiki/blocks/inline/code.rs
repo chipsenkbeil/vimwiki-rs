@@ -7,13 +7,16 @@ use crate::lang::{
         IResult, Span,
     },
 };
-use nom::combinator::map;
+use nom::combinator::{map, map_parser};
 
 #[inline]
 pub fn code_inline(input: Span) -> IResult<Located<CodeInline>> {
     fn inner(input: Span) -> IResult<CodeInline> {
         map(
-            cow_str(not_contains("%%", surround_in_line1("`", "`"))),
+            map_parser(
+                not_contains("%%", surround_in_line1("`", "`")),
+                cow_str,
+            ),
             CodeInline::new,
         )(input)
     }

@@ -14,7 +14,7 @@ use nom::{
     branch::alt,
     bytes::complete::tag,
     character::complete::{space0, space1},
-    combinator::{map_res, not, verify},
+    combinator::{map_parser, map_res, not, verify},
 };
 
 #[inline]
@@ -39,10 +39,12 @@ fn placeholder_title(input: Span) -> IResult<Placeholder> {
     fn inner(input: Span) -> IResult<Placeholder> {
         let (input, _) = tag("%title")(input)?;
         let (input, _) = space1(input)?;
-        let (input, text) =
-            cow_str(verify(take_until_end_of_line_or_input, |s: &Span| {
+        let (input, text) = map_parser(
+            verify(take_until_end_of_line_or_input, |s: &Span| {
                 !s.is_only_whitespace()
-            }))(input)?;
+            }),
+            cow_str,
+        )(input)?;
         Ok((input, Placeholder::Title(text)))
     }
 
@@ -63,10 +65,12 @@ fn placeholder_template(input: Span) -> IResult<Placeholder> {
     fn inner(input: Span) -> IResult<Placeholder> {
         let (input, _) = tag("%template")(input)?;
         let (input, _) = space1(input)?;
-        let (input, text) =
-            cow_str(verify(take_until_end_of_line_or_input, |s: &Span| {
+        let (input, text) = map_parser(
+            verify(take_until_end_of_line_or_input, |s: &Span| {
                 !s.is_only_whitespace()
-            }))(input)?;
+            }),
+            cow_str,
+        )(input)?;
         Ok((input, Placeholder::Template(text)))
     }
 
@@ -98,13 +102,17 @@ fn placeholder_other(input: Span) -> IResult<Placeholder> {
         let (input, _) = not(tag("%date"))(input)?;
 
         let (input, _) = tag("%")(input)?;
-        let (input, name) =
-            cow_str(take_line_until_one_of_three1(" ", "\t", "%"))(input)?;
+        let (input, name) = map_parser(
+            take_line_until_one_of_three1(" ", "\t", "%"),
+            cow_str,
+        )(input)?;
         let (input, _) = space1(input)?;
-        let (input, value) =
-            cow_str(verify(take_until_end_of_line_or_input, |s: &Span| {
+        let (input, value) = map_parser(
+            verify(take_until_end_of_line_or_input, |s: &Span| {
                 !s.is_only_whitespace()
-            }))(input)?;
+            }),
+            cow_str,
+        )(input)?;
         Ok((input, Placeholder::Other { name, value }))
     }
 

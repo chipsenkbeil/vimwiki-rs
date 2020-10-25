@@ -77,7 +77,7 @@ pub fn link(input: Span) -> IResult<Located<Link>> {
 fn link_path<'a>(input: Span<'a>) -> IResult<Cow<'a, Path>> {
     preceded(
         not(tag("#")),
-        cow_path(take_line_until_one_of_three1("|", "#", "]]")),
+        map_parser(take_line_until_one_of_three1("|", "#", "]]"), cow_path),
     )(input)
 }
 
@@ -88,7 +88,7 @@ fn link_anchor<'a>(input: Span<'a>) -> IResult<Anchor<'a>> {
     map(
         separated_list(
             tag("#"),
-            cow_str(take_line_until_one_of_three1("|", "#", "]]")),
+            map_parser(take_line_until_one_of_three1("|", "#", "]]"), cow_str),
         ),
         Anchor::new,
     )(input)

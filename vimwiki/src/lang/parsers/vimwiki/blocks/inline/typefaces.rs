@@ -68,7 +68,10 @@ pub fn text(input: Span) -> IResult<Located<Text>> {
         ))))(input)
     }
 
-    context("Text", locate(capture(map(cow_str(text_line), Text::new))))(input)
+    context(
+        "Text",
+        locate(capture(map(map_parser(text_line, cow_str), Text::new))),
+    )(input)
 }
 
 #[inline]

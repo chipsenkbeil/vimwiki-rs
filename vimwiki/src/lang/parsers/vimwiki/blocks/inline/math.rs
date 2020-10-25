@@ -7,7 +7,11 @@ use crate::lang::{
         IResult, Span,
     },
 };
-use nom::{character::complete::char, combinator::map, sequence::delimited};
+use nom::{
+    character::complete::char,
+    combinator::{map, map_parser},
+    sequence::delimited,
+};
 
 #[inline]
 pub fn math_inline(input: Span) -> IResult<Located<MathInline>> {
@@ -15,11 +19,14 @@ pub fn math_inline(input: Span) -> IResult<Located<MathInline>> {
         // TODO: Is there any way to escape a $ inside a formula? If so, we will
         //       need to support detecting that
         map(
-            cow_str(delimited(
-                char('$'),
-                not_contains("%%", take_line_until1("$")),
-                char('$'),
-            )),
+            map_parser(
+                delimited(
+                    char('$'),
+                    not_contains("%%", take_line_until1("$")),
+                    char('$'),
+                ),
+                cow_str,
+            ),
             MathInline::new,
         )(input)
     }
