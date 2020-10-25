@@ -10,10 +10,10 @@ use crate::lang::{
 };
 use nom::{
     bytes::complete::tag,
-    character::complete::{char, space0},
+    character::complete::{char, space0, space1},
     combinator::{map_parser, not, opt, verify},
     multi::{many1, separated_list},
-    sequence::{delimited, preceded, separated_pair, terminated},
+    sequence::{delimited, preceded, separated_pair},
 };
 use std::{borrow::Cow, collections::HashMap};
 
@@ -48,19 +48,21 @@ fn preformatted_text_start<'a>(
     // Second, look for optional language and consume it
     //
     // e.g. {{{c++ -> Some("c++")
-    let (input, maybe_lang) = opt(terminated(
-        map_parser(
-            verify(take_line_until1(";"), |s: &Span| {
-                !s.as_remaining().contains(&b'=')
-            }),
-            cow_str,
-        ),
-        opt(char(';')),
+    let (input, maybe_lang) = opt(map_parser(
+        verify(take_line_until1(" "), |s: &Span| {
+            !s.as_remaining().contains(&b'=')
+        }),
+        cow_str,
     ))(input)?;
 
-    // Third, look for optional metadata and consume it
-    let (input, mut pairs) = separated_list(
-        char(';'),
+    // Third, remove any extra spaces before metadata
+    let (input, _) = space0(input)?;
+
+    // Fourth, look for optional metadata and consume it
+    //
+    // e.g. {{{key1="value 1" key2="value 2"
+    let (input, pairs) = separated_list(
+        space1,
         separated_pair(
             map_parser(take_line_until1("="), cow_str),
             char('='),
@@ -72,16 +74,11 @@ fn preformatted_text_start<'a>(
         ),
     )(input)?;
 
-    // Fourth, consume end of line
+    // Fifth, consume end of line
     let (input, _) = space0(input)?;
     let (input, _) = end_of_line_or_input(input)?;
 
-    let mut metadata = HashMap::new();
-    for (k, v) in pairs.drain(..) {
-        metadata.insert(k, v);
-    }
-
-    Ok((input, (maybe_lang, metadata)))
+    Ok((input, (maybe_lang, pairs.into_iter().collect())))
 }
 
 #[inline]
@@ -162,7 +159,7 @@ mod tests {
     #[test]
     fn preformatted_text_should_support_lang_shorthand_with_metadata() {
         let input = Span::from(indoc! {r#"
-            {{{c++;key="value"
+            {{{c++ key="value"
             some code
             }}}
         "#});
@@ -231,7 +228,7 @@ mod tests {
     #[test]
     fn preformatted_text_should_support_multiple_metadata() {
         let input = Span::from(indoc! {r#"
-            {{{class="brush: python";style="position: relative"
+            {{{class="brush: python" style="position: relative"
             def hello(world):
                 for x in range(10):
                     print("Hello {0} number {1}".format(world, x))
