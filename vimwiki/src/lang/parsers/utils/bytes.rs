@@ -29,7 +29,7 @@ pub fn offset(pattern: &'static str) -> impl Fn(Span) -> IResult<usize> {
         let bytes = input.as_bytes();
         for pos in memchr_iter(pattern.as_bytes()[0], bytes) {
             let end = pos + pattern.len();
-            if end >= bytes.len() {
+            if end > bytes.len() {
                 break;
             }
 
@@ -162,7 +162,7 @@ pub fn take_line_until<'a>(
             // Grab everything but the possible pattern
             let (input, content) = input.take_split(pos);
             let end = pos + pattern.len();
-            if end >= bytes.len() {
+            if end > bytes.len() {
                 break;
             }
 
@@ -218,8 +218,8 @@ pub fn take_line_until_one_of_two<'a>(
 
             // Verify that the pattern would be next, and if so return our
             // result, otherwise continue
-            if (end1 < bytes.len() && &bytes[pos..end1] == p1_bytes.as_bytes())
-                || (end2 < bytes.len()
+            if (end1 <= bytes.len() && &bytes[pos..end1] == p1_bytes.as_bytes())
+                || (end2 <= bytes.len()
                     && &bytes[pos..end2] == p2_bytes.as_bytes())
             {
                 return Ok((input, content));
@@ -270,7 +270,7 @@ pub fn take_line_until_one_of_three<'a>(
             // If we have reached or passed the end of line, return everything
             // before the line position
             match maybe_line_pos {
-                Some(line_pos) if line_pos >= pos => {
+                Some(line_pos) if line_pos <= pos => {
                     return Ok(input.take_split(line_pos));
                 }
                 _ => {}
@@ -284,10 +284,10 @@ pub fn take_line_until_one_of_three<'a>(
 
             // Verify that the pattern would be next, and if so return our
             // result, otherwise continue
-            if (end1 < bytes.len() && &bytes[pos..end1] == p1_bytes.as_bytes())
-                || (end2 < bytes.len()
+            if (end1 <= bytes.len() && &bytes[pos..end1] == p1_bytes.as_bytes())
+                || (end2 <= bytes.len()
                     && &bytes[pos..end2] == p2_bytes.as_bytes())
-                || (end3 < bytes.len()
+                || (end3 <= bytes.len()
                     && &bytes[pos..end3] == p3_bytes.as_bytes())
             {
                 return Ok((input, content));
@@ -342,7 +342,7 @@ pub fn take_until<'a>(
         for pos in memchr_iter(pattern.as_bytes()[0], bytes) {
             let (input, content) = input.take_split(pos);
             let end = pos + pattern.len();
-            if end >= bytes.len() {
+            if end > bytes.len() {
                 break;
             }
 
