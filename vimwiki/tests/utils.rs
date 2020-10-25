@@ -10,12 +10,6 @@ pub fn compare_page_elements<'a>(
     //       what and when there is an issue
     for (i, (ac, ec)) in actual.iter().zip(expected.iter()).enumerate() {
         assert_eq!(ac, ec, "Elements at index {} are not equal!", i);
-        assert_eq!(
-            ac.region(),
-            ec.region(),
-            "Element regions at index {} are not equal!",
-            i
-        );
     }
 
     // NOTE: Because we are not comparing vecs directly, we need to verify at
