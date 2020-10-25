@@ -15,6 +15,10 @@ default = []
 location = []
 timekeeper = ["lazy_static"]
 
+[[bench]]
+name = "vimwiki_parser"
+harness = false
+
 [dependencies]
 bytecount = "0.6.0"
 chrono = { version = "0.4.15", features = ["serde"] }
@@ -46,5 +50,6 @@ features = [
 ]
 
 [dev-dependencies]
+criterion = "0.3.3"
 indoc = "1.0.2"
 vimwiki_macros = { version = "0.1.0-alpha.4", path = "../vimwiki_macros" }
