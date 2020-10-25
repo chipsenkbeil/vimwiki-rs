@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use std::{fs, path::PathBuf, time::Duration};
 use vimwiki::{elements::*, Language};
 
@@ -8,11 +8,15 @@ fn parse_page_benchmark(c: &mut Criterion) {
     let path = PathBuf::from(base).join(target);
     let file_contents =
         fs::read_to_string(path).expect("Failed to load fixture");
-    let language = Language::from_vimwiki_string(file_contents);
 
-    c.bench_function("parse specification.wiki", |b| {
-        b.iter(|| language.parse::<Page>().expect("Failed to parse"))
-    });
+    c.bench_with_input(
+        BenchmarkId::new("parse page", "specification.wiki"),
+        &file_contents,
+        |b, s| {
+            let language = Language::from_vimwiki_str(&s);
+            b.iter(|| language.parse::<Page>().expect("Failed to parse"))
+        },
+    );
 }
 
 criterion_group! {
