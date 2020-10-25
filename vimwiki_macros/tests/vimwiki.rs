@@ -422,28 +422,6 @@ fn vimwiki_decorated_text_bold() {
 }
 
 #[test]
-fn vimwiki_decorated_text_bolditalic_1() {
-    let x = vimwiki_decorated_text!("*_some text_*");
-    assert_eq!(
-        x.into_inner(),
-        DecoratedText::BoldItalic(vec![Located::from(
-            DecoratedTextContent::from(Text::from("some text"))
-        )],)
-    );
-}
-
-#[test]
-fn vimwiki_decorated_text_bolditalic_2() {
-    let x = vimwiki_decorated_text!("_*some text*_");
-    assert_eq!(
-        x.into_inner(),
-        DecoratedText::BoldItalic(vec![Located::from(
-            DecoratedTextContent::from(Text::from("some text"))
-        )],)
-    );
-}
-
-#[test]
 fn vimwiki_decorated_text_italic() {
     let x = vimwiki_decorated_text!("_some text_");
     assert_eq!(
