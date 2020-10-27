@@ -4,10 +4,8 @@ use vimwiki_macros::*;
 
 #[test]
 fn test() {
-    let language = Language::from_vimwiki_string(
-        VimwikiFile::PandocVimwikiReader.load().unwrap(),
-    );
-    let page: Page = language.parse().unwrap();
+    let contents = VimwikiFile::PandocVimwikiReader.load().unwrap();
+    let page: Page = Language::from_vimwiki_str(&contents).parse().unwrap();
 
     let expected = vec![
         vimwiki_header!("= _*implemented*_ =").into(),
@@ -46,8 +44,10 @@ fn test() {
         vimwiki_paragraph!("just two underscores: __").into(),
         vimwiki_paragraph!("just four ~s: ~~~~").into(),
         vimwiki_paragraph!("_not").into(),
+        // TODO: Comment shows up here
         vimwiki_paragraph!("emph_").into(),
         vimwiki_paragraph!("~~not").into(),
+        // TODO: Comment shows up here
         vimwiki_paragraph!("strikeout~~").into(),
         vimwiki_header!("== horizontal rule ==").into(),
         vimwiki_paragraph!("top").into(),

@@ -20,7 +20,9 @@ pub struct Config {
     pub verbose: u8,
 
     /// Wiki paths to load, monitor, and manipulate
-    /// Format is index[:name]:path
+    ///
+    /// Format is [name]:path with order mattering as first wiki has index 0,
+    /// second wiki has index 1, etc.
     #[clap(long = "wiki", number_of_values = 1)]
     pub wikis: Vec<WikiConfig>,
 
@@ -72,23 +74,8 @@ pub enum Mode {
 /// Represents input information about a wiki
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct WikiConfig {
-    pub index: u32,
     pub name: Option<String>,
     pub path: PathBuf,
-}
-
-impl std::fmt::Display for WikiConfig {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.index)?;
-
-        if let Some(name) = self.name.as_ref() {
-            write!(f, "/{}", name)?;
-        }
-
-        write!(f, ":{}", self.path.to_string_lossy())?;
-
-        Ok(())
-    }
 }
 
 /// Represents parsing errors that can occur for a wiki opt
@@ -103,29 +90,23 @@ pub enum ParseWikiConfigError {
 impl std::str::FromStr for WikiConfig {
     type Err = ParseWikiConfigError;
 
-    /// Parse input in form of <index>[:<name>]:path
+    /// Parse input in form of [<name>]:path
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parts: Vec<&str> = s.split(':').collect();
         let parts_len: usize = parts.len();
-        if !(2..=3).contains(&parts_len) {
+        if !(1..=2).contains(&parts_len) {
             return Err(Self::Err::InvalidInput);
         }
 
-        let index = parts[0]
-            .parse::<u32>()
-            .map_err(|_| Self::Err::InvalidIndex)?;
-
         let instance = if parts.len() == 2 {
             Self {
-                index,
-                name: None,
+                name: Some(parts[0].to_string()),
                 path: PathBuf::from(parts[1]),
             }
         } else {
             Self {
-                index,
-                name: Some(parts[1].to_string()),
-                path: PathBuf::from(parts[2]),
+                name: None,
+                path: PathBuf::from(parts[0]),
             }
         };
 

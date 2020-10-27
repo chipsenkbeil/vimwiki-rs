@@ -1,5 +1,5 @@
 use flexi_logger::{LogSpecification, Logger};
-use vimwiki_server::{program, Config};
+use vimwiki_server::{Config, Program};
 
 #[tokio::main]
 async fn main() {
@@ -9,7 +9,7 @@ async fn main() {
         .start()
         .unwrap_or_else(|e| panic!("Logger initialization failed with {}", e));
 
-    program::run(config)
+    Program::run(config)
         .await
         .expect("Program failed unexpectedly");
 }

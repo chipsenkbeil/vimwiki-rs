@@ -4,10 +4,8 @@ use vimwiki_macros::*;
 
 #[test]
 fn test() {
-    let language = Language::from_vimwiki_string(
-        VimwikiFile::VimwikiWikiTroubleshooting.load().unwrap(),
-    );
-    let page: Page = language.parse().unwrap();
+    let contents = VimwikiFile::VimwikiWikiTroubleshooting.load().unwrap();
+    let page: Page = Language::from_vimwiki_str(&contents).parse().unwrap();
     let expected = vec![
         vimwiki_header!("= Troubleshooting =")
             .into(),

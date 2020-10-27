@@ -13,7 +13,8 @@ impl Query {
         ctx: &'a async_graphql::Context<'_>,
         index: u32,
     ) -> Option<&'a Wiki> {
-        ctx.data_unchecked::<Program>().wiki_by_index(index)
+        ctx.data_unchecked::<Program>()
+            .wiki_by_index(index as usize)
     }
 
     /// Returns a wiki using its name
@@ -23,6 +24,30 @@ impl Query {
         name: String,
     ) -> Option<&'a Wiki> {
         ctx.data_unchecked::<Program>().wiki_by_name(&name)
+    }
+
+    /// Returns all pages loaded by the server
+    async fn pages(
+        &self,
+        ctx: &async_graphql::Context<'_>,
+    ) -> Vec<elements::Page> {
+        ctx.data_unchecked::<Program>().graphql_pages()
+    }
+
+    /// Returns the page at the specified path
+    async fn page(
+        &self,
+        ctx: &async_graphql::Context<'_>,
+        path: String,
+        #[graphql(default)] _reload: bool,
+    ) -> Option<elements::Page> {
+        let program = ctx.data_unchecked::<Program>();
+        // TODO: Need to either have some way to get a &mut of program
+        //       or we have to refactor to have an async mutex
+        // if reload {
+        //     program.load_file(&path);
+        // }
+        program.graphql_page(path)
     }
 }
 

@@ -10,6 +10,17 @@ pub struct LangParserError<'a> {
     next: Option<Box<Self>>,
 }
 
+impl<'a> From<nom::Err<LangParserError<'a>>> for LangParserError<'a> {
+    fn from(nom_err: nom::Err<LangParserError<'a>>) -> Self {
+        match nom_err {
+            nom::Err::Error(x) | nom::Err::Failure(x) => x,
+            nom::Err::Incomplete(_) => {
+                Self::from_ctx(&Span::default(), "Incomplete")
+            }
+        }
+    }
+}
+
 impl<'a> fmt::Display for LangParserError<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // Display our context along with the starting line/column

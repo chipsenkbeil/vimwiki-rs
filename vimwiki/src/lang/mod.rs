@@ -4,14 +4,13 @@ pub mod parsers;
 use derive_more::Display;
 use elements::*;
 use parsers::{vimwiki, Span};
-use std::borrow::Cow;
 
 /// Parse a value from a `Language`
 pub trait FromLanguage<'a>: Sized {
     type Error;
 
     /// Parses a `Language` to return a value of this type
-    fn from_language(s: &'a Language<'a>) -> Result<Self, Self::Error>;
+    fn from_language(language: Language<'a>) -> Result<Self, Self::Error>;
 }
 
 /// Represents a raw, unparsed representation of some language
@@ -34,93 +33,29 @@ pub trait FromLanguage<'a>: Sized {
 /// let page: Page = language.parse().unwrap();
 /// ```
 ///
-#[derive(Clone, Debug, Eq, PartialEq, Display)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Display)]
 pub enum Language<'a> {
-    Vimwiki(Cow<'a, str>),
-    Markdown(Cow<'a, str>),
-    Mediawiki(Cow<'a, str>),
+    Vimwiki(&'a str),
+    Markdown(&'a str),
+    Mediawiki(&'a str),
 }
 
 impl<'a> Language<'a> {
     /// Wraps provided `&str` as a `Language` for *vimwiki*
     pub fn from_vimwiki_str(inner: &'a str) -> Self {
-        Self::Vimwiki(Cow::Borrowed(inner))
-    }
-
-    /// Wraps provided `String` as a `Language` for *vimwiki*
-    pub fn from_vimwiki_string(inner: String) -> Self {
-        Self::Vimwiki(Cow::Owned(inner)).into_owned()
+        Self::Vimwiki(inner)
     }
 
     /// Wraps provided `&str` as a `Language` for *markdown*
     pub fn from_markdown_str(inner: &'a str) -> Self {
-        Self::Markdown(Cow::Borrowed(inner))
-    }
-
-    /// Wraps provided `String` as a `Language` for *markdown*
-    pub fn from_markdown_string(inner: String) -> Self {
-        Self::Markdown(Cow::Owned(inner)).into_owned()
+        Self::Markdown(inner)
     }
 
     /// Wraps provided `&str` as a `Language` for *mediawiki*
     pub fn from_mediawiki_str(inner: &'a str) -> Self {
-        Self::Mediawiki(Cow::Borrowed(inner))
+        Self::Mediawiki(inner)
     }
 
-    /// Wraps provided `String` as a `Language` for *mediawiki*
-    pub fn from_mediawiki_string(inner: String) -> Self {
-        Self::Mediawiki(Cow::Owned(inner)).into_owned()
-    }
-
-    /// Converts into a byte slice
-    pub fn as_bytes(&self) -> &[u8] {
-        self.as_str().as_bytes()
-    }
-
-    /// Converts into a str slice
-    pub fn as_str(&self) -> &str {
-        self.as_inner()
-    }
-
-    /// Converts into a mut str slice
-    pub fn as_mut_str(&mut self) -> &mut str {
-        self.as_mut_inner().to_mut()
-    }
-
-    /// Converts into ref to inner `Cow<'_, str>` type
-    pub fn as_inner(&self) -> &Cow<'a, str> {
-        match self {
-            Self::Vimwiki(ref x) => x,
-            Self::Markdown(ref x) => x,
-            Self::Mediawiki(ref x) => x,
-        }
-    }
-
-    /// Converts into mut ref to inner `Cow<'_, str>` type
-    pub fn as_mut_inner(&mut self) -> &mut Cow<'a, str> {
-        match self {
-            Self::Vimwiki(ref mut x) => x,
-            Self::Markdown(ref mut x) => x,
-            Self::Mediawiki(ref mut x) => x,
-        }
-    }
-
-    /// Converts into inner `Cow<'_, str>` type
-    pub fn into_inner(self) -> Cow<'a, str> {
-        match self {
-            Self::Vimwiki(x) => x,
-            Self::Markdown(x) => x,
-            Self::Mediawiki(x) => x,
-        }
-    }
-
-    /// Parses this `Language` into another type
-    pub fn parse<F: FromLanguage<'a>>(&'a self) -> Result<F, F::Error> {
-        FromLanguage::from_language(self)
-    }
-}
-
-impl Language<'_> {
     /// Whether or not this represents a vimwiki format
     pub fn is_vimwiki(&self) -> bool {
         matches!(self, Self::Vimwiki(_))
@@ -136,59 +71,29 @@ impl Language<'_> {
         matches!(self, Self::Mediawiki(_))
     }
 
-    /// Whether or not this `Language` is only borrowing the underlying data
-    pub fn is_borrowed(&self) -> bool {
-        matches!(self.as_inner(), Cow::Borrowed(_))
-    }
-
-    /// Whether or not this `Language` owns the underlying data
-    pub fn is_owned(&self) -> bool {
-        matches!(self.as_inner(), Cow::Owned(_))
-    }
-
-    /// Converts `Language` into owned version, allocating a new string if
-    /// necessary, or just yielding itself if already owned
-    pub fn into_owned(self) -> Language<'static> {
+    pub fn as_inner(&self) -> &str {
         match self {
-            Self::Vimwiki(x) => Language::Vimwiki(Cow::from(x.into_owned())),
-            Self::Markdown(x) => Language::Markdown(Cow::from(x.into_owned())),
-            Self::Mediawiki(x) => {
-                Language::Mediawiki(Cow::from(x.into_owned()))
-            }
+            Self::Vimwiki(x) => x,
+            Self::Markdown(x) => x,
+            Self::Mediawiki(x) => x,
         }
     }
 
-    /// Returns a new `Language` which is identical but has as lifetime tied to
-    /// this `Language`
-    pub fn as_borrowed(&self) -> Language {
-        use self::Cow::*;
-
-        macro_rules! make_borrowed {
-            ($value:expr) => {
-                Cow::Borrowed(match $value {
-                    Borrowed(borrowed) => *borrowed,
-                    Owned(owned) => owned.as_str(),
-                })
-            };
-        }
-
-        match self {
-            Self::Vimwiki(ref x) => Language::Vimwiki(make_borrowed!(x)),
-            Self::Markdown(ref x) => Language::Markdown(make_borrowed!(x)),
-            Self::Mediawiki(ref x) => Language::Mediawiki(make_borrowed!(x)),
-        }
+    /// Borrows this language and parses it into another type
+    pub fn parse<F: FromLanguage<'a>>(&self) -> Result<F, F::Error> {
+        FromLanguage::from_language(*self)
     }
 }
 
 macro_rules! impl_from_language {
     ($t:ty, $f:expr) => {
         impl<'a> FromLanguage<'a> for $t {
-            type Error = nom::Err<parsers::Error<'a>>;
+            type Error = parsers::Error<'a>;
 
-            fn from_language(s: &'a Language<'a>) -> Result<Self, Self::Error> {
-                match s {
-                    Language::Vimwiki(x) => Ok($f(Span::from(x.as_bytes()))?.1),
-                    _ => Err(nom::Err::Failure(parsers::Error::unsupported())),
+            fn from_language(l: Language<'a>) -> Result<Self, Self::Error> {
+                match l {
+                    Language::Vimwiki(x) => Ok($f(Span::from(x))?.1),
+                    _ => Err(parsers::Error::unsupported()),
                 }
             }
         }

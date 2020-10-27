@@ -29,14 +29,12 @@ macro_rules! impl_macro {
                 // Validate we did indeed only get a single argument
                 utils::require_empty_or_trailing_comma(&mut input)?;
 
-                // Load our input in as a specific language
-                let language = Language::$from_str(
-                    utils::input_to_string(first, $raw_mode)?
-                );
+                // Load our input into a string
+                let input = utils::input_to_string(first, $raw_mode)?;
 
                 // Perform the action of parsing our language into a
                 // structured format
-                let element: $type = language
+                let element: $type = Language::$from_str(&input)
                     .parse()
                     .map_err(|x| Error::new(Span::call_site(), &format!("{}", x)))?;
 
@@ -71,8 +69,8 @@ macro_rules! impl_macro {
 macro_rules! impl_macro_vimwiki {
     ($suffix:ident, $type:ty) => {
         paste! {
-            impl_macro!([<vimwiki_ $suffix>], from_vimwiki_string, $type, false);
-            impl_macro!([<vimwiki_ $suffix _raw>], from_vimwiki_string, $type, true);
+            impl_macro!([<vimwiki_ $suffix>], from_vimwiki_str, $type, false);
+            impl_macro!([<vimwiki_ $suffix _raw>], from_vimwiki_str, $type, true);
         }
     };
 }

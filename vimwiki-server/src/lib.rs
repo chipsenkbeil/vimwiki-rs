@@ -1,2 +1,2 @@
-pub mod program;
-pub use program::config::*;
+mod program;
+pub use program::{config::Config, Program};
