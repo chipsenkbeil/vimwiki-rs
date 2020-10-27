@@ -3,9 +3,10 @@ use std::{
     collections::HashSet,
     path::{Path, PathBuf},
 };
+use tokio::sync::Mutex;
 
 /// Represents a wiki and its associated files
-#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct Wiki {
     pub(super) index: usize,
     pub(super) name: Option<String>,
@@ -49,13 +50,37 @@ impl Wiki {
         self.path.to_string_lossy().to_string()
     }
 
+    /// Returns all pages within the wiki
+    async fn pages(
+        &self,
+        ctx: &async_graphql::Context<'_>,
+    ) -> Vec<graphql::elements::Page> {
+        let mut pages = Vec::new();
+        for path in self.files() {
+            // TODO: Is this needed, or would the wiki have absolute paths?
+            let full_path = self.path.join(path);
+
+            if let Some(page) = ctx
+                .data_unchecked::<Mutex<Program>>()
+                .lock()
+                .await
+                .graphql_page(full_path)
+            {
+                pages.push(page);
+            }
+        }
+        pages
+    }
+
     /// Returns the page with the specific path within the wiki
-    async fn page<'a>(
-        &'a self,
-        ctx: &'a async_graphql::Context<'_>,
+    async fn page(
+        &self,
+        ctx: &async_graphql::Context<'_>,
         path: String,
     ) -> Option<graphql::elements::Page> {
-        ctx.data_unchecked::<Program>()
+        ctx.data_unchecked::<Mutex<Program>>()
+            .lock()
+            .await
             .graphql_page(self.path.join(path))
     }
 }
