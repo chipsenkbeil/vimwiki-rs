@@ -1,4 +1,4 @@
-use super::Element;
+use super::{Element, Region};
 use derive_more::From;
 use vimwiki::elements;
 
@@ -60,6 +60,11 @@ impl<'a> ElementNode<'a> {
             .descendants(&self.node)
             .map(|x| ElementNode::from((self.tree, x)))
             .collect()
+    }
+
+    /// Represents the region within the file comprising the element
+    async fn region(&self) -> Region {
+        Region::from(self.node.region())
     }
 
     /// Represents the element contained within the node
