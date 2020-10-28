@@ -5,12 +5,14 @@ pub use node::*;
 mod utils;
 pub use utils::*;
 
+use derive_more::Constructor;
+use std::sync::Arc;
 use vimwiki::{elements, Located};
 
 /// Represents a single document page
-#[derive(Debug)]
+#[derive(Constructor, Clone, Debug)]
 pub struct Page {
-    forest: elements::ElementForest<'static>,
+    forest: Arc<elements::ElementForest<'static>>,
 }
 
 #[async_graphql::Object]
@@ -67,13 +69,6 @@ impl Page {
         self.forest
             .find_tree_and_node_at_offset(offset as usize)
             .map(ElementNode::from)
-    }
-}
-
-impl<'a> From<vimwiki::elements::Page<'a>> for Page {
-    fn from(page: vimwiki::elements::Page<'a>) -> Self {
-        let forest = elements::ElementForest::from(page).into_owned();
-        Self { forest }
     }
 }
 

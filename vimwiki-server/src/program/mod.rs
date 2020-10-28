@@ -7,14 +7,15 @@ mod server;
 mod stdin;
 mod utils;
 
-use graphql::elements::Page as GqlPage;
+use graphql::elements::Page;
 use log::error;
 use snafu::{ResultExt, Snafu};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
+    sync::Arc,
 };
-use vimwiki::elements::Page;
+use vimwiki::elements::ElementForest;
 
 /// Alias for a result with a program error
 pub type ProgramResult<T, E = ProgramError> = std::result::Result<T, E>;
@@ -46,7 +47,7 @@ pub enum ProgramError {
 #[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct Program {
     /// Represents the files loaded into the program
-    files: HashMap<PathBuf, Page<'static>>,
+    files: HashMap<PathBuf, Arc<ElementForest<'static>>>,
 
     /// Represents the information associated with each wiki; the ordering
     /// is significant here as it matches the order as defined by the user
@@ -162,8 +163,10 @@ impl Program {
     ) -> Result<(), utils::LoadPageError> {
         // TODO: Determine if a file has not been changed since last time,
         //       avoiding the parsing portion of loading a page
-        let page = utils::load_page(path.as_ref()).await?;
-        self.files.insert(path.as_ref().to_path_buf(), page);
+        let forest = Arc::new(ElementForest::from(
+            utils::load_page(path.as_ref()).await?,
+        ));
+        self.files.insert(path.as_ref().to_path_buf(), forest);
         Ok(())
     }
 
@@ -178,20 +181,13 @@ impl Program {
     }
 
     /// Retrieves a loaded GraphQL page by its path
-    pub fn graphql_page(&self, path: impl AsRef<Path>) -> Option<GqlPage> {
-        self.files
-            .get(path.as_ref())
-            .map(Page::to_borrowed)
-            .map(GqlPage::from)
+    pub fn graphql_page(&self, path: impl AsRef<Path>) -> Option<Page> {
+        self.files.get(path.as_ref()).cloned().map(Page::new)
     }
 
     /// Represents all loaded GraphQL pages
-    pub fn graphql_pages(&self) -> Vec<GqlPage> {
-        self.files
-            .values()
-            .map(Page::to_borrowed)
-            .map(GqlPage::from)
-            .collect()
+    pub fn graphql_pages(&self) -> Vec<Page> {
+        self.files.values().cloned().map(Page::new).collect()
     }
 
     /// Represents the path to the cache file for the program
