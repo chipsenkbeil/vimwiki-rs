@@ -35,6 +35,22 @@ impl Table<'_> {
 }
 
 impl<'a> Table<'a> {
+    /// Returns the alignment of the specified column within the table
+    ///
+    /// NOTE: This will always return an alignment, even if the column
+    ///       does not exist, by using the default column alignment
+    pub fn get_column_alignment(&self, col: usize) -> ColumnAlign {
+        self.rows
+            .iter()
+            .find_map(|r| match r.as_inner() {
+                Row::Divider { columns } => Some(columns),
+                _ => None,
+            })
+            .and_then(|columns| columns.get(col))
+            .copied()
+            .unwrap_or_default()
+    }
+
     /// Returns reference to the cell found at the specified row and column
     pub fn get_cell(
         &self,
@@ -45,37 +61,6 @@ impl<'a> Table<'a> {
             Row::Content { cells } => cells.get(col),
             _ => None,
         })
-    }
-
-    /// Returns the alignment of the specified cell, using either an explicit
-    /// alignment or the default alignment if none is provided
-    ///
-    /// NOTE: This will always return an alignment, even if no cell exists at
-    ///       the specified row and column
-    pub fn get_cell_alignment(&self, row: usize, col: usize) -> ColumnAlign {
-        self.get_explicit_cell_alignment(row, col)
-            .unwrap_or_default()
-    }
-
-    /// Returns the alignment of the specified cell if it has some divider
-    /// above it to define the alignment, otherwise returns none
-    pub fn get_explicit_cell_alignment(
-        &self,
-        row: usize,
-        col: usize,
-    ) -> Option<ColumnAlign> {
-        // Find the divider that appears most recently above the cell, then
-        // looks for the column alignment matching the cell's column
-        self.rows
-            .iter()
-            .take(row)
-            .rev()
-            .find_map(|r| match r.as_inner() {
-                Row::Divider { columns } => Some(columns),
-                _ => None,
-            })
-            .and_then(|columns| columns.get(col))
-            .copied()
     }
 
     pub fn into_children(self) -> Vec<Located<InlineElement<'a>>> {

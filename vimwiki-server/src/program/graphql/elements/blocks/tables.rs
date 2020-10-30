@@ -39,7 +39,7 @@ pub enum Row {
 }
 
 impl Row {
-    fn from_at_pos<'a>(position: i32, le: Located<elements::Row<'a>>) -> Self {
+    fn from_at_pos(position: i32, le: Located<elements::Row>) -> Self {
         let region = Region::from(le.region());
 
         match le.into_inner() {
@@ -54,9 +54,11 @@ impl Row {
                     })
                     .collect(),
             }),
-            elements::Row::Divider => {
-                Self::from(DividerRow { region, position })
-            }
+            elements::Row::Divider { columns } => Self::from(DividerRow {
+                region,
+                position,
+                columns: columns.into_iter().map(ColumnAlign::from).collect(),
+            }),
         }
     }
 }
@@ -70,6 +72,22 @@ pub struct DividerRow {
 
     /// The position of this row amongst all rows in the table
     position: i32,
+
+    /// The alignment of each column according to this divider
+    columns: Vec<ColumnAlign>,
+}
+
+#[derive(async_graphql::Enum, Copy, Clone, Debug, Eq, PartialEq)]
+#[graphql(remote = "vimwiki::elements::ColumnAlign")]
+pub enum ColumnAlign {
+    /// Align columns left
+    Left,
+
+    /// Align columns centered
+    Center,
+
+    /// Align columns right
+    Right,
 }
 
 /// Represents a row that contains one or more cells of data
@@ -94,10 +112,10 @@ pub enum Cell {
 }
 
 impl Cell {
-    fn from_at_pos<'a>(
+    fn from_at_pos(
         row_position: i32,
         position: i32,
-        le: Located<elements::Cell<'a>>,
+        le: Located<elements::Cell>,
     ) -> Self {
         let region = Region::from(le.region());
         match le.into_inner() {
