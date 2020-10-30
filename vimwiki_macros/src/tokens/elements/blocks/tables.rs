@@ -24,8 +24,9 @@ fn tokenize_row(row: &Row) -> TokenStream {
             let t = cells.iter().map(|x| do_tokenize!(x));
             quote! { #root::Row::Content { cells: vec![#(#t),*] } }
         }
-        Row::Divider => {
-            quote! { #root::Row::Divider }
+        Row::Divider { columns } => {
+            let t = columns.iter().map(|x| do_tokenize!(x));
+            quote! { #root::Row::Divider { columns: vec![#(#t),*] } }
         }
     }
 }
@@ -43,6 +44,22 @@ fn tokenize_cell(cell: &Cell) -> TokenStream {
         }
         Cell::SpanLeft => {
             quote! { #root::Cell::SpanLeft }
+        }
+    }
+}
+
+impl_tokenize!(tokenize_column_align, ColumnAlign);
+fn tokenize_column_align(column_align: &ColumnAlign) -> TokenStream {
+    let root = element_path();
+    match column_align {
+        ColumnAlign::Left => {
+            quote! { #root::ColumnAlign::Left }
+        }
+        ColumnAlign::Center => {
+            quote! { #root::ColumnAlign::Center }
+        }
+        ColumnAlign::Right => {
+            quote! { #root::ColumnAlign::Right }
         }
     }
 }

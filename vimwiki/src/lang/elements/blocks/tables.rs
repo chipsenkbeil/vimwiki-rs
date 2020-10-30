@@ -35,6 +35,7 @@ impl Table<'_> {
 }
 
 impl<'a> Table<'a> {
+    /// Returns reference to the cell found at the specified row and column
     pub fn get_cell(
         &self,
         row: usize,
@@ -44,6 +45,37 @@ impl<'a> Table<'a> {
             Row::Content { cells } => cells.get(col),
             _ => None,
         })
+    }
+
+    /// Returns the alignment of the specified cell, using either an explicit
+    /// alignment or the default alignment if none is provided
+    ///
+    /// NOTE: This will always return an alignment, even if no cell exists at
+    ///       the specified row and column
+    pub fn get_cell_alignment(&self, row: usize, col: usize) -> ColumnAlign {
+        self.get_explicit_cell_alignment(row, col)
+            .unwrap_or_default()
+    }
+
+    /// Returns the alignment of the specified cell if it has some divider
+    /// above it to define the alignment, otherwise returns none
+    pub fn get_explicit_cell_alignment(
+        &self,
+        row: usize,
+        col: usize,
+    ) -> Option<ColumnAlign> {
+        // Find the divider that appears most recently above the cell, then
+        // looks for the column alignment matching the cell's column
+        self.rows
+            .iter()
+            .take(row)
+            .rev()
+            .find_map(|r| match r.as_inner() {
+                Row::Divider { columns } => Some(columns),
+                _ => None,
+            })
+            .and_then(|columns| columns.get(col))
+            .copied()
     }
 
     pub fn into_children(self) -> Vec<Located<InlineElement<'a>>> {
@@ -60,7 +92,21 @@ pub enum Row<'a> {
     Content { cells: Vec<Located<Cell<'a>>> },
 
     /// Represents a row purely acting as a divider, usually for headers
-    Divider,
+    Divider { columns: Vec<ColumnAlign> },
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub enum ColumnAlign {
+    Left,
+    Center,
+    Right,
+}
+
+impl Default for ColumnAlign {
+    /// By default, columns align to the left
+    fn default() -> Self {
+        Self::Left
+    }
 }
 
 impl Row<'_> {
@@ -72,7 +118,9 @@ impl Row<'_> {
                     .map(|x| x.as_ref().map(Cell::to_borrowed))
                     .collect(),
             },
-            Self::Divider => Row::Divider,
+            Self::Divider { columns } => Row::Divider {
+                columns: columns.to_vec(),
+            },
         }
     }
 
@@ -84,7 +132,7 @@ impl Row<'_> {
                     .map(|x| x.map(Cell::into_owned))
                     .collect(),
             },
-            Self::Divider => Row::Divider,
+            Self::Divider { columns } => Row::Divider { columns },
         }
     }
 }

@@ -1,6 +1,8 @@
 use super::inline::inline_element_container;
 use crate::lang::{
-    elements::{Cell, InlineElementContainer, Located, Row, Table},
+    elements::{
+        Cell, ColumnAlign, InlineElementContainer, Located, Row, Table,
+    },
     parsers::{
         utils::{
             capture, context, end_of_line_or_input, locate, take_line_until1,
@@ -13,7 +15,7 @@ use nom::{
     branch::alt,
     bytes::complete::tag,
     character::complete::{char, space0},
-    combinator::{map, map_parser, value, verify},
+    combinator::{map, map_parser, opt, value, verify},
     multi::{many0, separated_nonempty_list},
     sequence::{delimited, pair, preceded, terminated},
 };
@@ -35,7 +37,9 @@ pub fn table(input: Span) -> IResult<Located<Table>> {
     context(
         "Table",
         locate(capture(verify(inner, |t| {
-            !t.rows.iter().all(|r| matches!(r.as_inner(), Row::Divider))
+            !t.rows
+                .iter()
+                .all(|r| matches!(r.as_inner(), Row::Divider { .. }))
         }))),
     )(input)
 }
@@ -47,9 +51,10 @@ fn row(input: Span) -> IResult<Located<Row>> {
             delimited(
                 char('|'),
                 alt((
-                    map(separated_nonempty_list(char('|'), hyphens), |_| {
-                        Row::Divider
-                    }),
+                    map(
+                        separated_nonempty_list(char('|'), column_align),
+                        Row::from,
+                    ),
                     map(separated_nonempty_list(char('|'), cell), Row::from),
                 )),
                 char('|'),
@@ -62,8 +67,19 @@ fn row(input: Span) -> IResult<Located<Row>> {
 }
 
 #[inline]
-fn hyphens(input: Span) -> IResult<()> {
-    value((), take_line_while1(char('-')))(input)
+fn column_align(input: Span) -> IResult<ColumnAlign> {
+    let (input, maybe_start_colon) = opt(char(':'))(input)?;
+    let (input, _) = take_line_while1(char('-'))(input)?;
+    let (input, maybe_end_colon) = opt(char(':'))(input)?;
+
+    let col = match (maybe_start_colon.is_some(), maybe_end_colon.is_some()) {
+        (true, true) => ColumnAlign::Center,
+        (false, true) => ColumnAlign::Right,
+        (true, false) => ColumnAlign::Left,
+        _ => ColumnAlign::default(),
+    };
+
+    Ok((input, col))
 }
 
 #[inline]
@@ -174,7 +190,12 @@ mod tests {
         let cell = t.get_cell(0, 1).unwrap().as_inner();
         check_cell_text_value(cell, " age");
 
-        assert_eq!(t.rows[1].as_inner(), &Row::Divider);
+        assert_eq!(
+            t.rows[1].as_inner(),
+            &Row::Divider {
+                columns: vec![ColumnAlign::Left, ColumnAlign::Left]
+            }
+        );
 
         let cell = t.get_cell(2, 0).unwrap().as_inner();
         check_cell_text_value(cell, "abcd");
@@ -280,7 +301,12 @@ mod tests {
         let cell = t.get_cell(0, 0).unwrap().as_inner();
         check_cell_text_value(cell, "value1");
 
-        assert_eq!(t.rows[1].as_inner(), &Row::Divider);
+        assert_eq!(
+            t.rows[1].as_inner(),
+            &Row::Divider {
+                columns: vec![ColumnAlign::Left]
+            }
+        );
     }
 
     #[test]
@@ -303,7 +329,42 @@ mod tests {
         let cell = t.get_cell(0, 1).unwrap().as_inner();
         check_cell_text_value(cell, "value2");
 
-        assert_eq!(t.rows[1].as_inner(), &Row::Divider);
+        assert_eq!(
+            t.rows[1].as_inner(),
+            &Row::Divider {
+                columns: vec![ColumnAlign::Left, ColumnAlign::Left]
+            }
+        );
+    }
+
+    #[test]
+    fn table_should_support_row_and_divider_with_different_column_alignments() {
+        let input = Span::from(indoc! {"
+        |value1|value2|value3|value4|
+        |------|:-----|-----:|:----:|
+        "});
+        let (input, t) = table(input).unwrap();
+        assert!(
+            input.is_empty(),
+            "Did not consume table: '{}'",
+            input.as_unsafe_remaining_str()
+        );
+        assert!(!t.centered, "Table unexpectedly centered");
+
+        let cell = t.get_cell(0, 0).unwrap().as_inner();
+        check_cell_text_value(cell, "value1");
+
+        assert_eq!(
+            t.rows[1].as_inner(),
+            &Row::Divider {
+                columns: vec![
+                    ColumnAlign::Left,
+                    ColumnAlign::Left,
+                    ColumnAlign::Right,
+                    ColumnAlign::Center
+                ]
+            }
+        );
     }
 
     #[test]
