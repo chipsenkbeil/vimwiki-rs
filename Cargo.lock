@@ -62,9 +62,9 @@ dependencies = [
 
 [[package]]
 name = "async-graphql"
-version = "2.0.4"
+version = "2.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4a058ea006ad7e2f25b4594cdb5b60da29b28526e9579ef1b1adfad7d5a353d5"
+checksum = "cef2ead5b6ba77cf31d19dc18e1a641184d99381e48ac543084457d2f8baad22"
 dependencies = [
  "async-graphql-derive",
  "async-graphql-parser",
@@ -100,9 +100,9 @@ dependencies = [
 
 [[package]]
 name = "async-graphql-derive"
-version = "2.0.4"
+version = "2.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ed048285ebf1e6e517b62e9cd6a313b941297e9ee56233534f63ac2e8c24abfd"
+checksum = "0b86248cb543bf45bdb0be85eae69f9cc0a1a2518d1b282ed69785f790d389b4"
 dependencies = [
  "Inflector",
  "async-graphql-parser",
@@ -116,9 +116,9 @@ dependencies = [
 
 [[package]]
 name = "async-graphql-parser"
-version = "2.0.4"
+version = "2.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "98384ffe6801a3094428f43e799630ccf75edb23a1db6a26d5ee117f3613a9f0"
+checksum = "ca660e5dea2757fefec931f34c7babb01ff7eb01756494f66929cbb8411cf98a"
 dependencies = [
  "async-graphql-value",
  "pest",
@@ -129,9 +129,9 @@ dependencies = [
 
 [[package]]
 name = "async-graphql-value"
-version = "2.0.4"
+version = "2.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b445404350572b3845165a41fd5b509364074ce8daf3dc1bb7867ce139930d26"
+checksum = "57d3aa3cd3696ffd8decb10f5053affc78cb33ecfc545e480072bbc600e6723d"
 dependencies = [
  "serde",
  "serde_json",
@@ -139,9 +139,9 @@ dependencies = [
 
 [[package]]
 name = "async-graphql-warp"
-version = "2.0.4"
+version = "2.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ccacfe6675521bc39b64c680a45d7301d8806d0df2b83cecfbedee3fd8efb3b"
+checksum = "604bbcc7125ce31a31ed00c175ecf4a3ed17b8f968fd37c81aa36f8ebffcc12b"
 dependencies = [
  "async-graphql",
  "futures-util",
@@ -2659,6 +2659,7 @@ dependencies = [
  "notify",
  "serde",
  "serde_json",
+ "sha-1 0.9.1",
  "snafu",
  "tokio",
  "vimwiki",

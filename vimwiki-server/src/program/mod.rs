@@ -3,6 +3,8 @@ mod graphql;
 use config::*;
 mod wiki;
 use wiki::*;
+mod file;
+use file::*;
 mod server;
 mod stdin;
 mod utils;
@@ -13,9 +15,7 @@ use snafu::{ResultExt, Snafu};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
-    sync::Arc,
 };
-use vimwiki::elements::ElementForest;
 
 /// Alias for a result with a program error
 pub type ProgramResult<T, E = ProgramError> = std::result::Result<T, E>;
@@ -47,7 +47,7 @@ pub enum ProgramError {
 #[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct Program {
     /// Represents the files loaded into the program
-    files: HashMap<PathBuf, Arc<ElementForest<'static>>>,
+    files: HashMap<PathBuf, ParsedFile>,
 
     /// Represents the information associated with each wiki; the ordering
     /// is significant here as it matches the order as defined by the user
@@ -160,13 +160,19 @@ impl Program {
     pub async fn load_file(
         &mut self,
         path: impl AsRef<Path>,
-    ) -> Result<(), utils::LoadPageError> {
-        // TODO: Determine if a file has not been changed since last time,
-        //       avoiding the parsing portion of loading a page
-        let forest = Arc::new(ElementForest::from(
-            utils::load_page(path.as_ref()).await?,
-        ));
-        self.files.insert(path.as_ref().to_path_buf(), forest);
+    ) -> Result<(), LoadFileError> {
+        let c_path = tokio::fs::canonicalize(path.as_ref()).await.context(
+            ReadFailed {
+                path: path.as_ref().to_path_buf(),
+            },
+        )?;
+
+        let file = match self.files.remove(c_path.as_path()) {
+            Some(f) => f.reload().await?,
+            None => ParsedFile::load(c_path).await?,
+        };
+
+        self.files.insert(file.path().to_path_buf(), file);
         Ok(())
     }
 
@@ -182,12 +188,19 @@ impl Program {
 
     /// Retrieves a loaded GraphQL page by its path
     pub fn graphql_page(&self, path: impl AsRef<Path>) -> Option<Page> {
-        self.files.get(path.as_ref()).cloned().map(Page::new)
+        self.files
+            .get(path.as_ref())
+            .map(ParsedFile::forest)
+            .map(Page::new)
     }
 
     /// Represents all loaded GraphQL pages
     pub fn graphql_pages(&self) -> Vec<Page> {
-        self.files.values().cloned().map(Page::new).collect()
+        self.files
+            .values()
+            .map(ParsedFile::forest)
+            .map(Page::new)
+            .collect()
     }
 
     /// Represents the path to the cache file for the program

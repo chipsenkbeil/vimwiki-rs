@@ -1,10 +1,8 @@
 use indicatif::{ProgressBar, ProgressStyle};
-use snafu::{ResultExt, Snafu};
 use std::{
     fs,
     path::{Path, PathBuf},
 };
-use vimwiki::{elements::Page, Language, ParseError};
 
 /// Builds a new progress bar for n items
 pub fn new_progress_bar(n: u64) -> ProgressBar {
@@ -37,41 +35,4 @@ pub fn walk_and_resolve_paths<E: AsRef<str>>(
                 .and_then(|p| fs::canonicalize(p).ok())
         })
         .collect()
-}
-
-/// Loads a vimwiki page by reading the contents from the file at the
-/// specified path and then parsing it into our internal representation.
-pub async fn load_page(
-    path: impl AsRef<Path>,
-) -> Result<Page<'static>, LoadPageError> {
-    let contents =
-        tokio::fs::read_to_string(path.as_ref())
-            .await
-            .context(ReadFile {
-                path: path.as_ref().to_path_buf(),
-            })?;
-
-    let page: Page = Language::from_vimwiki_str(&contents).parse().map_err(
-        |x: ParseError| LoadPageError::ParseFile {
-            path: path.as_ref().to_path_buf(),
-            source: x.to_string(),
-        },
-    )?;
-
-    Ok(page.into_owned())
-}
-
-#[derive(Debug, Snafu)]
-pub enum LoadPageError {
-    #[snafu(display("Could not read contents from {}: {}", path.display(), source))]
-    ReadFile {
-        path: PathBuf,
-        source: tokio::io::Error,
-    },
-    #[snafu(display("Could not parse {}: {}", path.display(), source))]
-    ParseFile {
-        path: PathBuf,
-        #[snafu(source(false))]
-        source: String,
-    },
 }
