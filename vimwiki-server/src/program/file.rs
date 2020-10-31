@@ -1,3 +1,4 @@
+use log::trace;
 use serde::{Deserialize, Serialize};
 use sha1::{Digest, Sha1};
 use snafu::{ResultExt, Snafu};
@@ -38,6 +39,7 @@ impl ParsedFile {
             Self::load_file_with_checksum(self.path()).await?;
 
         if self.checksum == checksum {
+            trace!("{:?} has not changed", self.path());
             Ok(self)
         } else {
             Self::parse_contents_with_checksum(self.path, contents, checksum)

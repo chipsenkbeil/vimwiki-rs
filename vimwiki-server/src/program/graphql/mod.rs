@@ -1,5 +1,4 @@
-use super::{Program, Wiki};
-use tokio::sync::Mutex;
+use super::{ShareableProgram, Wiki};
 
 pub mod elements;
 
@@ -14,7 +13,7 @@ impl Query {
         ctx: &async_graphql::Context<'_>,
         index: u32,
     ) -> Option<Wiki> {
-        ctx.data_unchecked::<Mutex<Program>>()
+        ctx.data_unchecked::<ShareableProgram>()
             .lock()
             .await
             .wiki_by_index(index as usize)
@@ -27,7 +26,7 @@ impl Query {
         ctx: &async_graphql::Context<'_>,
         name: String,
     ) -> Option<Wiki> {
-        ctx.data_unchecked::<Mutex<Program>>()
+        ctx.data_unchecked::<ShareableProgram>()
             .lock()
             .await
             .wiki_by_name(&name)
@@ -39,7 +38,7 @@ impl Query {
         &self,
         ctx: &async_graphql::Context<'_>,
     ) -> Vec<elements::Page> {
-        ctx.data_unchecked::<Mutex<Program>>()
+        ctx.data_unchecked::<ShareableProgram>()
             .lock()
             .await
             .graphql_pages()
@@ -52,7 +51,7 @@ impl Query {
         path: String,
         #[graphql(default)] reload: bool,
     ) -> Option<elements::Page> {
-        let mut program = ctx.data_unchecked::<Mutex<Program>>().lock().await;
+        let mut program = ctx.data_unchecked::<ShareableProgram>().lock().await;
         if reload {
             program
                 .load_file(&path)
@@ -73,12 +72,12 @@ pub type Schema = async_graphql::Schema<
 >;
 
 /// Construct our schema with the provided program as context data
-pub fn build_schema_with_program(program: Program) -> Schema {
+pub fn build_schema_with_program(program: ShareableProgram) -> Schema {
     Schema::build(
         Query,
         async_graphql::EmptyMutation,
         async_graphql::EmptySubscription,
     )
-    .data(Mutex::new(program))
+    .data(program)
     .finish()
 }

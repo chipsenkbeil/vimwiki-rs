@@ -8,14 +8,19 @@ use file::*;
 mod server;
 mod stdin;
 mod utils;
+mod watcher;
+use watcher::*;
 
 use graphql::elements::Page;
 use log::error;
+use log::trace;
 use snafu::{ResultExt, Snafu};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
+    sync::Arc,
 };
+use tokio::sync::Mutex;
 
 /// Alias for a result with a program error
 pub type ProgramResult<T, E = ProgramError> = std::result::Result<T, E>;
@@ -41,6 +46,8 @@ pub enum ProgramError {
         path: PathBuf,
         source: tokio::io::Error,
     },
+    #[snafu(display("Could not start file watcher: {}", source))]
+    FileWatcher { source: notify::Error },
 }
 
 /// Contains the state of the program while it is running
@@ -55,10 +62,36 @@ pub struct Program {
     wikis: Vec<Wiki>,
 }
 
+/// Represents a program that can be shared and modified across threads
+pub type ShareableProgram = Arc<Mutex<Program>>;
+
 impl Program {
     /// Runs our program
     pub async fn run(config: Config) -> ProgramResult<()> {
-        let program = Self::load(&config).await?;
+        let program: ShareableProgram =
+            Arc::new(Mutex::new(Self::load(&config).await?));
+
+        // Create our watcher, which will persist for the lifetime of this
+        // run, monitor file changes, and reload files
+        let watcher = Watcher::initialize(Arc::clone(&program), &config)
+            .await
+            .context(FileWatcher {})?;
+
+        for path in program.lock().await.wiki_paths() {
+            if path.exists() {
+                if let Err(x) = watcher.watch_wiki(path).await {
+                    error!("Failed to watch {:?}: {}", path, x);
+                }
+            }
+        }
+
+        for path in program.lock().await.loaded_standalone_file_paths() {
+            if path.exists() {
+                if let Err(x) = watcher.watch_standalone(path).await {
+                    error!("Failed to watch {:?}: {}", path, x);
+                }
+            }
+        }
 
         match config.mode {
             Mode::Stdin => stdin::run(program, config).await,
@@ -155,25 +188,81 @@ impl Program {
             .context(StoreProgram { path })
     }
 
+    /// Iterator over all of the loaded file paths
+    pub fn loaded_file_paths(&self) -> impl Iterator<Item = &Path> {
+        self.files.keys().map(PathBuf::as_path)
+    }
+
+    /// Iterator over all of the configured wiki paths
+    pub fn wiki_paths(&self) -> impl Iterator<Item = &Path> {
+        self.wikis.iter().map(Wiki::as_path)
+    }
+
+    /// Iterator over all loaded file paths NOT in a configured wiki
+    pub fn loaded_standalone_file_paths(&self) -> impl Iterator<Item = &Path> {
+        self.loaded_file_paths()
+            .filter(move |p| !self.wiki_paths().any(|w| p.starts_with(w)))
+    }
+
+    /// Iterator over all loaded file paths in a configured wiki
+    pub fn loaded_wiki_file_paths(&self) -> impl Iterator<Item = &Path> {
+        self.loaded_file_paths()
+            .filter(move |p| self.wiki_paths().any(|w| p.starts_with(w)))
+    }
+
     /// Loads the file at the specified path into the program, or maintains
     /// the current file if determined that it has not changed
+    ///
+    /// If the underlying file at the specified path is gone, this will
+    /// remove our reference to the file and forest internally
     pub async fn load_file(
         &mut self,
         path: impl AsRef<Path>,
     ) -> Result<(), LoadFileError> {
+        trace!("load_file({:?})", path.as_ref());
+
         let c_path = tokio::fs::canonicalize(path.as_ref()).await.context(
             ReadFailed {
                 path: path.as_ref().to_path_buf(),
             },
         )?;
 
-        let file = match self.files.remove(c_path.as_path()) {
+        let file = match self.remove_file(c_path.as_path()) {
             Some(f) => f.reload().await?,
             None => ParsedFile::load(c_path).await?,
         };
 
         self.files.insert(file.path().to_path_buf(), file);
         Ok(())
+    }
+
+    /// Renames the specified path within the program, moving the internal
+    /// parsed file from being keyed by one path to a new path
+    pub fn rename_file(
+        &mut self,
+        from: impl AsRef<Path>,
+        to: impl AsRef<Path>,
+    ) {
+        self.remove_file(from.as_ref()).and_then(|f| {
+            trace!(
+                "Rename internally {:?} to {:?}",
+                from.as_ref(),
+                to.as_ref()
+            );
+            self.files.insert(to.as_ref().to_path_buf(), f)
+        });
+    }
+
+    /// Removes the file if it matches the provided path
+    ///
+    /// Note that the file paths are stored in the program aftering being
+    /// canonicalized, which means that the given path would also need to
+    /// be canonicalized to match
+    pub fn remove_file(
+        &mut self,
+        path: impl AsRef<Path>,
+    ) -> Option<ParsedFile> {
+        self.files.remove(path.as_ref())
     }
 
     /// Retrieves a wiki by its name

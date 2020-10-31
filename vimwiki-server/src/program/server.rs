@@ -1,4 +1,4 @@
-use super::{graphql, Config, Program};
+use super::{graphql, Config, ShareableProgram};
 use log::info;
 use std::convert::Infallible;
 use warp::{reply::Reply, Filter};
@@ -45,7 +45,7 @@ macro_rules! graphql_playground_endpoint {
     }};
 }
 
-pub async fn run(program: Program, config: Config) {
+pub async fn run(program: ShareableProgram, config: Config) {
     let endpoint = format!("http://{}:{}/graphql", config.host, config.port);
     let endpoint_2 = endpoint.clone();
 
