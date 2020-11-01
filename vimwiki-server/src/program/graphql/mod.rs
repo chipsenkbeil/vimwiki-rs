@@ -1,4 +1,4 @@
-use super::{ShareableProgram, Wiki};
+use super::{Program, Wiki};
 
 pub mod elements;
 
@@ -13,7 +13,8 @@ impl Query {
         ctx: &async_graphql::Context<'_>,
         index: u32,
     ) -> Option<Wiki> {
-        ctx.data_unchecked::<ShareableProgram>()
+        ctx.data_unchecked::<Program>()
+            .database
             .lock()
             .await
             .wiki_by_index(index as usize)
@@ -26,7 +27,8 @@ impl Query {
         ctx: &async_graphql::Context<'_>,
         name: String,
     ) -> Option<Wiki> {
-        ctx.data_unchecked::<ShareableProgram>()
+        ctx.data_unchecked::<Program>()
+            .database
             .lock()
             .await
             .wiki_by_name(&name)
@@ -38,7 +40,8 @@ impl Query {
         &self,
         ctx: &async_graphql::Context<'_>,
     ) -> Vec<elements::Page> {
-        ctx.data_unchecked::<ShareableProgram>()
+        ctx.data_unchecked::<Program>()
+            .database
             .lock()
             .await
             .graphql_pages()
@@ -51,15 +54,16 @@ impl Query {
         path: String,
         #[graphql(default)] reload: bool,
     ) -> Option<elements::Page> {
-        let mut program = ctx.data_unchecked::<ShareableProgram>().lock().await;
+        let mut database =
+            ctx.data_unchecked::<Program>().database.lock().await;
         if reload {
-            program
+            database
                 .load_file(&path)
                 .await
                 .ok()
-                .and_then(|_| program.graphql_page(path))
+                .and_then(|_| database.graphql_page(path))
         } else {
-            program.graphql_page(path)
+            database.graphql_page(path)
         }
     }
 }
@@ -72,7 +76,7 @@ pub type Schema = async_graphql::Schema<
 >;
 
 /// Construct our schema with the provided program as context data
-pub fn build_schema_with_program(program: ShareableProgram) -> Schema {
+pub fn build_schema_with_program(program: Program) -> Schema {
     Schema::build(
         Query,
         async_graphql::EmptyMutation,

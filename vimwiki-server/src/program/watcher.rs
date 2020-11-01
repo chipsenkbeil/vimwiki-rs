@@ -1,8 +1,8 @@
-use super::{Config, ShareableProgram};
+use super::{Config, ShareableDatabase};
 use log::{error, trace};
 use notify::{
     event::{CreateKind, ModifyKind, RemoveKind, RenameMode},
-    Error, EventKind, RecommendedWatcher, RecursiveMode,
+    Error, Event, EventKind, RecommendedWatcher, RecursiveMode,
 };
 use std::{path::Path, sync::Arc};
 use tokio::{
@@ -54,26 +54,64 @@ impl Watcher {
 }
 
 impl Watcher {
-    /// Attempts to initialize a file/directory watcher using the given program
+    /// Attempts to initialize a file/directory watcher using the given database
     pub async fn initialize(
-        program: ShareableProgram,
+        database: ShareableDatabase,
         config: &Config,
     ) -> Result<Self, Error> {
+        let (tx, rx) = mpsc::unbounded_channel::<notify::Event>();
+        let internal_watcher = Self::new_internal_watcher(tx)?;
+        let handle = Self::spawn_handle(config, Arc::clone(&database), rx);
+        let watcher = Self {
+            watcher: Arc::new(Mutex::new(internal_watcher)),
+            handle,
+        };
+
+        watcher.watch_from_database(database).await;
+
+        Ok(watcher)
+    }
+
+    async fn watch_from_database(&self, database: ShareableDatabase) {
+        for path in database.lock().await.wiki_paths() {
+            if path.exists() {
+                if let Err(x) = self.watch_wiki(path).await {
+                    error!("Failed to watch {:?}: {}", path, x);
+                }
+            }
+        }
+
+        for path in database.lock().await.loaded_standalone_file_paths() {
+            if path.exists() {
+                if let Err(x) = self.watch_standalone(path).await {
+                    error!("Failed to watch {:?}: {}", path, x);
+                }
+            }
+        }
+    }
+
+    fn new_internal_watcher(
+        tx: mpsc::UnboundedSender<Event>,
+    ) -> Result<RecommendedWatcher, Error> {
         use notify::Watcher;
 
-        let (tx, mut rx) = mpsc::unbounded_channel::<notify::Event>();
-        let watcher: RecommendedWatcher =
-            Watcher::new_immediate(move |res| match res {
-                Ok(event) => {
-                    if let Err(x) = tx.send(event) {
-                        error!("Failed to queue event: {}", x);
-                    }
+        Watcher::new_immediate(move |res| match res {
+            Ok(event) => {
+                if let Err(x) = tx.send(event) {
+                    error!("Failed to queue event: {}", x);
                 }
-                Err(e) => error!("Encountered watch error: {:?}", e),
-            })?;
+            }
+            Err(e) => error!("Encountered watch error: {:?}", e),
+        })
+    }
 
+    fn spawn_handle(
+        config: &Config,
+        database: ShareableDatabase,
+        mut rx: mpsc::UnboundedReceiver<Event>,
+    ) -> JoinHandle<()> {
         let exts = config.exts.clone();
-        let handle = tokio::spawn(async move {
+        tokio::spawn(async move {
             while let Some(event) = rx.recv().await {
                 // Ensure that the event we receive is for a supported
                 // file extension
@@ -101,12 +139,12 @@ impl Watcher {
                             //       do something special here?
                             if path.exists() {
                                 if let Err(x) =
-                                    program.lock().await.load_file(path).await
+                                    database.lock().await.load_file(path).await
                                 {
                                     error!("{}", x);
                                 }
                             } else {
-                                program.lock().await.remove_file(path);
+                                database.lock().await.remove_file(path);
                             }
                         }
                     }
@@ -115,7 +153,7 @@ impl Watcher {
                             if let (Some(from), Some(to)) =
                                 (event.paths.first(), event.paths.last())
                             {
-                                program.lock().await.rename_file(from, to)
+                                database.lock().await.rename_file(from, to)
                             }
                         } else {
                             error!("Unexpected total paths for a file rename");
@@ -124,11 +162,6 @@ impl Watcher {
                     _ => {}
                 }
             }
-        });
-
-        Ok(Self {
-            watcher: Arc::new(Mutex::new(watcher)),
-            handle,
         })
     }
 }

@@ -1,9 +1,8 @@
-use super::{graphql, Program};
+use crate::program::{graphql, Program};
 use std::{
     collections::HashSet,
     path::{Path, PathBuf},
 };
-use tokio::sync::Mutex;
 
 /// Represents a wiki and its associated files
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
@@ -61,7 +60,8 @@ impl Wiki {
             let full_path = self.path.join(path);
 
             if let Some(page) = ctx
-                .data_unchecked::<Mutex<Program>>()
+                .data_unchecked::<Program>()
+                .database
                 .lock()
                 .await
                 .graphql_page(full_path)
@@ -78,7 +78,8 @@ impl Wiki {
         ctx: &async_graphql::Context<'_>,
         path: String,
     ) -> Option<graphql::elements::Page> {
-        ctx.data_unchecked::<Mutex<Program>>()
+        ctx.data_unchecked::<Program>()
+            .database
             .lock()
             .await
             .graphql_page(self.path.join(path))
