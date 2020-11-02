@@ -19,6 +19,10 @@ pub struct Config {
     #[clap(short, long, parse(from_occurrences))]
     pub verbose: u8,
 
+    /// Specify a directory to store log output as files rather than stdout/stderr
+    #[clap(long)]
+    pub log_dir: Option<PathBuf>,
+
     /// Wiki paths to load, monitor, and manipulate
     ///
     /// Format is [name]:path with order mattering as first wiki has index 0,

@@ -10,7 +10,14 @@ async fn main() {
     let mut spec = LogSpecification::default(LevelFilter::Off);
     spec.module("vimwiki_server", config.log_level());
 
-    Logger::with(spec.finalize())
+    // Finalize our logger and - if given a directory - mark as logging to
+    // files within the specified directory rather than to stderr
+    let mut logger = Logger::with(spec.finalize());
+    if let Some(log_dir) = config.log_dir.as_ref() {
+        logger = logger.log_to_file().directory(log_dir);
+    }
+
+    logger
         .start()
         .unwrap_or_else(|e| panic!("Logger initialization failed with {}", e));
 
