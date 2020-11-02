@@ -162,9 +162,24 @@ impl Database {
     }
 
     /// Iterator over all loaded file paths in a configured wiki
+    #[allow(dead_code)]
     pub fn loaded_wiki_file_paths(&self) -> impl Iterator<Item = &Path> {
         self.loaded_file_paths()
             .filter(move |p| self.wiki_paths().any(|w| p.starts_with(w)))
+    }
+
+    /// Returns the wiki containing the given path, if the path resides
+    /// within the wiki. Note that this does not evaluate if the path leads
+    /// to a real file/directory/symlink, etc. It only checks if the path
+    /// starts with any of the given wikis.
+    #[allow(dead_code)]
+    pub fn find_wiki_containing_path(
+        &self,
+        path: impl AsRef<Path>,
+    ) -> Option<&Wiki> {
+        self.wikis
+            .iter()
+            .find(|w| path.as_ref().starts_with(w.as_path()))
     }
 
     /// Loads the file at the specified path into the database, or maintains

@@ -4,7 +4,11 @@ use notify::{
     event::{CreateKind, ModifyKind, RemoveKind, RenameMode},
     Error, Event, EventKind, RecommendedWatcher, RecursiveMode,
 };
-use std::{path::Path, sync::Arc};
+use std::{
+    collections::HashSet,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 use tokio::{
     sync::{mpsc, Mutex},
     task::JoinHandle,
@@ -12,7 +16,9 @@ use tokio::{
 
 pub struct Watcher {
     watcher: Arc<Mutex<RecommendedWatcher>>,
-    handle: JoinHandle<()>,
+    _handle: JoinHandle<()>,
+    wikis: Mutex<Vec<PathBuf>>,
+    standalone: Mutex<HashSet<PathBuf>>,
 }
 
 impl Watcher {
@@ -24,10 +30,22 @@ impl Watcher {
         use notify::Watcher;
 
         trace!("Watching wiki {:?}", path.as_ref());
-        self.watcher
-            .lock()
-            .await
-            .watch(path, RecursiveMode::Recursive)
+        if !self.is_watched(path.as_ref()).await {
+            let result = self
+                .watcher
+                .lock()
+                .await
+                .watch(path.as_ref(), RecursiveMode::Recursive);
+
+            if result.is_ok() {
+                self.wikis.lock().await.push(path.as_ref().to_path_buf());
+            }
+
+            result
+        } else {
+            trace!("{:?} already being watched", path.as_ref());
+            Ok(())
+        }
     }
 
     /// Adds a new file path to be watched
@@ -38,18 +56,69 @@ impl Watcher {
         use notify::Watcher;
 
         trace!("Watching standalone {:?}", path.as_ref());
-        self.watcher
-            .lock()
-            .await
-            .watch(path, RecursiveMode::NonRecursive)
+        if !self.is_watched(path.as_ref()).await {
+            let result = self
+                .watcher
+                .lock()
+                .await
+                .watch(path.as_ref(), RecursiveMode::NonRecursive);
+
+            if result.is_ok() {
+                self.standalone
+                    .lock()
+                    .await
+                    .insert(path.as_ref().to_path_buf());
+            }
+
+            result
+        } else {
+            trace!("{:?} already being watched", path.as_ref());
+            Ok(())
+        }
     }
 
     /// Removes a path (wiki or standalone) from being watched
+    #[allow(dead_code)]
     pub async fn unwatch(&self, path: impl AsRef<Path>) -> Result<(), Error> {
         use notify::Watcher;
 
         trace!("Unwatching {:?}", path.as_ref());
-        self.watcher.lock().await.unwatch(path)
+        if self.wikis.lock().await.iter().any(|w| w == path.as_ref())
+            || self.standalone.lock().await.contains(path.as_ref())
+        {
+            self.watcher.lock().await.unwatch(path)
+        } else {
+            trace!("{:?} is not being watched", path.as_ref());
+            Ok(())
+        }
+    }
+
+    /// Whether or not the given path is already being watched, either as
+    /// part of a wiki directory or as an individual, standalone file
+    pub async fn is_watched(&self, path: impl AsRef<Path>) -> bool {
+        let path_ref = path.as_ref();
+        self.wikis
+            .lock()
+            .await
+            .iter()
+            .any(|w| path_ref.starts_with(w))
+            || self.standalone.lock().await.contains(path_ref)
+    }
+
+    /// Clears all watched wikis and standalone files from this watcher
+    #[allow(dead_code)]
+    pub async fn clear(&self) {
+        for path in self.wikis.lock().await.drain(..) {
+            if let Err(x) = self.unwatch(path.as_path()).await {
+                error!("Error clearing {:?}: {}", path, x);
+            }
+        }
+
+        for path in self.standalone.lock().await.drain() {
+            if let Err(x) = self.unwatch(path.as_path()).await {
+                error!("Error clearing {:?}: {}", path, x);
+            }
+        }
     }
 }
 
@@ -61,10 +130,12 @@ impl Watcher {
     ) -> Result<Self, Error> {
         let (tx, rx) = mpsc::unbounded_channel::<notify::Event>();
         let internal_watcher = Self::new_internal_watcher(tx)?;
-        let handle = Self::spawn_handle(config, Arc::clone(&database), rx);
+        let _handle = Self::spawn_handle(config, Arc::clone(&database), rx);
         let watcher = Self {
             watcher: Arc::new(Mutex::new(internal_watcher)),
-            handle,
+            _handle,
+            wikis: Mutex::new(Vec::new()),
+            standalone: Mutex::new(HashSet::new()),
         };
 
         watcher.watch_from_database(database).await;

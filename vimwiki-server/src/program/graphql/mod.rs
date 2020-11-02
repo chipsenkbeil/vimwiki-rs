@@ -14,11 +14,8 @@ impl Query {
         index: u32,
     ) -> Option<Wiki> {
         ctx.data_unchecked::<Program>()
-            .database
-            .lock()
-            .await
             .wiki_by_index(index as usize)
-            .cloned()
+            .await
     }
 
     /// Returns a wiki using its name
@@ -27,12 +24,7 @@ impl Query {
         ctx: &async_graphql::Context<'_>,
         name: String,
     ) -> Option<Wiki> {
-        ctx.data_unchecked::<Program>()
-            .database
-            .lock()
-            .await
-            .wiki_by_name(&name)
-            .cloned()
+        ctx.data_unchecked::<Program>().wiki_by_name(&name).await
     }
 
     /// Returns all pages loaded by the server
@@ -40,11 +32,7 @@ impl Query {
         &self,
         ctx: &async_graphql::Context<'_>,
     ) -> Vec<elements::Page> {
-        ctx.data_unchecked::<Program>()
-            .database
-            .lock()
-            .await
-            .graphql_pages()
+        ctx.data_unchecked::<Program>().graphql_pages().await
     }
 
     /// Returns the page at the specified path
@@ -54,17 +42,9 @@ impl Query {
         path: String,
         #[graphql(default)] reload: bool,
     ) -> Option<elements::Page> {
-        let mut database =
-            ctx.data_unchecked::<Program>().database.lock().await;
-        if reload {
-            database
-                .load_file(&path)
-                .await
-                .ok()
-                .and_then(|_| database.graphql_page(path))
-        } else {
-            database.graphql_page(path)
-        }
+        ctx.data_unchecked::<Program>()
+            .load_and_watch_graphql_page(path, reload)
+            .await
     }
 }
 

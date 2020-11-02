@@ -8,8 +8,9 @@ use watcher::*;
 mod database;
 use database::*;
 
+use log::error;
 use snafu::{ResultExt, Snafu};
-use std::sync::Arc;
+use std::{path::Path, sync::Arc};
 use tokio::sync::Mutex;
 
 /// Alias for a result with a program error
@@ -26,11 +27,11 @@ pub enum ProgramError {
 /// Contains the state of the program while it is running
 pub struct Program {
     /// Represents the database containing queriable information
-    pub(crate) database: ShareableDatabase,
+    database: ShareableDatabase,
 
     /// Represents a file & directory watcher to update the database when
     /// changes occur
-    pub(crate) watcher: Watcher,
+    watcher: Watcher,
 }
 
 impl Program {
@@ -55,5 +56,40 @@ impl Program {
         }
 
         Ok(())
+    }
+
+    /// Loads a GraphQL page with the given path and begins to watch it
+    /// for changes (if not already being watched)
+    pub async fn load_and_watch_graphql_page(
+        &self,
+        path: impl AsRef<Path>,
+        reload: bool,
+    ) -> Option<graphql::elements::Page> {
+        let mut database = self.database.lock().await;
+
+        if reload {
+            if let Err(x) = database.load_file(&path).await {
+                error!("{}", x);
+            } else if let Err(x) = self.watcher.watch_standalone(&path).await {
+                error!("{}", x);
+            }
+        }
+
+        database.graphql_page(path)
+    }
+
+    /// Returns all graphql pages contained in the database
+    pub async fn graphql_pages(&self) -> Vec<graphql::elements::Page> {
+        self.database.lock().await.graphql_pages()
+    }
+
+    /// Returns the wiki at the given index in the database
+    pub async fn wiki_by_index(&self, index: usize) -> Option<Wiki> {
+        self.database.lock().await.wiki_by_index(index).cloned()
+    }
+
+    /// Returns the wiki with the given name in the database
+    pub async fn wiki_by_name(&self, name: &str) -> Option<Wiki> {
+        self.database.lock().await.wiki_by_name(name).cloned()
     }
 }
