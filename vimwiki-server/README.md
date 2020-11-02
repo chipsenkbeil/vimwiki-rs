@@ -23,7 +23,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-vimwiki-server = "0.1.0-alpha.3"
+vimwiki-server = "0.1.0-alpha.4"
 ```
 
 ## Examples
@@ -41,7 +41,7 @@ vimwiki-server --wiki 0:$HOME/vimwiki
 Embedding and running the server from your own binary:
 
 ```rust
-use vimwiki_server::{program, Config};
+use vimwiki_server::{Program, Config};
 
 #[tokio::main]
 async fn main() {
@@ -49,7 +49,7 @@ async fn main() {
     let config = Config::load();
 
     // Start the server program
-    program::run(config).await.expect("Server failed unexpectedly");
+    Program::run(config).await.expect("Server failed unexpectedly");
 }
 ```
 
