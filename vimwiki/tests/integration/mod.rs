@@ -1,7 +1,6 @@
 use super::{fixtures, utils};
 
 mod pandoc_vimwiki_reader;
-mod vimwiki_specification;
 mod vimwiki_wiki_index_page;
 mod vimwiki_wiki_related_tools_page;
 mod vimwiki_wiki_tips_and_snips_page;

@@ -3,7 +3,8 @@ use std::{fs, path::PathBuf, time::Duration};
 use vimwiki::{elements::*, Language};
 
 fn parse_page_benchmark(c: &mut Criterion) {
-    let base = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+    let base =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("benches/fixtures");
     let target = PathBuf::from("vimwiki/specification.wiki");
     let path = PathBuf::from(base).join(target);
     let file_contents =
