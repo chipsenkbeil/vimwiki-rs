@@ -31,8 +31,7 @@ impl PreformattedText {
     /// The language associated with this preformatted text
     async fn language(&self) -> Option<String> {
         self.language
-            .as_ref()
-            .map(|x| x.as_str())
+            .as_deref()
             .or_else(|| {
                 self.metadata
                     .get("class")
@@ -42,8 +41,8 @@ impl PreformattedText {
     }
 
     /// The metadata associated with some key
-    async fn metadata_for_key(&self, name: String) -> Option<&String> {
-        self.metadata.get(&name)
+    async fn metadata_for_key(&self, key: String) -> Option<&String> {
+        self.metadata.get(&key)
     }
 
     /// All metadata associated with the preformatted text
