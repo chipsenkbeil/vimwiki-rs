@@ -12,7 +12,7 @@ use nom::{
     bytes::complete::tag,
     character::complete::{char, space0, space1},
     combinator::{map_parser, not, opt, verify},
-    multi::{many1, separated_list},
+    multi::{many0, separated_list},
     sequence::{delimited, preceded, separated_pair},
 };
 use std::{borrow::Cow, collections::HashMap};
@@ -24,7 +24,7 @@ type Metadata<'a> = HashMap<Cow<'a, str>, Cow<'a, str>>;
 pub fn preformatted_text(input: Span) -> IResult<Located<PreformattedText>> {
     fn inner(input: Span) -> IResult<PreformattedText> {
         let (input, (maybe_lang, metadata)) = preformatted_text_start(input)?;
-        let (input, lines) = many1(preceded(
+        let (input, lines) = many0(preceded(
             not(preformatted_text_end),
             map_parser(any_line, cow_str),
         ))(input)?;
@@ -134,12 +134,16 @@ mod tests {
     }
 
     #[test]
-    fn preformatted_text_should_fail_if_does_not_have_lines_inbetween() {
+    fn preformatted_text_should_support_having_no_lines() {
         let input = Span::from(indoc! {r"
             {{{
             }}}
         "});
-        assert!(preformatted_text(input).is_err());
+        let (input, p) = preformatted_text(input).unwrap();
+        assert!(input.is_empty(), "Did not consume preformatted block");
+        assert!(p.lang.is_none(), "Has unexpected language");
+        assert!(p.lines.is_empty(), "Has unexpected lines");
+        assert!(p.metadata.is_empty(), "Has unexpected metadata");
     }
 
     #[test]

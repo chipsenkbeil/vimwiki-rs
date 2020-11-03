@@ -12,7 +12,7 @@ use nom::{
     bytes::complete::tag,
     character::complete::{char, line_ending, space0},
     combinator::{map_parser, not, opt},
-    multi::many1,
+    multi::many0,
     sequence::{delimited, preceded},
 };
 use std::borrow::Cow;
@@ -23,7 +23,7 @@ pub fn math_block<'a>(input: Span<'a>) -> IResult<Located<MathBlock<'a>>> {
         let (input, environment) = beginning_of_math_block(input)?;
 
         // Second, parse all lines while we don't encounter the closing block
-        let (input, lines) = many1(preceded(
+        let (input, lines) = many0(preceded(
             not(end_of_math_block),
             map_parser(any_line, cow_str),
         ))(input)?;
@@ -91,6 +91,18 @@ mod tests {
                 \sum_i a_i^2
         "});
         assert!(math_block(input).is_err());
+    }
+
+    #[test]
+    fn math_block_should_support_zero_lines_between_as_formula() {
+        let input = Span::from(indoc! {r"
+            {{$
+            }}$
+        "});
+        let (input, m) = math_block(input).unwrap();
+        assert!(input.is_empty(), "Did not consume math block");
+        assert!(m.lines.is_empty(), "Has lines unexpectedly");
+        assert_eq!(m.environment, None);
     }
 
     #[test]

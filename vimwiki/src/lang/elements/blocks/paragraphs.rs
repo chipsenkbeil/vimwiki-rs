@@ -28,7 +28,17 @@ impl<'a> Paragraph<'a> {
 }
 
 impl<'a> From<Vec<Located<InlineElement<'a>>>> for Paragraph<'a> {
+    /// Wraps multiple located inline elements in a container that is then
+    /// placed inside a paragraph
     fn from(elements: Vec<Located<InlineElement<'a>>>) -> Self {
         Self::new(elements.into())
+    }
+}
+
+impl<'a> From<Located<InlineElement<'a>>> for Paragraph<'a> {
+    /// Wraps single, located inline element in a container that is then
+    /// placed inside a paragraph
+    fn from(element: Located<InlineElement<'a>>) -> Self {
+        Self::new(element.into())
     }
 }
