@@ -41,9 +41,48 @@ impl<'a> ElementNode<'a> {
     async fn children(&self) -> Vec<ElementNode<'a>> {
         self.tree
             .children(&self.node)
-            .into_iter()
             .map(|x| ElementNode::from((self.tree, x)))
             .collect()
+    }
+
+    /// Represents the siblings of the current node
+    async fn siblings(&self) -> Vec<ElementNode<'a>> {
+        self.tree
+            .siblings(&self.node)
+            .map(|x| ElementNode::from((self.tree, x)))
+            .collect()
+    }
+
+    /// Represents the siblings before the current node
+    async fn siblings_before(&self) -> Vec<ElementNode<'a>> {
+        self.tree
+            .siblings_before(&self.node)
+            .map(|x| ElementNode::from((self.tree, x)))
+            .collect()
+    }
+
+    /// Represents the previous sibling just before the current node
+    async fn prev_sibling(&self) -> Option<ElementNode<'a>> {
+        self.tree
+            .siblings_before(&self.node)
+            .map(|x| ElementNode::from((self.tree, x)))
+            .last()
+    }
+
+    /// Represents the siblings after the current node
+    async fn siblings_after(&self) -> Vec<ElementNode<'a>> {
+        self.tree
+            .siblings_after(&self.node)
+            .map(|x| ElementNode::from((self.tree, x)))
+            .collect()
+    }
+
+    /// Represents the next sibling just after the current node
+    async fn next_sibling(&self) -> Option<ElementNode<'a>> {
+        self.tree
+            .siblings_after(&self.node)
+            .map(|x| ElementNode::from((self.tree, x)))
+            .next()
     }
 
     /// Represents all of the ancestors of the current node

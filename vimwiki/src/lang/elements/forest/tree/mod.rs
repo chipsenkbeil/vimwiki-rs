@@ -97,37 +97,77 @@ impl<'a> ElementTree<'a> {
     /// Iterates over all descendants for given node by moving down one level
     /// of children at a time via breadth-first traversal
     pub fn descendants(
-        &self,
-        node: &ElementNode<'a>,
-    ) -> impl Iterator<Item = &ElementNode<'a>> {
-        let mut queue = self.children(node);
+        &'a self,
+        node: &'a ElementNode<'a>,
+    ) -> impl Iterator<Item = &'a ElementNode<'a>> {
+        let mut queue = vec![self.children(node)];
         std::iter::from_fn(move || {
-            if !queue.is_empty() {
-                let node = queue.remove(0);
-                queue.append(&mut self.children(node));
-                Some(node)
-            } else {
-                None
+            // While there is at least one iterator left, keep trying
+            // to get the next ndoe
+            while !queue.is_empty() {
+                // Get the next iterator available
+                let it = queue.get_mut(0).unwrap();
+
+                // Get the next node in the iterator if it has one
+                if let Some(node) = it.next() {
+                    // Add the node's children to our iterators and
+                    // return the node itself
+                    queue.push(self.children(node));
+                    return Some(node);
+                } else {
+                    // There is nothing left in the current iterator, so
+                    // remove it
+                    let _ = queue.remove(0);
+                }
             }
+
+            None
         })
     }
 
-    /// Represents all children for given node
-    pub fn children(&self, node: &ElementNode<'a>) -> Vec<&ElementNode<'a>> {
+    /// Iterates over all immediate children for given node
+    pub fn children(
+        &'a self,
+        node: &'a ElementNode<'a>,
+    ) -> impl Iterator<Item = &'a ElementNode<'a>> {
         node.children
             .iter()
-            .filter_map(|id| self.nodes.get(id))
-            .collect()
+            .filter_map(move |id| self.nodes.get(id))
     }
 
-    /// Represents all sibling tree nodes (not including self)
-    pub fn siblings(&self, node: &ElementNode<'a>) -> Vec<&ElementNode<'a>> {
+    /// Iterates over all siblings for given node
+    pub fn siblings(
+        &'a self,
+        node: &'a ElementNode<'a>,
+    ) -> impl Iterator<Item = &'a ElementNode<'a>> {
+        self.siblings_before(node).chain(self.siblings_after(node))
+    }
+
+    /// Iteraters over all siblings before given node in order from first
+    /// to sibling just before node
+    pub fn siblings_before(
+        &'a self,
+        node: &'a ElementNode<'a>,
+    ) -> impl Iterator<Item = &'a ElementNode<'a>> {
         let id = node.id;
         self.parent(node)
-            .iter()
-            .flat_map(|n| self.children(n))
-            .filter(|n| n.id != id)
-            .collect()
+            .into_iter()
+            .flat_map(move |n| self.children(n))
+            .take_while(move |n| n.id != id)
+    }
+
+    /// Iteraters over all siblings after given node in order from just after
+    /// node to last sibling
+    pub fn siblings_after(
+        &'a self,
+        node: &'a ElementNode<'a>,
+    ) -> impl Iterator<Item = &'a ElementNode<'a>> {
+        let id = node.id;
+        self.parent(node)
+            .into_iter()
+            .flat_map(move |n| self.children(n))
+            .skip_while(move |n| n.id != id)
+            .skip(1)
     }
 
     /// Finds the deepest node in the tree whose region contains the
@@ -150,7 +190,6 @@ impl<'a> ElementTree<'a> {
         if node.contains_offset(offset) {
             if let Some((depth, child)) = self
                 .children(node)
-                .into_iter()
                 .filter_map(|n| self._find_at_offset(n, offset, depth + 1))
                 .max_by_key(|(depth, _)| *depth)
             {
@@ -263,11 +302,11 @@ mod tests {
     fn test_element() -> Located<Element<'static>> {
         // Representing
         //
-        // abc*bold*
-        // | |||  ||
-        // 0 |3|  7|
-        //   2 4   8
-        //
+        // abc*bold*def*bold2*ghi
+        // | |||  ||| |||   ||| |
+        // 0 |3|  7|9 ||13  ||19|
+        //   2 4   8  |12   |18 20
+        //            11    17
         Located::new(
             Element::from(Paragraph::from(vec![
                 Located::new(
@@ -283,8 +322,25 @@ mod tests {
                     ])),
                     Region::from(3..9),
                 ),
+                Located::new(
+                    InlineElement::from(Text::from("def")),
+                    Region::from(9..12),
+                ),
+                Located::new(
+                    InlineElement::from(DecoratedText::Bold(vec![
+                        Located::new(
+                            Text::from("bold2").into(),
+                            Region::from(13..18),
+                        ),
+                    ])),
+                    Region::from(12..19),
+                ),
+                Located::new(
+                    InlineElement::from(Text::from("ghi")),
+                    Region::from(19..21),
+                ),
             ])),
-            Region::from(0..9),
+            Region::from(0..21),
         )
     }
 
@@ -416,7 +472,6 @@ mod tests {
         // Load paragraph children, which should be text and bold text
         let children = tree
             .children(tree.root())
-            .into_iter()
             .map(|node| node.as_element().clone())
             .collect::<Vec<Element<'_>>>();
 
@@ -428,6 +483,12 @@ mod tests {
                     Text::from("bold").into(),
                     Region::from(4..8),
                 )])),
+                Element::from(Text::from("def")),
+                Element::from(DecoratedText::Bold(vec![Located::new(
+                    Text::from("bold2").into(),
+                    Region::from(12..19),
+                )])),
+                Element::from(Text::from("ghi")),
             ]
         );
     }
@@ -455,7 +516,31 @@ mod tests {
         );
 
         let descendant = it.next().expect("Missing third descendant");
+        assert_eq!(
+            descendant.as_element().clone(),
+            Element::from(Text::from("def"))
+        );
+
+        let descendant = it.next().expect("Missing fourth descendant");
+        assert_eq!(
+            descendant.as_element().clone(),
+            Element::from(DecoratedText::Bold(vec![Located::new(
+                Text::from("bold2").into(),
+                Region::from(12..19),
+            )])),
+        );
+
+        let descendant = it.next().expect("Missing fifth descendant");
+        assert_eq!(
+            descendant.as_element().clone(),
+            Element::from(Text::from("ghi"))
+        );
+
+        let descendant = it.next().expect("Missing sixth descendant");
         assert_eq!(descendant.as_element().clone(), Text::from("bold").into());
+
+        let descendant = it.next().expect("Missing seventh descendant");
+        assert_eq!(descendant.as_element().clone(), Text::from("bold2").into());
 
         assert!(it.next().is_none(), "Unexpectedly got an extra descendant");
     }
@@ -465,21 +550,80 @@ mod tests {
         let element = test_element();
         let tree = ElementTree::from(&element);
 
-        // Get paragraph -> text, which has a sibling of paragraph -> bold text
-        let node = tree.find_at_offset(0).expect("Failed to find node");
+        // Get paragraph -> center text
+        let node = tree.find_at_offset(9).expect("Failed to find node");
 
         let siblings = tree
             .siblings(node)
-            .into_iter()
             .map(|node| node.as_element().clone())
             .collect::<Vec<Element<'_>>>();
 
         assert_eq!(
             siblings,
-            vec![Element::from(DecoratedText::Bold(vec![Located::new(
-                Text::from("bold").into(),
-                Region::from(4..8),
-            )]))],
+            vec![
+                Element::from(Text::from("abc")),
+                Element::from(DecoratedText::Bold(vec![Located::new(
+                    Text::from("bold").into(),
+                    Region::from(3..9),
+                )])),
+                Element::from(DecoratedText::Bold(vec![Located::new(
+                    Text::from("bold2").into(),
+                    Region::from(12..19),
+                )])),
+                Element::from(Text::from("ghi")),
+            ]
+        );
+    }
+
+    #[test]
+    fn siblings_before_should_return_all_sibling_tree_nodes_before_given_tree_node(
+    ) {
+        let element = test_element();
+        let tree = ElementTree::from(&element);
+
+        // Get paragraph -> center text
+        let node = tree.find_at_offset(9).expect("Failed to find node");
+
+        let siblings = tree
+            .siblings_before(node)
+            .map(|node| node.as_element().clone())
+            .collect::<Vec<Element<'_>>>();
+
+        assert_eq!(
+            siblings,
+            vec![
+                Element::from(Text::from("abc")),
+                Element::from(DecoratedText::Bold(vec![Located::new(
+                    Text::from("bold").into(),
+                    Region::from(3..9),
+                )])),
+            ]
+        );
+    }
+
+    #[test]
+    fn siblings_after_should_return_all_sibling_tree_nodes_after_given_tree_node(
+    ) {
+        let element = test_element();
+        let tree = ElementTree::from(&element);
+
+        // Get paragraph -> center text
+        let node = tree.find_at_offset(9).expect("Failed to find node");
+
+        let siblings = tree
+            .siblings_after(node)
+            .map(|node| node.as_element().clone())
+            .collect::<Vec<Element<'_>>>();
+
+        assert_eq!(
+            siblings,
+            vec![
+                Element::from(DecoratedText::Bold(vec![Located::new(
+                    Text::from("bold2").into(),
+                    Region::from(12..19),
+                )])),
+                Element::from(Text::from("ghi")),
+            ]
         );
     }
 }
