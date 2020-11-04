@@ -5,8 +5,8 @@ mod blocks;
 pub use blocks::*;
 mod location;
 pub use location::{LineColumn, Located, Position, Region};
-mod forest;
-pub use forest::{ElementForest, ElementNode, ElementTree};
+mod tree;
+pub use tree::{ElementForest, ElementNode, ElementTree};
 
 /// Represents a full page containing different elements
 #[derive(

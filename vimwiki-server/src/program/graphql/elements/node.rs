@@ -1,10 +1,11 @@
 use super::{Element, Region};
 use derive_more::From;
+use std::sync::Arc;
 use vimwiki::elements;
 
 #[derive(Debug, From)]
 pub struct ElementNode<'a> {
-    tree: &'a elements::ElementTree<'a>,
+    forest: Arc<elements::ElementForest<'a>>,
     node: &'a elements::ElementNode<'a>,
 }
 
@@ -26,78 +27,81 @@ impl<'a> ElementNode<'a> {
     }
 
     /// Represents the root of the current node
-    async fn root(&self) -> ElementNode<'a> {
-        ElementNode::from((self.tree, self.tree.root()))
+    async fn root(&'a self) -> ElementNode<'a> {
+        ElementNode::from((
+            Arc::clone(&self.forest),
+            self.forest.root_for(self.node),
+        ))
     }
 
     /// Represents the parent of the current node
-    async fn parent(&self) -> Option<ElementNode<'a>> {
-        self.tree
+    async fn parent(&'a self) -> Option<ElementNode<'a>> {
+        self.forest
             .parent(&self.node)
-            .map(|x| ElementNode::from((self.tree, x)))
+            .map(|x| ElementNode::from((Arc::clone(&self.forest), x)))
     }
 
     /// Represents the children of the current node
-    async fn children(&self) -> Vec<ElementNode<'a>> {
-        self.tree
+    async fn children(&'a self) -> Vec<ElementNode<'a>> {
+        self.forest
             .children(&self.node)
-            .map(|x| ElementNode::from((self.tree, x)))
+            .map(|x| ElementNode::from((Arc::clone(&self.forest), x)))
             .collect()
     }
 
     /// Represents the siblings of the current node
-    async fn siblings(&self) -> Vec<ElementNode<'a>> {
-        self.tree
+    async fn siblings(&'a self) -> Vec<ElementNode<'a>> {
+        self.forest
             .siblings(&self.node)
-            .map(|x| ElementNode::from((self.tree, x)))
+            .map(|x| ElementNode::from((Arc::clone(&self.forest), x)))
             .collect()
     }
 
     /// Represents the siblings before the current node
-    async fn siblings_before(&self) -> Vec<ElementNode<'a>> {
-        self.tree
+    async fn siblings_before(&'a self) -> Vec<ElementNode<'a>> {
+        self.forest
             .siblings_before(&self.node)
-            .map(|x| ElementNode::from((self.tree, x)))
+            .map(|x| ElementNode::from((Arc::clone(&self.forest), x)))
             .collect()
     }
 
     /// Represents the previous sibling just before the current node
-    async fn prev_sibling(&self) -> Option<ElementNode<'a>> {
-        self.tree
+    async fn prev_sibling(&'a self) -> Option<ElementNode<'a>> {
+        self.forest
             .siblings_before(&self.node)
-            .map(|x| ElementNode::from((self.tree, x)))
+            .map(|x| ElementNode::from((Arc::clone(&self.forest), x)))
             .last()
     }
 
     /// Represents the siblings after the current node
-    async fn siblings_after(&self) -> Vec<ElementNode<'a>> {
-        self.tree
+    async fn siblings_after(&'a self) -> Vec<ElementNode<'a>> {
+        self.forest
             .siblings_after(&self.node)
-            .map(|x| ElementNode::from((self.tree, x)))
+            .map(|x| ElementNode::from((Arc::clone(&self.forest), x)))
             .collect()
     }
 
     /// Represents the next sibling just after the current node
-    async fn next_sibling(&self) -> Option<ElementNode<'a>> {
-        self.tree
+    async fn next_sibling(&'a self) -> Option<ElementNode<'a>> {
+        self.forest
             .siblings_after(&self.node)
-            .map(|x| ElementNode::from((self.tree, x)))
+            .map(|x| ElementNode::from((Arc::clone(&self.forest), x)))
             .next()
     }
 
     /// Represents all of the ancestors of the current node
-    async fn ancestors(&self) -> Vec<ElementNode<'a>> {
-        self.tree
+    async fn ancestors(&'a self) -> Vec<ElementNode<'a>> {
+        self.forest
             .ancestors(&self.node)
-            .map(|x| ElementNode::from((self.tree, x)))
+            .map(|x| ElementNode::from((Arc::clone(&self.forest), x)))
             .collect()
     }
 
     /// Represents all of the descendants of the current node
-    async fn descendants(&self) -> Vec<ElementNode<'a>> {
-        self.tree
+    async fn descendants(&'a self) -> Vec<ElementNode<'a>> {
+        self.forest
             .descendants(&self.node)
-            .map(|x| ElementNode::from((self.tree, x)))
+            .map(|x| ElementNode::from((Arc::clone(&self.forest), x)))
             .collect()
     }
 

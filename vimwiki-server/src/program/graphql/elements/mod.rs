@@ -35,29 +35,29 @@ impl Page {
     /// Returns element in page with specified id as traversable node
     async fn node<'a>(&'a self, id: i32) -> Option<ElementNode<'a>> {
         self.forest
-            .find_tree_and_node_by_id(id as usize)
-            .map(ElementNode::from)
+            .node(id as usize)
+            .map(|n| ElementNode::from((Arc::clone(&self.forest), n)))
     }
 
     /// Returns all elements in a page as traversable nodes
     async fn nodes<'a>(&'a self) -> Vec<ElementNode<'a>> {
         self.forest
-            .trees_and_nodes()
-            .map(ElementNode::from)
+            .nodes()
+            .map(|n| ElementNode::from((Arc::clone(&self.forest), n)))
             .collect()
     }
 
     /// Returns all tags in a page as traversable nodes
     async fn tags<'a>(&'a self) -> Vec<ElementNode<'a>> {
         self.forest
-            .trees_and_nodes()
-            .filter(|(_, node)| {
+            .nodes()
+            .filter(|node| {
                 node.as_element()
                     .as_inline_element()
                     .map(|e| matches!(e, elements::InlineElement::Tags(_)))
                     .unwrap_or_default()
             })
-            .map(ElementNode::from)
+            .map(|n| ElementNode::from((Arc::clone(&self.forest), n)))
             .collect()
     }
 
@@ -67,8 +67,8 @@ impl Page {
         offset: i32,
     ) -> Option<ElementNode<'a>> {
         self.forest
-            .find_tree_and_node_at_offset(offset as usize)
-            .map(ElementNode::from)
+            .find_at_offset(offset as usize)
+            .map(|n| ElementNode::from((Arc::clone(&self.forest), n)))
     }
 }
 

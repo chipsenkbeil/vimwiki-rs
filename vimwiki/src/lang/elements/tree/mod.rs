@@ -7,60 +7,151 @@ use std::{
 
 mod node;
 pub use node::ElementNode;
+mod root;
+pub use root::{MultiRoot, Root, SingleRoot};
 
-/// Alias to the storage used to maintain tree nodes
-type TreeNodeStore<'a> = HashMap<usize, ElementNode<'a>>;
+/// Represents a tree that can have more than one root, really representing
+/// a forest of roots
+pub type ElementForest<'a> = ElementNodes<'a, MultiRoot>;
 
-/// Represents a tree structure for some `Element` and all of its decendents.
+/// Represents a tree that has exactly one root
+pub type ElementTree<'a> = ElementNodes<'a, SingleRoot>;
+
+/// Alias to the storage used to maintain element nodes
+type NodeStore<'a> = HashMap<usize, ElementNode<'a>>;
+
+/// Represents a structure for one or more elements and all of their decendents.
 ///
-/// An `ElementTree` will maintain references to generic `Element` instances,
+/// This struct will maintain references to generic `Element` instances,
 /// borrowing where possible to maintain an easily-traversable structure that
 /// can be used to search for `Element` instances by their `Region` as well
 /// as provide means to move up and down levels of elements via their
 /// parent and children references.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct ElementTree<'a> {
+pub struct ElementNodes<'a, T: Root> {
     /// Internal storage of all nodes within the tree
-    nodes: TreeNodeStore<'a>,
+    nodes: NodeStore<'a>,
 
-    /// Id of the root node in the tree
-    root_id: usize,
+    /// Id or ids of the root node(s)
+    root: T,
 }
 
-impl ElementTree<'_> {
+impl<'a> ElementNodes<'a, SingleRoot> {
+    /// Builds a new single-root tree using the provided located element as the
+    /// root. This will involving cloning data, although the tree will maintain
+    /// any borrowed elements.
+    ///
+    /// Uses the provided function to generate ids for nodes. These should be
+    /// unique ids!
+    pub fn build(
+        located: Located<Element<'a>>,
+        new_id: impl Fn() -> usize,
+    ) -> Self {
+        let mut nodes = HashMap::new();
+        let root = make_nodes(&new_id, None, &mut nodes, located);
+        Self { nodes, root }
+    }
+
+    /// Returns a reference to the root node of the tree
+    pub fn root(&self) -> &ElementNode<'a> {
+        self.nodes.get(&self.root).expect("Root of tree is missing")
+    }
+
+    /// Finds the deepest node in the tree whose region contains the
+    /// given offset, or returns none if no element in the tree has
+    /// a region containing the given offset
+    pub fn find_at_offset(
+        &'a self,
+        offset: usize,
+    ) -> Option<&'a ElementNode<'a>> {
+        self._find_at_offset(self.root(), offset, 0).map(|x| x.1)
+    }
+
     /// Produces a tree that has borrowed node values from this tree
-    pub fn to_borrowed(&self) -> ElementTree {
-        ElementTree {
+    pub fn to_borrowed(&'a self) -> ElementNodes<'a, SingleRoot> {
+        ElementNodes {
             nodes: self
                 .nodes
                 .iter()
                 .map(|(id, node)| (*id, node.to_borrowed()))
                 .collect(),
-            root_id: self.root_id,
+            root: self.root,
         }
     }
 
     /// Produces a fully-copied tree that owns all nodes and data within
-    pub fn into_owned(self) -> ElementTree<'static> {
-        ElementTree {
+    pub fn into_owned(self) -> ElementNodes<'static, SingleRoot> {
+        ElementNodes {
             nodes: self
                 .nodes
                 .into_iter()
                 .map(|(id, node)| (id, node.into_owned()))
                 .collect(),
-            root_id: self.root_id,
+            root: self.root,
         }
     }
 }
 
-impl<'a> ElementTree<'a> {
-    /// Returns a reference to the root node of the tree
-    pub fn root(&self) -> &ElementNode<'a> {
-        self.nodes
-            .get(&self.root_id)
-            .expect("Root of tree is missing")
+impl<'a> ElementNodes<'a, MultiRoot> {
+    /// Produces a new tree (forest) with multiple roots, each one
+    /// corresponding to the root of one of the consumed trees.
+    ///
+    /// This does not check for collisions in node ids within trees and
+    /// can therefore overwrite nodes!
+    pub fn merge_trees_unchecked(
+        trees: impl IntoIterator<Item = ElementNodes<'a, SingleRoot>>,
+    ) -> Self {
+        let mut roots = Vec::new();
+        let mut nodes = HashMap::new();
+        for tree in trees {
+            roots.push(tree.root);
+            nodes.extend(tree.nodes);
+        }
+        Self { nodes, root: roots }
     }
 
+    /// Returns an iterator of all root nodes within the forest
+    pub fn roots(&'a self) -> impl Iterator<Item = &'a ElementNode<'a>> {
+        self.root.iter().filter_map(move |id| self.nodes.get(id))
+    }
+
+    /// Finds the deepest node within the first root node whose region contains
+    /// the given offset, or returns none if no element in the tree has
+    /// a region containing the given offset
+    pub fn find_at_offset(
+        &'a self,
+        offset: usize,
+    ) -> Option<&'a ElementNode<'a>> {
+        self.roots()
+            .find_map(|node| self._find_at_offset(node, offset, 0).map(|x| x.1))
+    }
+
+    /// Produces a tree that has borrowed node values from this tree
+    pub fn to_borrowed(&'a self) -> ElementNodes<'a, MultiRoot> {
+        ElementNodes {
+            nodes: self
+                .nodes
+                .iter()
+                .map(|(id, node)| (*id, node.to_borrowed()))
+                .collect(),
+            root: self.root.clone(),
+        }
+    }
+
+    /// Produces a fully-copied tree that owns all nodes and data within
+    pub fn into_owned(self) -> ElementNodes<'static, MultiRoot> {
+        ElementNodes {
+            nodes: self
+                .nodes
+                .into_iter()
+                .map(|(id, node)| (id, node.into_owned()))
+                .collect(),
+            root: self.root,
+        }
+    }
+}
+
+impl<'a, T: Root> ElementNodes<'a, T> {
     /// Iterates over all nodes contained within the tree in arbitrary order
     pub fn nodes(&self) -> impl Iterator<Item = &ElementNode<'a>> {
         self.nodes.values()
@@ -70,6 +161,17 @@ impl<'a> ElementTree<'a> {
     #[inline]
     pub fn node(&self, id: usize) -> Option<&ElementNode<'a>> {
         self.nodes.get(&id)
+    }
+
+    /// Gets root for given node
+    pub fn root_for(
+        &'a self,
+        node: &'a ElementNode<'a>,
+    ) -> &'a ElementNode<'a> {
+        match self.parent(node) {
+            Some(node) => self.root_for(node),
+            None => node,
+        }
     }
 
     /// Iterates over all ancestors for given node by moving up one parent at
@@ -150,6 +252,10 @@ impl<'a> ElementTree<'a> {
         node: &'a ElementNode<'a>,
     ) -> impl Iterator<Item = &'a ElementNode<'a>> {
         let id = node.id;
+        // TODO: Use Root to_vec() to get ids and map to children in the
+        //       situation where parent(node) == None
+        //
+        //       Add test for this!
         self.parent(node)
             .into_iter()
             .flat_map(move |n| self.children(n))
@@ -163,21 +269,15 @@ impl<'a> ElementTree<'a> {
         node: &'a ElementNode<'a>,
     ) -> impl Iterator<Item = &'a ElementNode<'a>> {
         let id = node.id;
+        // TODO: Use Root to_vec() to get ids and map to children in the
+        //       situation where parent(node) == None
+        //
+        //       Add test for this!
         self.parent(node)
             .into_iter()
             .flat_map(move |n| self.children(n))
             .skip_while(move |n| n.id != id)
             .skip(1)
-    }
-
-    /// Finds the deepest node in the tree whose region contains the
-    /// given offset, or returns none if no element in the tree has
-    /// a region containing the given offset
-    pub fn find_at_offset(
-        &'a self,
-        offset: usize,
-    ) -> Option<&'a ElementNode<'a>> {
-        self._find_at_offset(self.root(), offset, 0).map(|x| x.1)
     }
 
     /// Finds the deepest node that supports the given offset
@@ -203,7 +303,35 @@ impl<'a> ElementTree<'a> {
     }
 }
 
-impl<'a> From<&'a Located<Element<'a>>> for ElementTree<'a> {
+impl<'a> From<&'a Page<'a>> for ElementForest<'a> {
+    /// Borrows the page and then constructs a forest from the trees produced
+    /// for each of the page's top-level elements. A singular id namespace is
+    /// used across all trees, which means that nodes will have distinct ids
+    /// across different trees as well as within their own trees.
+    fn from(page: &'a Page<'a>) -> Self {
+        Self::from(page.to_borrowed())
+    }
+}
+
+impl<'a> From<Page<'a>> for ElementForest<'a> {
+    /// Constructs a forest from the trees produced for each of the page's
+    /// top-level elements. A singular id namespace is used across all trees,
+    /// which means that nodes will have distinct ids across different trees
+    /// as well as within their own trees.
+    fn from(page: Page<'a>) -> Self {
+        let counter = AtomicUsize::new(0);
+
+        ElementForest::merge_trees_unchecked(page.elements.into_iter().map(
+            |x| {
+                ElementNodes::build(x.map(Element::from), || {
+                    counter.fetch_add(1, Ordering::Relaxed)
+                })
+            },
+        ))
+    }
+}
+
+impl<'a> From<&'a Located<Element<'a>>> for ElementNodes<'a, SingleRoot> {
     /// Builds a new tree using the provided located element as the root. This
     /// will involving cloning data, although the tree will maintain any
     /// borrowed elements.
@@ -215,7 +343,7 @@ impl<'a> From<&'a Located<Element<'a>>> for ElementTree<'a> {
     }
 }
 
-impl<'a> From<Located<&'a Element<'a>>> for ElementTree<'a> {
+impl<'a> From<Located<&'a Element<'a>>> for ElementNodes<'a, SingleRoot> {
     /// Builds a new tree using the provided located element as the root. This
     /// will involving cloning data, although the tree will maintain any
     /// borrowed elements.
@@ -227,7 +355,7 @@ impl<'a> From<Located<&'a Element<'a>>> for ElementTree<'a> {
     }
 }
 
-impl<'a> From<Located<Element<'a>>> for ElementTree<'a> {
+impl<'a> From<Located<Element<'a>>> for ElementNodes<'a, SingleRoot> {
     /// Builds a new tree using the provided located element as the root. This
     /// will involving cloning data, although the tree will maintain any
     /// borrowed elements.
@@ -237,28 +365,11 @@ impl<'a> From<Located<Element<'a>>> for ElementTree<'a> {
     }
 }
 
-impl<'a> ElementTree<'a> {
-    /// Builds a new tree using the provided located element as the root. This
-    /// will involving cloning data, although the tree will maintain any
-    /// borrowed elements.
-    ///
-    /// Uses the provided function to generate ids for nodes. These should be
-    /// unique ids!
-    pub fn build(
-        located: Located<Element<'a>>,
-        new_id: impl Fn() -> usize,
-    ) -> Self {
-        let mut nodes = HashMap::new();
-        let root_id = make_nodes(&new_id, None, &mut nodes, located);
-        Self { nodes, root_id }
-    }
-}
-
 /// Builds out the ids for a node without creating the node itself
 fn make_nodes<'a>(
     new_id: &impl Fn() -> usize,
     parent: Option<usize>,
-    nodes: &mut TreeNodeStore<'a>,
+    nodes: &mut NodeStore<'a>,
     located_element: Located<Element<'a>>,
 ) -> usize {
     // First, generate the id used for both the node and its data and store
@@ -347,7 +458,7 @@ mod tests {
     #[test]
     fn find_at_offset_should_return_deepest_tree_node_possible() {
         let element = test_element();
-        let tree = ElementTree::from(&element);
+        let tree = ElementNodes::from(&element);
 
         // Cursor on top of bold text in paragraph
         let node = tree.find_at_offset(4).expect("Failed to find node");
@@ -363,7 +474,7 @@ mod tests {
     #[test]
     fn find_at_offset_should_return_none_if_no_tree_node_is_found() {
         let element = test_element();
-        let tree = ElementTree::from(&element);
+        let tree = ElementNodes::from(&element);
 
         assert!(tree.find_at_offset(999).is_none());
     }
@@ -371,7 +482,7 @@ mod tests {
     #[test]
     fn root_should_return_reference_to_root_tree_node() {
         let element = test_element();
-        let tree = ElementTree::from(&element);
+        let tree = ElementNodes::from(&element);
 
         // Verify root node loaded (this is the paragraph)
         let root = tree.root();
@@ -393,7 +504,7 @@ mod tests {
     #[test]
     fn parent_should_return_parent_tree_node_of_given_tree_node() {
         let element = test_element();
-        let tree = ElementTree::from(&element);
+        let tree = ElementNodes::from(&element);
 
         // Get a child at the very bottom of paragraph -> bold -> text
         let node = tree.find_at_offset(4).expect("Failed to find node");
@@ -418,7 +529,7 @@ mod tests {
     #[test]
     fn parent_should_return_none_if_given_tree_node_is_root() {
         let element = test_element();
-        let tree = ElementTree::from(&element);
+        let tree = ElementNodes::from(&element);
         let root = tree.root();
 
         assert!(tree.parent(root).is_none());
@@ -427,7 +538,7 @@ mod tests {
     #[test]
     fn ancestors_should_return_iterator_through_all_ancestor_nodes_in_order() {
         let element = test_element();
-        let tree = ElementTree::from(&element);
+        let tree = ElementNodes::from(&element);
 
         // Get a child at the very bottom of paragraph -> bold -> text
         let node = tree.find_at_offset(4).expect("Failed to find node");
@@ -467,7 +578,7 @@ mod tests {
     #[test]
     fn children_should_return_all_children_tree_nodes_of_given_tree_node() {
         let element = test_element();
-        let tree = ElementTree::from(&element);
+        let tree = ElementNodes::from(&element);
 
         // Load paragraph children, which should be text and bold text
         let children = tree
@@ -497,7 +608,7 @@ mod tests {
     fn descendants_should_return_iterator_through_all_descendants_one_level_at_a_time(
     ) {
         let element = test_element();
-        let tree = ElementTree::from(&element);
+        let tree = ElementNodes::from(&element);
         let mut it = tree.descendants(tree.root());
 
         let descendant = it.next().expect("Missing first descendant");
@@ -548,7 +659,7 @@ mod tests {
     #[test]
     fn siblings_should_return_all_sibling_tree_nodes_of_given_tree_node() {
         let element = test_element();
-        let tree = ElementTree::from(&element);
+        let tree = ElementNodes::from(&element);
 
         // Get paragraph -> center text
         let node = tree.find_at_offset(9).expect("Failed to find node");
@@ -579,7 +690,7 @@ mod tests {
     fn siblings_before_should_return_all_sibling_tree_nodes_before_given_tree_node(
     ) {
         let element = test_element();
-        let tree = ElementTree::from(&element);
+        let tree = ElementNodes::from(&element);
 
         // Get paragraph -> center text
         let node = tree.find_at_offset(9).expect("Failed to find node");
@@ -605,7 +716,7 @@ mod tests {
     fn siblings_after_should_return_all_sibling_tree_nodes_after_given_tree_node(
     ) {
         let element = test_element();
-        let tree = ElementTree::from(&element);
+        let tree = ElementNodes::from(&element);
 
         // Get paragraph -> center text
         let node = tree.find_at_offset(9).expect("Failed to find node");
