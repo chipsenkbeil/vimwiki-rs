@@ -98,7 +98,7 @@ impl<'a> ElementNodes<'a, MultiRoot> {
     ///
     /// This does not check for collisions in node ids within trees and
     /// can therefore overwrite nodes!
-    pub fn merge_trees_unchecked(
+    pub fn merge_unchecked(
         trees: impl IntoIterator<Item = ElementNodes<'a, SingleRoot>>,
     ) -> Self {
         let mut roots = Vec::new();
@@ -252,14 +252,13 @@ impl<'a, T: Root> ElementNodes<'a, T> {
         node: &'a ElementNode<'a>,
     ) -> impl Iterator<Item = &'a ElementNode<'a>> {
         let id = node.id;
-        // TODO: Use Root to_vec() to get ids and map to children in the
-        //       situation where parent(node) == None
-        //
-        //       Add test for this!
-        self.parent(node)
-            .into_iter()
-            .flat_map(move |n| self.children(n))
-            .take_while(move |n| n.id != id)
+        match self.parent(node) {
+            Some(p) => p.children.clone(),
+            None => self.root.to_vec(),
+        }
+        .into_iter()
+        .flat_map(move |id| self.node(id))
+        .take_while(move |n| n.id != id)
     }
 
     /// Iteraters over all siblings after given node in order from just after
@@ -269,15 +268,14 @@ impl<'a, T: Root> ElementNodes<'a, T> {
         node: &'a ElementNode<'a>,
     ) -> impl Iterator<Item = &'a ElementNode<'a>> {
         let id = node.id;
-        // TODO: Use Root to_vec() to get ids and map to children in the
-        //       situation where parent(node) == None
-        //
-        //       Add test for this!
-        self.parent(node)
-            .into_iter()
-            .flat_map(move |n| self.children(n))
-            .skip_while(move |n| n.id != id)
-            .skip(1)
+        match self.parent(node) {
+            Some(p) => p.children.clone(),
+            None => self.root.to_vec(),
+        }
+        .into_iter()
+        .flat_map(move |id| self.node(id))
+        .skip_while(move |n| n.id != id)
+        .skip(1)
     }
 
     /// Finds the deepest node that supports the given offset
@@ -321,13 +319,11 @@ impl<'a> From<Page<'a>> for ElementForest<'a> {
     fn from(page: Page<'a>) -> Self {
         let counter = AtomicUsize::new(0);
 
-        ElementForest::merge_trees_unchecked(page.elements.into_iter().map(
-            |x| {
-                ElementNodes::build(x.map(Element::from), || {
-                    counter.fetch_add(1, Ordering::Relaxed)
-                })
-            },
-        ))
+        ElementForest::merge_unchecked(page.elements.into_iter().map(|x| {
+            ElementNodes::build(x.map(Element::from), || {
+                counter.fetch_add(1, Ordering::Relaxed)
+            })
+        }))
     }
 }
 
@@ -455,8 +451,53 @@ mod tests {
         )
     }
 
+    fn new_id_func(x: usize) -> impl Fn() -> usize {
+        let counter = AtomicUsize::new(x);
+        move || counter.fetch_add(1, Ordering::Relaxed)
+    }
+
     #[test]
-    fn find_at_offset_should_return_deepest_tree_node_possible() {
+    fn root_should_return_singleton_node_for_tree() {
+        let tree = ElementTree::from(test_element());
+        assert!(matches!(tree.root().as_element(), Element::Block(_)));
+    }
+
+    #[test]
+    fn roots_should_return_multiple_nodes_for_forest() {
+        let forest = ElementForest::merge_unchecked(vec![
+            ElementTree::build(test_element(), new_id_func(100)),
+            ElementTree::build(test_element(), new_id_func(1000)),
+            ElementTree::build(test_element(), new_id_func(10000)),
+        ]);
+        assert_eq!(forest.roots().count(), 3);
+        assert!(forest
+            .roots()
+            .all(|node| matches!(node.as_element(), Element::Block(_))));
+    }
+
+    #[test]
+    fn find_at_offset_should_return_deepest_node_within_first_root_containing_offset(
+    ) {
+        let forest = ElementForest::merge_unchecked(vec![
+            ElementTree::build(test_element(), new_id_func(100)),
+            ElementTree::build(test_element(), new_id_func(1000)),
+            ElementTree::build(test_element(), new_id_func(10000)),
+        ]);
+
+        // Cursor on top of bold text in paragraph
+        let node = forest.find_at_offset(4).expect("Failed to find node");
+        assert!(node.id < 1000, "Got node from wrong root");
+        assert_eq!(
+            node.as_element()
+                .as_inline_element()
+                .expect("Didn't find inline element")
+                .to_string(),
+            "bold"
+        );
+    }
+
+    #[test]
+    fn find_at_offset_should_return_deepest_node_possible() {
         let element = test_element();
         let tree = ElementNodes::from(&element);
 
@@ -472,7 +513,7 @@ mod tests {
     }
 
     #[test]
-    fn find_at_offset_should_return_none_if_no_tree_node_is_found() {
+    fn find_at_offset_should_return_none_if_no_node_is_found() {
         let element = test_element();
         let tree = ElementNodes::from(&element);
 
@@ -480,7 +521,7 @@ mod tests {
     }
 
     #[test]
-    fn root_should_return_reference_to_root_tree_node() {
+    fn root_should_return_reference_to_root_node() {
         let element = test_element();
         let tree = ElementNodes::from(&element);
 
@@ -502,7 +543,7 @@ mod tests {
     }
 
     #[test]
-    fn parent_should_return_parent_tree_node_of_given_tree_node() {
+    fn parent_should_return_parent_node_of_given_node() {
         let element = test_element();
         let tree = ElementNodes::from(&element);
 
@@ -527,7 +568,7 @@ mod tests {
     }
 
     #[test]
-    fn parent_should_return_none_if_given_tree_node_is_root() {
+    fn parent_should_return_none_if_given_node_is_root() {
         let element = test_element();
         let tree = ElementNodes::from(&element);
         let root = tree.root();
@@ -576,7 +617,7 @@ mod tests {
     }
 
     #[test]
-    fn children_should_return_all_children_tree_nodes_of_given_tree_node() {
+    fn children_should_return_all_children_nodes_of_given_node() {
         let element = test_element();
         let tree = ElementNodes::from(&element);
 
@@ -657,7 +698,7 @@ mod tests {
     }
 
     #[test]
-    fn siblings_should_return_all_sibling_tree_nodes_of_given_tree_node() {
+    fn siblings_should_return_all_sibling_nodes_of_given_node() {
         let element = test_element();
         let tree = ElementNodes::from(&element);
 
@@ -687,8 +728,66 @@ mod tests {
     }
 
     #[test]
-    fn siblings_before_should_return_all_sibling_tree_nodes_before_given_tree_node(
-    ) {
+    fn siblings_should_support_root_level_siblings_when_multi_root() {
+        let forest = ElementForest::merge_unchecked(vec![
+            ElementTree::build(
+                Located::new(
+                    Element::from(Text::from("abc")),
+                    Region::from(0..3),
+                ),
+                new_id_func(10),
+            ),
+            ElementTree::build(
+                Located::new(
+                    Element::from(Text::from("def")),
+                    Region::from(3..6),
+                ),
+                new_id_func(20),
+            ),
+            ElementTree::build(
+                Located::new(
+                    Element::from(Text::from("ghi")),
+                    Region::from(6..9),
+                ),
+                new_id_func(30),
+            ),
+            ElementTree::build(
+                Located::new(
+                    Element::from(Text::from("jkl")),
+                    Region::from(9..12),
+                ),
+                new_id_func(40),
+            ),
+            ElementTree::build(
+                Located::new(
+                    Element::from(Text::from("mno")),
+                    Region::from(12..15),
+                ),
+                new_id_func(50),
+            ),
+        ]);
+
+        // Select center node
+        let node = forest.find_at_offset(6).expect("Failed to find node");
+
+        let siblings = forest
+            .siblings(node)
+            .map(|node| node.as_element().clone())
+            .collect::<Vec<Element<'_>>>();
+
+        assert_eq!(
+            siblings,
+            vec![
+                Element::from(Text::from("abc")),
+                Element::from(Text::from("def")),
+                Element::from(Text::from("jkl")),
+                Element::from(Text::from("mno")),
+            ]
+        );
+    }
+
+    #[test]
+    fn siblings_before_should_return_all_sibling_nodes_before_given_node() {
         let element = test_element();
         let tree = ElementNodes::from(&element);
 
@@ -713,8 +812,64 @@ mod tests {
     }
 
     #[test]
-    fn siblings_after_should_return_all_sibling_tree_nodes_after_given_tree_node(
-    ) {
+    fn siblings_before_should_support_root_level_siblings_when_multi_root() {
+        let forest = ElementForest::merge_unchecked(vec![
+            ElementTree::build(
+                Located::new(
+                    Element::from(Text::from("abc")),
+                    Region::from(0..3),
+                ),
+                new_id_func(10),
+            ),
+            ElementTree::build(
+                Located::new(
+                    Element::from(Text::from("def")),
+                    Region::from(3..6),
+                ),
+                new_id_func(20),
+            ),
+            ElementTree::build(
+                Located::new(
+                    Element::from(Text::from("ghi")),
+                    Region::from(6..9),
+                ),
+                new_id_func(30),
+            ),
+            ElementTree::build(
+                Located::new(
+                    Element::from(Text::from("jkl")),
+                    Region::from(9..12),
+                ),
+                new_id_func(40),
+            ),
+            ElementTree::build(
+                Located::new(
+                    Element::from(Text::from("mno")),
+                    Region::from(12..15),
+                ),
+                new_id_func(50),
+            ),
+        ]);
+
+        // Select center node
+        let node = forest.find_at_offset(6).expect("Failed to find node");
+
+        let siblings = forest
+            .siblings_before(node)
+            .map(|node| node.as_element().clone())
+            .collect::<Vec<Element<'_>>>();
+
+        assert_eq!(
+            siblings,
+            vec![
+                Element::from(Text::from("abc")),
+                Element::from(Text::from("def")),
+            ]
+        );
+    }
+
+    #[test]
+    fn siblings_after_should_return_all_sibling_nodes_after_given_node() {
         let element = test_element();
         let tree = ElementNodes::from(&element);
 
@@ -734,6 +889,63 @@ mod tests {
                     Region::from(12..19),
                 )])),
                 Element::from(Text::from("ghi")),
+            ]
+        );
+    }
+
+    #[test]
+    fn siblings_after_should_support_root_level_siblings_when_multi_root() {
+        let forest = ElementForest::merge_unchecked(vec![
+            ElementTree::build(
+                Located::new(
+                    Element::from(Text::from("abc")),
+                    Region::from(0..3),
+                ),
+                new_id_func(10),
+            ),
+            ElementTree::build(
+                Located::new(
+                    Element::from(Text::from("def")),
+                    Region::from(3..6),
+                ),
+                new_id_func(20),
+            ),
+            ElementTree::build(
+                Located::new(
+                    Element::from(Text::from("ghi")),
+                    Region::from(6..9),
+                ),
+                new_id_func(30),
+            ),
+            ElementTree::build(
+                Located::new(
+                    Element::from(Text::from("jkl")),
+                    Region::from(9..12),
+                ),
+                new_id_func(40),
+            ),
+            ElementTree::build(
+                Located::new(
+                    Element::from(Text::from("mno")),
+                    Region::from(12..15),
+                ),
+                new_id_func(50),
+            ),
+        ]);
+
+        // Select center node
+        let node = forest.find_at_offset(6).expect("Failed to find node");
+
+        let siblings = forest
+            .siblings_after(node)
+            .map(|node| node.as_element().clone())
+            .collect::<Vec<Element<'_>>>();
+
+        assert_eq!(
+            siblings,
+            vec![
+                Element::from(Text::from("jkl")),
+                Element::from(Text::from("mno")),
             ]
         );
     }
