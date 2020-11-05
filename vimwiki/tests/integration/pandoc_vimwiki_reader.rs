@@ -58,6 +58,9 @@ fn test() {
             emph_
         "#}
         .into(),
+        // TODO: Should the strikeout be one paragraph with comments inbetween?
+        //       Currently, if there is enough indentation, a blockquote is
+        //       formed immediately after a paragraph
         vimwiki_paragraph!(r"~~not").into(),
         vimwiki_blockquote_raw!("    %%comment").into(),
         vimwiki_paragraph! {r#"
@@ -165,6 +168,8 @@ fn test() {
             Located::from(Text::from("  ")).map(InlineElement::from),
         ])).into(),
         vimwiki_header!("=== image with attributes ===").into(),
+        // TODO: Should these parse as transclusion links? Currently, we
+        //       enforce a scheme here, which is why they are not links
         vimwiki_paragraph!(r#"{{lalune.jpg|_cool stuff_|style="width:150px;height:120px;"}}"#).into(),
         vimwiki_paragraph!(r#"{{nonexist.jpg|*Non-existing* image|class="center flow blabla" style="font-color:red"}}"#).into(),
         vimwiki_paragraph!(r#"{{lalune.jpg|_cool stuff_|style="width:150px;height:120px;"|anything in this segment is ignored}}"#).into(),
