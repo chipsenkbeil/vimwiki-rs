@@ -49,9 +49,9 @@ fn test() {
             emph_
         "#}
         .into(),
+        vimwiki_paragraph!(r"~~not").into(),
+        vimwiki_blockquote_raw!("    %%comment").into(),
         vimwiki_paragraph! {r#"
-            ~~not
-                %%comment
               %%comment
             strikeout~~
         "#}
@@ -64,7 +64,7 @@ fn test() {
         vimwiki_paragraph!("not a rule-----").into(),
         vimwiki_paragraph! {r#"
             not a rule (trailing spaces):
-            -----
+            ----- 
         "#}
         .into(),
         vimwiki_paragraph! {r#"
@@ -75,7 +75,7 @@ fn test() {
         vimwiki_header!("== comments ==").into(),
         vimwiki_paragraph!("%% you can't see me.").into(),
         vimwiki_paragraph! {r#"
-            this
+            this 
             %% secret
             is %% not secret
         "#}
@@ -86,14 +86,14 @@ fn test() {
         vimwiki_header!("== preformatted text ==").into(),
         vimwiki_preformatted_text_raw! {r#"
 {{{
-Tyger! Tyger! burning bright
-In the forests of the night,
-What immortal hand or eye
- Could frame thy fearful symmetry?
-In what distant deeps or skies
-Burnt the fire of thine eyes?
-On what wings dare he aspire?
- What the hand dare sieze the fire?
+  Tyger! Tyger! burning bright
+   In the forests of the night,
+    What immortal hand or eye
+     Could frame thy fearful symmetry?
+  In what distant deeps or skies
+   Burnt the fire of thine eyes?
+    On what wings dare he aspire?
+     What the hand dare sieze the fire?
 }}}
         "#}
         .into(),
@@ -128,11 +128,13 @@ On what wings dare he aspire?
         Located::from(Paragraph::from(vimwiki_link!("[[http://google.com|_Google_ search engine]]").map(InlineElement::from))).into(),
         Located::from(Paragraph::from(vimwiki_link!("http://pandoc.org").map(InlineElement::from))).into(),
         Located::from(Paragraph::from(vimwiki_link!("ftp://vim.org").map(InlineElement::from))).into(),
+        Located::from(Paragraph::from(vec![
+                vimwiki_link!("[[http://google.com]]").map(InlineElement::from),
+                Located::from(Text::from(" ")).map(InlineElement::from),
+        ])).into(),
     ];
 
     r#"
-
-[[http://google.com]] 
 
 [[mailto:info@example.org|email me]]
 

@@ -32,9 +32,9 @@ pub fn blockquote<'a>(input: Span<'a>) -> IResult<'a, Located<Blockquote<'a>>> {
                             many0(value(Cow::from(""), blank_line)),
                             blockquote_line_2,
                         )),
-                        |mut pairs| {
+                        |pairs| {
                             pairs
-                                .drain(..)
+                                .into_iter()
                                 .flat_map(|(mut blanks, bq)| {
                                     blanks.push(bq);
                                     blanks

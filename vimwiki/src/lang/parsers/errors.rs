@@ -43,7 +43,10 @@ impl<'a> fmt::Display for LangParserError<'a> {
                 .as_unsafe_remaining_str()
                 .lines()
                 .next()
-                .unwrap_or_default()[..100]
+                .unwrap_or_default()
+                .chars()
+                .take(100)
+                .collect::<String>()
         )?;
 
         if let Some(next) = self.next.as_ref() {
