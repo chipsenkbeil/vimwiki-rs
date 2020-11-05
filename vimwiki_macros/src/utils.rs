@@ -44,13 +44,13 @@ pub fn input_to_string(token: TokenTree, raw_mode: bool) -> Result<String> {
 
         // Keep moving backward while lines are blank and we haven't advanced
         // before the start
-        while line_data[end].0 && end >= start {
+        while end > 0 && end >= start && line_data[end].0 {
             end -= 1;
         }
 
         // Keep moving forward while lines are blank and we haven't advanced
         // past the end
-        while line_data[start].0 && start <= end {
+        while start <= end && line_data[start].0 {
             start += 1;
         }
 
