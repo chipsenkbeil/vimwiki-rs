@@ -7,6 +7,15 @@ fn test() {
     let contents = VimwikiFile::PandocVimwikiReader.load().unwrap();
     let page: Page = Language::from_vimwiki_str(&contents).parse().unwrap();
 
+    macro_rules! make_link {
+        ($link:expr) => {
+            Located::from(Paragraph::from(
+                vimwiki_link!($link).map(InlineElement::from),
+            ))
+            .into()
+        };
+    }
+
     let expected = vec![
         vimwiki_header!("= _*implemented*_ =").into(),
         vimwiki_header!("= header =").into(),
@@ -125,68 +134,44 @@ fn test() {
     (indentation 1 tab of width 4) long piece of text from another source. ~~blah blah~~ :blockquote:
         "#}.into(),
         vimwiki_header!("== external links ==").into(),
-        Located::from(Paragraph::from(vimwiki_link!("[[http://google.com|_Google_ search engine]]").map(InlineElement::from))).into(),
-        Located::from(Paragraph::from(vimwiki_link!("http://pandoc.org").map(InlineElement::from))).into(),
-        Located::from(Paragraph::from(vimwiki_link!("ftp://vim.org").map(InlineElement::from))).into(),
+        make_link!("[[http://google.com|_Google_ search engine]]"),
+        make_link!("http://pandoc.org"),
+        make_link!("ftp://vim.org"),
         Located::from(Paragraph::from(vec![
-                vimwiki_link!("[[http://google.com]]").map(InlineElement::from),
-                Located::from(Text::from(" ")).map(InlineElement::from),
+            vimwiki_link!("[[http://google.com]]").map(InlineElement::from),
+            Located::from(Text::from(" ")).map(InlineElement::from),
         ])).into(),
+        make_link!("[[mailto:info@example.org|email me]]"),
+        make_link!("mailto:hello@bye.com"),
+        vimwiki_header!("== internal links ==").into(),
+        make_link!("[[This is a link]]"),
+        make_link!("[[This is a link source|Description of the link]]"),
+        make_link!("[[projects/Important Project 1]]"),
+        make_link!("[[../index]]"),
+        make_link!("[[a subdirectory/|Other files]]"),
+        make_link!("[[#tag-one|try me to test tag anchors]]"),
+        make_link!("[[#block quotes|try me to test header anchors]]"),
+        make_link!("[[#strong|try me to test strong anchors]]"),
+        make_link!("[[Todo List#Tomorrow|Tasks for tomorrow]]"),
+        make_link!("[[diary:2017-05-01]]"),
+        make_link!("[[file:../assets/data.csv|Important Data]]"),
+        vimwiki_header!("=== links with thumbnails ===").into(),
+        make_link!("[[http://www.google.com|{{./movie.jpg}}]]"),
+        vimwiki_header!("== images ==").into(),
+        make_link!("{{file:./lalune.jpg}}"),
+        make_link!("{{http://vimwiki.googlecode.com/hg/images/vimwiki_logo.png|Vimwiki}}"),
+        Located::from(Paragraph::from(vec![
+            vimwiki_link!("{{local:./movie.jpg}}").map(InlineElement::from),
+            Located::from(Text::from("  ")).map(InlineElement::from),
+        ])).into(),
+        vimwiki_header!("=== image with attributes ===").into(),
+        vimwiki_paragraph!(r#"{{lalune.jpg|_cool stuff_|style="width:150px;height:120px;"}}"#).into(),
+        vimwiki_paragraph!(r#"{{nonexist.jpg|*Non-existing* image|class="center flow blabla" style="font-color:red"}}"#).into(),
+        vimwiki_paragraph!(r#"{{lalune.jpg|_cool stuff_|style="width:150px;height:120px;"|anything in this segment is ignored}}"#).into(),
+        vimwiki_header!("== lists ==").into(),
     ];
 
     r#"
-
-[[mailto:info@example.org|email me]]
-
-mailto:hello@bye.com
-
-== internal links ==
-
-[[This is a link]]
-
-[[This is a link source|Description of the link]]
-
-[[projects/Important Project 1]]
-   
-[[../index]]
-  
-[[a subdirectory/|Other files]]
-
-[[#tag-one|try me to test tag anchors]]
-
-[[#block quotes|try me to test header anchors]]
-
-[[#strong|try me to test strong anchors]]
-
-[[Todo List#Tomorrow|Tasks for tomorrow]]
-
-[[diary:2017-05-01]]
-
-[[file:../assets/data.csv|Important Data]]
-
-=== links with thumbnails ===
-[[http://www.google.com|{{./movie.jpg}}]]
-
-== images ==
-
-{{file:./lalune.jpg}}
-
-{{http://vimwiki.googlecode.com/hg/images/vimwiki_logo.png|Vimwiki}}
-  
-{{local:./movie.jpg}}  
-
-
-=== image with attributes ===
-{{lalune.jpg|_cool stuff_|style="width:150px;height:120px;"}}
-
-{{nonexist.jpg|*Non-existing* image|class="center flow blabla" style="font-color:red"}}
-
-{{lalune.jpg|_cool stuff_|style="width:150px;height:120px;"|anything in this segment is ignored}}
-
-
-== lists ==
-
-
 # ordered list item 1, and here is some math belonging to list item 1
  {{$
  a^2 + b^2 = c^2
