@@ -36,7 +36,6 @@ jobs:
         run: cargo --version
       - run: cargo test --verbose --workspace
       - run: cargo test --verbose --workspace --all-features
-      - run: cargo test --verbose --workspace --no-default-features
 
   clippy:
     name: Lint with clippy
@@ -58,7 +57,6 @@ jobs:
       - name: Check Cargo availability
         run: cargo --version
       - run: cargo clippy --workspace --all-targets --verbose
-      - run: cargo clippy --workspace --all-targets --verbose --no-default-features
       - run: cargo clippy --workspace --all-targets --verbose --all-features
 
   rustfmt:
