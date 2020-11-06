@@ -84,7 +84,7 @@ impl<T> Located<T> {
 impl<T> Located<Option<T>> {
     /// Transposes a `Located` of an [`Option`] into an [`Option`] of a `Located`.
     ///
-    /// # Examples
+    /// ## Examples
     ///
     /// ```
     /// # use vimwiki::Located;

@@ -5,6 +5,8 @@ pub use lang::{
     FromLanguage, Language,
 };
 
+pub mod alloc;
+
 // Re-export the vendor libraries so we're able to reconstruct their
 // structs from macros
 pub mod vendor {

@@ -3,6 +3,7 @@ use vimwiki::{elements::*, Language};
 use vimwiki_macros::*;
 
 #[test]
+#[ignore]
 fn test() {
     let contents = VimwikiFile::PandocVimwikiReader.load().unwrap();
     let page: Page = Language::from_vimwiki_str(&contents).parse().unwrap();

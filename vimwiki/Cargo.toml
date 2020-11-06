@@ -13,7 +13,7 @@ license = "MIT OR Apache-2.0"
 [features]
 default = []
 location = []
-timekeeper = ["lazy_static"]
+timekeeper = []
 
 [[bench]]
 name = "vimwiki_parser"
@@ -22,7 +22,7 @@ harness = false
 [dependencies]
 bytecount = "0.6.0"
 chrono = { version = "0.4.15", features = ["serde"] }
-lazy_static = {version = "1.4", optional = true }
+lazy_static = "1.4"
 memchr = "2.3.3"
 nom = "5.1.2"
 numerals = "0.1.4"

@@ -15,6 +15,7 @@ use std::{
     sync::Arc,
 };
 use tokio::sync::Mutex;
+use vimwiki::alloc::{ShareableIdAllocator, GLOBAL_ID_ALLOCATOR};
 
 /// Alias for a result with a database error
 pub type DatabaseResult<T, E = DatabaseError> = std::result::Result<T, E>;
@@ -45,8 +46,11 @@ pub enum DatabaseError {
 }
 
 /// Contains the state of the database while it is running
-#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct Database {
+    /// Allocator for ids used throughout database
+    id_allocator: ShareableIdAllocator,
+
     /// Represents the files loaded into the database
     files: HashMap<PathBuf, ParsedFile>,
 
@@ -59,6 +63,16 @@ pub struct Database {
 /// Represents a database that can be shared and modified across threads
 pub type ShareableDatabase = Arc<Mutex<Database>>;
 
+impl Default for Database {
+    fn default() -> Self {
+        Self {
+            id_allocator: Arc::clone(&GLOBAL_ID_ALLOCATOR),
+            files: HashMap::default(),
+            wikis: Vec::default(),
+        }
+    }
+}
+
 impl Database {
     /// Load database state using given config
     pub async fn load(config: &Config) -> DatabaseResult<Self> {
@@ -70,7 +84,26 @@ impl Database {
                 let contents = tokio::fs::read_to_string(&path)
                     .await
                     .context(LoadDatabase { path })?;
-                serde_json::from_str(&contents).context(JsonToDatabase {})?
+
+                // After deserializing our database, we need to update the
+                // global id allocator to the previous state
+                let mut db: Database = serde_json::from_str(&contents)
+                    .context(JsonToDatabase {})?;
+
+                // Update our global id allocator to match the state that
+                // was saved earlier
+                GLOBAL_ID_ALLOCATOR
+                    .lock()
+                    .expect("Unable to acquire global id allocator")
+                    .using(
+                        db.id_allocator
+                            .lock()
+                            .expect("Unable to acquire database id allocator")
+                            .clone(),
+                    );
+                db.id_allocator = Arc::clone(&GLOBAL_ID_ALLOCATOR);
+
+                db
             } else {
                 Database::default()
             }

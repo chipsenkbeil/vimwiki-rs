@@ -1,9 +1,9 @@
-use crate::elements::*;
-use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashMap,
-    sync::atomic::{AtomicUsize, Ordering},
+use crate::{
+    alloc::{Id, IdPool},
+    elements::*,
 };
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 mod node;
 pub use node::ElementNode;
@@ -27,9 +27,12 @@ type NodeStore<'a> = HashMap<usize, ElementNode<'a>>;
 /// can be used to search for `Element` instances by their `Region` as well
 /// as provide means to move up and down levels of elements via their
 /// parent and children references.
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct ElementNodes<'a, T: Root> {
-    /// Internal storage of all nodes within the tree
+    /// Pool for new ids
+    id_pool: IdPool,
+
+    /// Internal storage of all nodes
     nodes: NodeStore<'a>,
 
     /// Id or ids of the root node(s)
@@ -40,16 +43,14 @@ impl<'a> ElementNodes<'a, SingleRoot> {
     /// Builds a new single-root tree using the provided located element as the
     /// root. This will involving cloning data, although the tree will maintain
     /// any borrowed elements.
-    ///
-    /// Uses the provided function to generate ids for nodes. These should be
-    /// unique ids!
-    pub fn build(
-        located: Located<Element<'a>>,
-        new_id: impl Fn() -> usize,
-    ) -> Self {
+    fn build(located: Located<Element<'a>>, mut id_pool: IdPool) -> Self {
         let mut nodes = HashMap::new();
-        let root = make_nodes(&new_id, None, &mut nodes, located);
-        Self { nodes, root }
+        let root = make_nodes(&mut id_pool, None, &mut nodes, located);
+        Self {
+            nodes,
+            root,
+            id_pool,
+        }
     }
 
     /// Returns a reference to the root node of the tree
@@ -76,6 +77,7 @@ impl<'a> ElementNodes<'a, SingleRoot> {
                 .map(|(id, node)| (*id, node.to_borrowed()))
                 .collect(),
             root: self.root,
+            id_pool: IdPool::new(self.id_pool.to_allocator()),
         }
     }
 
@@ -88,6 +90,7 @@ impl<'a> ElementNodes<'a, SingleRoot> {
                 .map(|(id, node)| (id, node.into_owned()))
                 .collect(),
             root: self.root,
+            id_pool: self.id_pool,
         }
     }
 }
@@ -101,13 +104,19 @@ impl<'a> ElementNodes<'a, MultiRoot> {
     pub fn merge_unchecked(
         trees: impl IntoIterator<Item = ElementNodes<'a, SingleRoot>>,
     ) -> Self {
+        let mut id_pool = IdPool::default();
         let mut roots = Vec::new();
         let mut nodes = HashMap::new();
         for tree in trees {
             roots.push(tree.root);
             nodes.extend(tree.nodes);
+            id_pool = IdPool::merge(vec![id_pool, tree.id_pool]);
         }
-        Self { nodes, root: roots }
+        Self {
+            nodes,
+            root: roots,
+            id_pool,
+        }
     }
 
     /// Returns an iterator of all root nodes within the forest
@@ -135,6 +144,7 @@ impl<'a> ElementNodes<'a, MultiRoot> {
                 .map(|(id, node)| (*id, node.to_borrowed()))
                 .collect(),
             root: self.root.clone(),
+            id_pool: IdPool::new(self.id_pool.to_allocator()),
         }
     }
 
@@ -147,6 +157,7 @@ impl<'a> ElementNodes<'a, MultiRoot> {
                 .map(|(id, node)| (id, node.into_owned()))
                 .collect(),
             root: self.root,
+            id_pool: self.id_pool,
         }
     }
 }
@@ -317,12 +328,8 @@ impl<'a> From<Page<'a>> for ElementForest<'a> {
     /// which means that nodes will have distinct ids across different trees
     /// as well as within their own trees.
     fn from(page: Page<'a>) -> Self {
-        let counter = AtomicUsize::new(0);
-
         ElementForest::merge_unchecked(page.elements.into_iter().map(|x| {
-            ElementNodes::build(x.map(Element::from), || {
-                counter.fetch_add(1, Ordering::Relaxed)
-            })
+            ElementNodes::build(x.map(Element::from), IdPool::default())
         }))
     }
 }
@@ -356,21 +363,20 @@ impl<'a> From<Located<Element<'a>>> for ElementNodes<'a, SingleRoot> {
     /// will involving cloning data, although the tree will maintain any
     /// borrowed elements.
     fn from(located: Located<Element<'a>>) -> Self {
-        let counter = AtomicUsize::new(0);
-        Self::build(located, move || counter.fetch_add(1, Ordering::Relaxed))
+        Self::build(located, IdPool::default())
     }
 }
 
 /// Builds out the ids for a node without creating the node itself
 fn make_nodes<'a>(
-    new_id: &impl Fn() -> usize,
+    id_iter: &mut impl Iterator<Item = Id>,
     parent: Option<usize>,
     nodes: &mut NodeStore<'a>,
     located_element: Located<Element<'a>>,
 ) -> usize {
     // First, generate the id used for both the node and its data and store
     // the data into our data storage
-    let id = new_id();
+    let id = id_iter.next().expect("Allocator has run out of ids");
 
     // Second, process all children of the given data and add as nodes,
     // retaining their ids for use in the node being built
@@ -385,7 +391,7 @@ fn make_nodes<'a>(
         .clone()
         .into_children()
         .into_iter()
-        .map(|child| make_nodes(new_id, Some(id), nodes, child))
+        .map(|child| make_nodes(id_iter, Some(id), nodes, child))
         .collect();
 
     // Third, construct the node mapping (without data) and insert it into
@@ -405,6 +411,8 @@ fn make_nodes<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::alloc::IdAllocator;
+    use std::sync::Arc;
 
     fn test_element() -> Located<Element<'static>> {
         // Representing
@@ -451,11 +459,6 @@ mod tests {
         )
     }
 
-    fn new_id_func(x: usize) -> impl Fn() -> usize {
-        let counter = AtomicUsize::new(x);
-        move || counter.fetch_add(1, Ordering::Relaxed)
-    }
-
     #[test]
     fn root_should_return_singleton_node_for_tree() {
         let tree = ElementTree::from(test_element());
@@ -464,10 +467,20 @@ mod tests {
 
     #[test]
     fn roots_should_return_multiple_nodes_for_forest() {
+        let allocator = IdAllocator::with_range_size(1000).into_shareable();
         let forest = ElementForest::merge_unchecked(vec![
-            ElementTree::build(test_element(), new_id_func(100)),
-            ElementTree::build(test_element(), new_id_func(1000)),
-            ElementTree::build(test_element(), new_id_func(10000)),
+            ElementTree::build(
+                test_element(),
+                IdPool::new(Arc::downgrade(&allocator)),
+            ),
+            ElementTree::build(
+                test_element(),
+                IdPool::new(Arc::downgrade(&allocator)),
+            ),
+            ElementTree::build(
+                test_element(),
+                IdPool::new(Arc::downgrade(&allocator)),
+            ),
         ]);
         assert_eq!(forest.roots().count(), 3);
         assert!(forest
@@ -478,10 +491,20 @@ mod tests {
     #[test]
     fn find_at_offset_should_return_deepest_node_within_first_root_containing_offset(
     ) {
+        let allocator = IdAllocator::with_range_size(1000).into_shareable();
         let forest = ElementForest::merge_unchecked(vec![
-            ElementTree::build(test_element(), new_id_func(100)),
-            ElementTree::build(test_element(), new_id_func(1000)),
-            ElementTree::build(test_element(), new_id_func(10000)),
+            ElementTree::build(
+                test_element(),
+                IdPool::new(Arc::downgrade(&allocator)),
+            ),
+            ElementTree::build(
+                test_element(),
+                IdPool::new(Arc::downgrade(&allocator)),
+            ),
+            ElementTree::build(
+                test_element(),
+                IdPool::new(Arc::downgrade(&allocator)),
+            ),
         ]);
 
         // Cursor on top of bold text in paragraph
@@ -729,41 +752,42 @@ mod tests {
 
     #[test]
     fn siblings_should_support_root_level_siblings_when_multi_root() {
+        let allocator = IdAllocator::with_range_size(10).into_shareable();
         let forest = ElementForest::merge_unchecked(vec![
             ElementTree::build(
                 Located::new(
                     Element::from(Text::from("abc")),
                     Region::from(0..3),
                 ),
-                new_id_func(10),
+                IdPool::new(Arc::downgrade(&allocator)),
             ),
             ElementTree::build(
                 Located::new(
                     Element::from(Text::from("def")),
                     Region::from(3..6),
                 ),
-                new_id_func(20),
+                IdPool::new(Arc::downgrade(&allocator)),
             ),
             ElementTree::build(
                 Located::new(
                     Element::from(Text::from("ghi")),
                     Region::from(6..9),
                 ),
-                new_id_func(30),
+                IdPool::new(Arc::downgrade(&allocator)),
             ),
             ElementTree::build(
                 Located::new(
                     Element::from(Text::from("jkl")),
                     Region::from(9..12),
                 ),
-                new_id_func(40),
+                IdPool::new(Arc::downgrade(&allocator)),
             ),
             ElementTree::build(
                 Located::new(
                     Element::from(Text::from("mno")),
                     Region::from(12..15),
                 ),
-                new_id_func(50),
+                IdPool::new(Arc::downgrade(&allocator)),
             ),
         ]);
 
@@ -813,41 +837,42 @@ mod tests {
 
     #[test]
     fn siblings_before_should_support_root_level_siblings_when_multi_root() {
+        let allocator = IdAllocator::with_range_size(10).into_shareable();
         let forest = ElementForest::merge_unchecked(vec![
             ElementTree::build(
                 Located::new(
                     Element::from(Text::from("abc")),
                     Region::from(0..3),
                 ),
-                new_id_func(10),
+                IdPool::new(Arc::downgrade(&allocator)),
             ),
             ElementTree::build(
                 Located::new(
                     Element::from(Text::from("def")),
                     Region::from(3..6),
                 ),
-                new_id_func(20),
+                IdPool::new(Arc::downgrade(&allocator)),
             ),
             ElementTree::build(
                 Located::new(
                     Element::from(Text::from("ghi")),
                     Region::from(6..9),
                 ),
-                new_id_func(30),
+                IdPool::new(Arc::downgrade(&allocator)),
             ),
             ElementTree::build(
                 Located::new(
                     Element::from(Text::from("jkl")),
                     Region::from(9..12),
                 ),
-                new_id_func(40),
+                IdPool::new(Arc::downgrade(&allocator)),
             ),
             ElementTree::build(
                 Located::new(
                     Element::from(Text::from("mno")),
                     Region::from(12..15),
                 ),
-                new_id_func(50),
+                IdPool::new(Arc::downgrade(&allocator)),
             ),
         ]);
 
@@ -895,41 +920,42 @@ mod tests {
 
     #[test]
     fn siblings_after_should_support_root_level_siblings_when_multi_root() {
+        let allocator = IdAllocator::with_range_size(10).into_shareable();
         let forest = ElementForest::merge_unchecked(vec![
             ElementTree::build(
                 Located::new(
                     Element::from(Text::from("abc")),
                     Region::from(0..3),
                 ),
-                new_id_func(10),
+                IdPool::new(Arc::downgrade(&allocator)),
             ),
             ElementTree::build(
                 Located::new(
                     Element::from(Text::from("def")),
                     Region::from(3..6),
                 ),
-                new_id_func(20),
+                IdPool::new(Arc::downgrade(&allocator)),
             ),
             ElementTree::build(
                 Located::new(
                     Element::from(Text::from("ghi")),
                     Region::from(6..9),
                 ),
-                new_id_func(30),
+                IdPool::new(Arc::downgrade(&allocator)),
             ),
             ElementTree::build(
                 Located::new(
                     Element::from(Text::from("jkl")),
                     Region::from(9..12),
                 ),
-                new_id_func(40),
+                IdPool::new(Arc::downgrade(&allocator)),
             ),
             ElementTree::build(
                 Located::new(
                     Element::from(Text::from("mno")),
                     Region::from(12..15),
                 ),
-                new_id_func(50),
+                IdPool::new(Arc::downgrade(&allocator)),
             ),
         ]);
 
