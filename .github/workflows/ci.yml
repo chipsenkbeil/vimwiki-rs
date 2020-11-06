@@ -32,6 +32,8 @@ jobs:
       - uses: hecrj/setup-rust-action@v1
         with:
           rust-version: ${{ matrix.rust }}
+      - name: Check Cargo availability
+        run: cargo --version
       - run: cargo test --verbose --workspace
       - run: cargo test --verbose --workspace --all-features
       - run: cargo test --verbose --workspace --no-default-features
@@ -53,6 +55,8 @@ jobs:
       - uses: hecrj/setup-rust-action@v1
         with:
           components: clippy
+      - name: Check Cargo availability
+        run: cargo --version
       - run: cargo clippy --workspace --all-targets --verbose
       - run: cargo clippy --workspace --all-targets --verbose --no-default-features
       - run: cargo clippy --workspace --all-targets --verbose --all-features
@@ -72,4 +76,6 @@ jobs:
       - uses: hecrj/setup-rust-action@v1
         with:
           components: rustfmt
+      - name: Check Cargo availability
+        run: cargo --version
       - run: cargo fmt --all -- --check
