@@ -173,7 +173,9 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(target_os = "windows", ignore)]
     fn wiki_link_should_support_absolute_source_for_wiki_root() {
+        // NOTE: This is not an absolute path on windows
         let input = Span::from("[[/index]]");
         let (input, link) =
             wiki_link(input).expect("Parser unexpectedly failed");

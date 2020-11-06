@@ -120,7 +120,8 @@ mod tests {
             })))(input)
             .unwrap();
         assert_eq!(input, "abc");
-        assert_eq!(located.region(), Region::new(0, 3));
+        assert_eq!(located.region().offset(), 0);
+        assert_eq!(located.region().len(), 3);
         assert_eq!(located.into_inner(), 123);
     }
 
