@@ -2627,7 +2627,7 @@ checksum = "b5a972e5669d67ba988ce3dc826706fb0a8b01471c088cb0b6110b805cc36aed"
 
 [[package]]
 name = "vimwiki"
-version = "0.1.0-alpha.4"
+version = "0.1.0-alpha.5"
 dependencies = [
  "bytecount",
  "chrono",
@@ -2645,7 +2645,7 @@ dependencies = [
 
 [[package]]
 name = "vimwiki-server"
-version = "0.1.0-alpha.4"
+version = "0.1.0-alpha.5"
 dependencies = [
  "async-graphql",
  "async-graphql-warp",
@@ -2669,7 +2669,7 @@ dependencies = [
 
 [[package]]
 name = "vimwiki_macros"
-version = "0.1.0-alpha.4"
+version = "0.1.0-alpha.5"
 dependencies = [
  "paste",
  "proc-macro2",
