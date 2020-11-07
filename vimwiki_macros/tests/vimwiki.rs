@@ -254,6 +254,27 @@ fn vimwiki_list() {
 }
 
 #[test]
+fn vimwiki_list_item() {
+    let x = vimwiki_list_item!("- some list item");
+    assert_eq!(
+        x.into_inner(),
+        ListItem::new(
+            ListItemType::Unordered(UnorderedListItemType::Hyphen),
+            ListItemSuffix::None,
+            0,
+            ListItemContents::new(vec![Located::from(
+                ListItemContent::InlineContent(InlineElementContainer::new(
+                    vec![Located::from(InlineElement::Text(Text::from(
+                        "some list item"
+                    )))]
+                ))
+            )]),
+            ListItemAttributes { todo_status: None }
+        )
+    );
+}
+
+#[test]
 fn vimwiki_list_raw() {
     let x = vimwiki_list_raw!("- some list item");
     assert_eq!(

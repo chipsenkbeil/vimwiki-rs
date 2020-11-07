@@ -69,7 +69,7 @@ pub fn list(input: Span) -> IResult<Located<List>> {
 
 /// Parse space/tabs before a list item, followed by the list item
 #[inline]
-fn list_item(input: Span) -> IResult<(usize, Located<ListItem>)> {
+pub fn list_item(input: Span) -> IResult<(usize, Located<ListItem>)> {
     fn inner(input: Span) -> IResult<(usize, Located<ListItem>)> {
         // 1. Start at the beginning of the line
         let (input, _) = beginning_of_line(input)?;

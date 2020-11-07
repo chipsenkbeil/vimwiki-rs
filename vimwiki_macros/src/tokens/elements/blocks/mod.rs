@@ -61,3 +61,24 @@ fn tokenize_block_element(block_element: &BlockElement) -> TokenStream {
         }
     }
 }
+
+impl_tokenize!(tokenize_inline_block_element, InlineBlockElement<'a>, 'a);
+fn tokenize_inline_block_element(
+    inline_block_element: &InlineBlockElement,
+) -> TokenStream {
+    let root = element_path();
+    match inline_block_element {
+        InlineBlockElement::ListItem(x) => {
+            let t = do_tokenize!(&x);
+            quote! { #root::InlineBlockElement::ListItem(#t) }
+        }
+        InlineBlockElement::Term(x) => {
+            let t = do_tokenize!(&x);
+            quote! { #root::InlineBlockElement::Term(#t) }
+        }
+        InlineBlockElement::Definition(x) => {
+            let t = do_tokenize!(&x);
+            quote! { #root::InlineBlockElement::Definition(#t) }
+        }
+    }
+}

@@ -100,6 +100,7 @@ impl_macro_vimwiki!(transclusion_link, Located<elements::TransclusionLink>);
 impl_macro_vimwiki!(wiki_link, Located<elements::WikiLink>);
 impl_macro_vimwiki!(inter_wiki_link, Located<elements::InterWikiLink>);
 impl_macro_vimwiki!(list, Located<elements::List>);
+impl_macro_vimwiki!(list_item, Located<elements::ListItem>);
 impl_macro_vimwiki!(code_inline, Located<elements::CodeInline>);
 impl_macro_vimwiki!(math_inline, Located<elements::MathInline>);
 impl_macro_vimwiki!(math_block, Located<elements::MathBlock>);

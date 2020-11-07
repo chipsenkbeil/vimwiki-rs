@@ -3,7 +3,7 @@ pub mod parsers;
 
 use derive_more::Display;
 use elements::*;
-use parsers::{vimwiki, Span};
+use parsers::{vimwiki, IResult, Span};
 
 /// Parse a value from a `Language`
 pub trait FromLanguage<'a>: Sized {
@@ -181,6 +181,13 @@ impl_from_language!(
 
 // Lists
 impl_from_language!(Located<List<'a>>, vimwiki::blocks::lists::list);
+impl_from_language!(Located<ListItem<'a>>, parse_list_item);
+fn parse_list_item<'a>(input: Span<'a>) -> IResult<Located<ListItem<'a>>> {
+    nom::combinator::map(
+        vimwiki::blocks::lists::list_item,
+        |(_, item): (usize, Located<ListItem>)| item,
+    )(input)
+}
 
 // Math
 impl_from_language!(
