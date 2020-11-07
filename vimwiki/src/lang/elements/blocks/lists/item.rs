@@ -243,17 +243,11 @@ impl ListItemType<'_> {
 
 impl<'a> ListItemType<'a> {
     pub fn is_ordered(&self) -> bool {
-        match self {
-            Self::Ordered(_) => true,
-            _ => false,
-        }
+        matches!(self, Self::Ordered(_))
     }
 
     pub fn is_unordered(&self) -> bool {
-        match self {
-            Self::Unordered(_) => true,
-            _ => false,
-        }
+        matches!(self, Self::Unordered(_))
     }
 
     pub fn to_prefix(&self, pos: usize, suffix: ListItemSuffix) -> String {
