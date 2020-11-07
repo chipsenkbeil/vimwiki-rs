@@ -8,7 +8,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-vimwiki_macros = "0.1.0-alpha.3"
+vimwiki_macros = "0.1.0-alpha.5"
 ```
 
 ## Examples

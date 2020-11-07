@@ -23,7 +23,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-vimwiki-server = "0.1.0-alpha.4"
+vimwiki-server = "0.1.0-alpha.5"
 ```
 
 ## Examples
