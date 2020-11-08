@@ -101,14 +101,14 @@ impl<'a> ElementNodes<'a, MultiRoot> {
     ///
     /// This does not check for collisions in node ids within trees and
     /// can therefore overwrite nodes!
-    pub fn merge_unchecked(
-        trees: impl IntoIterator<Item = ElementNodes<'a, SingleRoot>>,
+    pub fn merge_unchecked<T: Root>(
+        trees: impl IntoIterator<Item = ElementNodes<'a, T>>,
     ) -> Self {
         let mut id_pool = IdPool::default();
         let mut roots = Vec::new();
         let mut nodes = HashMap::new();
         for tree in trees {
-            roots.push(tree.root);
+            roots.extend(tree.root.to_vec());
             nodes.extend(tree.nodes);
             id_pool = IdPool::merge(vec![id_pool, tree.id_pool]);
         }

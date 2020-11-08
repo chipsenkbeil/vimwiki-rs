@@ -108,7 +108,6 @@ fn uri_scheme<'a>(input: Span<'a>) -> IResult<Span<'a>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Region;
     use std::path::PathBuf;
 
     #[test]
