@@ -1,12 +1,12 @@
 use super::{Element, Region};
 use derive_more::From;
 use std::sync::Arc;
-use vimwiki::elements;
+use vimwiki::collections;
 
 #[derive(Debug, From)]
 pub struct ElementNode<'a> {
-    forest: Arc<elements::ElementForest<'a>>,
-    node: &'a elements::ElementNode<'a>,
+    forest: Arc<collections::ElementForest<'a>>,
+    node: &'a collections::ElementNode<'a>,
 }
 
 #[async_graphql::Object]

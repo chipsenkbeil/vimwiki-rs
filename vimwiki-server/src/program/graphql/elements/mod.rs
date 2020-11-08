@@ -7,12 +7,12 @@ pub use utils::*;
 
 use derive_more::Constructor;
 use std::sync::Arc;
-use vimwiki::{elements, Located};
+use vimwiki::{collections, elements, Located};
 
 /// Represents a single document page
 #[derive(Constructor, Clone, Debug)]
 pub struct Page {
-    forest: Arc<elements::ElementForest<'static>>,
+    forest: Arc<collections::ElementForest<'static>>,
 }
 
 #[async_graphql::Object]

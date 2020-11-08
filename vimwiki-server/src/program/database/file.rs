@@ -7,8 +7,7 @@ use std::{
     sync::Arc,
 };
 use vimwiki::{
-    elements::{ElementForest, Page},
-    Language, ParseError,
+    collections::ElementForest, elements::Page, Language, ParseError,
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
