@@ -1,13 +1,11 @@
 mod blocks;
 pub use blocks::*;
-mod node;
-pub use node::*;
 mod utils;
 pub use utils::*;
 
 use derive_more::Constructor;
 use std::sync::Arc;
-use vimwiki::{collections, elements, Located};
+use vimwiki::*;
 
 /// Represents a single document page
 #[derive(Constructor, Clone, Debug)]

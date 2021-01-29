@@ -1,2 +1,6 @@
+mod config;
+mod data;
 mod program;
-pub use program::{config::Config, Program};
+
+pub use config::Config;
+pub use program::Program;

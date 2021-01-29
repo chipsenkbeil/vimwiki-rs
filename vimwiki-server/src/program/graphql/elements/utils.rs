@@ -1,63 +1,65 @@
-use vimwiki::elements;
+use async_graphql::SimpleObject;
+use entity::*;
+use vimwiki::elements::*;
 
 /// Represents a segment of a document marked by a byte offset and length
-#[derive(async_graphql::SimpleObject, Debug)]
-pub struct Region {
+#[derive(Debug, SimpleObject, ValueLike)]
+pub struct GqlRegion {
     /// The byte offset within a file where this element begins
-    offset: i32,
+    offset: usize,
 
     /// The byte length of this element within a file
-    len: i32,
+    len: usize,
 
     /// Extra information about the region, specifying the file-based line
     /// and column details for the beginning and end of the region
-    position: Option<Position>,
+    position: Option<GqlPosition>,
 }
 
-impl From<elements::Region> for Region {
-    fn from(region: elements::Region) -> Self {
+impl From<Region> for GqlRegion {
+    fn from(region: Region) -> Self {
         Self {
-            offset: region.offset() as i32,
-            len: region.len() as i32,
-            position: region.position().map(Position::from),
+            offset: region.offset(),
+            len: region.len(),
+            position: region.position().map(GqlPosition::from),
         }
     }
 }
 
 /// Represents a segment of a document marked by a byte offset and length
-#[derive(async_graphql::SimpleObject, Debug)]
-pub struct Position {
+#[derive(Debug, SimpleObject, ValueLike)]
+pub struct GqlPosition {
     /// The starting line & column
-    start: LineColumn,
+    start: GqlLineColumn,
 
     /// The ending line & column
-    end: LineColumn,
+    end: GqlLineColumn,
 }
 
-impl From<elements::Position> for Position {
-    fn from(position: elements::Position) -> Self {
+impl From<Position> for GqlPosition {
+    fn from(position: Position) -> Self {
         Self {
-            start: LineColumn::from(position.start()),
-            end: LineColumn::from(position.end()),
+            start: GqlLineColumn::from(position.start()),
+            end: GqlLineColumn::from(position.end()),
         }
     }
 }
 
 /// Represents a segment of a document marked by a byte offset and length
-#[derive(async_graphql::SimpleObject, Debug)]
-pub struct LineColumn {
+#[derive(Debug, SimpleObject, ValueLike)]
+pub struct GqlLineColumn {
     /// The line in the file, starting at 1
-    line: i32,
+    line: usize,
 
     /// The column in the file, starting at 1
-    column: i32,
+    column: usize,
 }
 
-impl From<elements::LineColumn> for LineColumn {
-    fn from(line_column: elements::LineColumn) -> Self {
+impl From<LineColumn> for GqlLineColumn {
+    fn from(line_column: LineColumn) -> Self {
         Self {
-            line: line_column.line() as i32,
-            column: line_column.column() as i32,
+            line: line_column.line(),
+            column: line_column.column(),
         }
     }
 }

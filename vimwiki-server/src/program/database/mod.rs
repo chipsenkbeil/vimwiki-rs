@@ -6,22 +6,21 @@ pub use file::*;
 pub use wiki::*;
 
 use crate::program::{graphql::elements::Page, Config};
+use entity::*;
 use log::error;
 use log::trace;
 use snafu::{ResultExt, Snafu};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
-    sync::Arc,
 };
-use tokio::sync::Mutex;
-use vimwiki::alloc::{ShareableIdAllocator, GLOBAL_ID_ALLOCATOR};
 
 /// Alias for a result with a database error
-pub type DatabaseResult<T, E = DatabaseError> = std::result::Result<T, E>;
+pub type VimwikiDatabaseResult<T, E = VimwikiDatabaseError> =
+    std::result::Result<T, E>;
 
 #[derive(Debug, Snafu)]
-pub enum DatabaseError {
+pub enum VimwikiDatabaseError {
     #[snafu(display("Could not load database from {}: {}", path.display(), source))]
     LoadDatabase {
         path: PathBuf,
@@ -45,37 +44,18 @@ pub enum DatabaseError {
     FileWatcher { source: notify::Error },
 }
 
-/// Contains the state of the database while it is running
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct Database {
-    /// Allocator for ids used throughout database
-    id_allocator: ShareableIdAllocator,
+/// Represents primary wiki database
+pub struct VimwikiDatabase(DatabaseRc);
 
-    /// Represents the files loaded into the database
-    files: HashMap<PathBuf, ParsedFile>,
-
-    /// Represents the information associated with each wiki; the ordering
-    /// is significant here as it matches the order as defined by the user
-    /// and is also the ordering here (wiki index 0 is index 0 in the vec)
-    wikis: Vec<Wiki>,
-}
-
-/// Represents a database that can be shared and modified across threads
-pub type ShareableDatabase = Arc<Mutex<Database>>;
-
-impl Default for Database {
+impl Default for VimwikiDatabase {
     fn default() -> Self {
-        Self {
-            id_allocator: Arc::clone(&GLOBAL_ID_ALLOCATOR),
-            files: HashMap::default(),
-            wikis: Vec::default(),
-        }
+        Self(DatabaseRc::new(Box::new(InmemoryDatabase::default())))
     }
 }
 
-impl Database {
+impl VimwikiDatabase {
     /// Load database state using given config
-    pub async fn load(config: &Config) -> DatabaseResult<Self> {
+    pub async fn load(config: &Config) -> VimwikiDatabaseResult<Self> {
         // Load our database from a cache file if it exists, otherwise we
         // start with a clean cache file
         let mut database = {
@@ -87,21 +67,8 @@ impl Database {
 
                 // After deserializing our database, we need to update the
                 // global id allocator to the previous state
-                let mut db: Database = serde_json::from_str(&contents)
+                let db: Database = serde_json::from_str(&contents)
                     .context(JsonToDatabase {})?;
-
-                // Update our global id allocator to match the state that
-                // was saved earlier
-                GLOBAL_ID_ALLOCATOR
-                    .lock()
-                    .expect("Unable to acquire global id allocator")
-                    .using(
-                        db.id_allocator
-                            .lock()
-                            .expect("Unable to acquire database id allocator")
-                            .clone(),
-                    );
-                db.id_allocator = Arc::clone(&GLOBAL_ID_ALLOCATOR);
 
                 db
             } else {
@@ -162,7 +129,7 @@ impl Database {
     }
 
     /// Write database state to disk using given config
-    pub async fn store(&self, config: &Config) -> DatabaseResult<()> {
+    pub async fn store(&self, config: &Config) -> VimwikiDatabaseResult<()> {
         let json =
             serde_json::to_string_pretty(&self).context(DatabaseToJson {})?;
 

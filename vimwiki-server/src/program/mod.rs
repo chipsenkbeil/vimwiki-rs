@@ -1,6 +1,4 @@
-pub(crate) mod config;
 mod graphql;
-use config::*;
 mod server;
 mod stdin;
 mod watcher;

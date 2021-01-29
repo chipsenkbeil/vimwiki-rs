@@ -1,33 +1,23 @@
+use entity::*;
 use log::trace;
-use serde::{Deserialize, Serialize};
 use sha1::{Digest, Sha1};
 use snafu::{ResultExt, Snafu};
 use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-use vimwiki::{
-    collections::ElementForest, elements::Page, Language, ParseError,
-};
+use vimwiki::{elements::Page, Language, ParseError};
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[simple_ent]
 pub struct ParsedFile {
     path: PathBuf,
     checksum: String,
-    forest: Arc<ElementForest<'static>>,
+
+    #[ent(edge)]
+    page: Page,
 }
 
 impl ParsedFile {
-    /// Returns a reference to the path to the parsed file
-    pub fn path(&self) -> &Path {
-        self.path.as_path()
-    }
-
-    /// Returns a cloned instance of arc for the forest
-    pub fn forest(&self) -> Arc<ElementForest<'static>> {
-        Arc::clone(&self.forest)
-    }
-
     /// Consumes this instance and attempts to load a new instance.
     ///
     /// A `ParsedFile` maintains a SHA-1 checksum to verify if the data in
