@@ -3,32 +3,33 @@ use entity::*;
 use std::{convert::TryFrom, fmt};
 use vimwiki::{elements as v, Located};
 
-/// Represents a single document inline code
+/// Represents raw text within a single document
 #[simple_ent]
 #[derive(AsyncGraphqlEnt, AsyncGraphqlEntFilter)]
-pub struct CodeInline {
-    /// The segment of the document this inline code covers
+pub struct Text {
+    /// The segment of the document this text covers
     #[ent(field, ext(async_graphql(filter_untyped)))]
     region: Region,
 
-    /// The raw code
-    code: String,
+    /// The text content
+    content: String,
 }
 
-impl fmt::Display for CodeInline {
+impl fmt::Display for Text {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.code())
+        write!(f, "{}", self.content)
     }
 }
 
-impl<'a> TryFrom<Located<v::CodeInline<'a>>> for CodeInline {
+impl<'a> TryFrom<Located<v::Text<'a>>> for Text {
     type Error = ConvertToDatabaseError;
 
-    fn try_from(le: Located<v::CodeInline<'a>>) -> Result<Self, Self::Error> {
+    fn try_from(le: Located<v::Text<'a>>) -> Result<Self, Self::Error> {
+        let region = Region::from(le.region());
         ConvertToDatabaseError::wrap(
             Self::build()
-                .region(Region::from(le.region()))
-                .code(le.into_inner().code.to_string())
+                .region(region)
+                .content(le.into_inner().to_string())
                 .finish_and_commit(),
         )
     }

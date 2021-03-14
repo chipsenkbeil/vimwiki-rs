@@ -1,7 +1,7 @@
 use crate::data::{ConvertToDatabaseError, Description, Region, Uri};
 use entity::*;
 use serde::{Deserialize, Serialize};
-use std::convert::TryFrom;
+use std::{convert::TryFrom, fmt};
 use vimwiki::{elements as v, Located};
 
 /// Represents a single document transclusion link
@@ -23,6 +23,15 @@ pub struct TransclusionLink {
     /// Additional properties associated with the link
     #[ent(field, ext(async_graphql(filter_untyped)))]
     properties: Vec<Property>,
+}
+
+impl fmt::Display for TransclusionLink {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.description().as_ref() {
+            Some(desc) => write!(f, "{}", desc),
+            None => write!(f, "{}", self.uri()),
+        }
+    }
 }
 
 impl<'a> TryFrom<Located<v::TransclusionLink<'a>>> for TransclusionLink {

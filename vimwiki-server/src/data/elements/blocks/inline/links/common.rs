@@ -1,16 +1,28 @@
 use derive_more::From;
 use entity::*;
 use serde::{Deserialize, Serialize};
-use std::convert::TryFrom;
+use std::{convert::TryFrom, fmt, str::FromStr};
 use vimwiki::{
     elements as v,
-    vendor::{chrono::NaiveDate, uriparse::URI},
+    vendor::{
+        chrono::{self, NaiveDate},
+        uriparse::{self, URI},
+    },
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Description {
     Text(String),
     URI(Uri),
+}
+
+impl fmt::Display for Description {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Text(ref x) => write!(f, "{}", x),
+            Self::URI(ref x) => write!(f, "{}", x.to_string()),
+        }
+    }
 }
 
 impl<'a> From<v::Description<'a>> for Description {
@@ -61,10 +73,7 @@ impl Description {
 
     /// Represents the content of the description
     async fn content(&self) -> String {
-        match self {
-            Self::Text(ref x) => x.to_string(),
-            Self::URI(ref x) => x.0.to_string(),
-        }
+        self.to_string()
     }
 }
 
@@ -75,6 +84,15 @@ impl Description {
 pub struct Anchor {
     /// The pieces of an anchor #one#two#three -> ["one", "two", "three"]
     elements: Vec<String>,
+}
+
+impl fmt::Display for Anchor {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for e in self.elements.iter() {
+            write!(f, "#{}", e.as_str())?;
+        }
+        Ok(())
+    }
 }
 
 impl<'a> From<v::Anchor<'a>> for Anchor {
@@ -88,16 +106,28 @@ impl<'a> From<v::Anchor<'a>> for Anchor {
 #[derive(Clone, Debug, From, Serialize, Deserialize)]
 pub struct Date(NaiveDate);
 
+impl fmt::Display for Date {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0.format("%Y-%m-%d").to_string())
+    }
+}
+
+impl FromStr for Date {
+    type Err = chrono::ParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        NaiveDate::parse_from_str(&s, "%Y-%m-%d").map(Date)
+    }
+}
+
 impl ValueLike for Date {
     fn into_value(self) -> Value {
-        Value::Text(self.0.format("%Y-%m-%d").to_string())
+        Value::Text(self.to_string())
     }
 
     fn try_from_value(value: Value) -> Result<Self, Value> {
         match value {
-            Value::Text(x) => NaiveDate::parse_from_str(&x, "%Y-%m-%d")
-                .map(Date)
-                .map_err(|_| Value::Text(x)),
+            Value::Text(x) => x.as_str().parse().map_err(|_| Value::Text(x)),
             x => Err(x),
         }
     }
@@ -108,16 +138,28 @@ async_graphql::scalar!(Date);
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Uri(URI<'static>);
 
+impl fmt::Display for Uri {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0.to_string())
+    }
+}
+
+impl FromStr for Uri {
+    type Err = uriparse::URIError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        URI::try_from(s).map(|x| Uri(x.into_owned()))
+    }
+}
+
 impl ValueLike for Uri {
     fn into_value(self) -> Value {
-        Value::Text(self.0.to_string())
+        Value::Text(self.to_string())
     }
 
     fn try_from_value(value: Value) -> Result<Self, Value> {
         match value {
-            Value::Text(x) => URI::try_from(x.as_str())
-                .map(Uri)
-                .map_err(|_| Value::Text(x)),
+            Value::Text(x) => x.as_str().parse().map_err(|_| Value::Text(x)),
             x => Err(x),
         }
     }

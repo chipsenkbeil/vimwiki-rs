@@ -1,4 +1,5 @@
-use crate::data::{ConvertToDatabaseError, Region};
+use crate::data::ConvertToDatabaseError;
+use derive_more::Display;
 use entity::*;
 use std::convert::TryFrom;
 use vimwiki::{elements as v, Located};
@@ -17,7 +18,7 @@ mod typefaces;
 pub use typefaces::*;
 
 #[simple_ent]
-#[derive(async_graphql::Union, Debug)]
+#[derive(async_graphql::Union, Debug, Display)]
 pub enum InlineElement {
     Text(Text),
     DecoratedText(DecoratedText),

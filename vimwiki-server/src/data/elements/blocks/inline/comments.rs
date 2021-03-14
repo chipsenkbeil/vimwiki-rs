@@ -1,14 +1,31 @@
 use crate::data::{ConvertToDatabaseError, Region};
+use derive_more::Display;
 use entity::*;
-use std::convert::TryFrom;
+use std::{convert::TryFrom, fmt};
 use vimwiki::{elements as v, Located};
 
 /// Represents a single document comment
 #[simple_ent]
-#[derive(async_graphql::Union, Debug)]
+#[derive(async_graphql::Union, Debug, Display)]
 pub enum Comment {
     Line(LineComment),
     MultiLine(MultiLineComment),
+}
+
+impl<'a> TryFrom<Located<v::Comment<'a>>> for Comment {
+    type Error = ConvertToDatabaseError;
+
+    fn try_from(le: Located<v::Comment<'a>>) -> Result<Self, Self::Error> {
+        let region = le.region();
+        Ok(match le.into_inner() {
+            v::Comment::Line(x) => {
+                Self::Line(LineComment::try_from(Located::new(x, region))?)
+            }
+            v::Comment::MultiLine(x) => Self::MultiLine(
+                MultiLineComment::try_from(Located::new(x, region))?,
+            ),
+        })
+    }
 }
 
 /// Represents a comment on a single line of a document
@@ -21,6 +38,12 @@ pub struct LineComment {
 
     /// The line of content contained within this comment
     line: String,
+}
+
+impl fmt::Display for LineComment {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.line())
+    }
 }
 
 impl<'a> TryFrom<Located<v::LineComment<'a>>> for LineComment {
@@ -46,6 +69,15 @@ pub struct MultiLineComment {
 
     /// The lines of content contained within this comment
     lines: Vec<String>,
+}
+
+impl fmt::Display for MultiLineComment {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for line in self.lines().iter() {
+            write!(f, "{}", line)?;
+        }
+        Ok(())
+    }
 }
 
 impl<'a> TryFrom<Located<v::MultiLineComment<'a>>> for MultiLineComment {

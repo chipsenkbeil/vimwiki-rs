@@ -1,6 +1,6 @@
 use crate::data::{ConvertToDatabaseError, Region};
 use entity::*;
-use std::convert::TryFrom;
+use std::{convert::TryFrom, fmt};
 use vimwiki::{elements as v, Located};
 
 /// Represents a single document inline math formula
@@ -13,6 +13,12 @@ pub struct MathInline {
 
     /// The raw formula
     formula: String,
+}
+
+impl fmt::Display for MathInline {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.formula())
+    }
 }
 
 impl<'a> TryFrom<Located<v::MathInline<'a>>> for MathInline {

@@ -1,6 +1,6 @@
 use crate::data::{ConvertToDatabaseError, Region};
 use entity::*;
-use std::convert::TryFrom;
+use std::{convert::TryFrom, fmt};
 use vimwiki::{elements as v, Located};
 
 /// Represents a single document inline set of tags
@@ -13,6 +13,12 @@ pub struct Tags {
 
     /// The set of tag names
     names: Vec<String>,
+}
+
+impl fmt::Display for Tags {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.names().join(":"))
+    }
 }
 
 impl<'a> TryFrom<Located<v::Tags<'a>>> for Tags {

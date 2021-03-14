@@ -1,6 +1,6 @@
 use crate::data::{Anchor, ConvertToDatabaseError, Description, Region};
 use entity::*;
-use std::convert::TryFrom;
+use std::{convert::TryFrom, fmt};
 use vimwiki::{elements as v, Located};
 
 /// Represents a single document wiki link within another wiki
@@ -32,6 +32,15 @@ pub struct IndexedInterWikiLink {
     /// Optional anchor associated with the link
     #[ent(field, ext(async_graphql(filter_untyped)))]
     anchor: Option<Anchor>,
+}
+
+impl fmt::Display for IndexedInterWikiLink {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.description().as_ref() {
+            Some(desc) => write!(f, "{}", desc),
+            None => write!(f, "{}", self.path()),
+        }
+    }
 }
 
 impl<'a> TryFrom<Located<v::IndexedInterWikiLink<'a>>>
@@ -88,6 +97,15 @@ pub struct NamedInterWikiLink {
     /// Optional anchor associated with the link
     #[ent(field, ext(async_graphql(filter_untyped)))]
     anchor: Option<Anchor>,
+}
+
+impl fmt::Display for NamedInterWikiLink {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.description().as_ref() {
+            Some(desc) => write!(f, "{}", desc),
+            None => write!(f, "{}", self.path()),
+        }
+    }
 }
 
 impl<'a> TryFrom<Located<v::NamedInterWikiLink<'a>>> for NamedInterWikiLink {

@@ -1,6 +1,6 @@
 use crate::data::{ConvertToDatabaseError, Region, Uri};
 use entity::*;
-use std::convert::TryFrom;
+use std::{convert::TryFrom, fmt};
 use vimwiki::{elements as v, Located};
 
 /// Represents a single document link formed from a raw URI
@@ -14,6 +14,12 @@ pub struct RawLink {
     /// The URI representing the link
     #[ent(field, ext(async_graphql(filter_untyped)))]
     uri: Uri,
+}
+
+impl fmt::Display for RawLink {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.uri())
+    }
 }
 
 impl<'a> TryFrom<Located<v::RawLink<'a>>> for RawLink {
