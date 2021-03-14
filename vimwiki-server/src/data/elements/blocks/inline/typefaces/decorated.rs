@@ -79,16 +79,27 @@ impl<'a> TryFrom<Located<v::DecoratedText<'a>>> for DecoratedText {
     ) -> Result<Self, Self::Error> {
         let region = Region::from(le.region());
 
+        // First, figure out the type of decoration
+        let decoration = match le.as_inner() {
+            v::DecoratedText::Bold(_) => Decoration::Bold,
+            v::DecoratedText::Italic(_) => Decoration::Italic,
+            v::DecoratedText::Strikeout(_) => Decoration::Strikeout,
+            v::DecoratedText::Superscript(_) => Decoration::Superscript,
+            v::DecoratedText::Subscript(_) => Decoration::Subscript,
+        };
+
+        // Second, we need to create all of the content contained within the text
+        let mut contents = Vec::new();
+        for content in le.into_inner().into_contents() {
+            contents.push(DecoratedTextContent::try_from(content)?.id());
+        }
+
+        // Third, we create the container of the content
         ConvertToDatabaseError::wrap(
             Self::build()
                 .region(region)
-                .decoration(match le.as_inner() {
-                    v::DecoratedText::Bold(_) => Decoration::Bold,
-                    v::DecoratedText::Italic(_) => Decoration::Italic,
-                    v::DecoratedText::Strikeout(_) => Decoration::Strikeout,
-                    v::DecoratedText::Superscript(_) => Decoration::Superscript,
-                    v::DecoratedText::Subscript(_) => Decoration::Subscript,
-                })
+                .decoration(decoration)
+                .contents(contents)
                 .finish_and_commit(),
         )
     }

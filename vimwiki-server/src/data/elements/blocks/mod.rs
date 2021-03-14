@@ -1,3 +1,8 @@
+use derive_more::From;
+use entity::*;
+use std::convert::TryFrom;
+use vimwiki::{elements as v, Located};
+
 mod blockquotes;
 pub use blockquotes::*;
 
@@ -6,12 +11,6 @@ pub use definitions::*;
 
 mod inline;
 pub use inline::*;
-
-use derive_more::{Display, Error, From};
-use entity::*;
-use serde::{Deserialize, Serialize};
-use std::convert::TryFrom;
-use vimwiki::{elements as v, Located};
 
 /// Represents a single document element at a block-level
 #[simple_ent]
@@ -67,32 +66,5 @@ impl<'a> TryFrom<Located<v::BlockElement<'a>>> for BlockElement {
                 Self::from(Placeholder::try_from(Located::new(x, region))?)
             }
         }
-    }
-}
-
-#[simple_ent]
-#[derive(AsyncGraphqlEnt, AsyncGraphqlEntFilter)]
-pub struct Blockquote {
-    #[ent(field, ext(async_graphql(filter_untyped)))]
-    region: Region,
-    lines: Vec<String>,
-}
-
-impl<'a> TryFrom<Located<v::Blockquote<'a>>> for Blockquote {
-    type Error = ConvertToDatabaseError;
-
-    fn try_from(le: Located<v::Blockquote<'a>>) -> Result<Self, Self::Error> {
-        Self::build()
-            .region(Region::from(le.region()))
-            .lines(
-                le.into_inner()
-                    .lines
-                    .iter()
-                    .map(ToString::to_string)
-                    .collect(),
-            )
-            .finish_and_commit()
-            .map_err(ConvertToDatabaseError::Database)?
-            .map_err(ConvertToDatabaseError::Builder)
     }
 }

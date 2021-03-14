@@ -1,7 +1,7 @@
 use crate::lang::elements::{
     InlineBlockElement, InlineElement, InlineElementContainer, Located,
 };
-use derive_more::{Constructor, Display};
+use derive_more::{Constructor, Display, IntoIterator};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{hash_map, HashMap},
@@ -89,9 +89,18 @@ pub type Definition<'a> = DefinitionListValue<'a>;
 /// Represents a list of terms and definitions, where a term can have multiple
 /// definitions associated with it
 #[derive(
-    Constructor, Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize,
+    Constructor,
+    Clone,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    IntoIterator,
 )]
 pub struct DefinitionList<'a> {
+    #[into_iterator(owned, ref, ref_mut)]
     mapping: HashMap<Located<Term<'a>>, Vec<Located<Definition<'a>>>>,
 }
 
