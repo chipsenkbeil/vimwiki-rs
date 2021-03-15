@@ -1,5 +1,4 @@
 use crate::data::{ConvertToDatabaseError, Region};
-
 use entity::*;
 use std::convert::TryFrom;
 use vimwiki::{elements as v, Located};
