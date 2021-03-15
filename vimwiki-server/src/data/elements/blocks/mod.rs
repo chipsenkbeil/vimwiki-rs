@@ -5,12 +5,26 @@ use vimwiki::{elements as v, Located};
 
 mod blockquotes;
 pub use blockquotes::*;
-
 mod definitions;
 pub use definitions::*;
-
+mod dividers;
+pub use dividers::*;
+mod headers;
+pub use headers::*;
 mod inline;
 pub use inline::*;
+mod lists;
+pub use lists::*;
+mod math;
+pub use math::*;
+mod paragraphs;
+pub use paragraphs::*;
+mod placeholders;
+pub use placeholders::*;
+mod preformatted;
+pub use preformatted::*;
+mod tables;
+pub use tables::*;
 
 /// Represents a single document element at a block-level
 #[simple_ent]

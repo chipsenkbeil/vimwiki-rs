@@ -42,7 +42,7 @@ impl fmt::Display for DecoratedText {
 /// applied to it
 #[async_graphql::Object]
 impl DecoratedText {
-    /// The segment of the document this header covers
+    /// The segment of the document this decorated text is within
     #[graphql(name = "region")]
     async fn gql_region(&self) -> &Region {
         self.region()
