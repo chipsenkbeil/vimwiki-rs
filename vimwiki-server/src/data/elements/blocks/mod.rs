@@ -1,4 +1,4 @@
-use derive_more::From;
+use crate::data::ConvertToDatabaseError;
 use entity::*;
 use std::convert::TryFrom;
 use vimwiki::{elements as v, Located};
@@ -28,7 +28,7 @@ pub use tables::*;
 
 /// Represents a single document element at a block-level
 #[simple_ent]
-#[derive(async_graphql::Union, Debug, From)]
+#[derive(async_graphql::Union, Debug)]
 pub enum BlockElement {
     Blockquote(Blockquote),
     DefinitionList(DefinitionList),
