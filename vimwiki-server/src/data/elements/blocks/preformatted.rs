@@ -10,8 +10,12 @@ pub struct PreformattedText {
     region: Region,
 
     language: Option<String>,
-    metadata: HashMap<String, String>,
     lines: Vec<String>,
+
+    // TODO: Support a typed filter once predicate available:
+    //       https://github.com/chipsenkbeil/entity-rs/issues/53
+    #[ent(field, ext(async_graphql(filter_untyped)))]
+    metadata: HashMap<String, String>,
 }
 
 /// Represents a single document block of preformatted text (aka code block)

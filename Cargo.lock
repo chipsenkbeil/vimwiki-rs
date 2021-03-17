@@ -798,9 +798,9 @@ dependencies = [
 
 [[package]]
 name = "entity"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56e873143b2a701f9f7deb20497dd7bbf48b1bdaf1b837069f46398b1705af56"
+checksum = "cde57b9e57bf227947df876a15d29d5e2e4d377211f2a72228b22671695b11f0"
 dependencies = [
  "async-graphql",
  "derivative",
@@ -818,9 +818,9 @@ dependencies = [
 
 [[package]]
 name = "entity_macros"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81f5b624d2f67367f20643827d68b01fb8b3bd4af5a53b82ce36e8a35c110f32"
+checksum = "7462ac39fa46fbb48c335578182fc20f9e0f76b877ff3d9d800aa5ce7316bf69"
 dependencies = [
  "darling 0.12.0",
  "heck",
