@@ -2,14 +2,13 @@ mod elements;
 pub use elements::*;
 
 use entity::*;
-use std::path::PathBuf;
 
 #[simple_ent]
 #[derive(AsyncGraphqlEnt, AsyncGraphqlEntFilter)]
 pub struct Wiki {
     index: usize,
     name: Option<String>,
-    path: PathBuf,
+    path: String,
 
     #[ent(edge(policy = "deep"))]
     files: Vec<ParsedFile>,
@@ -18,7 +17,7 @@ pub struct Wiki {
 #[simple_ent]
 #[derive(AsyncGraphqlEnt, AsyncGraphqlEntFilter)]
 pub struct ParsedFile {
-    path: PathBuf,
+    path: String,
     checksum: String,
 
     #[ent(edge(policy = "deep"))]

@@ -48,7 +48,7 @@ impl<'a> TryFrom<Located<v::BlockElement<'a>>> for BlockElement {
 
     fn try_from(le: Located<v::BlockElement<'a>>) -> Result<Self, Self::Error> {
         let region = le.region();
-        match le.into_inner() {
+        Ok(match le.into_inner() {
             v::BlockElement::Header(x) => {
                 Self::from(Header::try_from(Located::new(x, region))?)
             }
@@ -79,6 +79,6 @@ impl<'a> TryFrom<Located<v::BlockElement<'a>>> for BlockElement {
             v::BlockElement::Placeholder(x) => {
                 Self::from(Placeholder::try_from(Located::new(x, region))?)
             }
-        }
+        })
     }
 }

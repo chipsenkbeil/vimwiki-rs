@@ -1,6 +1,4 @@
-use super::{Program, Wiki};
-
-pub mod elements;
+use crate::{data::Wiki, program::Program};
 
 /// Represents the query-portion of the GraphQL schema
 pub struct Query;
@@ -55,13 +53,11 @@ pub type Schema = async_graphql::Schema<
     async_graphql::EmptySubscription,
 >;
 
-/// Construct our schema with the provided program as context data
-pub fn build_schema_with_program(program: Program) -> Schema {
+pub fn new_schema() -> Schema {
     Schema::build(
         Query,
         async_graphql::EmptyMutation,
         async_graphql::EmptySubscription,
     )
-    .data(program)
     .finish()
 }

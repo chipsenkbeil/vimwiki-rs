@@ -1,11 +1,6 @@
-mod file;
 mod utils;
-mod wiki;
 
-pub use file::*;
-pub use wiki::*;
-
-use crate::program::{graphql::elements::Page, Config};
+use crate::{data::Wiki, Config};
 use entity::*;
 use log::error;
 use log::trace;
@@ -67,7 +62,7 @@ impl VimwikiDatabase {
 
                 // After deserializing our database, we need to update the
                 // global id allocator to the previous state
-                let db: Database = serde_json::from_str(&contents)
+                let db: InmemoryDatabase = serde_json::from_str(&contents)
                     .context(JsonToDatabase {})?;
 
                 db
