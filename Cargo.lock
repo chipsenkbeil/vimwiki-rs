@@ -798,9 +798,9 @@ dependencies = [
 
 [[package]]
 name = "entity"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cde57b9e57bf227947df876a15d29d5e2e4d377211f2a72228b22671695b11f0"
+checksum = "6d31d50a758e30782b416929cb1d5def51a2032e9466d551141011823d72a317"
 dependencies = [
  "async-graphql",
  "derivative",
@@ -818,9 +818,9 @@ dependencies = [
 
 [[package]]
 name = "entity_macros"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7462ac39fa46fbb48c335578182fc20f9e0f76b877ff3d9d800aa5ce7316bf69"
+checksum = "2368f9f4061a261c3f6ad7b15db28c5966dd5ad5d115c4182df1d8f4ecb8aaf5"
 dependencies = [
  "darling 0.12.0",
  "heck",
@@ -1725,9 +1725,9 @@ dependencies = [
 
 [[package]]
 name = "paste"
-version = "1.0.4"
+version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c5d65c4d95931acda4498f675e332fcbdc9a06705cd07086c510e9b6009cd1c1"
+checksum = "acbf547ad0c65e31259204bd90935776d1c693cec2f4ff7abb7a1bbbd40dfe58"
 
 [[package]]
 name = "percent-encoding"
@@ -2885,6 +2885,7 @@ dependencies = [
  "lazy_static",
  "log",
  "notify",
+ "paste",
  "serde",
  "serde_json",
  "sha-1 0.9.1",

@@ -24,12 +24,13 @@ async-graphql-warp = "2.4.6"
 clap = "3.0.0-beta.2"
 derive_more = { version = "0.99.0", default-features = false, features = [ "display", "error", "from" ] }
 directories = "3.0.1"
-entity = { version = "0.2.1", features = ["async-graphql", "global", "macros", "inmemory_db", "serde-1"] }
+entity = { version = "0.2.2", features = ["async-graphql", "global", "macros", "inmemory_db", "serde-1"] }
 flexi_logger = "0.16.1"
 indicatif = "0.15.0"
 lazy_static = "1.4.0"
 log = "0.4.11"
 notify = "5.0.0-pre.3"
+paste = "1.0.5"
 serde = { version = "1.0.115", features = ["derive", "rc"] }
 serde_json = "1.0.58"
 typetag = "0.1.6"
