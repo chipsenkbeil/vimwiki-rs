@@ -1,5 +1,3 @@
-use crate::Config;
-use entity::*;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::{
     fs,

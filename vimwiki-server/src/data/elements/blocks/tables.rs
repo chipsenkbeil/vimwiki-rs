@@ -28,7 +28,6 @@ impl<'a> TryFrom<Located<v::Table<'a>>> for Table {
 
     fn try_from(le: Located<v::Table<'a>>) -> Result<Self, Self::Error> {
         let region = Region::from(le.region());
-        let element = le.into_inner();
         let centered = le.as_inner().centered;
 
         let mut rows = Vec::new();

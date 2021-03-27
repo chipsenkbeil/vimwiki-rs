@@ -100,6 +100,7 @@ impl Wiki {
 #[simple_ent]
 #[derive(AsyncGraphqlEnt, AsyncGraphqlEntFilter)]
 pub struct ParsedFile {
+    #[ent(field(mutable))]
     path: String,
     checksum: String,
 
@@ -129,6 +130,16 @@ impl ParsedFile {
             .map_err(|x| async_graphql::Error::new(x.to_string()))?;
 
         Self::load(path).await
+    }
+
+    pub async fn load_all<P: AsRef<Path>>(
+        paths: &[P],
+    ) -> async_graphql::Result<Vec<Self>> {
+        let mut files = Vec::new();
+        for p in paths {
+            files.push(Self::load(p).await?);
+        }
+        Ok(files)
     }
 
     pub async fn load(path: impl AsRef<Path>) -> async_graphql::Result<Self> {
@@ -181,5 +192,67 @@ impl ParsedFile {
                 .finish_and_commit(),
         )
         .map_err(|x| async_graphql::Error::new(x.to_string()))
+    }
+
+    pub async fn rename<P1: AsRef<Path>, P2: AsRef<Path>>(
+        from_path: P1,
+        to_path: P2,
+    ) -> async_graphql::Result<()> {
+        let c_from_path = tokio::fs::canonicalize(from_path)
+            .await
+            .map_err(|x| async_graphql::Error::new(x.to_string()))?;
+
+        let c_to_path = tokio::fs::canonicalize(to_path)
+            .await
+            .map_err(|x| async_graphql::Error::new(x.to_string()))?;
+
+        let ents = gql_db()?
+            .find_all_typed::<ParsedFile>(
+                ParsedFile::query()
+                    .where_path(P::equals(
+                        c_from_path.to_string_lossy().to_string(),
+                    ))
+                    .into(),
+            )
+            .map_err(|x| async_graphql::Error::new(x.to_string()))?;
+
+        for mut ent in ents {
+            ent.set_path(c_to_path.to_string_lossy().to_string());
+            ent.commit()
+                .map_err(|x| async_graphql::Error::new(x.to_string()))?;
+        }
+
+        Ok(())
+    }
+
+    pub async fn remove_all<P: AsRef<Path>>(
+        paths: &[P],
+    ) -> async_graphql::Result<()> {
+        for p in paths {
+            Self::remove(p).await?;
+        }
+
+        Ok(())
+    }
+
+    pub async fn remove(path: impl AsRef<Path>) -> async_graphql::Result<()> {
+        let c_path = tokio::fs::canonicalize(path)
+            .await
+            .map_err(|x| async_graphql::Error::new(x.to_string()))?;
+
+        let ents = gql_db()?
+            .find_all_typed::<ParsedFile>(
+                ParsedFile::query()
+                    .where_path(P::equals(c_path.to_string_lossy().to_string()))
+                    .into(),
+            )
+            .map_err(|x| async_graphql::Error::new(x.to_string()))?;
+
+        for ent in ents {
+            ent.remove()
+                .map_err(|x| async_graphql::Error::new(x.to_string()))?;
+        }
+
+        Ok(())
     }
 }

@@ -1,4 +1,8 @@
-use super::{Config, ShareableDatabase};
+use crate::{
+    data::{ParsedFile, Wiki},
+    Config,
+};
+use entity::{TypedPredicate as P, *};
 use log::{error, trace};
 use notify::{
     event::{CreateKind, ModifyKind, RemoveKind, RenameMode},
@@ -125,8 +129,8 @@ impl Watcher {
 impl Watcher {
     /// Attempts to initialize a file/directory watcher using the given database
     pub async fn initialize(
-        database: ShareableDatabase,
         config: &Config,
+        database: DatabaseRc,
     ) -> Result<Self, Error> {
         let (tx, rx) = mpsc::unbounded_channel::<notify::Event>();
         let internal_watcher = Self::new_internal_watcher(tx)?;
@@ -143,8 +147,15 @@ impl Watcher {
         Ok(watcher)
     }
 
-    async fn watch_from_database(&self, database: ShareableDatabase) {
-        for path in database.lock().await.wiki_paths() {
+    async fn watch_from_database(&self, database: DatabaseRc) {
+        let wiki_paths: Vec<PathBuf> = database
+            .find_all_typed::<Wiki>(Wiki::query().into())
+            .expect("Database failed to query for wikis")
+            .into_iter()
+            .map(|x| PathBuf::from(x.path()))
+            .collect();
+
+        for path in wiki_paths.iter() {
             if path.exists() {
                 if let Err(x) = self.watch_wiki(path).await {
                     error!("Failed to watch {:?}: {}", path, x);
@@ -152,7 +163,22 @@ impl Watcher {
             }
         }
 
-        for path in database.lock().await.loaded_standalone_file_paths() {
+        let standalone_file_paths: Vec<PathBuf> = database
+            .find_all_typed::<ParsedFile>(
+                ParsedFile::query()
+                    .where_path(P::lambda(move |path_str: String| {
+                        !wiki_paths
+                            .iter()
+                            .any(|p| p.ends_with(path_str.as_str()))
+                    }))
+                    .into(),
+            )
+            .expect("Database failed to query for standalone files")
+            .into_iter()
+            .map(|x| PathBuf::from(x.path()))
+            .collect();
+
+        for path in standalone_file_paths.iter() {
             if path.exists() {
                 if let Err(x) = self.watch_standalone(path).await {
                     error!("Failed to watch {:?}: {}", path, x);
@@ -178,7 +204,7 @@ impl Watcher {
 
     fn spawn_handle(
         config: &Config,
-        database: ShareableDatabase,
+        _database: DatabaseRc,
         mut rx: mpsc::UnboundedReceiver<Event>,
     ) -> JoinHandle<()> {
         let exts = config.exts.clone();
@@ -202,21 +228,17 @@ impl Watcher {
 
                 match event.kind {
                     EventKind::Create(CreateKind::File)
-                    | EventKind::Modify(ModifyKind::Data(_))
-                    | EventKind::Remove(RemoveKind::File) => {
-                        for path in event.paths {
-                            // TODO: Can we provide an async option here?
-                            // TODO: Do we need to detect directories and
-                            //       do something special here?
-                            if path.exists() {
-                                if let Err(x) =
-                                    database.lock().await.load_file(path).await
-                                {
-                                    error!("{}", x);
-                                }
-                            } else {
-                                database.lock().await.remove_file(path);
-                            }
+                    | EventKind::Modify(ModifyKind::Data(_)) => {
+                        if let Err(x) = ParsedFile::load_all(&event.paths).await
+                        {
+                            error!("{}", x.into_server_error());
+                        }
+                    }
+                    EventKind::Remove(RemoveKind::File) => {
+                        if let Err(x) =
+                            ParsedFile::remove_all(&event.paths).await
+                        {
+                            error!("{}", x.into_server_error());
                         }
                     }
                     EventKind::Modify(ModifyKind::Name(RenameMode::Both)) => {
@@ -224,7 +246,11 @@ impl Watcher {
                             if let (Some(from), Some(to)) =
                                 (event.paths.first(), event.paths.last())
                             {
-                                database.lock().await.rename_file(from, to)
+                                if let Err(x) =
+                                    ParsedFile::rename(from, to).await
+                                {
+                                    error!("{}", x.into_server_error());
+                                }
                             }
                         } else {
                             error!("Unexpected total paths for a file rename");
