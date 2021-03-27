@@ -41,3 +41,6 @@ tokio = { version = "0.2.22", features = ["full"] }
 vimwiki = { version = "0.1.0-alpha.6", path = "../vimwiki" }
 walkdir = "2.3.1"
 warp = "0.2.5"
+
+[dev-dependencies]
+vimwiki_macros = { version = "0.1.0-alpha.6", path = "../vimwiki_macros" }

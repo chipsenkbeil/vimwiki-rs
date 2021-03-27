@@ -42,7 +42,7 @@ impl async_graphql::ErrorExtensions for VimwikiDatabaseError {
 #[inline]
 pub fn gql_db() -> async_graphql::Result<DatabaseRc> {
     WeakDatabaseRc::upgrade(&entity::global::db())
-        .ok_or(VimwikiDatabaseError::DatabaseUnavailable.extend())
+        .ok_or_else(|| VimwikiDatabaseError::DatabaseUnavailable.extend())
 }
 
 /// Load database state using given config
@@ -79,7 +79,7 @@ pub async fn load(config: &Config) -> async_graphql::Result<DatabaseRc> {
     let _ = Wiki::load_all_from_config(
         &config,
         |file_cnt| utils::new_progress_bar(file_cnt as u64),
-        |tracker, idx, path| {
+        |tracker, _idx, path| {
             tracker.set_message(&format!("Loaded {}", path.to_string_lossy()));
             tracker.inc(1);
         },

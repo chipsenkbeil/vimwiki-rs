@@ -4,7 +4,14 @@ use vimwiki::elements as v;
 
 /// Represents a segment of a document marked by a byte offset and length
 #[derive(
-    Clone, Debug, async_graphql::SimpleObject, Serialize, Deserialize, ValueLike,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    async_graphql::SimpleObject,
+    Serialize,
+    Deserialize,
+    ValueLike,
 )]
 pub struct Region {
     /// The byte offset within a file where this element begins
@@ -30,7 +37,14 @@ impl From<v::Region> for Region {
 
 /// Represents a segment of a document marked by a byte offset and length
 #[derive(
-    Clone, Debug, async_graphql::SimpleObject, Serialize, Deserialize, ValueLike,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    async_graphql::SimpleObject,
+    Serialize,
+    Deserialize,
+    ValueLike,
 )]
 pub struct Position {
     /// The starting line & column
@@ -51,7 +65,14 @@ impl From<v::Position> for Position {
 
 /// Represents a segment of a document marked by a byte offset and length
 #[derive(
-    Clone, Debug, async_graphql::SimpleObject, Serialize, Deserialize, ValueLike,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    async_graphql::SimpleObject,
+    Serialize,
+    Deserialize,
+    ValueLike,
 )]
 pub struct LineColumn {
     /// The line in the file, starting at 1

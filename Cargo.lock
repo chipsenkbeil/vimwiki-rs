@@ -2894,6 +2894,7 @@ dependencies = [
  "tokio",
  "typetag",
  "vimwiki",
+ "vimwiki_macros",
  "walkdir",
  "warp",
 ]
