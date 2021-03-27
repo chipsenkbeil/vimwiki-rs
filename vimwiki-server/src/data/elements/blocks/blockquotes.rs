@@ -38,25 +38,23 @@ mod tests {
 
     #[test]
     fn should_fully_populate_from_vimwiki_element() {
-        let (ent, region) =
-            global::with_db(InmemoryDatabase::default(), || {
-                let element = vimwiki_blockquote! {r#"
-                    > First line of text
-                    > Second line of text
-                "#};
-                let region = Region::from(element.region());
-                let ent = Blockquote::try_from(element)
-                    .expect("Failed to convert from element");
-                (ent, region)
-            });
+        global::with_db(InmemoryDatabase::default(), || {
+            let element = vimwiki_blockquote! {r#"
+                > First line of text
+                > Second line of text
+            "#};
+            let region = Region::from(element.region());
+            let ent = Blockquote::try_from(element)
+                .expect("Failed to convert from element");
 
-        assert_eq!(
-            ent.lines(),
-            &[
-                "First line of text".to_string(),
-                "Second line of text".to_string()
-            ],
-        );
-        assert_eq!(ent.region(), &region);
+            assert_eq!(
+                ent.lines(),
+                &[
+                    "First line of text".to_string(),
+                    "Second line of text".to_string()
+                ],
+            );
+            assert_eq!(ent.region(), &region);
+        });
     }
 }

@@ -77,9 +77,7 @@ impl<'a> TryFrom<Located<v::DefinitionList<'a>>> for DefinitionList {
             //       associated, so we need to make it aware of them and update
             //       it within the database
             ent_term.set_definitions_ids(ent_def_ids.clone());
-            ent_term
-                .commit()
-                .map_err(GraphqlDatabaseError::Database)?;
+            ent_term.commit().map_err(GraphqlDatabaseError::Database)?;
 
             terms.push(ent_term.id());
             definitions.extend(ent_def_ids);
@@ -244,5 +242,60 @@ impl<'a> TryFrom<Located<v::Definition<'a>>> for Definition {
                 .contents(contents)
                 .finish_and_commit(),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use vimwiki_macros::*;
+
+    #[test]
+    fn definition_list_should_fully_populate_from_vimwiki_element() {
+        global::with_db(InmemoryDatabase::default(), || {
+            let element = vimwiki_definition_list! {r#"
+                    term1:: definition 1
+                    term2::
+                    :: definition 2
+                    :: definition 3
+                "#};
+            let region = Region::from(element.region());
+            println!("ELEMENT: {:?}", element);
+
+            let ent = DefinitionList::try_from(element)
+                .expect("Failed to convert from element");
+            assert_eq!(ent.region(), &region);
+            println!("ENT: {:?}", ent);
+
+            let terms = ent.load_terms().expect("Failed to load terms");
+            let defs =
+                ent.load_definitions().expect("Failed to load definitions");
+
+            assert_eq!(
+                terms
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect::<Vec<String>>(),
+                vec!["term1".to_string(), "term2".to_string()]
+            );
+            assert_eq!(
+                terms
+                    .iter()
+                    .map(|x| x.definitions_ids().clone())
+                    .collect::<Vec<Vec<Id>>>(),
+                vec![vec![defs[0].id()], vec![defs[1].id(), defs[2].id()]]
+            );
+
+            assert_eq!(
+                defs.iter()
+                    .map(ToString::to_string)
+                    .collect::<Vec<String>>(),
+                vec![
+                    "definition 1".to_string(),
+                    "definition 2".to_string(),
+                    "definition 3".to_string()
+                ]
+            );
+        });
     }
 }
