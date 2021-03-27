@@ -1,15 +1,7 @@
-use crate::data::*;
-use entity::{TypedPredicate as P, *};
+use crate::{data::*, database::gql_db};
+use entity::*;
 use log::trace;
 use paste::paste;
-use sha1::{Digest, Sha1};
-use vimwiki::{elements as v, Language, ParseError};
-
-#[inline]
-fn gql_db() -> async_graphql::Result<DatabaseRc> {
-    WeakDatabaseRc::upgrade(&entity::global::db())
-        .ok_or(async_graphql::Error::new("Database unavailable"))
-}
 
 /// Represents the query-portion of the GraphQL schema
 pub struct Query;
@@ -135,6 +127,11 @@ impl Query {
 
 pub struct Mutation;
 
+#[inline]
+fn default_exts() -> Vec<String> {
+    vec!["wiki".to_string()]
+}
+
 #[async_graphql::Object]
 impl Mutation {
     /// Imports/re-imports a wiki from the specified path
@@ -143,8 +140,24 @@ impl Mutation {
         path: String,
         index: u32,
         name: Option<String>,
+        #[graphql(default_with = "default_exts()")] exts: Vec<String>,
     ) -> async_graphql::Result<Wiki> {
-        Err(async_graphql::Error::new("TODO: Implement"))
+        trace!(
+            "import_wiki(path: {:?}, index: {}, name: {:?})",
+            path,
+            index,
+            name
+        );
+        Wiki::load(
+            index as usize,
+            path,
+            name,
+            &exts,
+            |_| {},
+            |_, _, _| {},
+            |_| {},
+        )
+        .await
     }
 
     /// Imports/re-imports a standalone wiki file from the specified path
@@ -153,45 +166,7 @@ impl Mutation {
         path: String,
     ) -> async_graphql::Result<ParsedFile> {
         trace!("import_file(path: {:?})", path);
-
-        let c_path = tokio::fs::canonicalize(path)
-            .await
-            .map_err(|x| async_graphql::Error::new(x.to_string()))?;
-
-        // First, search and remove any file with the given path as we will
-        // be reloading it
-        let results = gql_db()?
-            .find_all_typed::<ParsedFile>(
-                ParsedFile::query()
-                    .where_path(P::equals(c_path.to_string_lossy().to_string()))
-                    .into(),
-            )
-            .map_err(|x| async_graphql::Error::new(x.to_string()))?;
-        for ent in results {
-            ent.remove()?;
-        }
-
-        // Second, load the contents of the file into memory
-        let text = tokio::fs::read_to_string(c_path.as_ref())
-            .await
-            .map_err(|x| async_graphql::Error::new(x.to_string()))?;
-        let checksum = format!("{:x}", Sha1::digest(text.as_bytes()));
-
-        // Third, convert file contents into a parsed file
-        let page: v::Page = Language::from_vimwiki_str(&text).parse().map_err(
-            |x: ParseError| async_graphql::Error::new(x.to_string()),
-        )?;
-
-        // Fourth, store parsed file into database
-        // TODO: Convert logic above and here into a "load_from_path" function
-        //       tied to the ParsedFile ent to make this reusable. It should
-        //       search for an existing file at path, read the file's contents
-        //       to get the checksum, compare current and new checksum, and if
-        //       different parse the file and replace the current ent with the
-        //       new one
-        let page = Page::try_from(page)
-
-        Ok(())
+        ParsedFile::load(path).await
     }
 
     /// Creates a new vimwiki file at the specified path using the given text
@@ -204,7 +179,13 @@ impl Mutation {
         contents: String,
         #[graphql(default)] overwrite: bool,
     ) -> async_graphql::Result<ParsedFile> {
-        Err(async_graphql::Error::new("TODO: Implement"))
+        trace!(
+            "create_file(path: {:?}, contents: {:?}, overwrite: {})",
+            path,
+            contents,
+            overwrite
+        );
+        ParsedFile::create(path, contents, overwrite).await
     }
 }
 

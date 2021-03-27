@@ -1,4 +1,4 @@
-use crate::data::{ConvertToDatabaseError, Region};
+use crate::data::{GraphqlDatabaseError, Region};
 use entity::*;
 use std::{convert::TryFrom, fmt};
 use vimwiki::{elements as v, Located};
@@ -22,11 +22,11 @@ impl fmt::Display for Text {
 }
 
 impl<'a> TryFrom<Located<v::Text<'a>>> for Text {
-    type Error = ConvertToDatabaseError;
+    type Error = GraphqlDatabaseError;
 
     fn try_from(le: Located<v::Text<'a>>) -> Result<Self, Self::Error> {
         let region = Region::from(le.region());
-        ConvertToDatabaseError::wrap(
+        GraphqlDatabaseError::wrap(
             Self::build()
                 .region(region)
                 .content(le.into_inner().to_string())

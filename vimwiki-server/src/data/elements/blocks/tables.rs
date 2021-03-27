@@ -1,5 +1,5 @@
 use crate::data::{
-    ConvertToDatabaseError, InlineElement, InlineElementQuery, Region,
+    GraphqlDatabaseError, InlineElement, InlineElementQuery, Region,
 };
 use entity::*;
 use serde::{Deserialize, Serialize};
@@ -24,7 +24,7 @@ pub struct Table {
 }
 
 impl<'a> TryFrom<Located<v::Table<'a>>> for Table {
-    type Error = ConvertToDatabaseError;
+    type Error = GraphqlDatabaseError;
 
     fn try_from(le: Located<v::Table<'a>>) -> Result<Self, Self::Error> {
         let region = Region::from(le.region());
@@ -36,7 +36,7 @@ impl<'a> TryFrom<Located<v::Table<'a>>> for Table {
             rows.push(Row::try_from_at_pos(pos as i32, row)?.id());
         }
 
-        ConvertToDatabaseError::wrap(
+        GraphqlDatabaseError::wrap(
             Self::build()
                 .region(region)
                 .centered(centered)
@@ -58,7 +58,7 @@ impl Row {
     fn try_from_at_pos(
         position: i32,
         le: Located<v::Row>,
-    ) -> Result<Self, ConvertToDatabaseError> {
+    ) -> Result<Self, GraphqlDatabaseError> {
         let region = Region::from(le.region());
 
         Ok(match le.into_inner() {
@@ -70,7 +70,7 @@ impl Row {
                     );
                 }
 
-                Self::from(ConvertToDatabaseError::wrap(
+                Self::from(GraphqlDatabaseError::wrap(
                     ContentRow::build()
                         .region(region)
                         .position(position)
@@ -79,7 +79,7 @@ impl Row {
                 )?)
             }
             v::Row::Divider { columns } => {
-                Self::from(ConvertToDatabaseError::wrap(
+                Self::from(GraphqlDatabaseError::wrap(
                     DividerRow::build()
                         .region(region)
                         .position(position)
@@ -181,7 +181,7 @@ impl Cell {
         row_position: i32,
         position: i32,
         le: Located<v::Cell>,
-    ) -> Result<Self, ConvertToDatabaseError> {
+    ) -> Result<Self, GraphqlDatabaseError> {
         let region = Region::from(le.region());
         Ok(match le.into_inner() {
             v::Cell::Content(x) => {
@@ -190,7 +190,7 @@ impl Cell {
                     contents.push(InlineElement::try_from(content)?.id());
                 }
 
-                Self::from(ConvertToDatabaseError::wrap(
+                Self::from(GraphqlDatabaseError::wrap(
                     ContentCell::build()
                         .region(region)
                         .row_position(row_position)
@@ -198,14 +198,14 @@ impl Cell {
                         .finish_and_commit(),
                 )?)
             }
-            v::Cell::SpanAbove => Self::from(ConvertToDatabaseError::wrap(
+            v::Cell::SpanAbove => Self::from(GraphqlDatabaseError::wrap(
                 SpanAboveCell::build()
                     .region(region)
                     .row_position(row_position)
                     .position(position)
                     .finish_and_commit(),
             )?),
-            v::Cell::SpanLeft => Self::from(ConvertToDatabaseError::wrap(
+            v::Cell::SpanLeft => Self::from(GraphqlDatabaseError::wrap(
                 SpanLeftCell::build()
                     .region(region)
                     .row_position(row_position)

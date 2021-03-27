@@ -1,4 +1,4 @@
-use crate::data::{Anchor, ConvertToDatabaseError, Description, Region};
+use crate::data::{Anchor, GraphqlDatabaseError, Description, Region};
 use entity::*;
 use std::{convert::TryFrom, fmt};
 use vimwiki::{elements as v, Located};
@@ -46,7 +46,7 @@ impl fmt::Display for IndexedInterWikiLink {
 impl<'a> TryFrom<Located<v::IndexedInterWikiLink<'a>>>
     for IndexedInterWikiLink
 {
-    type Error = ConvertToDatabaseError;
+    type Error = GraphqlDatabaseError;
 
     fn try_from(
         le: Located<v::IndexedInterWikiLink<'a>>,
@@ -54,7 +54,7 @@ impl<'a> TryFrom<Located<v::IndexedInterWikiLink<'a>>>
         let region = Region::from(le.region());
         let element = le.into_inner();
 
-        ConvertToDatabaseError::wrap(
+        GraphqlDatabaseError::wrap(
             Self::build()
                 .region(region)
                 .index(element.index as i32)
@@ -109,7 +109,7 @@ impl fmt::Display for NamedInterWikiLink {
 }
 
 impl<'a> TryFrom<Located<v::NamedInterWikiLink<'a>>> for NamedInterWikiLink {
-    type Error = ConvertToDatabaseError;
+    type Error = GraphqlDatabaseError;
 
     fn try_from(
         le: Located<v::NamedInterWikiLink<'a>>,
@@ -117,7 +117,7 @@ impl<'a> TryFrom<Located<v::NamedInterWikiLink<'a>>> for NamedInterWikiLink {
         let region = Region::from(le.region());
         let element = le.into_inner();
 
-        ConvertToDatabaseError::wrap(
+        GraphqlDatabaseError::wrap(
             Self::build()
                 .region(region)
                 .name(element.name.to_string())

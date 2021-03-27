@@ -1,4 +1,4 @@
-use crate::data::{ConvertToDatabaseError, Region};
+use crate::data::{GraphqlDatabaseError, Region};
 use derive_more::Display;
 use entity::*;
 use std::{convert::TryFrom, fmt};
@@ -13,7 +13,7 @@ pub enum Comment {
 }
 
 impl<'a> TryFrom<Located<v::Comment<'a>>> for Comment {
-    type Error = ConvertToDatabaseError;
+    type Error = GraphqlDatabaseError;
 
     fn try_from(le: Located<v::Comment<'a>>) -> Result<Self, Self::Error> {
         let region = le.region();
@@ -47,10 +47,10 @@ impl fmt::Display for LineComment {
 }
 
 impl<'a> TryFrom<Located<v::LineComment<'a>>> for LineComment {
-    type Error = ConvertToDatabaseError;
+    type Error = GraphqlDatabaseError;
 
     fn try_from(le: Located<v::LineComment<'a>>) -> Result<Self, Self::Error> {
-        ConvertToDatabaseError::wrap(
+        GraphqlDatabaseError::wrap(
             Self::build()
                 .region(Region::from(le.region()))
                 .line(le.into_inner().0.to_string())
@@ -81,12 +81,12 @@ impl fmt::Display for MultiLineComment {
 }
 
 impl<'a> TryFrom<Located<v::MultiLineComment<'a>>> for MultiLineComment {
-    type Error = ConvertToDatabaseError;
+    type Error = GraphqlDatabaseError;
 
     fn try_from(
         le: Located<v::MultiLineComment<'a>>,
     ) -> Result<Self, Self::Error> {
-        ConvertToDatabaseError::wrap(
+        GraphqlDatabaseError::wrap(
             Self::build()
                 .region(Region::from(le.region()))
                 .lines(

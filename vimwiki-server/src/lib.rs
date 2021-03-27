@@ -1,5 +1,7 @@
 mod config;
 mod data;
+mod database;
+mod graphql;
 mod program;
 mod utils;
 

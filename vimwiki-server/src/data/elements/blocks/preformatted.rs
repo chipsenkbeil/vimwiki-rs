@@ -1,4 +1,4 @@
-use crate::data::{ConvertToDatabaseError, Region};
+use crate::data::{GraphqlDatabaseError, Region};
 use entity::*;
 use std::{collections::HashMap, convert::TryFrom};
 use vimwiki::{elements as v, Located};
@@ -66,7 +66,7 @@ impl PreformattedText {
 }
 
 impl<'a> TryFrom<Located<v::PreformattedText<'a>>> for PreformattedText {
-    type Error = ConvertToDatabaseError;
+    type Error = GraphqlDatabaseError;
 
     fn try_from(
         le: Located<v::PreformattedText<'a>>,
@@ -86,7 +86,7 @@ impl<'a> TryFrom<Located<v::PreformattedText<'a>>> for PreformattedText {
             .map(|(k, v)| (k.to_string(), v.to_string()))
             .collect();
 
-        ConvertToDatabaseError::wrap(
+        GraphqlDatabaseError::wrap(
             Self::build()
                 .region(region)
                 .language(language)

@@ -1,5 +1,5 @@
 use crate::data::{
-    ConvertToDatabaseError, InlineElement, InlineElementQuery, Region,
+    GraphqlDatabaseError, InlineElement, InlineElementQuery, Region,
 };
 use entity::*;
 use serde::{Deserialize, Serialize};
@@ -21,7 +21,7 @@ pub struct List {
 }
 
 impl<'a> TryFrom<Located<v::List<'a>>> for List {
-    type Error = ConvertToDatabaseError;
+    type Error = GraphqlDatabaseError;
 
     fn try_from(le: Located<v::List<'a>>) -> Result<Self, Self::Error> {
         let region = Region::from(le.region());
@@ -31,7 +31,7 @@ impl<'a> TryFrom<Located<v::List<'a>>> for List {
             items.push(ListItem::try_from(item)?.id());
         }
 
-        ConvertToDatabaseError::wrap(
+        GraphqlDatabaseError::wrap(
             Self::build()
                 .region(region)
                 .items(items)
@@ -69,7 +69,7 @@ pub struct ListItem {
 }
 
 impl<'a> TryFrom<Located<v::ListItem<'a>>> for ListItem {
-    type Error = ConvertToDatabaseError;
+    type Error = GraphqlDatabaseError;
 
     fn try_from(le: Located<v::ListItem<'a>>) -> Result<Self, Self::Error> {
         let region = Region::from(le.region());
@@ -86,7 +86,7 @@ impl<'a> TryFrom<Located<v::ListItem<'a>>> for ListItem {
 
         let attributes = ListItemAttributes::try_from(item.attributes)?.id();
 
-        ConvertToDatabaseError::wrap(
+        GraphqlDatabaseError::wrap(
             Self::build()
                 .region(region)
                 .item_type(item_type)
@@ -202,7 +202,7 @@ pub enum ListItemContent {
 }
 
 impl<'a> TryFrom<Located<v::ListItemContent<'a>>> for ListItemContent {
-    type Error = ConvertToDatabaseError;
+    type Error = GraphqlDatabaseError;
 
     fn try_from(
         le: Located<v::ListItemContent<'a>>,
@@ -227,7 +227,7 @@ pub struct InlineContent {
 }
 
 impl<'a> TryFrom<v::InlineElementContainer<'a>> for InlineContent {
-    type Error = ConvertToDatabaseError;
+    type Error = GraphqlDatabaseError;
 
     fn try_from(x: v::InlineElementContainer<'a>) -> Result<Self, Self::Error> {
         let mut contents = Vec::new();
@@ -235,7 +235,7 @@ impl<'a> TryFrom<v::InlineElementContainer<'a>> for InlineContent {
             contents.push(InlineElement::try_from(content)?.id());
         }
 
-        ConvertToDatabaseError::wrap(
+        GraphqlDatabaseError::wrap(
             Self::build().contents(contents).finish_and_commit(),
         )
     }
@@ -249,12 +249,12 @@ pub struct ListItemAttributes {
 }
 
 impl TryFrom<v::ListItemAttributes> for ListItemAttributes {
-    type Error = ConvertToDatabaseError;
+    type Error = GraphqlDatabaseError;
 
     fn try_from(x: v::ListItemAttributes) -> Result<Self, Self::Error> {
         let todo_status = x.todo_status.map(ListItemTodoStatus::from);
 
-        ConvertToDatabaseError::wrap(
+        GraphqlDatabaseError::wrap(
             Self::build().todo_status(todo_status).finish_and_commit(),
         )
     }

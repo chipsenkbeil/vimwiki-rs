@@ -1,4 +1,4 @@
-use crate::data::{ConvertToDatabaseError, Region};
+use crate::data::{GraphqlDatabaseError, Region};
 
 use entity::*;
 use std::convert::TryFrom;
@@ -13,10 +13,10 @@ pub struct Blockquote {
 }
 
 impl<'a> TryFrom<Located<v::Blockquote<'a>>> for Blockquote {
-    type Error = ConvertToDatabaseError;
+    type Error = GraphqlDatabaseError;
 
     fn try_from(le: Located<v::Blockquote<'a>>) -> Result<Self, Self::Error> {
-        ConvertToDatabaseError::wrap(
+        GraphqlDatabaseError::wrap(
             Self::build()
                 .region(Region::from(le.region()))
                 .lines(

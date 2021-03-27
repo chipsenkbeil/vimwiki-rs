@@ -4,7 +4,7 @@ pub use blocks::*;
 mod utils;
 pub use utils::*;
 
-use crate::data::ConvertToDatabaseError;
+use crate::data::GraphqlDatabaseError;
 use entity::*;
 use std::convert::TryFrom;
 use vimwiki::{elements as v, Located};
@@ -13,7 +13,22 @@ use vimwiki::{elements as v, Located};
 #[derive(AsyncGraphqlEnt, AsyncGraphqlEntFilter)]
 pub struct Page {
     #[ent(edge(policy = "deep", wrap), ext(async_graphql(filter_untyped)))]
-    elements: Vec<BlockElement>,
+    contents: Vec<BlockElement>,
+}
+
+impl<'a> TryFrom<v::Page<'a>> for Page {
+    type Error = GraphqlDatabaseError;
+
+    fn try_from(page: v::Page<'a>) -> Result<Self, Self::Error> {
+        let mut contents = Vec::new();
+        for content in page.elements {
+            contents.push(BlockElement::try_from(content)?.id());
+        }
+
+        GraphqlDatabaseError::wrap(
+            Self::build().contents(contents).finish_and_commit(),
+        )
+    }
 }
 
 #[simple_ent]
@@ -30,7 +45,7 @@ pub enum Element {
 }
 
 impl<'a> TryFrom<Located<v::Element<'a>>> for Element {
-    type Error = ConvertToDatabaseError;
+    type Error = GraphqlDatabaseError;
 
     fn try_from(located: Located<v::Element<'a>>) -> Result<Self, Self::Error> {
         let region = located.region();
@@ -57,7 +72,7 @@ pub enum InlineBlockElement {
 }
 
 impl<'a> TryFrom<Located<v::InlineBlockElement<'a>>> for InlineBlockElement {
-    type Error = ConvertToDatabaseError;
+    type Error = GraphqlDatabaseError;
 
     fn try_from(
         located: Located<v::InlineBlockElement<'a>>,

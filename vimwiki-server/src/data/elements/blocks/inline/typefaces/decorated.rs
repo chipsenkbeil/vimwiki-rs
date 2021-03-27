@@ -1,4 +1,4 @@
-use crate::data::{ConvertToDatabaseError, Keyword, Link, Region, Text};
+use crate::data::{GraphqlDatabaseError, Keyword, Link, Region, Text};
 use derive_more::Display;
 use entity::*;
 use serde::{Deserialize, Serialize};
@@ -72,7 +72,7 @@ impl DecoratedText {
 }
 
 impl<'a> TryFrom<Located<v::DecoratedText<'a>>> for DecoratedText {
-    type Error = ConvertToDatabaseError;
+    type Error = GraphqlDatabaseError;
 
     fn try_from(
         le: Located<v::DecoratedText<'a>>,
@@ -95,7 +95,7 @@ impl<'a> TryFrom<Located<v::DecoratedText<'a>>> for DecoratedText {
         }
 
         // Third, we create the container of the content
-        ConvertToDatabaseError::wrap(
+        GraphqlDatabaseError::wrap(
             Self::build()
                 .region(region)
                 .decoration(decoration)
@@ -119,7 +119,7 @@ pub enum DecoratedTextContent {
 impl<'a> TryFrom<Located<v::DecoratedTextContent<'a>>>
     for DecoratedTextContent
 {
-    type Error = ConvertToDatabaseError;
+    type Error = GraphqlDatabaseError;
 
     fn try_from(
         le: Located<v::DecoratedTextContent<'a>>,

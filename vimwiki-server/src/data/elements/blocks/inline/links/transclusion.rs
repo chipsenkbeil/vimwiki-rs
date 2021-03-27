@@ -1,4 +1,4 @@
-use crate::data::{ConvertToDatabaseError, Description, Region, Uri};
+use crate::data::{GraphqlDatabaseError, Description, Region, Uri};
 use entity::*;
 use serde::{Deserialize, Serialize};
 use std::{convert::TryFrom, fmt};
@@ -35,14 +35,14 @@ impl fmt::Display for TransclusionLink {
 }
 
 impl<'a> TryFrom<Located<v::TransclusionLink<'a>>> for TransclusionLink {
-    type Error = ConvertToDatabaseError;
+    type Error = GraphqlDatabaseError;
 
     fn try_from(
         le: Located<v::TransclusionLink<'a>>,
     ) -> Result<Self, Self::Error> {
         let region = Region::from(le.region());
         let element = le.into_inner();
-        ConvertToDatabaseError::wrap(
+        GraphqlDatabaseError::wrap(
             Self::build()
                 .region(region)
                 .uri(Uri::from(element.uri))

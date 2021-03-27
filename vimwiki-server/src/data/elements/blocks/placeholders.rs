@@ -1,4 +1,4 @@
-use crate::data::{ConvertToDatabaseError, Date, Region};
+use crate::data::{GraphqlDatabaseError, Date, Region};
 use entity::*;
 use std::convert::TryFrom;
 use vimwiki::{elements as v, Located};
@@ -14,32 +14,32 @@ pub enum Placeholder {
 }
 
 impl<'a> TryFrom<Located<v::Placeholder<'a>>> for Placeholder {
-    type Error = ConvertToDatabaseError;
+    type Error = GraphqlDatabaseError;
 
     fn try_from(le: Located<v::Placeholder<'a>>) -> Result<Self, Self::Error> {
         let region = Region::from(le.region());
         match le.into_inner() {
-            v::Placeholder::Title(title) => ConvertToDatabaseError::wrap(
+            v::Placeholder::Title(title) => GraphqlDatabaseError::wrap(
                 PlaceholderTitle::build()
                     .region(region)
                     .title(title.to_string())
                     .finish_and_commit(),
             )
             .map(Self::from),
-            v::Placeholder::NoHtml => ConvertToDatabaseError::wrap(
+            v::Placeholder::NoHtml => GraphqlDatabaseError::wrap(
                 PlaceholderNoHtml::build()
                     .region(region)
                     .finish_and_commit(),
             )
             .map(Self::from),
-            v::Placeholder::Template(template) => ConvertToDatabaseError::wrap(
+            v::Placeholder::Template(template) => GraphqlDatabaseError::wrap(
                 PlaceholderTemplate::build()
                     .region(region)
                     .template(template.to_string())
                     .finish_and_commit(),
             )
             .map(Self::from),
-            v::Placeholder::Date(date) => ConvertToDatabaseError::wrap(
+            v::Placeholder::Date(date) => GraphqlDatabaseError::wrap(
                 PlaceholderDate::build()
                     .region(region)
                     .date(Date::from(date))
@@ -47,7 +47,7 @@ impl<'a> TryFrom<Located<v::Placeholder<'a>>> for Placeholder {
             )
             .map(Self::from),
             v::Placeholder::Other { name, value } => {
-                ConvertToDatabaseError::wrap(
+                GraphqlDatabaseError::wrap(
                     PlaceholderOther::build()
                         .region(region)
                         .name(name.to_string())

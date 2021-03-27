@@ -2,15 +2,15 @@ use derive_more::Display;
 use entity::*;
 use std::convert::TryFrom;
 
-pub type GraphqlDatabaseResult<T> = Result<T, ConvertToDatabaseError>;
+pub type GraphqlDatabaseResult<T> = Result<T, GraphqlDatabaseError>;
 
 #[derive(Debug, Display)]
-pub enum ConvertToDatabaseError {
+pub enum GraphqlDatabaseError {
     Database(DatabaseError),
     Builder(Box<dyn std::error::Error>),
 }
 
-impl ConvertToDatabaseError {
+impl GraphqlDatabaseError {
     pub fn wrap<T, E: std::error::Error + 'static>(
         x: Result<Result<T, DatabaseError>, E>,
     ) -> Result<T, Self> {
@@ -21,10 +21,9 @@ impl ConvertToDatabaseError {
     }
 }
 
-impl std::error::Error for ConvertToDatabaseError {}
+impl std::error::Error for GraphqlDatabaseError {}
 
-impl<T, E> TryFrom<Result<Result<T, DatabaseError>, E>>
-    for ConvertToDatabaseError
+impl<T, E> TryFrom<Result<Result<T, DatabaseError>, E>> for GraphqlDatabaseError
 where
     E: std::error::Error + 'static,
 {
@@ -36,9 +35,9 @@ where
         match x {
             Ok(x) => match x {
                 Ok(x) => Err(x),
-                Err(x) => Ok(ConvertToDatabaseError::Database(x)),
+                Err(x) => Ok(GraphqlDatabaseError::Database(x)),
             },
-            Err(x) => Ok(ConvertToDatabaseError::Builder(Box::new(x))),
+            Err(x) => Ok(GraphqlDatabaseError::Builder(Box::new(x))),
         }
     }
 }

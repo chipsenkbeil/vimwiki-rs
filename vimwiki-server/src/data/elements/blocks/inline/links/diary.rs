@@ -1,4 +1,4 @@
-use crate::data::{Anchor, ConvertToDatabaseError, Date, Description, Region};
+use crate::data::{Anchor, GraphqlDatabaseError, Date, Description, Region};
 use entity::*;
 use std::{convert::TryFrom, fmt};
 use vimwiki::{elements as v, Located};
@@ -34,13 +34,13 @@ impl fmt::Display for DiaryLink {
 }
 
 impl<'a> TryFrom<Located<v::DiaryLink<'a>>> for DiaryLink {
-    type Error = ConvertToDatabaseError;
+    type Error = GraphqlDatabaseError;
 
     fn try_from(le: Located<v::DiaryLink<'a>>) -> Result<Self, Self::Error> {
         let region = Region::from(le.region());
         let element = le.into_inner();
 
-        ConvertToDatabaseError::wrap(
+        GraphqlDatabaseError::wrap(
             Self::build()
                 .region(region)
                 .date(Date::from(element.date))

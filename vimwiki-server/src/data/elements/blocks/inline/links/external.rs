@@ -1,4 +1,4 @@
-use crate::data::{ConvertToDatabaseError, Description, Region};
+use crate::data::{GraphqlDatabaseError, Description, Region};
 use entity::*;
 use serde::{Deserialize, Serialize};
 use std::{convert::TryFrom, fmt};
@@ -34,7 +34,7 @@ impl fmt::Display for ExternalFileLink {
 }
 
 impl<'a> TryFrom<Located<v::ExternalFileLink<'a>>> for ExternalFileLink {
-    type Error = ConvertToDatabaseError;
+    type Error = GraphqlDatabaseError;
 
     fn try_from(
         le: Located<v::ExternalFileLink<'a>>,
@@ -42,7 +42,7 @@ impl<'a> TryFrom<Located<v::ExternalFileLink<'a>>> for ExternalFileLink {
         let region = Region::from(le.region());
         let element = le.into_inner();
 
-        ConvertToDatabaseError::wrap(
+        GraphqlDatabaseError::wrap(
             Self::build()
                 .region(region)
                 .scheme(ExternalFileLinkScheme::from(element.scheme))

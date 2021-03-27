@@ -1,4 +1,4 @@
-use crate::data::{Anchor, ConvertToDatabaseError, Description, Region};
+use crate::data::{Anchor, GraphqlDatabaseError, Description, Region};
 use entity::*;
 use std::{convert::TryFrom, fmt};
 use vimwiki::{elements as v, Located};
@@ -40,12 +40,12 @@ impl fmt::Display for WikiLink {
 }
 
 impl<'a> TryFrom<Located<v::WikiLink<'a>>> for WikiLink {
-    type Error = ConvertToDatabaseError;
+    type Error = GraphqlDatabaseError;
 
     fn try_from(le: Located<v::WikiLink<'a>>) -> Result<Self, Self::Error> {
         let region = Region::from(le.region());
         let element = le.into_inner();
-        ConvertToDatabaseError::wrap(
+        GraphqlDatabaseError::wrap(
             Self::build()
                 .region(region)
                 .is_dir(element.is_path_dir())

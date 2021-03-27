@@ -1,5 +1,5 @@
 use crate::data::{
-    ConvertToDatabaseError, InlineElement, InlineElementQuery, Region,
+    GraphqlDatabaseError, InlineElement, InlineElementQuery, Region,
 };
 use entity::*;
 use std::{convert::TryFrom, fmt};
@@ -56,7 +56,7 @@ impl Paragraph {
 }
 
 impl<'a> TryFrom<Located<v::Paragraph<'a>>> for Paragraph {
-    type Error = ConvertToDatabaseError;
+    type Error = GraphqlDatabaseError;
 
     fn try_from(le: Located<v::Paragraph<'a>>) -> Result<Self, Self::Error> {
         let region = Region::from(le.region());
@@ -66,7 +66,7 @@ impl<'a> TryFrom<Located<v::Paragraph<'a>>> for Paragraph {
             contents.push(InlineElement::try_from(content)?.id());
         }
 
-        ConvertToDatabaseError::wrap(
+        GraphqlDatabaseError::wrap(
             Self::build()
                 .region(region)
                 .contents(contents)

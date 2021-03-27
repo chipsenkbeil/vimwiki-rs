@@ -1,4 +1,4 @@
-use crate::data::{ConvertToDatabaseError, Region, Uri};
+use crate::data::{GraphqlDatabaseError, Region, Uri};
 use entity::*;
 use std::{convert::TryFrom, fmt};
 use vimwiki::{elements as v, Located};
@@ -23,11 +23,11 @@ impl fmt::Display for RawLink {
 }
 
 impl<'a> TryFrom<Located<v::RawLink<'a>>> for RawLink {
-    type Error = ConvertToDatabaseError;
+    type Error = GraphqlDatabaseError;
 
     fn try_from(le: Located<v::RawLink<'a>>) -> Result<Self, Self::Error> {
         let region = Region::from(le.region());
-        ConvertToDatabaseError::wrap(
+        GraphqlDatabaseError::wrap(
             Self::build()
                 .region(region)
                 .uri(Uri::from(le.into_inner().uri))

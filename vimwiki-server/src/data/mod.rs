@@ -1,7 +1,10 @@
-use crate::utils::gql_db;
+use crate::{database::gql_db, utils, Config};
 use entity::{TypedPredicate as P, *};
 use sha1::{Digest, Sha1};
-use std::path::Path;
+use std::{
+    convert::TryFrom,
+    path::{Path, PathBuf},
+};
 use vimwiki::{elements as v, Language, ParseError};
 
 mod errors;
@@ -21,6 +24,79 @@ pub struct Wiki {
     files: Vec<ParsedFile>,
 }
 
+impl Wiki {
+    pub async fn load_all_from_config<F1, F2, F3, R1>(
+        config: &Config,
+        before_loading_files: F1,
+        on_file_loaded: F2,
+        after_loading_files: F3,
+    ) -> async_graphql::Result<Vec<Wiki>>
+    where
+        F1: Copy + Fn(usize) -> R1,
+        F2: Copy + Fn(&R1, usize, &Path),
+        F3: Copy + Fn(R1),
+    {
+        let mut wikis = Vec::new();
+
+        for (i, wc) in config.wikis.iter().enumerate() {
+            wikis.push(
+                Self::load(
+                    i,
+                    &wc.path,
+                    wc.name.as_ref(),
+                    &config.exts,
+                    before_loading_files,
+                    on_file_loaded,
+                    after_loading_files,
+                )
+                .await?,
+            );
+        }
+        Ok(wikis)
+    }
+
+    pub async fn load<
+        N: AsRef<str>,
+        E: AsRef<str>,
+        F1: Fn(usize) -> R1,
+        F2: Fn(&R1, usize, &Path),
+        F3: Fn(R1),
+        R1,
+    >(
+        index: usize,
+        path: impl AsRef<Path>,
+        name: Option<N>,
+        exts: &[E],
+        before_loading_files: F1,
+        on_file_loaded: F2,
+        after_loading_files: F3,
+    ) -> async_graphql::Result<Self> {
+        let c_path: PathBuf = tokio::fs::canonicalize(path.as_ref())
+            .await
+            .map_err(|x| async_graphql::Error::new(x.to_string()))?;
+
+        let paths = utils::walk_and_resolve_paths(c_path, exts);
+        let tracker = before_loading_files(paths.len());
+
+        let mut file_ids = Vec::new();
+        for (i, path) in paths.into_iter().enumerate() {
+            file_ids.push(ParsedFile::load(path.as_path()).await?.id());
+            on_file_loaded(&tracker, i, path.as_path());
+        }
+        after_loading_files(tracker);
+
+        GraphqlDatabaseError::wrap(
+            Self::build()
+                .index(index)
+                .name(name.map(|x| x.as_ref().to_string()))
+                .path(path.as_ref().to_string_lossy().to_string())
+                .files(file_ids)
+                .finish_and_commit(),
+        )
+        .map_err(|x| async_graphql::Error::new(x.to_string()))
+    }
+}
+
 #[simple_ent]
 #[derive(AsyncGraphqlEnt, AsyncGraphqlEntFilter)]
 pub struct ParsedFile {
@@ -32,10 +108,31 @@ pub struct ParsedFile {
 }
 
 impl ParsedFile {
-    pub async fn read_to_file(
+    pub async fn create(
         path: impl AsRef<Path>,
+        contents: impl AsRef<[u8]>,
+        overwrite: bool,
     ) -> async_graphql::Result<Self> {
-        let c_path = tokio::fs::canonicalize(path)
+        use tokio::io::AsyncWriteExt;
+
+        let mut file = tokio::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .create_new(!overwrite)
+            .open(path.as_ref())
+            .await
+            .map_err(|x| async_graphql::Error::new(x.to_string()))?;
+
+        let _ = file
+            .write_all(contents.as_ref())
+            .await
+            .map_err(|x| async_graphql::Error::new(x.to_string()))?;
+
+        Self::load(path).await
+    }
+
+    pub async fn load(path: impl AsRef<Path>) -> async_graphql::Result<Self> {
+        let c_path: PathBuf = tokio::fs::canonicalize(path)
             .await
             .map_err(|x| async_graphql::Error::new(x.to_string()))?;
 
@@ -51,7 +148,7 @@ impl ParsedFile {
             .next();
 
         // Second, load the contents of the file into memory
-        let text = tokio::fs::read_to_string(c_path.as_ref())
+        let text = tokio::fs::read_to_string(c_path.as_path())
             .await
             .map_err(|x| async_graphql::Error::new(x.to_string()))?;
         let checksum = format!("{:x}", Sha1::digest(text.as_bytes()));
@@ -63,16 +160,26 @@ impl ParsedFile {
             if ent.checksum() == &checksum {
                 return Ok(ent);
             } else {
-                // TODO: Don't remove, just update page ent id and commit
                 let _ = ent.remove()?;
             }
         }
 
-        // Fourth, convert file contents into a parsed file
+        // Fourth, convert file contents into a vimwiki page
         let page: v::Page = Language::from_vimwiki_str(&text).parse().map_err(
             |x: ParseError| async_graphql::Error::new(x.to_string()),
         )?;
 
-        // Fifth, save the
+        // Fifth, save the vimwiki page as a graphql page
+        let page_id = Page::try_from(page)?.id();
+
+        // Sixth, save the parsed file and return it
+        GraphqlDatabaseError::wrap(
+            Self::build()
+                .path(c_path.to_string_lossy().to_string())
+                .checksum(checksum)
+                .page(page_id)
+                .finish_and_commit(),
+        )
+        .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
 }

@@ -1,4 +1,4 @@
-use crate::data::ConvertToDatabaseError;
+use crate::data::GraphqlDatabaseError;
 use derive_more::Display;
 use entity::*;
 use std::convert::TryFrom;
@@ -38,7 +38,7 @@ pub enum Link {
 }
 
 impl<'a> TryFrom<Located<v::Link<'a>>> for Link {
-    type Error = ConvertToDatabaseError;
+    type Error = GraphqlDatabaseError;
 
     fn try_from(le: Located<v::Link<'a>>) -> Result<Self, Self::Error> {
         let region = le.region();

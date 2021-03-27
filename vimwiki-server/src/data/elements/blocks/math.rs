@@ -1,4 +1,4 @@
-use crate::data::{ConvertToDatabaseError, Region};
+use crate::data::{GraphqlDatabaseError, Region};
 use entity::*;
 use std::convert::TryFrom;
 use vimwiki::{elements as v, Located};
@@ -42,7 +42,7 @@ impl MathBlock {
 }
 
 impl<'a> TryFrom<Located<v::MathBlock<'a>>> for MathBlock {
-    type Error = ConvertToDatabaseError;
+    type Error = GraphqlDatabaseError;
 
     fn try_from(le: Located<v::MathBlock<'a>>) -> Result<Self, Self::Error> {
         let region = Region::from(le.region());
@@ -55,7 +55,7 @@ impl<'a> TryFrom<Located<v::MathBlock<'a>>> for MathBlock {
         let environment =
             le.as_inner().environment.as_ref().map(ToString::to_string);
 
-        ConvertToDatabaseError::wrap(
+        GraphqlDatabaseError::wrap(
             Self::build()
                 .region(region)
                 .lines(lines)

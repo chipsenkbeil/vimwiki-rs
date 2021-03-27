@@ -1,4 +1,4 @@
-use crate::data::ConvertToDatabaseError;
+use crate::data::GraphqlDatabaseError;
 use entity::*;
 use std::convert::TryFrom;
 use vimwiki::{elements as v, Located};
@@ -44,7 +44,7 @@ pub enum BlockElement {
 }
 
 impl<'a> TryFrom<Located<v::BlockElement<'a>>> for BlockElement {
-    type Error = ConvertToDatabaseError;
+    type Error = GraphqlDatabaseError;
 
     fn try_from(le: Located<v::BlockElement<'a>>) -> Result<Self, Self::Error> {
         let region = le.region();

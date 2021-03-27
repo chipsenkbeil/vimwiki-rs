@@ -1,5 +1,5 @@
 use crate::data::{
-    ConvertToDatabaseError, InlineElement, InlineElementQuery, Region,
+    GraphqlDatabaseError, InlineElement, InlineElementQuery, Region,
 };
 use entity::*;
 use std::{convert::TryFrom, fmt};
@@ -56,7 +56,7 @@ impl DefinitionList {
 }
 
 impl<'a> TryFrom<Located<v::DefinitionList<'a>>> for DefinitionList {
-    type Error = ConvertToDatabaseError;
+    type Error = GraphqlDatabaseError;
 
     fn try_from(
         le: Located<v::DefinitionList<'a>>,
@@ -79,13 +79,13 @@ impl<'a> TryFrom<Located<v::DefinitionList<'a>>> for DefinitionList {
             ent_term.set_definitions_ids(ent_def_ids.clone());
             ent_term
                 .commit()
-                .map_err(ConvertToDatabaseError::Database)?;
+                .map_err(GraphqlDatabaseError::Database)?;
 
             terms.push(ent_term.id());
             definitions.extend(ent_def_ids);
         }
 
-        ConvertToDatabaseError::wrap(
+        GraphqlDatabaseError::wrap(
             Self::build()
                 .region(region)
                 .terms(terms)
@@ -155,7 +155,7 @@ impl fmt::Display for Term {
 }
 
 impl<'a> TryFrom<Located<v::Term<'a>>> for Term {
-    type Error = ConvertToDatabaseError;
+    type Error = GraphqlDatabaseError;
 
     fn try_from(le: Located<v::Term<'a>>) -> Result<Self, Self::Error> {
         let region = Region::from(le.region());
@@ -167,7 +167,7 @@ impl<'a> TryFrom<Located<v::Term<'a>>> for Term {
 
         // NOTE: We are not populating definitions here because the vimwiki
         //       Term does not have a connection by itself
-        ConvertToDatabaseError::wrap(
+        GraphqlDatabaseError::wrap(
             Self::build()
                 .region(region)
                 .contents(contents)
@@ -228,7 +228,7 @@ impl fmt::Display for Definition {
 }
 
 impl<'a> TryFrom<Located<v::Definition<'a>>> for Definition {
-    type Error = ConvertToDatabaseError;
+    type Error = GraphqlDatabaseError;
 
     fn try_from(le: Located<v::Definition<'a>>) -> Result<Self, Self::Error> {
         let region = Region::from(le.region());
@@ -238,7 +238,7 @@ impl<'a> TryFrom<Located<v::Definition<'a>>> for Definition {
             contents.push(InlineElement::try_from(content)?.id());
         }
 
-        ConvertToDatabaseError::wrap(
+        GraphqlDatabaseError::wrap(
             Self::build()
                 .region(region)
                 .contents(contents)

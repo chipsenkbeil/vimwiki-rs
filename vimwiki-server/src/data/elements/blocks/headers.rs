@@ -1,5 +1,5 @@
 use crate::data::{
-    ConvertToDatabaseError, InlineElement, InlineElementQuery, Region,
+    GraphqlDatabaseError, InlineElement, InlineElementQuery, Region,
 };
 
 use entity::*;
@@ -72,7 +72,7 @@ impl Header {
 }
 
 impl<'a> TryFrom<Located<v::Header<'a>>> for Header {
-    type Error = ConvertToDatabaseError;
+    type Error = GraphqlDatabaseError;
 
     fn try_from(le: Located<v::Header<'a>>) -> Result<Self, Self::Error> {
         let region = Region::from(le.region());
@@ -84,7 +84,7 @@ impl<'a> TryFrom<Located<v::Header<'a>>> for Header {
             contents.push(InlineElement::try_from(content)?.id());
         }
 
-        ConvertToDatabaseError::wrap(
+        GraphqlDatabaseError::wrap(
             Self::build()
                 .region(region)
                 .level(level)

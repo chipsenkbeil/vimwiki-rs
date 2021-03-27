@@ -1,4 +1,4 @@
-use crate::data::ConvertToDatabaseError;
+use crate::data::GraphqlDatabaseError;
 use derive_more::Display;
 use entity::*;
 use std::convert::TryFrom;
@@ -33,7 +33,7 @@ pub enum InlineElement {
 }
 
 impl<'a> TryFrom<Located<v::InlineElement<'a>>> for InlineElement {
-    type Error = ConvertToDatabaseError;
+    type Error = GraphqlDatabaseError;
 
     fn try_from(
         le: Located<v::InlineElement<'a>>,

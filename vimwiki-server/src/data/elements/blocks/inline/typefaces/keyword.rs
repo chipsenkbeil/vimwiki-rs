@@ -1,4 +1,4 @@
-use crate::data::{ConvertToDatabaseError, Region};
+use crate::data::{GraphqlDatabaseError, Region};
 use entity::*;
 use serde::{Deserialize, Serialize};
 use std::{convert::TryFrom, fmt, str::FromStr};
@@ -24,11 +24,11 @@ impl fmt::Display for Keyword {
 }
 
 impl TryFrom<Located<v::Keyword>> for Keyword {
-    type Error = ConvertToDatabaseError;
+    type Error = GraphqlDatabaseError;
 
     fn try_from(le: Located<v::Keyword>) -> Result<Self, Self::Error> {
         let region = Region::from(le.region());
-        ConvertToDatabaseError::wrap(
+        GraphqlDatabaseError::wrap(
             Self::build()
                 .region(region)
                 .ty(KeywordType::from(le.into_inner()))
