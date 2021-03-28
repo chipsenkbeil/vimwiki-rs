@@ -260,33 +260,49 @@ mod tests {
                     :: definition 3
                 "#};
             let region = Region::from(element.region());
-            println!("ELEMENT: {:?}", element);
 
             let ent = DefinitionList::try_from(element)
                 .expect("Failed to convert from element");
             assert_eq!(ent.region(), &region);
-            println!("ENT: {:?}", ent);
 
-            let terms = ent.load_terms().expect("Failed to load terms");
-            let defs =
+            let mut terms = ent.load_terms().expect("Failed to load terms");
+            let mut defs =
                 ent.load_definitions().expect("Failed to load definitions");
 
-            assert_eq!(
+            // NOTE: Sorting to ensure that term1 comes before term2
+            terms.sort_unstable_by_key(|k| k.to_string());
+            defs.sort_unstable_by_key(|k| k.to_string());
+
+            macro_rules! assert_contains_same {
+                ($t:ty, $a:expr, $b:expr) => {{
+                    use std::collections::HashSet;
+                    let aa: HashSet<$t> = ($a).into_iter().collect();
+                    let bb: HashSet<$t> = ($b).into_iter().collect();
+                    assert_eq!(aa, bb);
+                }};
+            }
+
+            assert_contains_same!(
+                String,
                 terms
                     .iter()
                     .map(ToString::to_string)
                     .collect::<Vec<String>>(),
                 vec!["term1".to_string(), "term2".to_string()]
             );
-            assert_eq!(
-                terms
-                    .iter()
-                    .map(|x| x.definitions_ids().clone())
-                    .collect::<Vec<Vec<Id>>>(),
-                vec![vec![defs[0].id()], vec![defs[1].id(), defs[2].id()]]
+            assert_contains_same!(
+                Id,
+                terms[0].definitions_ids().clone(),
+                vec![defs[0].id()]
+            );
+            assert_contains_same!(
+                Id,
+                terms[1].definitions_ids().clone(),
+                vec![defs[1].id(), defs[2].id()]
             );
 
-            assert_eq!(
+            assert_contains_same!(
+                String,
                 defs.iter()
                     .map(ToString::to_string)
                     .collect::<Vec<String>>(),

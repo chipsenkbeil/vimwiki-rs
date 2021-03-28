@@ -33,3 +33,22 @@ impl<'a> TryFrom<Located<v::CodeInline<'a>>> for CodeInline {
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use vimwiki_macros::*;
+
+    #[test]
+    fn should_fully_populate_from_vimwiki_element() {
+        global::with_db(InmemoryDatabase::default(), || {
+            let element = vimwiki_code_inline!(r#"`some code`"#);
+            let region = Region::from(element.region());
+            let ent = CodeInline::try_from(element)
+                .expect("Failed to convert from element");
+
+            assert_eq!(ent.region(), &region);
+            assert_eq!(ent.code(), "some code");
+        });
+    }
+}

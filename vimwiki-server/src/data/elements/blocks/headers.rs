@@ -94,3 +94,24 @@ impl<'a> TryFrom<Located<v::Header<'a>>> for Header {
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use vimwiki_macros::*;
+
+    #[test]
+    fn should_fully_populate_from_vimwiki_element() {
+        global::with_db(InmemoryDatabase::default(), || {
+            let element = vimwiki_header!(r#"=== *some* header of mine ==="#);
+            let region = Region::from(element.region());
+            let ent = Header::try_from(element)
+                .expect("Failed to convert from element");
+
+            assert_eq!(ent.region(), &region);
+            assert_eq!(*ent.level(), 3);
+            assert_eq!(*ent.centered(), false);
+            assert_eq!(ent.to_string(), "some header of mine");
+        });
+    }
+}
