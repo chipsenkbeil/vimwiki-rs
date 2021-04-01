@@ -75,7 +75,7 @@ impl Wiki {
             .await
             .map_err(|x| async_graphql::Error::new(x.to_string()))?;
 
-        let paths = utils::walk_and_resolve_paths(c_path, exts);
+        let paths = utils::walk_and_resolve_paths(c_path.as_path(), exts);
         let tracker = before_loading_files(paths.len());
 
         let mut file_ids = Vec::new();
@@ -85,15 +85,34 @@ impl Wiki {
         }
         after_loading_files(tracker);
 
-        GraphqlDatabaseError::wrap(
-            Self::build()
-                .index(index)
-                .name(name.map(|x| x.as_ref().to_string()))
-                .path(path.as_ref().to_string_lossy().to_string())
-                .files(file_ids)
-                .finish_and_commit(),
-        )
-        .map_err(|x| async_graphql::Error::new(x.to_string()))
+        // Check if the wiki already exists, and if so update its files
+        let maybe_wiki = gql_db()?
+            .find_all_typed::<Wiki>(
+                Wiki::query()
+                    .where_path(P::equals(c_path.to_string_lossy().to_string()))
+                    .into(),
+            )
+            .map_err(|x| async_graphql::Error::new(x.to_string()))?
+            .into_iter()
+            .next();
+
+        if let Some(mut wiki) = maybe_wiki {
+            wiki.set_files_ids(file_ids);
+            let _ = wiki
+                .commit()
+                .map_err(|x| async_graphql::Error::new(x.to_string()))?;
+            Ok(wiki)
+        } else {
+            GraphqlDatabaseError::wrap(
+                Self::build()
+                    .index(index)
+                    .name(name.map(|x| x.as_ref().to_string()))
+                    .path(c_path.to_string_lossy().to_string())
+                    .files(file_ids)
+                    .finish_and_commit(),
+            )
+            .map_err(|x| async_graphql::Error::new(x.to_string()))
+        }
     }
 }
 

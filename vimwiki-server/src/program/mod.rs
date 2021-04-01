@@ -18,15 +18,7 @@ pub enum ProgramError {
     FileWatcher(notify::Error),
 }
 
-/// Contains the state of the program while it is running
-pub struct Program {
-    /// Represents the database containing queriable information
-    database: DatabaseRc,
-
-    /// Represents a file & directory watcher to update the database when
-    /// changes occur
-    watcher: Watcher,
-}
+pub struct Program;
 
 impl Program {
     /// Runs our program
@@ -38,12 +30,11 @@ impl Program {
 
         // Initialize our watcher to update the database based on changes
         // that occur in wikis and standalone files
-        let watcher =
+        let _watcher =
             Watcher::initialize(&config, DatabaseRc::clone(&database))
                 .await
                 .map_err(ProgramError::from)?;
 
-        let _program = Self { database, watcher };
         match config.mode {
             Mode::Stdin => stdin::run(config).await,
             Mode::Http => server::run(config).await,
