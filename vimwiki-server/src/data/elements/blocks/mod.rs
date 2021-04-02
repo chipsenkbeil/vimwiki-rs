@@ -37,6 +37,7 @@ pub enum BlockElement {
     List(List),
     Math(MathBlock),
     Paragraph(Paragraph),
+    #[ent(wrap)]
     #[graphql(flatten)]
     Placeholder(Placeholder),
     PreformattedText(PreformattedText),

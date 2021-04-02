@@ -34,12 +34,15 @@ impl<'a> TryFrom<v::Page<'a>> for Page {
 #[simple_ent]
 #[derive(async_graphql::Union)]
 pub enum Element {
+    #[ent(wrap)]
     #[graphql(flatten)]
     Block(BlockElement),
 
+    #[ent(wrap)]
     #[graphql(flatten)]
     Inline(InlineElement),
 
+    #[ent(wrap)]
     #[graphql(flatten)]
     InlineBlock(InlineBlockElement),
 }

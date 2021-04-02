@@ -23,11 +23,13 @@ pub enum InlineElement {
     Text(Text),
     DecoratedText(DecoratedText),
     Keyword(Keyword),
+    #[ent(wrap)]
     #[graphql(flatten)]
     Link(Link),
     Tags(Tags),
     Code(CodeInline),
     Math(MathInline),
+    #[ent(wrap)]
     #[graphql(flatten)]
     Comment(Comment),
 }

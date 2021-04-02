@@ -111,6 +111,7 @@ impl<'a> TryFrom<Located<v::DecoratedText<'a>>> for DecoratedText {
 pub enum DecoratedTextContent {
     Text(Text),
     Keyword(Keyword),
+    #[ent(wrap)]
     #[graphql(flatten)]
     Link(Link),
     DecoratedText(DecoratedText),
