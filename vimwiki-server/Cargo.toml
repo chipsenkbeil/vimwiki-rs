@@ -19,12 +19,12 @@ name = "vimwiki-server"
 path = "src/main.rs"
 
 [dependencies]
-async-graphql = "2.4.6"
-async-graphql-warp = "2.4.6"
+async-graphql = "2.7.4"
+async-graphql-warp = "2.7.4"
 clap = "3.0.0-beta.2"
 derive_more = { version = "0.99.0", default-features = false, features = [ "display", "error", "from" ] }
 directories = "3.0.1"
-entity = { version = "0.2.4", features = ["async-graphql", "global", "macros", "inmemory_db", "serde-1"] }
+entity = { version = "0.2.5", features = ["async-graphql", "global", "macros", "inmemory_db", "serde-1"] }
 flexi_logger = "0.16.1"
 indicatif = "0.15.0"
 lazy_static = "1.4.0"
@@ -37,10 +37,10 @@ typetag = "0.1.6"
 sha-1 = "0.9.1"
 snafu = "0.6.9"
 strum = { version = "0.20.0", features = ["derive"] }
-tokio = { version = "0.2.22", features = ["full"] }
+tokio = { version = "1.4.0", features = ["full"] }
 vimwiki = { version = "0.1.0-alpha.6", path = "../vimwiki" }
 walkdir = "2.3.1"
-warp = "0.2.5"
+warp = "0.3.1"
 
 [dev-dependencies]
 vimwiki_macros = { version = "0.1.0-alpha.6", path = "../vimwiki_macros" }
