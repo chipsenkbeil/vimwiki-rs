@@ -9,5 +9,6 @@ pub type Schema =
     async_graphql::Schema<Query, Mutation, async_graphql::EmptySubscription>;
 
 pub fn new_schema() -> Schema {
-    Schema::build(Query, Mutation, async_graphql::EmptySubscription).finish()
+    Schema::build(Query::default(), Mutation, async_graphql::EmptySubscription)
+        .finish()
 }

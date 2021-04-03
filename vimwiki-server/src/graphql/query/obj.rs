@@ -1,23 +1,11 @@
 use crate::{data::*, database::gql_db};
 use entity::{TypedPredicate as P, *};
 
-/// Provides a reference to a typed version of the GraphQL database if available
-macro_rules! gql_db_typed_ref {
-    () => {
-        gql_db()?
-            .as_ref()
-            .as_database::<InmemoryDatabase>()
-            .ok_or_else(|| {
-                async_graphql::Error::new("Invalid database type found")
-            })
-    };
-}
-
-/// Represents the query-portion of the GraphQL schema
-pub struct Query;
+#[derive(Default)]
+pub struct ObjQuery;
 
 #[async_graphql::Object]
-impl Query {
+impl ObjQuery {
     /// Query for single instance of any ent by its id
     async fn ent(&self, id: Id) -> async_graphql::Result<Option<Box<dyn Ent>>> {
         gql_db()?
