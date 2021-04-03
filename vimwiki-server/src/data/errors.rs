@@ -2,8 +2,6 @@ use derive_more::Display;
 use entity::*;
 use std::convert::TryFrom;
 
-pub type GraphqlDatabaseResult<T> = Result<T, GraphqlDatabaseError>;
-
 #[derive(Debug, Display)]
 pub enum GraphqlDatabaseError {
     Database(DatabaseError),

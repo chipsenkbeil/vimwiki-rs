@@ -1,7 +1,5 @@
 use crate::{data::*, database::gql_db};
 use entity::{TypedPredicate as P, *};
-use log::trace;
-use paste::paste;
 
 /// Provides a reference to a typed version of the GraphQL database if available
 macro_rules! gql_db_typed_ref {
@@ -17,49 +15,6 @@ macro_rules! gql_db_typed_ref {
 
 /// Represents the query-portion of the GraphQL schema
 pub struct Query;
-
-macro_rules! ent_query_fns {
-    ($data:ident; untyped) => {
-        paste! {
-            #[doc = "Queries for instances of " $data " that match the filter"]
-            async fn [<$data:snake s>](
-                &self,
-                filter: entity::ext::async_graphql::GqlEntFilter,
-            ) -> async_graphql::Result<Vec<[<$data:camel>]>> {
-                gql_db()?.find_all_typed::<[<$data:camel>]>(filter.into())
-                    .map_err(|x| async_graphql::Error::new(x.to_string()))
-            }
-        }
-
-        ent_query_fns!($data; id);
-    };
-    ($data:ident; typed) => {
-        paste! {
-            #[doc = "Queries for instances of " $data " that match the filter"]
-            async fn [<$data:snake s>](
-                &self,
-                filter: [<Gql $data:camel Filter>],
-            ) -> async_graphql::Result<Vec<[<$data:camel>]>> {
-                gql_db()?.find_all_typed::<[<$data:camel>]>(filter.into())
-                    .map_err(|x| async_graphql::Error::new(x.to_string()))
-            }
-        }
-
-        ent_query_fns!($data; id);
-    };
-    ($data:ident; id) => {
-        paste! {
-            #[doc = "Query for single instance of " $data " by its id"]
-            async fn [<$data:snake>](
-                &self,
-                id: entity::Id,
-            ) -> async_graphql::Result<Option<[<$data:camel>]>> {
-                gql_db()?.get_typed::<[<$data:camel>]>(id)
-                    .map_err(|x| async_graphql::Error::new(x.to_string()))
-            }
-        }
-    };
-}
 
 #[async_graphql::Object]
 impl Query {
@@ -878,12 +833,132 @@ impl Query {
             .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
 
-    ent_query_fns!(ContentCell; typed);
-    ent_query_fns!(SpanLeftCell; typed);
-    ent_query_fns!(SpanAboveCell; typed);
+    /// Queries for instances of ContentCell that match the filter, or return all
+    /// instances if no filter provided
+    async fn content_cells(
+        &self,
+        filter: Option<GqlContentCellFilter>,
+    ) -> async_graphql::Result<Vec<ContentCell>> {
+        let query: entity::Query = match filter {
+            Some(x) => x.into(),
+            None => ContentCell::query().into(),
+        };
 
-    ent_query_fns!(Text; typed);
-    ent_query_fns!(DecoratedText; typed);
+        gql_db()?
+            .find_all_typed::<ContentCell>(query)
+            .map_err(|x| async_graphql::Error::new(x.to_string()))
+    }
+
+    /// Queries for a single instance of ContentCell by its id
+    async fn content_cell(
+        &self,
+        id: Id,
+    ) -> async_graphql::Result<Option<ContentCell>> {
+        gql_db()?
+            .get_typed::<ContentCell>(id)
+            .map_err(|x| async_graphql::Error::new(x.to_string()))
+    }
+
+    /// Queries for instances of SpanLeftCell that match the filter, or return all
+    /// instances if no filter provided
+    async fn span_left_cells(
+        &self,
+        filter: Option<GqlSpanLeftCellFilter>,
+    ) -> async_graphql::Result<Vec<SpanLeftCell>> {
+        let query: entity::Query = match filter {
+            Some(x) => x.into(),
+            None => SpanLeftCell::query().into(),
+        };
+
+        gql_db()?
+            .find_all_typed::<SpanLeftCell>(query)
+            .map_err(|x| async_graphql::Error::new(x.to_string()))
+    }
+
+    /// Queries for a single instance of SpanLeftCell by its id
+    async fn span_left_cell(
+        &self,
+        id: Id,
+    ) -> async_graphql::Result<Option<SpanLeftCell>> {
+        gql_db()?
+            .get_typed::<SpanLeftCell>(id)
+            .map_err(|x| async_graphql::Error::new(x.to_string()))
+    }
+
+    /// Queries for instances of SpanAboveCell that match the filter, or return all
+    /// instances if no filter provided
+    async fn span_above_cells(
+        &self,
+        filter: Option<GqlSpanAboveCellFilter>,
+    ) -> async_graphql::Result<Vec<SpanAboveCell>> {
+        let query: entity::Query = match filter {
+            Some(x) => x.into(),
+            None => SpanAboveCell::query().into(),
+        };
+
+        gql_db()?
+            .find_all_typed::<SpanAboveCell>(query)
+            .map_err(|x| async_graphql::Error::new(x.to_string()))
+    }
+
+    /// Queries for a single instance of SpanAboveCell by its id
+    async fn span_above_cell(
+        &self,
+        id: Id,
+    ) -> async_graphql::Result<Option<SpanAboveCell>> {
+        gql_db()?
+            .get_typed::<SpanAboveCell>(id)
+            .map_err(|x| async_graphql::Error::new(x.to_string()))
+    }
+
+    /// Queries for instances of Text that match the filter, or return all
+    /// instances if no filter provided
+    async fn texts(
+        &self,
+        filter: Option<GqlTextFilter>,
+    ) -> async_graphql::Result<Vec<Text>> {
+        let query: entity::Query = match filter {
+            Some(x) => x.into(),
+            None => Text::query().into(),
+        };
+
+        gql_db()?
+            .find_all_typed::<Text>(query)
+            .map_err(|x| async_graphql::Error::new(x.to_string()))
+    }
+
+    /// Queries for a single instance of Text by its id
+    async fn text(&self, id: Id) -> async_graphql::Result<Option<Text>> {
+        gql_db()?
+            .get_typed::<Text>(id)
+            .map_err(|x| async_graphql::Error::new(x.to_string()))
+    }
+
+    /// Queries for instances of DecoratedText that match the filter, or return all
+    /// instances if no filter provided
+    async fn decorated_texts(
+        &self,
+        filter: Option<GqlDecoratedTextFilter>,
+    ) -> async_graphql::Result<Vec<DecoratedText>> {
+        let query: entity::Query = match filter {
+            Some(x) => x.into(),
+            None => DecoratedText::query().into(),
+        };
+
+        gql_db()?
+            .find_all_typed::<DecoratedText>(query)
+            .map_err(|x| async_graphql::Error::new(x.to_string()))
+    }
+
+    /// Queries for a single instance of DecoratedText by its id
+    async fn decorated_text(
+        &self,
+        id: Id,
+    ) -> async_graphql::Result<Option<DecoratedText>> {
+        gql_db()?
+            .get_typed::<DecoratedText>(id)
+            .map_err(|x| async_graphql::Error::new(x.to_string()))
+    }
 
     /// Queries for instances of DecoratedTextContent that matches the given filter, or
     /// return all instances if no filter provided
@@ -913,7 +988,28 @@ impl Query {
             .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
 
-    ent_query_fns!(Keyword; typed);
+    /// Queries for instances of Keyword that match the filter, or return all
+    /// instances if no filter provided
+    async fn keywords(
+        &self,
+        filter: Option<GqlKeywordFilter>,
+    ) -> async_graphql::Result<Vec<Keyword>> {
+        let query: entity::Query = match filter {
+            Some(x) => x.into(),
+            None => Keyword::query().into(),
+        };
+
+        gql_db()?
+            .find_all_typed::<Keyword>(query)
+            .map_err(|x| async_graphql::Error::new(x.to_string()))
+    }
+
+    /// Queries for a single instance of Keyword by its id
+    async fn keyword(&self, id: Id) -> async_graphql::Result<Option<Keyword>> {
+        gql_db()?
+            .get_typed::<Keyword>(id)
+            .map_err(|x| async_graphql::Error::new(x.to_string()))
+    }
 
     /// Queries for instances of Link that matches the given filter, or
     /// return all instances if no filter provided
@@ -940,14 +1036,207 @@ impl Query {
             .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
 
-    ent_query_fns!(WikiLink; typed);
-    ent_query_fns!(IndexedInterWikiLink; typed);
-    ent_query_fns!(NamedInterWikiLink; typed);
-    ent_query_fns!(DiaryLink; typed);
-    ent_query_fns!(RawLink; typed);
-    ent_query_fns!(ExternalFileLink; typed);
-    ent_query_fns!(TransclusionLink; typed);
-    ent_query_fns!(Tags; typed);
+    /// Queries for instances of WikiLink that match the filter, or return all
+    /// instances if no filter provided
+    async fn wiki_links(
+        &self,
+        filter: Option<GqlWikiLinkFilter>,
+    ) -> async_graphql::Result<Vec<WikiLink>> {
+        let query: entity::Query = match filter {
+            Some(x) => x.into(),
+            None => WikiLink::query().into(),
+        };
+
+        gql_db()?
+            .find_all_typed::<WikiLink>(query)
+            .map_err(|x| async_graphql::Error::new(x.to_string()))
+    }
+
+    /// Queries for a single instance of WikiLink by its id
+    async fn wiki_link(
+        &self,
+        id: Id,
+    ) -> async_graphql::Result<Option<WikiLink>> {
+        gql_db()?
+            .get_typed::<WikiLink>(id)
+            .map_err(|x| async_graphql::Error::new(x.to_string()))
+    }
+
+    /// Queries for instances of IndexedInterWikiLink that match the filter, or return all
+    /// instances if no filter provided
+    async fn indexed_inter_wiki_links(
+        &self,
+        filter: Option<GqlIndexedInterWikiLinkFilter>,
+    ) -> async_graphql::Result<Vec<IndexedInterWikiLink>> {
+        let query: entity::Query = match filter {
+            Some(x) => x.into(),
+            None => IndexedInterWikiLink::query().into(),
+        };
+
+        gql_db()?
+            .find_all_typed::<IndexedInterWikiLink>(query)
+            .map_err(|x| async_graphql::Error::new(x.to_string()))
+    }
+
+    /// Queries for a single instance of IndexedInterWikiLink by its id
+    async fn indexed_inter_wiki_link(
+        &self,
+        id: Id,
+    ) -> async_graphql::Result<Option<IndexedInterWikiLink>> {
+        gql_db()?
+            .get_typed::<IndexedInterWikiLink>(id)
+            .map_err(|x| async_graphql::Error::new(x.to_string()))
+    }
+
+    /// Queries for instances of NamedInterWikiLink that match the filter, or return all
+    /// instances if no filter provided
+    async fn named_inter_wiki_links(
+        &self,
+        filter: Option<GqlNamedInterWikiLinkFilter>,
+    ) -> async_graphql::Result<Vec<NamedInterWikiLink>> {
+        let query: entity::Query = match filter {
+            Some(x) => x.into(),
+            None => NamedInterWikiLink::query().into(),
+        };
+
+        gql_db()?
+            .find_all_typed::<NamedInterWikiLink>(query)
+            .map_err(|x| async_graphql::Error::new(x.to_string()))
+    }
+
+    /// Queries for a single instance of NamedInterWikiLink by its id
+    async fn named_inter_wiki_link(
+        &self,
+        id: Id,
+    ) -> async_graphql::Result<Option<NamedInterWikiLink>> {
+        gql_db()?
+            .get_typed::<NamedInterWikiLink>(id)
+            .map_err(|x| async_graphql::Error::new(x.to_string()))
+    }
+
+    /// Queries for instances of DiaryLink that match the filter, or return all
+    /// instances if no filter provided
+    async fn diary_links(
+        &self,
+        filter: Option<GqlDiaryLinkFilter>,
+    ) -> async_graphql::Result<Vec<DiaryLink>> {
+        let query: entity::Query = match filter {
+            Some(x) => x.into(),
+            None => DiaryLink::query().into(),
+        };
+
+        gql_db()?
+            .find_all_typed::<DiaryLink>(query)
+            .map_err(|x| async_graphql::Error::new(x.to_string()))
+    }
+
+    /// Queries for a single instance of DiaryLink by its id
+    async fn diary_link(
+        &self,
+        id: Id,
+    ) -> async_graphql::Result<Option<DiaryLink>> {
+        gql_db()?
+            .get_typed::<DiaryLink>(id)
+            .map_err(|x| async_graphql::Error::new(x.to_string()))
+    }
+
+    /// Queries for instances of RawLink that match the filter, or return all
+    /// instances if no filter provided
+    async fn raw_links(
+        &self,
+        filter: Option<GqlRawLinkFilter>,
+    ) -> async_graphql::Result<Vec<RawLink>> {
+        let query: entity::Query = match filter {
+            Some(x) => x.into(),
+            None => RawLink::query().into(),
+        };
+
+        gql_db()?
+            .find_all_typed::<RawLink>(query)
+            .map_err(|x| async_graphql::Error::new(x.to_string()))
+    }
+
+    /// Queries for a single instance of RawLink by its id
+    async fn raw_link(&self, id: Id) -> async_graphql::Result<Option<RawLink>> {
+        gql_db()?
+            .get_typed::<RawLink>(id)
+            .map_err(|x| async_graphql::Error::new(x.to_string()))
+    }
+
+    /// Queries for instances of ExternalFileLink that match the filter, or return all
+    /// instances if no filter provided
+    async fn external_file_links(
+        &self,
+        filter: Option<GqlExternalFileLinkFilter>,
+    ) -> async_graphql::Result<Vec<ExternalFileLink>> {
+        let query: entity::Query = match filter {
+            Some(x) => x.into(),
+            None => ExternalFileLink::query().into(),
+        };
+
+        gql_db()?
+            .find_all_typed::<ExternalFileLink>(query)
+            .map_err(|x| async_graphql::Error::new(x.to_string()))
+    }
+
+    /// Queries for a single instance of ExternalFileLink by its id
+    async fn external_file_link(
+        &self,
+        id: Id,
+    ) -> async_graphql::Result<Option<ExternalFileLink>> {
+        gql_db()?
+            .get_typed::<ExternalFileLink>(id)
+            .map_err(|x| async_graphql::Error::new(x.to_string()))
+    }
+
+    /// Queries for instances of TransclusionLink that match the filter, or return all
+    /// instances if no filter provided
+    async fn transclusion_links(
+        &self,
+        filter: Option<GqlTransclusionLinkFilter>,
+    ) -> async_graphql::Result<Vec<TransclusionLink>> {
+        let query: entity::Query = match filter {
+            Some(x) => x.into(),
+            None => TransclusionLink::query().into(),
+        };
+
+        gql_db()?
+            .find_all_typed::<TransclusionLink>(query)
+            .map_err(|x| async_graphql::Error::new(x.to_string()))
+    }
+
+    /// Queries for a single instance of TransclusionLink by its id
+    async fn transclusion_link(
+        &self,
+        id: Id,
+    ) -> async_graphql::Result<Option<TransclusionLink>> {
+        gql_db()?
+            .get_typed::<TransclusionLink>(id)
+            .map_err(|x| async_graphql::Error::new(x.to_string()))
+    }
+
+    /// Queries for instances of Tags that match the filter, or return all
+    /// instances if no filter provided
+    async fn tags(
+        &self,
+        filter: Option<GqlTagsFilter>,
+    ) -> async_graphql::Result<Vec<Tags>> {
+        let query: entity::Query = match filter {
+            Some(x) => x.into(),
+            None => Tags::query().into(),
+        };
+
+        gql_db()?
+            .find_all_typed::<Tags>(query)
+            .map_err(|x| async_graphql::Error::new(x.to_string()))
+    }
+
+    /// Queries for a single instance of Tags by its id
+    async fn tag(&self, id: Id) -> async_graphql::Result<Option<Tags>> {
+        gql_db()?
+            .get_typed::<Tags>(id)
+            .map_err(|x| async_graphql::Error::new(x.to_string()))
+    }
 
     /// Queries for instances of CodeInline that match the filter, or return all
     /// instances if no filter provided
