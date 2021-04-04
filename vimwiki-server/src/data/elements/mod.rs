@@ -20,15 +20,34 @@ impl<'a> TryFrom<v::Page<'a>> for Page {
     type Error = GraphqlDatabaseError;
 
     fn try_from(page: v::Page<'a>) -> Result<Self, Self::Error> {
+        let mut ent = GraphqlDatabaseError::wrap(
+            Self::build().contents(Vec::new()).finish_and_commit(),
+        )?;
+
         let mut contents = Vec::new();
         for content in page.elements {
-            contents.push(BlockElement::try_from(content)?.id());
+            contents.push(
+                BlockElement::from_vimwiki_element(ent.id(), None, content)?
+                    .id(),
+            );
         }
 
-        GraphqlDatabaseError::wrap(
-            Self::build().contents(contents).finish_and_commit(),
-        )
+        ent.set_contents_ids(contents);
+        ent.commit().map_err(GraphqlDatabaseError::Database)?;
+
+        Ok(ent)
     }
+}
+
+/// Interface to build entity from a vimwiki element
+pub trait FromVimwikiElement<'a>: Sized {
+    type Element;
+
+    fn from_vimwiki_element(
+        page_id: Id,
+        parent_id: Option<Id>,
+        element: Self::Element,
+    ) -> Result<Self, GraphqlDatabaseError>;
 }
 
 #[simple_ent]
@@ -47,21 +66,55 @@ pub enum Element {
     InlineBlock(InlineBlockElement),
 }
 
-impl<'a> TryFrom<Located<v::Element<'a>>> for Element {
-    type Error = GraphqlDatabaseError;
+impl Element {
+    pub fn page_id(&self) -> Id {
+        match self {
+            Self::Block(x) => x.page_id(),
+            Self::Inline(x) => x.page_id(),
+            Self::InlineBlock(x) => x.page_id(),
+        }
+    }
 
-    fn try_from(located: Located<v::Element<'a>>) -> Result<Self, Self::Error> {
-        let region = located.region();
-        Ok(match located.into_inner() {
+    pub fn parent_id(&self) -> Option<Id> {
+        match self {
+            Self::Block(x) => x.parent_id(),
+            Self::Inline(x) => x.parent_id(),
+            Self::InlineBlock(x) => x.parent_id(),
+        }
+    }
+}
+
+impl<'a> FromVimwikiElement<'a> for Element {
+    type Element = Located<v::Element<'a>>;
+
+    fn from_vimwiki_element(
+        page_id: Id,
+        parent_id: Option<Id>,
+        element: Self::Element,
+    ) -> Result<Self, GraphqlDatabaseError> {
+        let region = element.region();
+        Ok(match element.into_inner() {
             v::Element::Block(x) => {
-                Self::from(BlockElement::try_from(Located::new(x, region))?)
+                Self::from(BlockElement::from_vimwiki_element(
+                    page_id,
+                    parent_id,
+                    Located::new(x, region),
+                )?)
             }
             v::Element::Inline(x) => {
-                Self::from(InlineElement::try_from(Located::new(x, region))?)
+                Self::from(InlineElement::from_vimwiki_element(
+                    page_id,
+                    parent_id,
+                    Located::new(x, region),
+                )?)
             }
-            v::Element::InlineBlock(x) => Self::from(
-                InlineBlockElement::try_from(Located::new(x, region))?,
-            ),
+            v::Element::InlineBlock(x) => {
+                Self::from(InlineBlockElement::from_vimwiki_element(
+                    page_id,
+                    parent_id,
+                    Located::new(x, region),
+                )?)
+            }
         })
     }
 }
@@ -74,23 +127,55 @@ pub enum InlineBlockElement {
     Definition(Definition),
 }
 
-impl<'a> TryFrom<Located<v::InlineBlockElement<'a>>> for InlineBlockElement {
-    type Error = GraphqlDatabaseError;
+impl InlineBlockElement {
+    pub fn page_id(&self) -> Id {
+        match self {
+            Self::ListItem(x) => x.page_id(),
+            Self::Term(x) => x.page_id(),
+            Self::Definition(x) => x.page_id(),
+        }
+    }
 
-    fn try_from(
-        located: Located<v::InlineBlockElement<'a>>,
-    ) -> Result<Self, Self::Error> {
-        let region = located.region();
-        Ok(match located.into_inner() {
-            v::InlineBlockElement::ListItem(x) => InlineBlockElement::from(
-                ListItem::try_from(Located::new(x, region))?,
-            ),
-            v::InlineBlockElement::Term(x) => InlineBlockElement::from(
-                Term::try_from(Located::new(x, region))?,
-            ),
-            v::InlineBlockElement::Definition(x) => InlineBlockElement::from(
-                Definition::try_from(Located::new(x, region))?,
-            ),
+    pub fn parent_id(&self) -> Option<Id> {
+        match self {
+            Self::ListItem(x) => x.parent_id(),
+            Self::Term(x) => x.parent_id(),
+            Self::Definition(x) => x.parent_id(),
+        }
+    }
+}
+
+impl<'a> FromVimwikiElement<'a> for InlineBlockElement {
+    type Element = Located<v::InlineBlockElement<'a>>;
+
+    fn from_vimwiki_element(
+        page_id: Id,
+        parent_id: Option<Id>,
+        element: Self::Element,
+    ) -> Result<Self, GraphqlDatabaseError> {
+        let region = element.region();
+        Ok(match element.into_inner() {
+            v::InlineBlockElement::ListItem(x) => {
+                InlineBlockElement::from(ListItem::from_vimwiki_element(
+                    page_id,
+                    parent_id,
+                    Located::new(x, region),
+                )?)
+            }
+            v::InlineBlockElement::Term(x) => {
+                InlineBlockElement::from(Term::from_vimwiki_element(
+                    page_id,
+                    parent_id,
+                    Located::new(x, region),
+                )?)
+            }
+            v::InlineBlockElement::Definition(x) => {
+                InlineBlockElement::from(Definition::from_vimwiki_element(
+                    page_id,
+                    parent_id,
+                    Located::new(x, region),
+                )?)
+            }
         })
     }
 }

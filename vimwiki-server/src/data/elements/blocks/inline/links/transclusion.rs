@@ -1,7 +1,10 @@
-use crate::data::{GraphqlDatabaseError, Description, Region, Uri};
+use crate::data::{
+    Description, Element, ElementQuery, FromVimwikiElement, GqlPageFilter,
+    GraphqlDatabaseError, Page, PageQuery, Region, Uri,
+};
 use entity::*;
 use serde::{Deserialize, Serialize};
-use std::{convert::TryFrom, fmt};
+use std::fmt;
 use vimwiki::{elements as v, Located};
 
 /// Represents a single document transclusion link
@@ -23,6 +26,14 @@ pub struct TransclusionLink {
     /// Additional properties associated with the link
     #[ent(field, ext(async_graphql(filter_untyped)))]
     properties: Vec<Property>,
+
+    /// Page containing the element
+    #[ent(edge)]
+    page: Page,
+
+    /// Parent element to this element
+    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    parent: Option<Element>,
 }
 
 impl fmt::Display for TransclusionLink {
@@ -34,14 +45,16 @@ impl fmt::Display for TransclusionLink {
     }
 }
 
-impl<'a> TryFrom<Located<v::TransclusionLink<'a>>> for TransclusionLink {
-    type Error = GraphqlDatabaseError;
+impl<'a> FromVimwikiElement<'a> for TransclusionLink {
+    type Element = Located<v::TransclusionLink<'a>>;
 
-    fn try_from(
-        le: Located<v::TransclusionLink<'a>>,
-    ) -> Result<Self, Self::Error> {
-        let region = Region::from(le.region());
-        let element = le.into_inner();
+    fn from_vimwiki_element(
+        page_id: Id,
+        parent_id: Option<Id>,
+        element: Self::Element,
+    ) -> Result<Self, GraphqlDatabaseError> {
+        let region = Region::from(element.region());
+        let element = element.into_inner();
         GraphqlDatabaseError::wrap(
             Self::build()
                 .region(region)
@@ -57,15 +70,59 @@ impl<'a> TryFrom<Located<v::TransclusionLink<'a>>> for TransclusionLink {
                         })
                         .collect(),
                 )
+                .page(page_id)
+                .parent(parent_id)
                 .finish_and_commit(),
         )
     }
 }
 
 #[derive(
-    async_graphql::SimpleObject, Clone, Debug, Serialize, Deserialize, ValueLike,
+    async_graphql::SimpleObject,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    ValueLike,
 )]
 pub struct Property {
     key: String,
     value: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use vimwiki_macros::*;
+
+    #[test]
+    fn should_fully_populate_from_vimwiki_element() {
+        global::with_db(InmemoryDatabase::default(), || {
+            let element = vimwiki_transclusion_link!(
+                r#"{{https://example.com/pic.png|Some description|class="some class"}}"#
+            );
+            let region = Region::from(element.region());
+            let ent =
+                TransclusionLink::from_vimwiki_element(999, Some(123), element)
+                    .expect("Failed to convert from element");
+
+            assert_eq!(ent.region(), &region);
+            assert_eq!(ent.uri(), "https://example.com/pic.png".parse::<Uri>());
+            assert_eq!(
+                ent.descripton(),
+                Some(Description::Text(String::from("Some description")))
+            );
+            assert_eq!(
+                ent.properties(),
+                vec![Property {
+                    key: "class".to_string(),
+                    value: "some class".to_string(),
+                }]
+            );
+            assert_eq!(ent.page_id(), 999);
+            assert_eq!(ent.parent_id(), Some(123));
+        });
+    }
 }

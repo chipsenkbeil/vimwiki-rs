@@ -1,9 +1,11 @@
 use crate::data::{
-    GraphqlDatabaseError, InlineElement, InlineElementQuery, Region,
+    Element, ElementQuery, FromVimwikiElement, GqlPageFilter,
+    GraphqlDatabaseError, InlineElement, InlineElementQuery, Page, PageQuery,
+    Region,
 };
 
 use entity::*;
-use std::{convert::TryFrom, fmt};
+use std::fmt;
 use vimwiki::{elements as v, Located};
 
 #[simple_ent]
@@ -17,6 +19,14 @@ pub struct Header {
 
     #[ent(edge(policy = "deep", wrap), ext(async_graphql(filter_untyped)))]
     contents: Vec<InlineElement>,
+
+    /// Page containing the element
+    #[ent(edge)]
+    page: Page,
+
+    /// Parent element to this element
+    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    parent: Option<Element>,
 }
 
 impl fmt::Display for Header {
@@ -69,29 +79,61 @@ impl Header {
     async fn gql_text(&self) -> String {
         self.to_string()
     }
+
+    /// The page containing this header
+    #[graphql(name = "page")]
+    async fn gql_page(&self) -> async_graphql::Result<Page> {
+        self.load_page()
+            .map_err(|x| async_graphql::Error::new(x.to_string()))
+    }
+
+    /// The parent element containing this header
+    #[graphql(name = "parent")]
+    async fn gql_parent(&self) -> async_graphql::Result<Option<Element>> {
+        self.load_parent()
+            .map_err(|x| async_graphql::Error::new(x.to_string()))
+    }
 }
 
-impl<'a> TryFrom<Located<v::Header<'a>>> for Header {
-    type Error = GraphqlDatabaseError;
+impl<'a> FromVimwikiElement<'a> for Header {
+    type Element = Located<v::Header<'a>>;
 
-    fn try_from(le: Located<v::Header<'a>>) -> Result<Self, Self::Error> {
-        let region = Region::from(le.region());
-        let level = le.as_inner().level as i32;
-        let centered = le.as_inner().centered;
+    fn from_vimwiki_element(
+        page_id: Id,
+        parent_id: Option<Id>,
+        element: Self::Element,
+    ) -> Result<Self, GraphqlDatabaseError> {
+        let region = Region::from(element.region());
+        let level = element.as_inner().level as i32;
+        let centered = element.as_inner().centered;
 
-        let mut contents = Vec::new();
-        for content in le.into_inner().content.elements {
-            contents.push(InlineElement::try_from(content)?.id());
-        }
-
-        GraphqlDatabaseError::wrap(
+        let mut ent = GraphqlDatabaseError::wrap(
             Self::build()
                 .region(region)
                 .level(level)
                 .centered(centered)
-                .contents(contents)
+                .contents(Vec::new())
+                .page(page_id)
+                .parent(parent_id)
                 .finish_and_commit(),
-        )
+        )?;
+
+        let mut contents = Vec::new();
+        for content in element.into_inner().content.elements {
+            contents.push(
+                InlineElement::from_vimwiki_element(
+                    page_id,
+                    Some(ent.id()),
+                    content,
+                )?
+                .id(),
+            );
+        }
+
+        ent.set_contents_ids(contents);
+        ent.commit().map_err(GraphqlDatabaseError::Database)?;
+
+        Ok(ent)
     }
 }
 
@@ -105,13 +147,21 @@ mod tests {
         global::with_db(InmemoryDatabase::default(), || {
             let element = vimwiki_header!(r#"=== *some* header of mine ==="#);
             let region = Region::from(element.region());
-            let ent = Header::try_from(element)
+            let ent = Header::from_vimwiki_element(999, Some(123), element)
                 .expect("Failed to convert from element");
 
             assert_eq!(ent.region(), &region);
             assert_eq!(*ent.level(), 3);
             assert_eq!(*ent.centered(), false);
             assert_eq!(ent.to_string(), "some header of mine");
+            assert_eq!(ent.page_id(), 999);
+            assert_eq!(ent.parent_id(), Some(123));
+
+            for content in ent.load_contents().expect("Failed to load contents")
+            {
+                assert_eq!(content.page_id(), 999);
+                assert_eq!(content.parent_id(), Some(ent.id()));
+            }
         });
     }
 }

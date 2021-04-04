@@ -1,9 +1,10 @@
 use crate::data::{
-    GraphqlDatabaseError, InlineElement, InlineElementQuery, Region,
+    Element, ElementQuery, FromVimwikiElement, GqlPageFilter,
+    GraphqlDatabaseError, InlineElement, InlineElementQuery, Page, PageQuery,
+    Region,
 };
 use entity::*;
 use serde::{Deserialize, Serialize};
-use std::convert::TryFrom;
 use strum::{Display, EnumString};
 use vimwiki::{elements as v, Located};
 
@@ -18,25 +19,47 @@ pub struct List {
     /// The items contained in the list
     #[ent(edge(policy = "deep"))]
     items: Vec<ListItem>,
+
+    /// Page containing this list
+    #[ent(edge)]
+    page: Page,
+
+    /// Parent element to this list
+    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    parent: Option<Element>,
 }
 
-impl<'a> TryFrom<Located<v::List<'a>>> for List {
-    type Error = GraphqlDatabaseError;
+impl<'a> FromVimwikiElement<'a> for List {
+    type Element = Located<v::List<'a>>;
 
-    fn try_from(le: Located<v::List<'a>>) -> Result<Self, Self::Error> {
-        let region = Region::from(le.region());
+    fn from_vimwiki_element(
+        page_id: Id,
+        parent_id: Option<Id>,
+        element: Self::Element,
+    ) -> Result<Self, GraphqlDatabaseError> {
+        let region = Region::from(element.region());
 
-        let mut items = Vec::new();
-        for item in le.into_inner().items {
-            items.push(ListItem::try_from(item)?.id());
-        }
-
-        GraphqlDatabaseError::wrap(
+        let mut ent = GraphqlDatabaseError::wrap(
             Self::build()
                 .region(region)
-                .items(items)
+                .items(Vec::new())
+                .page(page_id)
+                .parent(parent_id)
                 .finish_and_commit(),
-        )
+        )?;
+
+        let mut items = Vec::new();
+        for item in element.into_inner().items {
+            items.push(
+                ListItem::from_vimwiki_element(page_id, Some(ent.id()), item)?
+                    .id(),
+            );
+        }
+
+        ent.set_items_ids(items);
+        ent.commit().map_err(GraphqlDatabaseError::Database)?;
+
+        Ok(ent)
     }
 }
 
@@ -66,36 +89,68 @@ pub struct ListItem {
     /// Additional attributes associated with the list item
     #[ent(edge(policy = "deep"))]
     attributes: ListItemAttributes,
+
+    /// Page containing this list item
+    #[ent(edge)]
+    page: Page,
+
+    /// Parent element to this list item
+    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    parent: Option<Element>,
 }
 
-impl<'a> TryFrom<Located<v::ListItem<'a>>> for ListItem {
-    type Error = GraphqlDatabaseError;
+impl<'a> FromVimwikiElement<'a> for ListItem {
+    type Element = Located<v::ListItem<'a>>;
 
-    fn try_from(le: Located<v::ListItem<'a>>) -> Result<Self, Self::Error> {
-        let region = Region::from(le.region());
-        let item = le.into_inner();
+    fn from_vimwiki_element(
+        page_id: Id,
+        parent_id: Option<Id>,
+        element: Self::Element,
+    ) -> Result<Self, GraphqlDatabaseError> {
+        let region = Region::from(element.region());
+        let item = element.into_inner();
 
         let item_type = ListItemType::from(item.item_type);
         let suffix = ListItemSuffix::from(item.suffix);
         let position = item.pos as i32;
 
-        let mut contents = Vec::new();
-        for content in item.contents.contents {
-            contents.push(ListItemContent::try_from(content)?.id());
-        }
-
-        let attributes = ListItemAttributes::try_from(item.attributes)?.id();
-
-        GraphqlDatabaseError::wrap(
+        let mut ent = GraphqlDatabaseError::wrap(
             Self::build()
                 .region(region)
                 .item_type(item_type)
                 .suffix(suffix)
                 .position(position)
-                .contents(contents)
-                .attributes(attributes)
+                .contents(Vec::new())
+                .attributes(0)
+                .page(page_id)
+                .parent(parent_id)
                 .finish_and_commit(),
-        )
+        )?;
+
+        let mut contents = Vec::new();
+        for content in item.contents.contents {
+            contents.push(
+                ListItemContent::from_vimwiki_element(
+                    page_id,
+                    Some(ent.id()),
+                    content,
+                )?
+                .id(),
+            );
+        }
+
+        let attributes = ListItemAttributes::from_vimwiki_element(
+            page_id,
+            Some(ent.id()),
+            item.attributes,
+        )?
+        .id();
+
+        ent.set_contents_ids(contents);
+        ent.set_attributes_id(attributes);
+        ent.commit().map_err(GraphqlDatabaseError::Database)?;
+
+        Ok(ent)
     }
 }
 
@@ -201,19 +256,41 @@ pub enum ListItemContent {
     List(List),
 }
 
-impl<'a> TryFrom<Located<v::ListItemContent<'a>>> for ListItemContent {
-    type Error = GraphqlDatabaseError;
+impl ListItemContent {
+    pub fn page_id(&self) -> Id {
+        match self {
+            Self::InlineContent(x) => x.page_id(),
+            Self::List(x) => x.page_id(),
+        }
+    }
 
-    fn try_from(
-        le: Located<v::ListItemContent<'a>>,
-    ) -> Result<Self, Self::Error> {
-        let region = le.region();
-        Ok(match le.into_inner() {
-            v::ListItemContent::InlineContent(x) => {
-                Self::InlineContent(InlineContent::try_from(x)?)
-            }
+    pub fn parent_id(&self) -> Option<Id> {
+        match self {
+            Self::InlineContent(x) => x.parent_id(),
+            Self::List(x) => x.parent_id(),
+        }
+    }
+}
+
+impl<'a> FromVimwikiElement<'a> for ListItemContent {
+    type Element = Located<v::ListItemContent<'a>>;
+
+    fn from_vimwiki_element(
+        page_id: Id,
+        parent_id: Option<Id>,
+        element: Self::Element,
+    ) -> Result<Self, GraphqlDatabaseError> {
+        let region = element.region();
+        Ok(match element.into_inner() {
+            v::ListItemContent::InlineContent(x) => Self::InlineContent(
+                InlineContent::from_vimwiki_element(page_id, parent_id, x)?,
+            ),
             v::ListItemContent::List(x) => {
-                Self::List(List::try_from(Located::new(x, region))?)
+                Self::List(List::from_vimwiki_element(
+                    page_id,
+                    parent_id,
+                    Located::new(x, region),
+                )?)
             }
         })
     }
@@ -224,20 +301,48 @@ impl<'a> TryFrom<Located<v::ListItemContent<'a>>> for ListItemContent {
 pub struct InlineContent {
     #[ent(edge(policy = "deep", wrap), ext(async_graphql(filter_untyped)))]
     contents: Vec<InlineElement>,
+
+    /// Page containing this inline content
+    #[ent(edge)]
+    page: Page,
+
+    /// Parent element to this inline content
+    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    parent: Option<Element>,
 }
 
-impl<'a> TryFrom<v::InlineElementContainer<'a>> for InlineContent {
-    type Error = GraphqlDatabaseError;
+impl<'a> FromVimwikiElement<'a> for InlineContent {
+    type Element = Located<v::InlineElementContainer<'a>>;
 
-    fn try_from(x: v::InlineElementContainer<'a>) -> Result<Self, Self::Error> {
+    fn from_vimwiki_element(
+        page_id: Id,
+        parent_id: Option<Id>,
+        element: Self::Element,
+    ) -> Result<Self, GraphqlDatabaseError> {
+        let mut ent = GraphqlDatabaseError::wrap(
+            Self::build()
+                .contents(Vec::new())
+                .page(page_id)
+                .parent(parent_id)
+                .finish_and_commit(),
+        )?;
+
         let mut contents = Vec::new();
-        for content in x.elements {
-            contents.push(InlineElement::try_from(content)?.id());
+        for content in element.into_inner().elements {
+            contents.push(
+                InlineElement::from_vimwiki_element(
+                    page_id,
+                    Some(ent.id()),
+                    content,
+                )?
+                .id(),
+            );
         }
 
-        GraphqlDatabaseError::wrap(
-            Self::build().contents(contents).finish_and_commit(),
-        )
+        ent.set_contents_ids(contents);
+        ent.commit().map_err(GraphqlDatabaseError::Database)?;
+
+        Ok(ent)
     }
 }
 
@@ -246,16 +351,32 @@ impl<'a> TryFrom<v::InlineElementContainer<'a>> for InlineContent {
 pub struct ListItemAttributes {
     #[ent(field, ext(async_graphql(filter_untyped)))]
     todo_status: Option<ListItemTodoStatus>,
+
+    /// Page containing this list item attribute set
+    #[ent(edge)]
+    page: Page,
+
+    /// Parent element to this list item attribute set
+    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    parent: Option<Element>,
 }
 
-impl TryFrom<v::ListItemAttributes> for ListItemAttributes {
-    type Error = GraphqlDatabaseError;
+impl<'a> FromVimwikiElement<'a> for ListItemAttributes {
+    type Element = Located<v::ListItemAttributes>;
 
-    fn try_from(x: v::ListItemAttributes) -> Result<Self, Self::Error> {
-        let todo_status = x.todo_status.map(ListItemTodoStatus::from);
+    fn from_vimwiki_element(
+        page_id: Id,
+        parent_id: Option<Id>,
+        element: Self::Element,
+    ) -> Result<Self, GraphqlDatabaseError> {
+        let todo_status = element.todo_status.map(ListItemTodoStatus::from);
 
         GraphqlDatabaseError::wrap(
-            Self::build().todo_status(todo_status).finish_and_commit(),
+            Self::build()
+                .todo_status(todo_status)
+                .page(page_id)
+                .parent(parent_id)
+                .finish_and_commit(),
         )
     }
 }
@@ -304,5 +425,39 @@ impl ValueLike for ListItemTodoStatus {
             Value::Text(x) => x.as_str().parse().map_err(|_| Value::Text(x)),
             x => Err(x),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use vimwiki_macros::*;
+
+    #[test]
+    fn should_fully_populate_from_vimwiki_element() {
+        global::with_db(InmemoryDatabase::default(), || {
+            let element = vimwiki_list! {r#"
+            - item 1
+            - item 2
+                - sub item 1
+                - sub item 2
+            - [ ] item 3
+            "#};
+            let region = Region::from(element.region());
+
+            let ent = List::from_vimwiki_element(999, Some(123), element)
+                .expect("Failed to convert from element");
+            assert_eq!(ent.region(), &region);
+            assert_eq!(ent.page_id(), 999);
+            assert_eq!(ent.parent_id(), Some(123));
+
+            for item in ent.load_items().expect("Failed to load items") {
+                assert_eq!(item.page_id(), 999);
+                assert_eq!(item.parent_id(), Some(ent.id()));
+            }
+
+            // TODO: Validate rest of content for proper edge trickling and
+            //       other info like fields
+        });
     }
 }

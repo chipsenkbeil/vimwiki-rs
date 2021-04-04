@@ -1,6 +1,5 @@
-use crate::data::GraphqlDatabaseError;
+use crate::data::{FromVimwikiElement, GraphqlDatabaseError};
 use entity::*;
-use std::convert::TryFrom;
 use vimwiki::{elements as v, Located};
 
 mod blockquotes;
@@ -44,41 +43,115 @@ pub enum BlockElement {
     Table(Table),
 }
 
-impl<'a> TryFrom<Located<v::BlockElement<'a>>> for BlockElement {
-    type Error = GraphqlDatabaseError;
+impl BlockElement {
+    pub fn page_id(&self) -> Id {
+        match self {
+            Self::Blockquote(x) => x.page_id(),
+            Self::DefinitionList(x) => x.page_id(),
+            Self::Divider(x) => x.page_id(),
+            Self::Header(x) => x.page_id(),
+            Self::List(x) => x.page_id(),
+            Self::Math(x) => x.page_id(),
+            Self::Paragraph(x) => x.page_id(),
+            Self::Placeholder(x) => x.page_id(),
+            Self::PreformattedText(x) => x.page_id(),
+            Self::Table(x) => x.page_id(),
+        }
+    }
 
-    fn try_from(le: Located<v::BlockElement<'a>>) -> Result<Self, Self::Error> {
-        let region = le.region();
-        Ok(match le.into_inner() {
+    pub fn parent_id(&self) -> Option<Id> {
+        match self {
+            Self::Blockquote(x) => x.parent_id(),
+            Self::DefinitionList(x) => x.parent_id(),
+            Self::Divider(x) => x.parent_id(),
+            Self::Header(x) => x.parent_id(),
+            Self::List(x) => x.parent_id(),
+            Self::Math(x) => x.parent_id(),
+            Self::Paragraph(x) => x.parent_id(),
+            Self::Placeholder(x) => x.parent_id(),
+            Self::PreformattedText(x) => x.parent_id(),
+            Self::Table(x) => x.parent_id(),
+        }
+    }
+}
+
+impl<'a> FromVimwikiElement<'a> for BlockElement {
+    type Element = Located<v::BlockElement<'a>>;
+
+    fn from_vimwiki_element(
+        page_id: Id,
+        parent_id: Option<Id>,
+        element: Self::Element,
+    ) -> Result<Self, GraphqlDatabaseError> {
+        let region = element.region();
+        Ok(match element.into_inner() {
             v::BlockElement::Header(x) => {
-                Self::from(Header::try_from(Located::new(x, region))?)
+                Self::from(Header::from_vimwiki_element(
+                    page_id,
+                    parent_id,
+                    Located::new(x, region),
+                )?)
             }
             v::BlockElement::Paragraph(x) => {
-                Self::from(Paragraph::try_from(Located::new(x, region))?)
+                Self::from(Paragraph::from_vimwiki_element(
+                    page_id,
+                    parent_id,
+                    Located::new(x, region),
+                )?)
             }
             v::BlockElement::DefinitionList(x) => {
-                Self::from(DefinitionList::try_from(Located::new(x, region))?)
+                Self::from(DefinitionList::from_vimwiki_element(
+                    page_id,
+                    parent_id,
+                    Located::new(x, region),
+                )?)
             }
-            v::BlockElement::List(x) => {
-                Self::from(List::try_from(Located::new(x, region))?)
-            }
+            v::BlockElement::List(x) => Self::from(List::from_vimwiki_element(
+                page_id,
+                parent_id,
+                Located::new(x, region),
+            )?),
             v::BlockElement::Table(x) => {
-                Self::from(Table::try_from(Located::new(x, region))?)
+                Self::from(Table::from_vimwiki_element(
+                    page_id,
+                    parent_id,
+                    Located::new(x, region),
+                )?)
             }
             v::BlockElement::PreformattedText(x) => {
-                Self::from(PreformattedText::try_from(Located::new(x, region))?)
+                Self::from(PreformattedText::from_vimwiki_element(
+                    page_id,
+                    parent_id,
+                    Located::new(x, region),
+                )?)
             }
             v::BlockElement::Math(x) => {
-                Self::from(MathBlock::try_from(Located::new(x, region))?)
+                Self::from(MathBlock::from_vimwiki_element(
+                    page_id,
+                    parent_id,
+                    Located::new(x, region),
+                )?)
             }
             v::BlockElement::Blockquote(x) => {
-                Self::from(Blockquote::try_from(Located::new(x, region))?)
+                Self::from(Blockquote::from_vimwiki_element(
+                    page_id,
+                    parent_id,
+                    Located::new(x, region),
+                )?)
             }
             v::BlockElement::Divider(x) => {
-                Self::from(Divider::try_from(Located::new(x, region))?)
+                Self::from(Divider::from_vimwiki_element(
+                    page_id,
+                    parent_id,
+                    Located::new(x, region),
+                )?)
             }
             v::BlockElement::Placeholder(x) => {
-                Self::from(Placeholder::try_from(Located::new(x, region))?)
+                Self::from(Placeholder::from_vimwiki_element(
+                    page_id,
+                    parent_id,
+                    Located::new(x, region),
+                )?)
             }
         })
     }

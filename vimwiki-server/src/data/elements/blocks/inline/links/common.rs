@@ -1,4 +1,4 @@
-use derive_more::From;
+use derive_more::{Constructor, From};
 use entity::*;
 use serde::{Deserialize, Serialize};
 use std::{convert::TryFrom, fmt, str::FromStr};
@@ -10,7 +10,7 @@ use vimwiki::{
     },
 };
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Description {
     Text(String),
     URI(Uri),
@@ -79,11 +79,26 @@ impl Description {
 
 /// Represents anchor for a link
 #[derive(
-    async_graphql::SimpleObject, Clone, Debug, Serialize, Deserialize, ValueLike,
+    async_graphql::SimpleObject,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    ValueLike,
 )]
 pub struct Anchor {
     /// The pieces of an anchor #one#two#three -> ["one", "two", "three"]
     elements: Vec<String>,
+}
+
+impl Anchor {
+    pub fn new<S: Into<String>, I: IntoIterator<S>>(elements: I) -> Self {
+        Self {
+            elements: elements.into_iter().map(Into::into).collect(),
+        }
+    }
 }
 
 impl fmt::Display for Anchor {
@@ -103,7 +118,7 @@ impl<'a> From<v::Anchor<'a>> for Anchor {
     }
 }
 
-#[derive(Clone, Debug, From, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, From, Serialize, Deserialize)]
 pub struct Date(NaiveDate);
 
 impl fmt::Display for Date {
@@ -135,7 +150,7 @@ impl ValueLike for Date {
 
 async_graphql::scalar!(Date);
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Constructor, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Uri(URI<'static>);
 
 impl fmt::Display for Uri {

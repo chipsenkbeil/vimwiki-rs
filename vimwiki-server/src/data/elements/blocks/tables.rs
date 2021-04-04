@@ -1,9 +1,10 @@
 use crate::data::{
-    GraphqlDatabaseError, InlineElement, InlineElementQuery, Region,
+    Element, ElementQuery, FromVimwikiElement, GqlPageFilter,
+    GraphqlDatabaseError, InlineElement, InlineElementQuery, Page, PageQuery,
+    Region,
 };
 use entity::*;
 use serde::{Deserialize, Serialize};
-use std::convert::TryFrom;
 use strum::{Display, EnumString};
 use vimwiki::{elements as v, Located};
 
@@ -21,27 +22,52 @@ pub struct Table {
 
     /// Whether or not the table is centered
     centered: bool,
+
+    /// Page containing this table
+    #[ent(edge)]
+    page: Page,
+
+    /// Parent element to this table
+    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    parent: Option<Element>,
 }
 
-impl<'a> TryFrom<Located<v::Table<'a>>> for Table {
-    type Error = GraphqlDatabaseError;
+impl<'a> FromVimwikiElement<'a> for Table {
+    type Element = Located<v::Table<'a>>;
 
-    fn try_from(le: Located<v::Table<'a>>) -> Result<Self, Self::Error> {
-        let region = Region::from(le.region());
-        let centered = le.as_inner().centered;
+    fn from_vimwiki_element(
+        page_id: Id,
+        parent_id: Option<Id>,
+        element: Self::Element,
+    ) -> Result<Self, GraphqlDatabaseError> {
+        let region = Region::from(element.region());
+        let centered = element.as_inner().centered;
 
-        let mut rows = Vec::new();
-        for (pos, row) in le.into_inner().rows.into_iter().enumerate() {
-            rows.push(Row::try_from_at_pos(pos as i32, row)?.id());
-        }
-
-        GraphqlDatabaseError::wrap(
+        let mut ent = GraphqlDatabaseError::wrap(
             Self::build()
                 .region(region)
                 .centered(centered)
-                .rows(rows)
+                .rows(Vec::new())
                 .finish_and_commit(),
-        )
+        )?;
+
+        let mut rows = Vec::new();
+        for (pos, row) in element.into_inner().rows.into_iter().enumerate() {
+            rows.push(
+                Row::from_vimwiki_element_from_at_pos(
+                    page_id,
+                    Some(ent.id()),
+                    pos as i32,
+                    row,
+                )?
+                .id(),
+            );
+        }
+
+        ent.set_rows_ids(rows);
+        ent.commit().map_err(GraphqlDatabaseError::Database)?;
+
+        Ok(ent)
     }
 }
 
@@ -54,7 +80,25 @@ pub enum Row {
 }
 
 impl Row {
-    fn try_from_at_pos(
+    pub fn page_id(&self) -> Id {
+        match self {
+            Self::Content(x) => x.page_id(),
+            Self::Divider(x) => x.page_id(),
+        }
+    }
+
+    pub fn parent_id(&self) -> Option<Id> {
+        match self {
+            Self::Content(x) => x.parent_id(),
+            Self::Divider(x) => x.parent_id(),
+        }
+    }
+}
+
+impl Row {
+    fn from_vimwiki_element_at_pos(
+        page_id: Id,
+        parent_id: Option<Id>,
         position: i32,
         le: Located<v::Row>,
     ) -> Result<Self, GraphqlDatabaseError> {
@@ -62,20 +106,34 @@ impl Row {
 
         Ok(match le.into_inner() {
             v::Row::Content { cells } => {
-                let mut cell_ids = Vec::new();
-                for (pos, cell) in cells.into_iter().enumerate() {
-                    cell_ids.push(
-                        Cell::try_from_at_pos(position, pos as i32, cell)?.id(),
-                    );
-                }
-
-                Self::from(GraphqlDatabaseError::wrap(
+                let mut ent = Self::from(GraphqlDatabaseError::wrap(
                     ContentRow::build()
                         .region(region)
                         .position(position)
-                        .cells(cell_ids)
+                        .cells(Vec::new())
+                        .page(page_id)
+                        .parent(parent_id)
                         .finish_and_commit(),
-                )?)
+                )?);
+
+                let mut cell_ids = Vec::new();
+                for (pos, cell) in cells.into_iter().enumerate() {
+                    cell_ids.push(
+                        Cell::from_vimwiki_element_at_pos(
+                            page_id,
+                            Some(ent.id()),
+                            position,
+                            pos as i32,
+                            cell,
+                        )?
+                        .id(),
+                    );
+                }
+
+                ent.set_cells_ids(cell_ids);
+                ent.commit().map_err(GraphqlDatabaseError::Database)?;
+
+                Ok(ent)
             }
             v::Row::Divider { columns } => {
                 Self::from(GraphqlDatabaseError::wrap(
@@ -88,6 +146,8 @@ impl Row {
                                 .map(ColumnAlign::from)
                                 .collect(),
                         )
+                        .page(page_id)
+                        .parent(parent_id)
                         .finish_and_commit(),
                 )?)
             }
@@ -110,6 +170,14 @@ pub struct DividerRow {
     /// The alignment of each column according to this divider
     #[ent(field, ext(async_graphql(filter_untyped)))]
     columns: Vec<ColumnAlign>,
+
+    /// Page containing this row
+    #[ent(edge)]
+    page: Page,
+
+    /// Parent element to this row
+    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    parent: Option<Element>,
 }
 
 #[derive(
@@ -164,6 +232,14 @@ pub struct ContentRow {
     /// The cells contained within this row
     #[ent(edge(policy = "deep", wrap), ext(async_graphql(filter_untyped)))]
     cells: Vec<Cell>,
+
+    /// Page containing this row
+    #[ent(edge)]
+    page: Page,
+
+    /// Parent element to this row
+    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    parent: Option<Element>,
 }
 
 /// Represents a cell within a row
@@ -176,7 +252,27 @@ pub enum Cell {
 }
 
 impl Cell {
-    fn try_from_at_pos(
+    pub fn page_id(&self) -> Id {
+        match self {
+            Self::Content(x) => x.page_id(),
+            Self::SpanLeft(x) => x.page_id(),
+            Self::SpanAbove(x) => x.page_id(),
+        }
+    }
+
+    pub fn parent_id(&self) -> Option<Id> {
+        match self {
+            Self::Content(x) => x.parent_id(),
+            Self::SpanLeft(x) => x.parent_id(),
+            Self::SpanAbove(x) => x.parent_id(),
+        }
+    }
+}
+
+impl Cell {
+    fn from_vimwiki_element_at_pos(
+        page_id: Id,
+        parent_id: Option<Id>,
         row_position: i32,
         position: i32,
         le: Located<v::Cell>,
@@ -184,24 +280,40 @@ impl Cell {
         let region = Region::from(le.region());
         Ok(match le.into_inner() {
             v::Cell::Content(x) => {
-                let mut contents = Vec::new();
-                for content in x.elements {
-                    contents.push(InlineElement::try_from(content)?.id());
-                }
-
-                Self::from(GraphqlDatabaseError::wrap(
+                let mut ent = Self::from(GraphqlDatabaseError::wrap(
                     ContentCell::build()
                         .region(region)
                         .row_position(row_position)
-                        .contents(contents)
+                        .contents(Vec::new())
+                        .page(page_id)
+                        .parent(parent_id)
                         .finish_and_commit(),
-                )?)
+                )?);
+
+                let mut contents = Vec::new();
+                for content in x.elements {
+                    contents.push(
+                        InlineElement::from_vimwiki_element(
+                            page_id,
+                            Some(ent.id()),
+                            content,
+                        )?
+                        .id(),
+                    );
+                }
+
+                ent.set_contents_ids(contents);
+                ent.commit().map_err(GraphqlDatabaseError::Database)?;
+
+                Ok(ent)
             }
             v::Cell::SpanAbove => Self::from(GraphqlDatabaseError::wrap(
                 SpanAboveCell::build()
                     .region(region)
                     .row_position(row_position)
                     .position(position)
+                    .page(page_id)
+                    .parent(parent_id)
                     .finish_and_commit(),
             )?),
             v::Cell::SpanLeft => Self::from(GraphqlDatabaseError::wrap(
@@ -209,6 +321,8 @@ impl Cell {
                     .region(region)
                     .row_position(row_position)
                     .position(position)
+                    .page(page_id)
+                    .parent(parent_id)
                     .finish_and_commit(),
             )?),
         })
@@ -232,6 +346,14 @@ pub struct ContentCell {
     /// Contents within the cell
     #[ent(edge(policy = "deep", wrap), ext(async_graphql(filter_untyped)))]
     contents: Vec<InlineElement>,
+
+    /// Page containing this cell
+    #[ent(edge)]
+    page: Page,
+
+    /// Parent element to this cell
+    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    parent: Option<Element>,
 }
 
 /// Represents a cell with no content that spans the left cell
@@ -247,6 +369,14 @@ pub struct SpanLeftCell {
 
     /// The position of this cell's row amongst all rows in the table
     row_position: i32,
+
+    /// Page containing this cell
+    #[ent(edge)]
+    page: Page,
+
+    /// Parent element to this cell
+    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    parent: Option<Element>,
 }
 
 /// Represents a cell with no content that spans the above row
@@ -262,4 +392,67 @@ pub struct SpanAboveCell {
 
     /// The position of this cell's row amongst all rows in the table
     row_position: i32,
+
+    /// Page containing this cell
+    #[ent(edge)]
+    page: Page,
+
+    /// Parent element to this cell
+    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    parent: Option<Element>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use vimwiki_macros::*;
+
+    #[test]
+    fn should_fully_populate_from_vimwiki_element() {
+        global::with_db(InmemoryDatabase::default(), || {
+            let element = vimwiki_table! {r#"
+                |value1|value2|value3|value4|
+                |------|:-----|-----:|:----:|
+            "#};
+            let region = Region::from(element.region());
+            let ent = Table::from_vimwiki_element(999, Some(123), element)
+                .expect("Failed to convert from element");
+
+            assert_eq!(ent.region(), &region);
+            assert_eq!(ent.centered(), false);
+            assert_eq!(ent.page_id(), 999);
+            assert_eq!(ent.parent_id(), Some(123));
+
+            let rows = ent.load_rows().expect("Failed to load rows");
+
+            match rows[0] {
+                Row::Content(row) => {
+                    assert_eq!(row.page_id(), 999);
+                    assert_eq!(row.parent_id(), Some(ent.id()));
+
+                    let cells = row.load_cells().expect("Failed to load cells");
+                    for cell in cells {
+                        assert_eq!(cell.page_id(), 999);
+                        assert_eq!(cell.parent_id(), Some(row.id()));
+                    }
+                }
+                x => panic!("Unexpectedly got {:?}", x),
+            }
+
+            match rows[1] {
+                Row::Divider(row) => {
+                    assert_eq!(row.page_id(), 999);
+                    assert_eq!(row.parent_id(), Some(ent.id()));
+
+                    let columns =
+                        row.load_columns().expect("Failed to load columns");
+                    for column in columns {
+                        assert_eq!(column.page_id(), 999);
+                        assert_eq!(column.parent_id(), Some(row.id()));
+                    }
+                }
+                x => panic!("Unexpectedly got {:?}", x),
+            }
+        });
+    }
 }

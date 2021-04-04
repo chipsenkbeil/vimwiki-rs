@@ -1,6 +1,9 @@
-use crate::data::{Anchor, GraphqlDatabaseError, Description, Region};
+use crate::data::{
+    Anchor, Description, Element, ElementQuery, FromVimwikiElement,
+    GqlPageFilter, GraphqlDatabaseError, Page, PageQuery, Region,
+};
 use entity::*;
-use std::{convert::TryFrom, fmt};
+use std::fmt;
 use vimwiki::{elements as v, Located};
 
 /// Represents a single document wiki link
@@ -28,6 +31,14 @@ pub struct WikiLink {
     /// Optional anchor associated with the link
     #[ent(field, ext(async_graphql(filter_untyped)))]
     anchor: Option<Anchor>,
+
+    /// Page containing the element
+    #[ent(edge)]
+    page: Page,
+
+    /// Parent element to this element
+    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    parent: Option<Element>,
 }
 
 impl fmt::Display for WikiLink {
@@ -39,12 +50,16 @@ impl fmt::Display for WikiLink {
     }
 }
 
-impl<'a> TryFrom<Located<v::WikiLink<'a>>> for WikiLink {
-    type Error = GraphqlDatabaseError;
+impl<'a> FromVimwikiElement<'a> for WikiLink {
+    type Element = Located<v::WikiLink<'a>>;
 
-    fn try_from(le: Located<v::WikiLink<'a>>) -> Result<Self, Self::Error> {
-        let region = Region::from(le.region());
-        let element = le.into_inner();
+    fn from_vimwiki_element(
+        page_id: Id,
+        parent_id: Option<Id>,
+        element: Self::Element,
+    ) -> Result<Self, GraphqlDatabaseError> {
+        let region = Region::from(element.region());
+        let element = element.into_inner();
         GraphqlDatabaseError::wrap(
             Self::build()
                 .region(region)
@@ -53,7 +68,36 @@ impl<'a> TryFrom<Located<v::WikiLink<'a>>> for WikiLink {
                 .path(element.path.to_string_lossy().to_string())
                 .description(element.description.map(Description::from))
                 .anchor(element.anchor.map(Anchor::from))
+                .page(page_id)
+                .parent(parent_id)
                 .finish_and_commit(),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use vimwiki_macros::*;
+
+    #[test]
+    fn should_fully_populate_from_vimwiki_element() {
+        global::with_db(InmemoryDatabase::default(), || {
+            let element =
+                vimwiki_wiki_link!(r#"[[some path#one#two|Some description]]"#);
+            let region = Region::from(element.region());
+            let ent = WikiLink::from_vimwiki_element(999, Some(123), element)
+                .expect("Failed to convert from element");
+
+            assert_eq!(ent.region(), &region);
+            assert_eq!(ent.path(), "some path");
+            assert_eq!(
+                ent.descripton(),
+                Some(Description::Text(String::from("Some description")))
+            );
+            assert_eq!(ent.anchor(), Some(Anchor::new(vec!["one", "two"])));
+            assert_eq!(ent.page_id(), 999);
+            assert_eq!(ent.parent_id(), Some(123));
+        });
     }
 }

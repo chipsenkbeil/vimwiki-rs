@@ -1,6 +1,9 @@
-use crate::data::{Anchor, GraphqlDatabaseError, Description, Region};
+use crate::data::{
+    Anchor, Description, Element, ElementQuery, FromVimwikiElement,
+    GqlPageFilter, GraphqlDatabaseError, Page, PageQuery, Region,
+};
 use entity::*;
-use std::{convert::TryFrom, fmt};
+use std::fmt;
 use vimwiki::{elements as v, Located};
 
 /// Represents a single document wiki link within another wiki
@@ -32,6 +35,14 @@ pub struct IndexedInterWikiLink {
     /// Optional anchor associated with the link
     #[ent(field, ext(async_graphql(filter_untyped)))]
     anchor: Option<Anchor>,
+
+    /// Page containing the element
+    #[ent(edge)]
+    page: Page,
+
+    /// Parent element to this element
+    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    parent: Option<Element>,
 }
 
 impl fmt::Display for IndexedInterWikiLink {
@@ -43,16 +54,16 @@ impl fmt::Display for IndexedInterWikiLink {
     }
 }
 
-impl<'a> TryFrom<Located<v::IndexedInterWikiLink<'a>>>
-    for IndexedInterWikiLink
-{
-    type Error = GraphqlDatabaseError;
+impl<'a> FromVimwikiElement<'a> for IndexedInterWikiLink {
+    type Element = Located<v::IndexedInterWikiLink<'a>>;
 
-    fn try_from(
-        le: Located<v::IndexedInterWikiLink<'a>>,
-    ) -> Result<Self, Self::Error> {
-        let region = Region::from(le.region());
-        let element = le.into_inner();
+    fn from_vimwiki_element(
+        page_id: Id,
+        parent_id: Option<Id>,
+        element: Self::Element,
+    ) -> Result<Self, GraphqlDatabaseError> {
+        let region = Region::from(element.region());
+        let element = element.into_inner();
 
         GraphqlDatabaseError::wrap(
             Self::build()
@@ -63,6 +74,8 @@ impl<'a> TryFrom<Located<v::IndexedInterWikiLink<'a>>>
                 .path(element.link.path.to_string_lossy().to_string())
                 .description(element.link.description.map(Description::from))
                 .anchor(element.link.anchor.map(Anchor::from))
+                .page(page_id)
+                .parent(parent_id)
                 .finish_and_commit(),
         )
     }
@@ -97,6 +110,14 @@ pub struct NamedInterWikiLink {
     /// Optional anchor associated with the link
     #[ent(field, ext(async_graphql(filter_untyped)))]
     anchor: Option<Anchor>,
+
+    /// Page containing the element
+    #[ent(edge)]
+    page: Page,
+
+    /// Parent element to this element
+    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    parent: Option<Element>,
 }
 
 impl fmt::Display for NamedInterWikiLink {
@@ -108,14 +129,16 @@ impl fmt::Display for NamedInterWikiLink {
     }
 }
 
-impl<'a> TryFrom<Located<v::NamedInterWikiLink<'a>>> for NamedInterWikiLink {
-    type Error = GraphqlDatabaseError;
+impl<'a> FromVimwikiElement<'a> for NamedInterWikiLink {
+    type Element = Located<v::NamedInterWikiLink<'a>>;
 
-    fn try_from(
-        le: Located<v::NamedInterWikiLink<'a>>,
-    ) -> Result<Self, Self::Error> {
-        let region = Region::from(le.region());
-        let element = le.into_inner();
+    fn from_vimwiki_element(
+        page_id: Id,
+        parent_id: Option<Id>,
+        element: Self::Element,
+    ) -> Result<Self, GraphqlDatabaseError> {
+        let region = Region::from(element.region());
+        let element = element.into_inner();
 
         GraphqlDatabaseError::wrap(
             Self::build()
@@ -126,7 +149,67 @@ impl<'a> TryFrom<Located<v::NamedInterWikiLink<'a>>> for NamedInterWikiLink {
                 .path(element.link.path.to_string_lossy().to_string())
                 .description(element.link.description.map(Description::from))
                 .anchor(element.link.anchor.map(Anchor::from))
+                .page(page_id)
+                .parent(parent_id)
                 .finish_and_commit(),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use vimwiki_macros::*;
+
+    #[test]
+    fn indexed_interwiki_link_should_fully_populate_from_vimwiki_element() {
+        global::with_db(InmemoryDatabase::default(), || {
+            let element = vimwiki_inter_wiki_link!(
+                r#"wiki1:Link Path#one#two|Some description"#
+            );
+            let region = Region::from(element.region());
+            let ent = IndexedInterWikiLink::from_vimwiki_element(
+                999,
+                Some(123),
+                element,
+            )
+            .expect("Failed to convert from element");
+
+            assert_eq!(ent.region(), &region);
+            assert_eq!(ent.path(), "Link Path");
+            assert_eq!(
+                ent.descripton(),
+                Some(Description::Text(String::from("Some description")))
+            );
+            assert_eq!(ent.anchor(), Some(Anchor::new(vec!["one", "two"])));
+            assert_eq!(ent.page_id(), 999);
+            assert_eq!(ent.parent_id(), Some(123));
+        });
+    }
+
+    #[test]
+    fn named_interwiki_link_should_fully_populate_from_vimwiki_element() {
+        global::with_db(InmemoryDatabase::default(), || {
+            let element = vimwiki_inter_wiki_link!(
+                r#"wn.Some Name:Link Path#one#two|Some description"#
+            );
+            let region = Region::from(element.region());
+            let ent = NamedInterWikiLink::from_vimwiki_element(
+                999,
+                Some(123),
+                element,
+            )
+            .expect("Failed to convert from element");
+
+            assert_eq!(ent.region(), &region);
+            assert_eq!(ent.path(), "Link Path");
+            assert_eq!(
+                ent.descripton(),
+                Some(Description::Text(String::from("Some description")))
+            );
+            assert_eq!(ent.anchor(), Some(Anchor::new(vec!["one", "two"])));
+            assert_eq!(ent.page_id(), 999);
+            assert_eq!(ent.parent_id(), Some(123));
+        });
     }
 }

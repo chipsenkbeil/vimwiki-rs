@@ -1,7 +1,6 @@
-use crate::data::GraphqlDatabaseError;
+use crate::data::{FromVimwikiElement, GraphqlDatabaseError};
 use derive_more::Display;
 use entity::*;
-use std::convert::TryFrom;
 use vimwiki::{elements as v, Located};
 
 mod common;
@@ -37,37 +36,87 @@ pub enum Link {
     Transclusion(TransclusionLink),
 }
 
-impl<'a> TryFrom<Located<v::Link<'a>>> for Link {
-    type Error = GraphqlDatabaseError;
+impl Link {
+    pub fn page_id(&self) -> Id {
+        match self {
+            Self::Wiki(x) => x.page_id(),
+            Self::IndexedInterWiki(x) => x.page_id(),
+            Self::NamedInterWiki(x) => x.page_id(),
+            Self::Diary(x) => x.page_id(),
+            Self::Raw(x) => x.page_id(),
+            Self::ExternalFile(x) => x.page_id(),
+            Self::Transclusion(x) => x.page_id(),
+        }
+    }
 
-    fn try_from(le: Located<v::Link<'a>>) -> Result<Self, Self::Error> {
-        let region = le.region();
-        Ok(match le.into_inner() {
-            v::Link::Wiki(x) => {
-                Self::Wiki(WikiLink::try_from(Located::new(x, region))?)
-            }
+    pub fn parent_id(&self) -> Option<Id> {
+        match self {
+            Self::Wiki(x) => x.parent_id(),
+            Self::IndexedInterWiki(x) => x.parent_id(),
+            Self::NamedInterWiki(x) => x.parent_id(),
+            Self::Diary(x) => x.parent_id(),
+            Self::Raw(x) => x.parent_id(),
+            Self::ExternalFile(x) => x.parent_id(),
+            Self::Transclusion(x) => x.parent_id(),
+        }
+    }
+}
+
+impl<'a> FromVimwikiElement<'a> for Link {
+    type Element = Located<v::Link<'a>>;
+
+    fn from_vimwiki_element(
+        page_id: Id,
+        parent_id: Option<Id>,
+        element: Self::Element,
+    ) -> Result<Self, GraphqlDatabaseError> {
+        let region = element.region();
+        Ok(match element.into_inner() {
+            v::Link::Wiki(x) => Self::Wiki(WikiLink::from_vimwiki_element(
+                page_id,
+                parent_id,
+                Located::new(x, region),
+            )?),
             v::Link::InterWiki(v::InterWikiLink::Indexed(x)) => {
-                Self::IndexedInterWiki(IndexedInterWikiLink::try_from(
-                    Located::new(x, region),
-                )?)
+                Self::IndexedInterWiki(
+                    IndexedInterWikiLink::from_vimwiki_element(
+                        page_id,
+                        parent_id,
+                        Located::new(x, region),
+                    )?,
+                )
             }
             v::Link::InterWiki(v::InterWikiLink::Named(x)) => {
-                Self::NamedInterWiki(NamedInterWikiLink::try_from(
+                Self::NamedInterWiki(NamedInterWikiLink::from_vimwiki_element(
+                    page_id,
+                    parent_id,
                     Located::new(x, region),
                 )?)
             }
-            v::Link::Diary(x) => {
-                Self::Diary(DiaryLink::try_from(Located::new(x, region))?)
+            v::Link::Diary(x) => Self::Diary(DiaryLink::from_vimwiki_element(
+                page_id,
+                parent_id,
+                Located::new(x, region),
+            )?),
+            v::Link::Raw(x) => Self::Raw(RawLink::from_vimwiki_element(
+                page_id,
+                parent_id,
+                Located::new(x, region),
+            )?),
+            v::Link::ExternalFile(x) => {
+                Self::ExternalFile(ExternalFileLink::from_vimwiki_element(
+                    page_id,
+                    parent_id,
+                    Located::new(x, region),
+                )?)
             }
-            v::Link::Raw(x) => {
-                Self::Raw(RawLink::try_from(Located::new(x, region))?)
+            v::Link::Transclusion(x) => {
+                Self::Transclusion(TransclusionLink::from_vimwiki_element(
+                    page_id,
+                    parent_id,
+                    Located::new(x, region),
+                )?)
             }
-            v::Link::ExternalFile(x) => Self::ExternalFile(
-                ExternalFileLink::try_from(Located::new(x, region))?,
-            ),
-            v::Link::Transclusion(x) => Self::Transclusion(
-                TransclusionLink::try_from(Located::new(x, region))?,
-            ),
         })
     }
 }

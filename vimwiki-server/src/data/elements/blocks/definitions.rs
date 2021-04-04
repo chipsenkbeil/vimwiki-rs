@@ -1,8 +1,10 @@
 use crate::data::{
-    GraphqlDatabaseError, InlineElement, InlineElementQuery, Region,
+    Element, ElementQuery, FromVimwikiElement, GqlPageFilter,
+    GraphqlDatabaseError, InlineElement, InlineElementQuery, Page, PageQuery,
+    Region,
 };
 use entity::*;
-use std::{convert::TryFrom, fmt};
+use std::fmt;
 use vimwiki::{elements as v, Located};
 
 #[simple_ent]
@@ -16,6 +18,14 @@ pub struct DefinitionList {
 
     #[ent(edge(policy = "deep"))]
     definitions: Vec<Definition>,
+
+    /// Page containing the element
+    #[ent(edge)]
+    page: Page,
+
+    /// Parent element to this element
+    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    parent: Option<Element>,
 }
 
 /// Represents a single list of terms & definitions in a document
@@ -53,24 +63,64 @@ impl DefinitionList {
         }
         Ok(Vec::new())
     }
+
+    /// The page containing this definition list
+    #[graphql(name = "page")]
+    async fn gql_page(&self) -> async_graphql::Result<Page> {
+        self.load_page()
+            .map_err(|x| async_graphql::Error::new(x.to_string()))
+    }
+
+    /// The parent element containing this definition list
+    #[graphql(name = "parent")]
+    async fn gql_parent(&self) -> async_graphql::Result<Option<Element>> {
+        self.load_parent()
+            .map_err(|x| async_graphql::Error::new(x.to_string()))
+    }
 }
 
-impl<'a> TryFrom<Located<v::DefinitionList<'a>>> for DefinitionList {
-    type Error = GraphqlDatabaseError;
+impl<'a> FromVimwikiElement<'a> for DefinitionList {
+    type Element = Located<v::DefinitionList<'a>>;
 
-    fn try_from(
-        le: Located<v::DefinitionList<'a>>,
-    ) -> Result<Self, Self::Error> {
-        let region = Region::from(le.region());
+    fn from_vimwiki_element(
+        page_id: Id,
+        parent_id: Option<Id>,
+        element: Self::Element,
+    ) -> Result<Self, GraphqlDatabaseError> {
+        let region = Region::from(element.region());
 
+        // First, create a definition list that has no terms or definitions
+        // so we can get its id to use as the parent for each of those
+        let mut definition_list = GraphqlDatabaseError::wrap(
+            Self::build()
+                .region(region)
+                .terms(Vec::new())
+                .definitions(Vec::new())
+                .page(page_id)
+                .parent(parent_id)
+                .finish_and_commit(),
+        )?;
+
+        // Second, create all of the children terms and definitions
         let mut terms: Vec<Id> = Vec::new();
         let mut definitions: Vec<Id> = Vec::new();
-        for (term, defs) in le.into_inner() {
-            let mut ent_term = Term::try_from(term)?;
+        for (term, defs) in element.into_inner() {
+            let mut ent_term = Term::from_vimwiki_element(
+                page_id,
+                Some(definition_list.id()),
+                term,
+            )?;
 
             let mut ent_def_ids: Vec<Id> = Vec::new();
             for def in defs {
-                ent_def_ids.push(Definition::try_from(def)?.id());
+                ent_def_ids.push(
+                    Definition::from_vimwiki_element(
+                        page_id,
+                        Some(definition_list.id()),
+                        def,
+                    )?
+                    .id(),
+                );
             }
 
             // NOTE: When first created, the ent term won't have any definitions
@@ -83,13 +133,14 @@ impl<'a> TryFrom<Located<v::DefinitionList<'a>>> for DefinitionList {
             definitions.extend(ent_def_ids);
         }
 
-        GraphqlDatabaseError::wrap(
-            Self::build()
-                .region(region)
-                .terms(terms)
-                .definitions(definitions)
-                .finish_and_commit(),
-        )
+        // Third, update the definition list with the created term and definition ids
+        definition_list.set_terms_ids(terms);
+        definition_list.set_definitions_ids(definitions);
+        definition_list
+            .commit()
+            .map_err(GraphqlDatabaseError::Database)?;
+
+        Ok(definition_list)
     }
 }
 
@@ -104,6 +155,14 @@ pub struct Term {
 
     #[ent(edge(policy = "deep"))]
     definitions: Vec<Definition>,
+
+    /// Page containing the element
+    #[ent(edge)]
+    page: Page,
+
+    /// Parent element to this element
+    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    parent: Option<Element>,
 }
 
 #[async_graphql::Object]
@@ -133,6 +192,20 @@ impl Term {
         self.load_definitions()
             .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
+
+    /// The page containing this term
+    #[graphql(name = "page")]
+    async fn gql_page(&self) -> async_graphql::Result<Page> {
+        self.load_page()
+            .map_err(|x| async_graphql::Error::new(x.to_string()))
+    }
+
+    /// The parent element containing this term
+    #[graphql(name = "parent")]
+    async fn gql_parent(&self) -> async_graphql::Result<Option<Element>> {
+        self.load_parent()
+            .map_err(|x| async_graphql::Error::new(x.to_string()))
+    }
 }
 
 impl fmt::Display for Term {
@@ -152,26 +225,44 @@ impl fmt::Display for Term {
     }
 }
 
-impl<'a> TryFrom<Located<v::Term<'a>>> for Term {
-    type Error = GraphqlDatabaseError;
+impl<'a> FromVimwikiElement<'a> for Term {
+    type Element = Located<v::Term<'a>>;
 
-    fn try_from(le: Located<v::Term<'a>>) -> Result<Self, Self::Error> {
-        let region = Region::from(le.region());
-
-        let mut contents = Vec::new();
-        for content in le.into_inner().into_inner().elements {
-            contents.push(InlineElement::try_from(content)?.id());
-        }
+    fn from_vimwiki_element(
+        page_id: Id,
+        parent_id: Option<Id>,
+        element: Self::Element,
+    ) -> Result<Self, GraphqlDatabaseError> {
+        let region = Region::from(element.region());
 
         // NOTE: We are not populating definitions here because the vimwiki
         //       Term does not have a connection by itself
-        GraphqlDatabaseError::wrap(
+        let mut term = GraphqlDatabaseError::wrap(
             Self::build()
                 .region(region)
-                .contents(contents)
+                .contents(Vec::new())
                 .definitions(Vec::new())
+                .page(page_id)
+                .parent(parent_id)
                 .finish_and_commit(),
-        )
+        )?;
+
+        let mut contents = Vec::new();
+        for content in element.into_inner().into_inner().elements {
+            contents.push(
+                InlineElement::from_vimwiki_element(
+                    page_id,
+                    Some(term.id()),
+                    content,
+                )?
+                .id(),
+            );
+        }
+
+        term.set_contents_ids(contents);
+        term.commit().map_err(GraphqlDatabaseError::Database)?;
+
+        Ok(term)
     }
 }
 
@@ -183,6 +274,14 @@ pub struct Definition {
 
     #[ent(edge(policy = "deep", wrap), ext(async_graphql(filter_untyped)))]
     contents: Vec<InlineElement>,
+
+    /// Page containing the element
+    #[ent(edge)]
+    page: Page,
+
+    /// Parent element to this element
+    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    parent: Option<Element>,
 }
 
 #[async_graphql::Object]
@@ -206,6 +305,20 @@ impl Definition {
     async fn gql_text(&self) -> String {
         self.to_string()
     }
+
+    /// The page containing this definition
+    #[graphql(name = "page")]
+    async fn gql_page(&self) -> async_graphql::Result<Page> {
+        self.load_page()
+            .map_err(|x| async_graphql::Error::new(x.to_string()))
+    }
+
+    /// The parent element containing this definition
+    #[graphql(name = "parent")]
+    async fn gql_parent(&self) -> async_graphql::Result<Option<Element>> {
+        self.load_parent()
+            .map_err(|x| async_graphql::Error::new(x.to_string()))
+    }
 }
 
 impl fmt::Display for Definition {
@@ -225,23 +338,43 @@ impl fmt::Display for Definition {
     }
 }
 
-impl<'a> TryFrom<Located<v::Definition<'a>>> for Definition {
-    type Error = GraphqlDatabaseError;
+impl<'a> FromVimwikiElement<'a> for Definition {
+    type Element = Located<v::Definition<'a>>;
 
-    fn try_from(le: Located<v::Definition<'a>>) -> Result<Self, Self::Error> {
-        let region = Region::from(le.region());
+    fn from_vimwiki_element(
+        page_id: Id,
+        parent_id: Option<Id>,
+        element: Self::Element,
+    ) -> Result<Self, GraphqlDatabaseError> {
+        let region = Region::from(element.region());
 
-        let mut contents = Vec::new();
-        for content in le.into_inner().into_inner().elements {
-            contents.push(InlineElement::try_from(content)?.id());
-        }
-
-        GraphqlDatabaseError::wrap(
+        let mut definition = GraphqlDatabaseError::wrap(
             Self::build()
                 .region(region)
-                .contents(contents)
+                .contents(Vec::new())
+                .page(page_id)
+                .parent(parent_id)
                 .finish_and_commit(),
-        )
+        )?;
+
+        let mut contents = Vec::new();
+        for content in element.into_inner().into_inner().elements {
+            contents.push(
+                InlineElement::from_vimwiki_element(
+                    page_id,
+                    Some(definition.id()),
+                    content,
+                )?
+                .id(),
+            );
+        }
+
+        definition.set_contents_ids(contents);
+        definition
+            .commit()
+            .map_err(GraphqlDatabaseError::Database)?;
+
+        Ok(definition)
     }
 }
 
@@ -251,7 +384,7 @@ mod tests {
     use vimwiki_macros::*;
 
     #[test]
-    fn definition_list_should_fully_populate_from_vimwiki_element() {
+    fn should_fully_populate_from_vimwiki_element() {
         global::with_db(InmemoryDatabase::default(), || {
             let element = vimwiki_definition_list! {r#"
                     term1:: definition 1
@@ -261,9 +394,12 @@ mod tests {
                 "#};
             let region = Region::from(element.region());
 
-            let ent = DefinitionList::try_from(element)
-                .expect("Failed to convert from element");
+            let ent =
+                DefinitionList::from_vimwiki_element(999, Some(123), element)
+                    .expect("Failed to convert from element");
             assert_eq!(ent.region(), &region);
+            assert_eq!(ent.page_id(), 999);
+            assert_eq!(ent.parent_id(), Some(123));
 
             let mut terms = ent.load_terms().expect("Failed to load terms");
             let mut defs =
@@ -272,6 +408,29 @@ mod tests {
             // NOTE: Sorting to ensure that term1 comes before term2
             terms.sort_unstable_by_key(|k| k.to_string());
             defs.sort_unstable_by_key(|k| k.to_string());
+
+            // Verify that all children have same page and parent
+            for term in terms.iter() {
+                assert_eq!(term.page_id(), 999);
+                assert_eq!(term.parent_id(), Some(ent.id()));
+                for content in
+                    term.load_contents().expect("Failed to load term contents")
+                {
+                    assert_eq!(content.page_id(), 999);
+                    assert_eq!(content.parent_id(), Some(term.id()));
+                }
+            }
+            for def in defs.iter() {
+                assert_eq!(def.page_id(), 999);
+                assert_eq!(def.parent_id(), Some(ent.id()));
+                for content in def
+                    .load_contents()
+                    .expect("Failed to load definition contents")
+                {
+                    assert_eq!(content.page_id(), 999);
+                    assert_eq!(content.parent_id(), Some(def.id()));
+                }
+            }
 
             macro_rules! assert_contains_same {
                 ($t:ty, $a:expr, $b:expr) => {{
