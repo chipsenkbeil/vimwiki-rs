@@ -168,6 +168,13 @@ mod tests {
                 r#"[[wiki1:Link Path#one#two|Some description]]"#
             );
             let region = Region::from(element.region());
+            let element = {
+                let region = element.region();
+                match element.into_inner() {
+                    v::InterWikiLink::Indexed(x) => Located::new(x, region),
+                    x => panic!("Got wrong link: {:?}", x),
+                }
+            };
             let ent = IndexedInterWikiLink::from_vimwiki_element(
                 999,
                 Some(123),
@@ -178,10 +185,10 @@ mod tests {
             assert_eq!(ent.region(), &region);
             assert_eq!(ent.path(), "Link Path");
             assert_eq!(
-                ent.descripton(),
-                Some(Description::Text(String::from("Some description")))
+                ent.description(),
+                &Some(Description::Text(String::from("Some description")))
             );
-            assert_eq!(ent.anchor(), Some(Anchor::new(vec!["one", "two"])));
+            assert_eq!(ent.anchor(), &Some(Anchor::new(vec!["one", "two"])));
             assert_eq!(ent.page_id(), 999);
             assert_eq!(ent.parent_id(), Some(123));
         });
@@ -194,6 +201,13 @@ mod tests {
                 r#"[[wn.Some Name:Link Path#one#two|Some description]]"#
             );
             let region = Region::from(element.region());
+            let element = {
+                let region = element.region();
+                match element.into_inner() {
+                    v::InterWikiLink::Named(x) => Located::new(x, region),
+                    x => panic!("Got wrong link: {:?}", x),
+                }
+            };
             let ent = NamedInterWikiLink::from_vimwiki_element(
                 999,
                 Some(123),
@@ -204,10 +218,10 @@ mod tests {
             assert_eq!(ent.region(), &region);
             assert_eq!(ent.path(), "Link Path");
             assert_eq!(
-                ent.descripton(),
-                Some(Description::Text(String::from("Some description")))
+                ent.description(),
+                &Some(Description::Text(String::from("Some description")))
             );
-            assert_eq!(ent.anchor(), Some(Anchor::new(vec!["one", "two"])));
+            assert_eq!(ent.anchor(), &Some(Anchor::new(vec!["one", "two"])));
             assert_eq!(ent.page_id(), 999);
             assert_eq!(ent.parent_id(), Some(123));
         });

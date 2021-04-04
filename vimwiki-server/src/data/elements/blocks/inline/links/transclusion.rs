@@ -109,14 +109,17 @@ mod tests {
                     .expect("Failed to convert from element");
 
             assert_eq!(ent.region(), &region);
-            assert_eq!(ent.uri(), "https://example.com/pic.png".parse::<Uri>());
             assert_eq!(
-                ent.descripton(),
-                Some(Description::Text(String::from("Some description")))
+                ent.uri(),
+                &"https://example.com/pic.png".parse::<Uri>().unwrap()
+            );
+            assert_eq!(
+                ent.description(),
+                &Some(Description::Text(String::from("Some description")))
             );
             assert_eq!(
                 ent.properties(),
-                vec![Property {
+                &vec![Property {
                     key: "class".to_string(),
                     value: "some class".to_string(),
                 }]

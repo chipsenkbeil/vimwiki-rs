@@ -116,7 +116,7 @@ mod tests {
                 .expect("Failed to convert from element");
 
             assert_eq!(ent.lines(), &["math".to_string(),]);
-            assert_eq!(ent.environment(), Some("align".to_string()));
+            assert_eq!(ent.environment(), &Some("align".to_string()));
             assert_eq!(ent.region(), &region);
             assert_eq!(ent.page_id(), 999);
             assert_eq!(ent.parent_id(), Some(123));

@@ -75,7 +75,7 @@ mod tests {
             assert_eq!(ent.region(), &region);
             assert_eq!(
                 ent.names(),
-                vec![
+                &vec![
                     "some".to_string(),
                     "set".to_string(),
                     "of".to_string(),

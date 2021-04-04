@@ -16,6 +16,16 @@ pub enum Placeholder {
 }
 
 impl Placeholder {
+    pub fn region(&self) -> &Region {
+        match self {
+            Self::Title(x) => x.region(),
+            Self::NoHtml(x) => x.region(),
+            Self::Template(x) => x.region(),
+            Self::Date(x) => x.region(),
+            Self::Other(x) => x.region(),
+        }
+    }
+
     pub fn page_id(&self) -> Id {
         match self {
             Self::Title(x) => x.page_id(),

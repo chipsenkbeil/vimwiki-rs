@@ -282,9 +282,13 @@ impl<'a> FromVimwikiElement<'a> for ListItemContent {
     ) -> Result<Self, GraphqlDatabaseError> {
         let region = element.region();
         Ok(match element.into_inner() {
-            v::ListItemContent::InlineContent(x) => Self::InlineContent(
-                InlineContent::from_vimwiki_element(page_id, parent_id, x)?,
-            ),
+            v::ListItemContent::InlineContent(x) => {
+                Self::InlineContent(InlineContent::from_vimwiki_element(
+                    page_id,
+                    parent_id,
+                    Located::new(x, region),
+                )?)
+            }
             v::ListItemContent::List(x) => {
                 Self::List(List::from_vimwiki_element(
                     page_id,
@@ -362,7 +366,7 @@ pub struct ListItemAttributes {
 }
 
 impl<'a> FromVimwikiElement<'a> for ListItemAttributes {
-    type Element = Located<v::ListItemAttributes>;
+    type Element = v::ListItemAttributes;
 
     fn from_vimwiki_element(
         page_id: Id,

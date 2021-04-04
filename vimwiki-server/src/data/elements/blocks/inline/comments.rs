@@ -16,6 +16,13 @@ pub enum Comment {
 }
 
 impl Comment {
+    pub fn region(&self) -> &Region {
+        match self {
+            Self::Line(x) => x.region(),
+            Self::MultiLine(x) => x.region(),
+        }
+    }
+
     pub fn page_id(&self) -> Id {
         match self {
             Self::Line(x) => x.page_id(),
@@ -173,7 +180,7 @@ mod tests {
                 .expect("failed to convert from element");
 
             assert_eq!(ent.region(), &region);
-            assert_eq!(ent.code(), "some comment");
+            assert_eq!(ent.to_string(), "some comment");
             assert_eq!(ent.page_id(), 999);
             assert_eq!(ent.parent_id(), Some(123));
 
@@ -183,7 +190,7 @@ mod tests {
                 .expect("failed to convert from element");
 
             assert_eq!(ent.region(), &region);
-            assert_eq!(ent.code(), "some comment");
+            assert_eq!(ent.to_string(), "some comment");
             assert_eq!(ent.page_id(), 999);
             assert_eq!(ent.parent_id(), Some(123));
         });

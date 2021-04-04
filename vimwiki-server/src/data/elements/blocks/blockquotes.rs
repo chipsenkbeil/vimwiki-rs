@@ -13,11 +13,11 @@ pub struct Blockquote {
     region: Region,
     lines: Vec<String>,
 
-    /// Page containing the element
+    /// Page containing the blockquote
     #[ent(edge)]
     page: Page,
 
-    /// Parent element to this element
+    /// Parent element to this blockquote
     #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
     parent: Option<Element>,
 }

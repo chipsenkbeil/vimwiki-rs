@@ -117,7 +117,7 @@ impl<'a> FromVimwikiElement<'a> for DecoratedText {
 
         // Second, we create the decorated text without content since we need
         // this ent's id to pass along as parent
-        let ent = GraphqlDatabaseError::wrap(
+        let mut ent = GraphqlDatabaseError::wrap(
             Self::build()
                 .region(region)
                 .decoration(decoration)

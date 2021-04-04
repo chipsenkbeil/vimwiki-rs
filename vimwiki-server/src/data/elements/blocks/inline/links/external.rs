@@ -134,11 +134,11 @@ mod tests {
                     .expect("Failed to convert from element");
 
             assert_eq!(ent.region(), &region);
-            assert_eq!(ent.scheme(), ExternalFileLinkScheme::File);
+            assert_eq!(*ent.scheme(), ExternalFileLinkScheme::File);
             assert_eq!(ent.path(), "/some/file/path.txt");
             assert_eq!(
-                ent.descripton(),
-                Some(Description::Text(String::from("Some description")))
+                ent.description(),
+                &Some(Description::Text(String::from("Some description")))
             );
             assert_eq!(ent.page_id(), 999);
             assert_eq!(ent.parent_id(), Some(123));

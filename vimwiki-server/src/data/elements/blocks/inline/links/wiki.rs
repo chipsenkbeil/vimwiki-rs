@@ -92,10 +92,10 @@ mod tests {
             assert_eq!(ent.region(), &region);
             assert_eq!(ent.path(), "some path");
             assert_eq!(
-                ent.descripton(),
-                Some(Description::Text(String::from("Some description")))
+                ent.description(),
+                &Some(Description::Text(String::from("Some description")))
             );
-            assert_eq!(ent.anchor(), Some(Anchor::new(vec!["one", "two"])));
+            assert_eq!(ent.anchor(), &Some(Anchor::new(vec!["one", "two"])));
             assert_eq!(ent.page_id(), 999);
             assert_eq!(ent.parent_id(), Some(123));
         });

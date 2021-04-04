@@ -48,13 +48,15 @@ impl<'a> FromVimwikiElement<'a> for Table {
                 .region(region)
                 .centered(centered)
                 .rows(Vec::new())
+                .page(page_id)
+                .parent(parent_id)
                 .finish_and_commit(),
         )?;
 
         let mut rows = Vec::new();
         for (pos, row) in element.into_inner().rows.into_iter().enumerate() {
             rows.push(
-                Row::from_vimwiki_element_from_at_pos(
+                Row::from_vimwiki_element_at_pos(
                     page_id,
                     Some(ent.id()),
                     pos as i32,
@@ -106,7 +108,7 @@ impl Row {
 
         Ok(match le.into_inner() {
             v::Row::Content { cells } => {
-                let mut ent = Self::from(GraphqlDatabaseError::wrap(
+                let mut ent = GraphqlDatabaseError::wrap(
                     ContentRow::build()
                         .region(region)
                         .position(position)
@@ -114,7 +116,7 @@ impl Row {
                         .page(page_id)
                         .parent(parent_id)
                         .finish_and_commit(),
-                )?);
+                )?;
 
                 let mut cell_ids = Vec::new();
                 for (pos, cell) in cells.into_iter().enumerate() {
@@ -132,8 +134,7 @@ impl Row {
 
                 ent.set_cells_ids(cell_ids);
                 ent.commit().map_err(GraphqlDatabaseError::Database)?;
-
-                Ok(ent)
+                Self::from(ent)
             }
             v::Row::Divider { columns } => {
                 Self::from(GraphqlDatabaseError::wrap(
@@ -280,15 +281,16 @@ impl Cell {
         let region = Region::from(le.region());
         Ok(match le.into_inner() {
             v::Cell::Content(x) => {
-                let mut ent = Self::from(GraphqlDatabaseError::wrap(
+                let mut ent = GraphqlDatabaseError::wrap(
                     ContentCell::build()
                         .region(region)
                         .row_position(row_position)
+                        .position(position)
                         .contents(Vec::new())
                         .page(page_id)
                         .parent(parent_id)
                         .finish_and_commit(),
-                )?);
+                )?;
 
                 let mut contents = Vec::new();
                 for content in x.elements {
@@ -304,8 +306,7 @@ impl Cell {
 
                 ent.set_contents_ids(contents);
                 ent.commit().map_err(GraphqlDatabaseError::Database)?;
-
-                Ok(ent)
+                Self::from(ent)
             }
             v::Cell::SpanAbove => Self::from(GraphqlDatabaseError::wrap(
                 SpanAboveCell::build()
@@ -419,13 +420,13 @@ mod tests {
                 .expect("Failed to convert from element");
 
             assert_eq!(ent.region(), &region);
-            assert_eq!(ent.centered(), false);
+            assert_eq!(ent.centered(), &false);
             assert_eq!(ent.page_id(), 999);
             assert_eq!(ent.parent_id(), Some(123));
 
             let rows = ent.load_rows().expect("Failed to load rows");
 
-            match rows[0] {
+            match &rows[0] {
                 Row::Content(row) => {
                     assert_eq!(row.page_id(), 999);
                     assert_eq!(row.parent_id(), Some(ent.id()));
@@ -439,17 +440,10 @@ mod tests {
                 x => panic!("Unexpectedly got {:?}", x),
             }
 
-            match rows[1] {
+            match &rows[1] {
                 Row::Divider(row) => {
                     assert_eq!(row.page_id(), 999);
                     assert_eq!(row.parent_id(), Some(ent.id()));
-
-                    let columns =
-                        row.load_columns().expect("Failed to load columns");
-                    for column in columns {
-                        assert_eq!(column.page_id(), 999);
-                        assert_eq!(column.parent_id(), Some(row.id()));
-                    }
                 }
                 x => panic!("Unexpectedly got {:?}", x),
             }

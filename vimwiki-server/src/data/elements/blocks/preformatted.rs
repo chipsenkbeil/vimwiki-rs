@@ -153,11 +153,11 @@ mod tests {
                     "Second line of text".to_string()
                 ],
             );
-            assert_eq!(ent.language(), Some("c++".to_string()));
+            assert_eq!(ent.language(), &Some("c++".to_string()));
 
-            let metadata = HashMap::new();
+            let mut metadata = HashMap::new();
             metadata.insert("prop".to_string(), "text".to_string());
-            assert_eq!(ent.metadata(), metadata);
+            assert_eq!(ent.metadata(), &metadata);
 
             assert_eq!(ent.region(), &region);
             assert_eq!(ent.page_id(), 999);
