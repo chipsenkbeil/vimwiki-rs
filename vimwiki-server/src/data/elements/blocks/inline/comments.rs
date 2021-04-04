@@ -169,23 +169,23 @@ mod tests {
         global::with_db(InmemoryDatabase::default(), || {
             let element = vimwiki_comment!(r#"%%some comment"#);
             let region = Region::from(element.region());
-            let ent = Comment::from_vimwiki_element(999, some(123), element)
+            let ent = Comment::from_vimwiki_element(999, Some(123), element)
                 .expect("failed to convert from element");
 
             assert_eq!(ent.region(), &region);
             assert_eq!(ent.code(), "some comment");
             assert_eq!(ent.page_id(), 999);
-            assert_eq!(ent.parent_id(), some(123));
+            assert_eq!(ent.parent_id(), Some(123));
 
             let element = vimwiki_comment!(r#"%%+some comment+%%"#);
             let region = Region::from(element.region());
-            let ent = Comment::from_vimwiki_element(999, some(123), element)
+            let ent = Comment::from_vimwiki_element(999, Some(123), element)
                 .expect("failed to convert from element");
 
             assert_eq!(ent.region(), &region);
             assert_eq!(ent.code(), "some comment");
             assert_eq!(ent.page_id(), 999);
-            assert_eq!(ent.parent_id(), some(123));
+            assert_eq!(ent.parent_id(), Some(123));
         });
     }
 }

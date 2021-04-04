@@ -94,7 +94,9 @@ pub struct Anchor {
 }
 
 impl Anchor {
-    pub fn new<S: Into<String>, I: IntoIterator<S>>(elements: I) -> Self {
+    pub fn new<S: Into<String>, I: IntoIterator<Item = S>>(
+        elements: I,
+    ) -> Self {
         Self {
             elements: elements.into_iter().map(Into::into).collect(),
         }

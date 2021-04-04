@@ -165,7 +165,7 @@ mod tests {
     fn indexed_interwiki_link_should_fully_populate_from_vimwiki_element() {
         global::with_db(InmemoryDatabase::default(), || {
             let element = vimwiki_inter_wiki_link!(
-                r#"wiki1:Link Path#one#two|Some description"#
+                r#"[[wiki1:Link Path#one#two|Some description]]"#
             );
             let region = Region::from(element.region());
             let ent = IndexedInterWikiLink::from_vimwiki_element(
@@ -191,7 +191,7 @@ mod tests {
     fn named_interwiki_link_should_fully_populate_from_vimwiki_element() {
         global::with_db(InmemoryDatabase::default(), || {
             let element = vimwiki_inter_wiki_link!(
-                r#"wn.Some Name:Link Path#one#two|Some description"#
+                r#"[[wn.Some Name:Link Path#one#two|Some description]]"#
             );
             let region = Region::from(element.region());
             let ent = NamedInterWikiLink::from_vimwiki_element(

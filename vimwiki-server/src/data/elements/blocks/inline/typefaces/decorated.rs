@@ -274,7 +274,7 @@ mod tests {
     #[test]
     fn should_fully_populate_from_vimwiki_element() {
         global::with_db(InmemoryDatabase::default(), || {
-            let element = vimwiki_decorated_text!(r#"some text"#);
+            let element = vimwiki_decorated_text!(r#"*some text*"#);
             let region = Region::from(element.region());
             let ent =
                 DecoratedText::from_vimwiki_element(999, Some(123), element)
