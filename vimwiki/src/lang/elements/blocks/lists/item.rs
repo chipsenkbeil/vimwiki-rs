@@ -431,7 +431,9 @@ pub enum ListItemTodoStatus {
 }
 
 /// Represents additional attributes associated with a list item
-#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Copy, Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize,
+)]
 pub struct ListItemAttributes {
     /// The TODO status for a list item, if it has been associated with TODO
     pub todo_status: Option<ListItemTodoStatus>,
