@@ -101,7 +101,7 @@ pub mod parsers {
             // NOTE: Following is the code found in nom's context parser, but due
             //       to issues with wrapping a function like above in a parser,
             //       we have to explicitly call the f parser on its own
-            let result = match f(input.clone()) {
+            let result = match f(input) {
                 Ok(o) => Ok(o),
                 Err(nom::Err::Incomplete(i)) => Err(nom::Err::Incomplete(i)),
                 Err(nom::Err::Error(e)) => {
