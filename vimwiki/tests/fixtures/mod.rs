@@ -35,6 +35,6 @@ impl VimwikiFile {
                 PathBuf::from("pandoc/vimwiki-reader.wiki")
             }
         };
-        PathBuf::from(head).join(tail)
+        head.join(tail)
     }
 }
