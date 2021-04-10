@@ -182,12 +182,12 @@ pub fn keyword(input: Span) -> IResult<Located<Keyword>> {
     context(
         "Keyword",
         locate(capture(alt((
-            map(tag("DONE"), |_| Keyword::DONE),
-            map(tag("FIXED"), |_| Keyword::FIXED),
-            map(tag("FIXME"), |_| Keyword::FIXME),
-            map(tag("STARTED"), |_| Keyword::STARTED),
-            map(tag("TODO"), |_| Keyword::TODO),
-            map(tag("XXX"), |_| Keyword::XXX),
+            map(tag("DONE"), |_| Keyword::Done),
+            map(tag("FIXED"), |_| Keyword::Fixed),
+            map(tag("FIXME"), |_| Keyword::Fixme),
+            map(tag("STARTED"), |_| Keyword::Started),
+            map(tag("TODO"), |_| Keyword::Todo),
+            map(tag("XXX"), |_| Keyword::Xxx),
         )))),
     )(input)
 }
@@ -387,7 +387,7 @@ mod tests {
         assert_eq!(
             dt.into_inner(),
             DecoratedText::Bold(vec![Located::from(
-                DecoratedTextContent::from(Keyword::TODO)
+                DecoratedTextContent::from(Keyword::Todo)
             )])
         );
     }
@@ -426,26 +426,26 @@ mod tests {
     fn keyword_should_consume_specific_keywords() {
         let input = Span::from("DONE");
         let (_, k) = keyword(input).unwrap();
-        assert_eq!(k.into_inner(), Keyword::DONE);
+        assert_eq!(k.into_inner(), Keyword::Done);
 
         let input = Span::from("FIXED");
         let (_, k) = keyword(input).unwrap();
-        assert_eq!(k.into_inner(), Keyword::FIXED);
+        assert_eq!(k.into_inner(), Keyword::Fixed);
 
         let input = Span::from("FIXME");
         let (_, k) = keyword(input).unwrap();
-        assert_eq!(k.into_inner(), Keyword::FIXME);
+        assert_eq!(k.into_inner(), Keyword::Fixme);
 
         let input = Span::from("STARTED");
         let (_, k) = keyword(input).unwrap();
-        assert_eq!(k.into_inner(), Keyword::STARTED);
+        assert_eq!(k.into_inner(), Keyword::Started);
 
         let input = Span::from("TODO");
         let (_, k) = keyword(input).unwrap();
-        assert_eq!(k.into_inner(), Keyword::TODO);
+        assert_eq!(k.into_inner(), Keyword::Todo);
 
         let input = Span::from("XXX");
         let (_, k) = keyword(input).unwrap();
-        assert_eq!(k.into_inner(), Keyword::XXX);
+        assert_eq!(k.into_inner(), Keyword::Xxx);
     }
 }

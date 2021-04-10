@@ -1,11 +1,11 @@
-use super::{graphql, Config, Program};
+use crate::{graphql, Config};
 use log::info;
 use std::convert::Infallible;
 use warp::{reply::Reply, Filter};
 
 macro_rules! graphql_endpoint {
     ($path:expr, $program:expr) => {{
-        let schema = graphql::build_schema_with_program($program);
+        let schema = graphql::new_schema();
         warp::path($path).and(
             async_graphql_warp::graphql(schema).and_then(
                 |(schema, request): (
@@ -45,7 +45,7 @@ macro_rules! graphql_playground_endpoint {
     }};
 }
 
-pub async fn run(program: Program, config: Config) {
+pub async fn run(config: Config) {
     let endpoint = format!("http://{}:{}/graphql", config.host, config.port);
     let endpoint_2 = endpoint.clone();
 

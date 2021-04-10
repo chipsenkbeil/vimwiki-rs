@@ -1,3 +1,5 @@
+#![allow(clippy::large_enum_variant)]
+
 use derive_more::{Constructor, From};
 use serde::{Deserialize, Serialize};
 

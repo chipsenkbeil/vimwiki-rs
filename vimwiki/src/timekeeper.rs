@@ -1,6 +1,9 @@
-use lazy_static::lazy_static;
-use std::sync::{Mutex, atomic::{AtomicBool, Ordering}};
 use crate::lang::parsers::Span;
+use lazy_static::lazy_static;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Mutex,
+};
 
 lazy_static! {
     static ref TIMEKEEPER_ENABLED: AtomicBool = AtomicBool::new(false);
@@ -38,7 +41,7 @@ pub fn print_report(clear_after_print: bool) {
         .collect();
 
     // Sort with most expensive average item first
-    results.sort_unstable_by_key(|k| (k.1.1 as f64 / k.1.0 as f64) as u128);
+    results.sort_unstable_by_key(|k| (k.1 .1 as f64 / k.1 .0 as f64) as u128);
     results.reverse();
 
     fn time_to_str(x: u128) -> String {
@@ -57,10 +60,10 @@ pub fn print_report(clear_after_print: bool) {
     println!();
     for (ctx, (cnt, nanos)) in results.drain(..) {
         println!(
-            "- {}: ({} calls, total {}, average {})", 
-            ctx, 
-            cnt, 
-            time_to_str(nanos), 
+            "- {}: ({} calls, total {}, average {})",
+            ctx,
+            cnt,
+            time_to_str(nanos),
             time_to_str((nanos as f64 / cnt as f64) as u128),
         );
     }
@@ -84,7 +87,7 @@ pub fn clear() {
 pub mod parsers {
     use super::*;
     use nom::error::ParseError;
-        
+
     type Error<'a> = crate::lang::parsers::Error<'a>;
     type IResult<'a, O> = Result<(Span<'a>, O), nom::Err<Error<'a>>>;
 
@@ -98,15 +101,15 @@ pub mod parsers {
             // NOTE: Following is the code found in nom's context parser, but due
             //       to issues with wrapping a function like above in a parser,
             //       we have to explicitly call the f parser on its own
-            let result = match f(input.clone()) {
+            let result = match f(input) {
                 Ok(o) => Ok(o),
                 Err(nom::Err::Incomplete(i)) => Err(nom::Err::Incomplete(i)),
-                Err(nom::Err::Error(e)) => Err(nom::Err::Error(
-                    Error::add_context(input, ctx, e),
-                )),
-                Err(nom::Err::Failure(e)) => Err(nom::Err::Failure(
-                    Error::add_context(input, ctx, e),
-                )),
+                Err(nom::Err::Error(e)) => {
+                    Err(nom::Err::Error(Error::add_context(input, ctx, e)))
+                }
+                Err(nom::Err::Failure(e)) => {
+                    Err(nom::Err::Failure(Error::add_context(input, ctx, e)))
+                }
             };
 
             if is_enabled() {

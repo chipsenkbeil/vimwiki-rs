@@ -97,23 +97,23 @@ impl_tokenize!(tokenize_keyword, Keyword);
 fn tokenize_keyword(keyword: &Keyword) -> TokenStream {
     let root = element_path();
     match keyword {
-        Keyword::DONE => {
-            quote! { #root::Keyword::DONE }
+        Keyword::Done => {
+            quote! { #root::Keyword::Done }
         }
-        Keyword::FIXED => {
-            quote! { #root::Keyword::FIXED }
+        Keyword::Fixed => {
+            quote! { #root::Keyword::Fixed }
         }
-        Keyword::FIXME => {
-            quote! { #root::Keyword::FIXME }
+        Keyword::Fixme => {
+            quote! { #root::Keyword::Fixme }
         }
-        Keyword::STARTED => {
-            quote! { #root::Keyword::STARTED }
+        Keyword::Started => {
+            quote! { #root::Keyword::Started }
         }
-        Keyword::TODO => {
-            quote! { #root::Keyword::TODO }
+        Keyword::Todo => {
+            quote! { #root::Keyword::Todo }
         }
-        Keyword::XXX => {
-            quote! { #root::Keyword::XXX }
+        Keyword::Xxx => {
+            quote! { #root::Keyword::Xxx }
         }
     }
 }

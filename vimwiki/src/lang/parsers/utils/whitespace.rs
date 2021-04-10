@@ -19,6 +19,7 @@ pub fn single_multispace(input: Span) -> IResult<()> {
 
 /// Counts the spaces & tabs that are trailing in our input
 pub fn count_trailing_whitespace(input: Span) -> IResult<usize> {
+    #[allow(clippy::unnecessary_wraps)]
     fn inner(input: Span) -> IResult<usize> {
         let mut cnt = 0;
 

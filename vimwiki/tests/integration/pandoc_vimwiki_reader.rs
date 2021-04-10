@@ -177,244 +177,232 @@ fn test() {
         vimwiki_header!("== lists ==").into(),
     ];
 
-    r#"
-# ordered list item 1, and here is some math belonging to list item 1
- {{$
- a^2 + b^2 = c^2
- }}$
-  and some preformatted and tables belonging to item 1 as well
-{{{
-I'm part of item 1.
-}}}
-| this table  | is        |
-| also a part | of item 1 |
- and some more text belonging to item 1.
-# ordered list item 2
+    //     r#"
+    // # ordered list item 1, and here is some math belonging to list item 1
+    //  {{$
+    //  a^2 + b^2 = c^2
+    //  }}$
+    //   and some preformatted and tables belonging to item 1 as well
+    // {{{
+    // I'm part of item 1.
+    // }}}
+    // | this table  | is        |
+    // | also a part | of item 1 |
+    //  and some more text belonging to item 1.
+    // # ordered list item 2
 
+    // * Bulleted list item 1
+    // * Bulleted list item 2
 
-* Bulleted list item 1
-* Bulleted list item 2
+    // # Bulleted list item 1
+    // # the # become numbers when converted to HTML
 
+    // - Bulleted list item 1
+    // - Bulleted list item 2
 
-# Bulleted list item 1
-# the # become numbers when converted to HTML
+    // * Item 1
+    // * Item 2
+    //     # Sub item 1 (indentation 4 spaces)
+    //   Sub item 1 continued line.
+    // %%comments
+    //     Sub item 1 next continued line.
+    //     * Sub item 2, as an ordered list item even though the identifier is `*` (indentation 2 spaces followed by one tab of width 4)
+    //     * etc.
+    //  Continuation of Item 2
+    //  Next continuation of Item 2
+    // But this is a new paragraph.
 
-- Bulleted list item 1
-- Bulleted list item 2
+    // # 1
+    //     * `1.1`
+    //   * 2
+    //       * 2.1
+    //  * 3
 
-* Item 1
-* Item 2
-    # Sub item 1 (indentation 4 spaces)
-  Sub item 1 continued line.
-%%comments
-    Sub item 1 next continued line.
-    * Sub item 2, as an ordered list item even though the identifier is `*` (indentation 2 spaces followed by one tab of width 4)
-    * etc.
- Continuation of Item 2
- Next continuation of Item 2
-But this is a new paragraph.
+    // === ordered lists with non-# identifiers ===
+    // 1. Numbered list item 1
+    // 2. Numbered list item 2
+    // 3. Numbered list item 3
 
-# 1
-    * `1.1`
-  * 2
-      * 2.1
- * 3
+    // 4. Numbered list item 1
+    // 5. Numbered list item 2
+    // 6. Numbered list item 3
 
-=== ordered lists with non-# identifiers ===
-1. Numbered list item 1
-2. Numbered list item 2
-3. Numbered list item 3
+    // 1) Numbered list item 1
+    // 2) Numbered list item 2
+    // 3) Numbered list item 3
 
-4. Numbered list item 1
-5. Numbered list item 2
-6. Numbered list item 3
+    // a) Numbered list item 1
+    // b) Numbered list item 2
+    // c) Numbered list item 3
 
-1) Numbered list item 1
-2) Numbered list item 2
-3) Numbered list item 3
+    // A) Numbered list item 1
+    // B) Numbered list item 2
+    // C) Numbered list item 3
 
-a) Numbered list item 1
-b) Numbered list item 2
-c) Numbered list item 3
+    // i) Numbered list item 1
+    // ii) Numbered list item 2
+    // iii) Numbered list item 3
 
-A) Numbered list item 1
-B) Numbered list item 2
-C) Numbered list item 3
+    // I) Numbered list item 1
+    // II) Numbered list item 2
+    // III) Numbered list item 3
 
-i) Numbered list item 1
-ii) Numbered list item 2
-iii) Numbered list item 3
+    // - Bulleted list item 1
+    // - Bulleted list item 2
+    //   a) Numbered list sub item 1
+    //   b) more ...
+    //     * and more ...
+    //     * ...
+    //   c) Numbered list sub item 3
+    //     1. Numbered list sub sub item 1
+    //     2. Numbered list sub sub item 2
+    //   d) etc.
+    // - Bulleted list item 3
 
-I) Numbered list item 1
-II) Numbered list item 2
-III) Numbered list item 3
+    // == todo lists ==
+    // * [ ] task 1
+    //     1. [.] 5
+    // * [o] 3
+    // * [] not a todo item
+    // * [ ]not a todo item
+    // * [r] not a todo item
+    // * [     ] not a todo item
+    // * [o] a tab in the todo list marker `[ ]`
+    //     III) [O] 4
+    //       5
+    //     i) [X]
+    // | a | b |
+    // * [X] task 2
 
-- Bulleted list item 1
-- Bulleted list item 2
-  a) Numbered list sub item 1
-  b) more ...
-    * and more ...
-    * ...
-  c) Numbered list sub item 3
-    1. Numbered list sub sub item 1
-    2. Numbered list sub sub item 2
-  d) etc.
-- Bulleted list item 3
+    // == math ==
 
-== todo lists ==
-* [ ] task 1
-    1. [.] 5
-* [o] 3
-* [] not a todo item
-* [ ]not a todo item
-* [r] not a todo item
-* [     ] not a todo item
-* [o] a tab in the todo list marker `[ ]`
-    III) [O] 4
-      5
-    i) [X] 
-| a | b |
-* [X] task 2
+    // $ \sum_i a_i^2 = 1 $
 
-== math ==
+    // {{$
+    // \sum_i a_i^2
+    // =
+    // 1
+    // }}$
 
-$ \sum_i a_i^2 = 1 $
+    // {{$%align%
+    // \sum_i a_i^2 &= 1 + 1 \\
+    // &= 2.
+    // }}$
 
-{{$
-\sum_i a_i^2
-=
-1
-}}$
+    // edge case (the `c^2 + ` after the multline tag is in the equation):
+    // {{$%multline%c^2 +
+    // a^2 + b^2
+    // }}$
 
-{{$%align%
-\sum_i a_i^2 &= 1 + 1 \\
-&= 2.
-}}$
+    // edge case (the tag is `hello%bye`)
+    // {{$%hello%bye%
+    // \int_a^b f(x) dx
+    // }}$
 
-edge case (the `c^2 + ` after the multline tag is in the equation):
-{{$%multline%c^2 + 
-a^2 + b^2
-}}$
+    // Just two dollar signs: $$
 
-edge case (the tag is `hello%bye`)
-{{$%hello%bye%
-\int_a^b f(x) dx
-}}$
+    // [not math] You have $1
+    // and I have $1.
 
-Just two dollar signs: $$
+    // == tags ==
 
-[not math] You have $1
-and I have $1.
+    // :tag-one:tag-two:
 
-== tags ==
+    // == tables ==
 
-:tag-one:tag-two:
+    // | Year | Temperature (low) | Temperature (high) |
+    // |------|-------------------|--------------------|
+    // | 1900 | -10               | 25                 |
+    // | 1910 | -15               | 30                 |
+    // | 1920 | -10               | 32                 |
+    // | 1930 | _N/A_             | _N/A_              |
+    // | 1940 | -2                | 40                 |
 
-== tables ==
- 
-| Year | Temperature (low) | Temperature (high) |
-|------|-------------------|--------------------|
-| 1900 | -10               | 25                 |
-| 1910 | -15               | 30                 |
-| 1920 | -10               | 32                 |
-| 1930 | _N/A_             | _N/A_              |
-| 1940 | -2                | 40                 |
+    // === centered headerless tables ===
+    //  | a | b |
+    //  | c | d |
 
+    // == paragraphs ==
 
-=== centered headerless tables ===
- | a | b |
- | c | d |
- 
- 
-== paragraphs ==
+    // This is first paragraph
+    // with two lines.
 
-This is first paragraph
-with two lines.
+    // This is a second paragraph with
+    // two lines after many blank lines.
 
+    // == definition list ==
 
+    // Term 1:: Definition 1
+    // Term 2::
+    // :: Definition 2
+    //   :: Definition 3
+    // Term :: *separated* by :: _double colons_ :: Def1
+    // :: Def2
+    // Term with lots of trailing colons::::::::: Definition
+    // :: This is :: A term (rather than a definition) :: and this is a definition
+    // Term Without definitions ::
+    // ::
+    // Part :: of :: dt :: part of ::dd
 
+    // :: Definition 1 without a term
+    // :: Definition 2 without a term
 
+    // T1 :: D1
+    // new paragraph
+    // T1 :: D1
 
+    // Not::Definition
 
+    // Not ::Definition
 
+    // ::Not definition
 
-This is a second paragraph with
-two lines after many blank lines.
+    //     :: blockquote
 
-== definition list ==
+    //     block :: quote
 
-Term 1:: Definition 1
-Term 2::
-:: Definition 2
-  :: Definition 3
-Term :: *separated* by :: _double colons_ :: Def1
-:: Def2
-Term with lots of trailing colons::::::::: Definition
-:: This is :: A term (rather than a definition) :: and this is a definition
-Term Without definitions ::
-::
-Part :: of :: dt :: part of ::dd
+    // == metadata placeholders ==
+    // %title title
+    // %date 2017-05-01
 
-:: Definition 1 without a term
-:: Definition 2 without a term
+    // %title second title is ignored
+    // %date second date is ignored
 
-T1 :: D1
-new paragraph
-T1 :: D1
+    // %this is not a placeholder
 
-Not::Definition
+    // placeholders
+    // %title another title
+    // %date 2017-04-23
+    // serves as space / softbreak in paragraphs
 
-Not ::Definition
+    // == sup, sub ==
 
-::Not definition
+    // super^script^
 
-    :: blockquote
-    
-    block :: quote
+    // sub,,script,,
 
-== metadata placeholders ==
-%title title
-%date 2017-05-01
+    // == the todo mark ==
+    // TODO:
 
-%title second title is ignored
-%date second date is ignored
+    // = _*not implemented yet*_ =
+    // == tables with spans ==
+    // | a  | b  | c | d |
+    // | \/ | e  | > | f |
+    // | \/ | \/ | > | g |
+    // | h  | >  | > | > |
 
-%this is not a placeholder
+    // == tables with multiple lines of headers ==
+    // | a | b |
+    // | c | d |
+    // |---|---|
 
-placeholders
-%title another title
-%date 2017-04-23
-serves as space / softbreak in paragraphs
+    // == some other placeholders ==
+    // `template` placeholder is ignored.
+    // %template template
 
-
-== sup, sub ==
-
-super^script^
-
-sub,,script,,
-
-== the todo mark ==
-TODO:
-
-= _*not implemented yet*_ =
-== tables with spans ==
-| a  | b  | c | d |
-| \/ | e  | > | f |
-| \/ | \/ | > | g |
-| h  | >  | > | > |
-
-== tables with multiple lines of headers ==
-| a | b |
-| c | d |
-|---|---|
-
-== some other placeholders ==
-`template` placeholder is ignored.
-%template template
-
-`nohtml` placeholder is ignored.
-%nohtml
-"#;
+    // `nohtml` placeholder is ignored.
+    // %nohtml
+    // "#;
 
     compare_page_elements(&page.elements, &expected);
 }

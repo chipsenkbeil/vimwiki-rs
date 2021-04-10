@@ -168,7 +168,7 @@ impl DecoratedText<'_> {
 }
 
 impl<'a> DecoratedText<'a> {
-    /// Converts to the underlying decorated text contents
+    /// Converts to reference of the underlying decorated text contents
     pub fn as_contents(&self) -> &[Located<DecoratedTextContent<'a>>] {
         match self {
             Self::Bold(ref x) => x.as_slice(),
@@ -176,6 +176,16 @@ impl<'a> DecoratedText<'a> {
             Self::Strikeout(ref x) => x.as_slice(),
             Self::Superscript(ref x) => x.as_slice(),
             Self::Subscript(ref x) => x.as_slice(),
+        }
+    }
+    /// Converts into the underlying decorated text contents
+    pub fn into_contents(self) -> Vec<Located<DecoratedTextContent<'a>>> {
+        match self {
+            Self::Bold(x) => x,
+            Self::Italic(x) => x,
+            Self::Strikeout(x) => x,
+            Self::Superscript(x) => x,
+            Self::Subscript(x) => x,
         }
     }
 
@@ -211,10 +221,16 @@ impl<'a> fmt::Display for DecoratedText<'a> {
     Copy, Clone, Debug, Display, Eq, PartialEq, Hash, Serialize, Deserialize,
 )]
 pub enum Keyword {
-    TODO,
-    DONE,
-    STARTED,
-    FIXME,
-    FIXED,
-    XXX,
+    #[display(fmt = "TODO")]
+    Todo,
+    #[display(fmt = "DONE")]
+    Done,
+    #[display(fmt = "STARTED")]
+    Started,
+    #[display(fmt = "FIXME")]
+    Fixme,
+    #[display(fmt = "FIXED")]
+    Fixed,
+    #[display(fmt = "XXX")]
+    Xxx,
 }

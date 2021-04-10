@@ -73,7 +73,7 @@ mod tests {
         // Link should be consumed
         assert!(input.is_empty());
 
-        assert_eq!(link.date, NaiveDate::from_ymd(2012, 03, 05));
+        assert_eq!(link.date, NaiveDate::from_ymd(2012, 3, 5));
         assert_eq!(link.description, None);
         assert_eq!(link.anchor, None);
     }
@@ -87,7 +87,7 @@ mod tests {
         // Link should be consumed
         assert!(input.is_empty());
 
-        assert_eq!(link.date, NaiveDate::from_ymd(2012, 03, 05));
+        assert_eq!(link.date, NaiveDate::from_ymd(2012, 3, 5));
         assert_eq!(
             link.description,
             Some(Description::from("some description"))
@@ -104,7 +104,7 @@ mod tests {
         // Link should be consumed
         assert!(input.is_empty());
 
-        assert_eq!(link.date, NaiveDate::from_ymd(2012, 03, 05));
+        assert_eq!(link.date, NaiveDate::from_ymd(2012, 3, 5));
         assert_eq!(link.description, None,);
         assert_eq!(link.anchor, Some(Anchor::from("Tomorrow")));
     }
@@ -119,7 +119,7 @@ mod tests {
         // Link should be consumed
         assert!(input.is_empty());
 
-        assert_eq!(link.date, NaiveDate::from_ymd(2012, 03, 05));
+        assert_eq!(link.date, NaiveDate::from_ymd(2012, 3, 5));
         assert_eq!(
             link.description,
             Some(Description::from("Tasks for tomorrow"))

@@ -73,7 +73,6 @@ fn vimwiki_line_comment() {
 #[test]
 fn vimwiki_multi_line_comment() {
     let x = vimwiki_multi_line_comment!("%%+ some comment +%%");
-    println!("MULTILINE: {:?}", x);
     assert_eq!(
         x.into_inner(),
         MultiLineComment::new(vec![Cow::from(" some comment ")])
@@ -82,21 +81,47 @@ fn vimwiki_multi_line_comment() {
 
 #[test]
 fn vimwiki_definition_list() {
-    let x = vimwiki_definition_list!("term:: definition");
+    let x = vimwiki_definition_list! {r#"
+        term:: definition
+        term2::
+        :: def 2
+        :: def 3
+    "#};
     assert_eq!(
         x.into_inner(),
-        DefinitionList::from(vec![(
-            Located::from(DefinitionListValue::new(
-                InlineElementContainer::new(vec![Located::from(
-                    InlineElement::from(Text::from("term"))
-                )])
-            )),
-            vec![Located::from(DefinitionListValue::new(
-                InlineElementContainer::new(vec![Located::from(
-                    InlineElement::from(Text::from("definition"))
-                )])
-            ))],
-        )])
+        DefinitionList::from(vec![
+            (
+                Located::from(DefinitionListValue::new(
+                    InlineElementContainer::new(vec![Located::from(
+                        InlineElement::from(Text::from("term"))
+                    )])
+                )),
+                vec![Located::from(DefinitionListValue::new(
+                    InlineElementContainer::new(vec![Located::from(
+                        InlineElement::from(Text::from("definition"))
+                    )])
+                ))],
+            ),
+            (
+                Located::from(DefinitionListValue::new(
+                    InlineElementContainer::new(vec![Located::from(
+                        InlineElement::from(Text::from("term2"))
+                    )])
+                )),
+                vec![
+                    Located::from(DefinitionListValue::new(
+                        InlineElementContainer::new(vec![Located::from(
+                            InlineElement::from(Text::from("def 2"))
+                        )])
+                    )),
+                    Located::from(DefinitionListValue::new(
+                        InlineElementContainer::new(vec![Located::from(
+                            InlineElement::from(Text::from("def 3"))
+                        )])
+                    ))
+                ],
+            )
+        ])
     );
 }
 
@@ -489,5 +514,5 @@ fn vimwiki_decorated_text_subscript() {
 #[test]
 fn vimwiki_keyword() {
     let x = vimwiki_keyword!("TODO");
-    assert_eq!(x.into_inner(), Keyword::TODO);
+    assert_eq!(x.into_inner(), Keyword::Todo);
 }
