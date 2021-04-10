@@ -217,6 +217,7 @@ mod tests {
         let region = Region::from(3..3);
         assert_eq!(region, Region::new(3, 0));
 
+        #[allow(clippy::reversed_empty_ranges)]
         let region = Region::from(4..3);
         assert_eq!(region, Region::new(4, 0));
     }
@@ -229,6 +230,7 @@ mod tests {
         let region = Region::from(3..=3);
         assert_eq!(region, Region::new(3, 1));
 
+        #[allow(clippy::reversed_empty_ranges)]
         let region = Region::from(4..=3);
         assert_eq!(region, Region::new(4, 0));
     }
