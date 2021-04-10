@@ -6,7 +6,7 @@ fn parse_page_benchmark(c: &mut Criterion) {
     let base =
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("benches/fixtures");
     let target = PathBuf::from("vimwiki/specification.wiki");
-    let path = PathBuf::from(base).join(target);
+    let path = base.join(target);
     let file_contents =
         fs::read_to_string(path).expect("Failed to load fixture");
 
