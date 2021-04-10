@@ -13,14 +13,14 @@ use vimwiki::{
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Description {
     Text(String),
-    URI(Uri),
+    Uri(Uri),
 }
 
 impl fmt::Display for Description {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Text(ref x) => write!(f, "{}", x),
-            Self::URI(ref x) => write!(f, "{}", x.to_string()),
+            Self::Uri(ref x) => write!(f, "{}", x.to_string()),
         }
     }
 }
@@ -29,7 +29,7 @@ impl<'a> From<v::Description<'a>> for Description {
     fn from(d: v::Description<'a>) -> Self {
         match d {
             v::Description::Text(x) => Self::Text(x.to_string()),
-            v::Description::URI(x) => Self::URI(Uri::from(x)),
+            v::Description::Uri(x) => Self::Uri(Uri::from(x)),
         }
     }
 }
@@ -38,13 +38,13 @@ impl ValueLike for Description {
     fn into_value(self) -> Value {
         match self {
             Self::Text(x) => Value::Text(x),
-            Self::URI(x) => x.into_value(),
+            Self::Uri(x) => x.into_value(),
         }
     }
 
     fn try_from_value(value: Value) -> Result<Self, Value> {
         Uri::try_from_value(value)
-            .map(Description::URI)
+            .map(Description::Uri)
             .or_else(|value| match value {
                 Value::Text(x) => Ok(Self::Text(x)),
                 x => Err(x),
@@ -66,7 +66,7 @@ impl Description {
     /// Represents the content of the description if it is a URI
     async fn uri(&self) -> Option<&Uri> {
         match self {
-            Self::URI(ref x) => Some(x),
+            Self::Uri(ref x) => Some(x),
             _ => None,
         }
     }

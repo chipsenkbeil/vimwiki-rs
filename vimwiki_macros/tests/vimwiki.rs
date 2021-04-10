@@ -514,5 +514,5 @@ fn vimwiki_decorated_text_subscript() {
 #[test]
 fn vimwiki_keyword() {
     let x = vimwiki_keyword!("TODO");
-    assert_eq!(x.into_inner(), Keyword::TODO);
+    assert_eq!(x.into_inner(), Keyword::Todo);
 }

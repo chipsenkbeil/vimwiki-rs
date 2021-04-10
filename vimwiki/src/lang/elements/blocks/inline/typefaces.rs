@@ -221,10 +221,16 @@ impl<'a> fmt::Display for DecoratedText<'a> {
     Copy, Clone, Debug, Display, Eq, PartialEq, Hash, Serialize, Deserialize,
 )]
 pub enum Keyword {
-    TODO,
-    DONE,
-    STARTED,
-    FIXME,
-    FIXED,
-    XXX,
+    #[display(fmt = "TODO")]
+    Todo,
+    #[display(fmt = "DONE")]
+    Done,
+    #[display(fmt = "STARTED")]
+    Started,
+    #[display(fmt = "FIXME")]
+    Fixme,
+    #[display(fmt = "FIXED")]
+    Fixed,
+    #[display(fmt = "XXX")]
+    Xxx,
 }

@@ -39,7 +39,7 @@ pub use wiki::WikiLink;
 )]
 pub enum Description<'a> {
     Text(Cow<'a, str>),
-    URI(URI<'a>),
+    Uri(URI<'a>),
 }
 
 impl Description<'_> {
@@ -51,14 +51,14 @@ impl Description<'_> {
                 Borrowed(x) => *x,
                 Owned(x) => x.as_str(),
             })),
-            Self::URI(ref x) => Description::from(uri_to_borrowed(x)),
+            Self::Uri(ref x) => Description::from(uri_to_borrowed(x)),
         }
     }
 
     pub fn into_owned(self) -> Description<'static> {
         match self {
             Self::Text(x) => Description::from(Cow::from(x.into_owned())),
-            Self::URI(x) => Description::from(x.into_owned()),
+            Self::Uri(x) => Description::from(x.into_owned()),
         }
     }
 }

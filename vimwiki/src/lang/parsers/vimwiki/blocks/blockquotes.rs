@@ -18,8 +18,8 @@ use nom::{
 };
 use std::borrow::Cow;
 
-pub fn blockquote<'a>(input: Span<'a>) -> IResult<'a, Located<Blockquote<'a>>> {
-    fn inner<'a>(input: Span<'a>) -> IResult<Blockquote<'a>> {
+pub fn blockquote(input: Span) -> IResult<Located<Blockquote>> {
+    fn inner(input: Span) -> IResult<Blockquote> {
         let (input, lines) = alt((
             // NOTE: Indented blockquotes do not allow blank lines
             many1(blockquote_line_1),

@@ -15,7 +15,7 @@ use nom::{
     multi::separated_list,
 };
 
-pub fn comment<'a>(input: Span<'a>) -> IResult<'a, Located<Comment<'a>>> {
+pub fn comment(input: Span) -> IResult<Located<Comment>> {
     context(
         "Comment",
         alt((
@@ -25,9 +25,7 @@ pub fn comment<'a>(input: Span<'a>) -> IResult<'a, Located<Comment<'a>>> {
     )(input)
 }
 
-pub fn line_comment<'a>(
-    input: Span<'a>,
-) -> IResult<'a, Located<LineComment<'a>>> {
+pub fn line_comment(input: Span) -> IResult<Located<LineComment>> {
     fn inner(input: Span) -> IResult<LineComment> {
         let (input, _) = tag("%%")(input)?;
         let (input, text) =
@@ -39,9 +37,7 @@ pub fn line_comment<'a>(
     context("Line Comment", locate(capture(inner)))(input)
 }
 
-pub fn multi_line_comment<'a>(
-    input: Span<'a>,
-) -> IResult<'a, Located<MultiLineComment<'a>>> {
+pub fn multi_line_comment(input: Span) -> IResult<Located<MultiLineComment>> {
     fn inner(input: Span) -> IResult<MultiLineComment> {
         let (input, _) = tag("%%+")(input)?;
 

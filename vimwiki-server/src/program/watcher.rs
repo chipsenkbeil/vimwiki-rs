@@ -212,11 +212,12 @@ impl Watcher {
             while let Some(event) = rx.recv().await {
                 // Ensure that the event we receive is for a supported
                 // file extension
-                if event.paths.iter().any(|p| {
+                let not_for_valid_file_exts = event.paths.iter().any(|p| {
                     p.extension()
                         .map(|ex| !exts.iter().any(|ext| ext.as_str() == ex))
                         .unwrap_or(true)
-                }) {
+                });
+                if not_for_valid_file_exts {
                     continue;
                 }
 

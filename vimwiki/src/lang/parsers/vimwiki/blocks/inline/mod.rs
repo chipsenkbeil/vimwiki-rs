@@ -268,7 +268,7 @@ mod tests {
                 InlineElement::Text(Text::from(" and ")),
                 InlineElement::Math(MathInline::from("formula")),
                 InlineElement::Text(Text::from(" is ")),
-                InlineElement::Keyword(Keyword::DONE),
+                InlineElement::Keyword(Keyword::Done),
             ]
         );
     }

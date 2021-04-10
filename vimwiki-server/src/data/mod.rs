@@ -1,3 +1,5 @@
+#![allow(clippy::large_enum_variant)]
+
 use crate::{database::gql_db, utils, Config};
 use entity::{TypedPredicate as P, *};
 use sha1::{Digest, Sha1};

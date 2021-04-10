@@ -195,9 +195,9 @@ fn tokenize_description(description: &Description) -> TokenStream {
             let t = do_tokenize!(&x);
             quote! { #root::Description::Text(#t) }
         }
-        Description::URI(x) => {
+        Description::Uri(x) => {
             let t = do_tokenize!(&x);
-            quote! { #root::Description::URI(#t) }
+            quote! { #root::Description::Uri(#t) }
         }
     }
 }

@@ -66,12 +66,12 @@ impl<'a> FromVimwikiElement<'a> for Keyword {
     Deserialize,
 )]
 pub enum KeywordType {
-    TODO,
-    DONE,
-    STARTED,
-    FIXME,
-    FIXED,
-    XXX,
+    Todo,
+    Done,
+    Started,
+    Fixme,
+    Fixed,
+    Xxx,
 }
 
 impl fmt::Display for KeywordType {
@@ -80,12 +80,12 @@ impl fmt::Display for KeywordType {
             f,
             "{}",
             match self {
-                Self::TODO => "todo",
-                Self::DONE => "done",
-                Self::STARTED => "started",
-                Self::FIXME => "fixme",
-                Self::FIXED => "fixed",
-                Self::XXX => "xxx",
+                Self::Todo => "todo",
+                Self::Done => "done",
+                Self::Started => "started",
+                Self::Fixme => "fixme",
+                Self::Fixed => "fixed",
+                Self::Xxx => "xxx",
             }
         )
     }
@@ -96,12 +96,12 @@ impl FromStr for KeywordType {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "todo" => Ok(Self::TODO),
-            "done" => Ok(Self::DONE),
-            "started" => Ok(Self::STARTED),
-            "fixme" => Ok(Self::FIXME),
-            "fixed" => Ok(Self::FIXED),
-            "xxx" => Ok(Self::XXX),
+            "todo" => Ok(Self::Todo),
+            "done" => Ok(Self::Done),
+            "started" => Ok(Self::Started),
+            "fixme" => Ok(Self::Fixme),
+            "fixed" => Ok(Self::Fixed),
+            "xxx" => Ok(Self::Xxx),
             _ => Err(()),
         }
     }
@@ -110,12 +110,12 @@ impl FromStr for KeywordType {
 impl From<v::Keyword> for KeywordType {
     fn from(k: v::Keyword) -> Self {
         match k {
-            v::Keyword::TODO => KeywordType::TODO,
-            v::Keyword::DONE => KeywordType::DONE,
-            v::Keyword::STARTED => KeywordType::STARTED,
-            v::Keyword::FIXME => KeywordType::FIXME,
-            v::Keyword::FIXED => KeywordType::FIXED,
-            v::Keyword::XXX => KeywordType::XXX,
+            v::Keyword::Todo => KeywordType::Todo,
+            v::Keyword::Done => KeywordType::Done,
+            v::Keyword::Started => KeywordType::Started,
+            v::Keyword::Fixme => KeywordType::Fixme,
+            v::Keyword::Fixed => KeywordType::Fixed,
+            v::Keyword::Xxx => KeywordType::Xxx,
         }
     }
 }
@@ -147,7 +147,7 @@ mod tests {
                 .expect("Failed to convert from element");
 
             assert_eq!(ent.region(), &region);
-            assert_eq!(*ent.ty(), KeywordType::TODO);
+            assert_eq!(*ent.ty(), KeywordType::Todo);
             assert_eq!(ent.page_id(), 999);
             assert_eq!(ent.parent_id(), Some(123));
         });
