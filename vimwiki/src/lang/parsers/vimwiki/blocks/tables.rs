@@ -16,7 +16,7 @@ use nom::{
     bytes::complete::tag,
     character::complete::{char, space0},
     combinator::{map, map_parser, opt, value, verify},
-    multi::{many0, separated_nonempty_list},
+    multi::{many0, separated_list1},
     sequence::{delimited, pair, preceded, terminated},
 };
 
@@ -51,11 +51,8 @@ fn row(input: Span) -> IResult<Located<Row>> {
             delimited(
                 char('|'),
                 alt((
-                    map(
-                        separated_nonempty_list(char('|'), column_align),
-                        Row::from,
-                    ),
-                    map(separated_nonempty_list(char('|'), cell), Row::from),
+                    map(separated_list1(char('|'), column_align), Row::from),
+                    map(separated_list1(char('|'), cell), Row::from),
                 )),
                 char('|'),
             ),

@@ -59,7 +59,7 @@ mod tests {
     use super::*;
 
     #[inline]
-    fn take_and_toss(n: usize) -> impl Fn(Span) -> IResult<()> {
+    fn take_and_toss(n: usize) -> impl FnMut(Span) -> IResult<()> {
         move |input: Span| {
             nom::combinator::value((), nom::bytes::complete::take(n))(input)
         }

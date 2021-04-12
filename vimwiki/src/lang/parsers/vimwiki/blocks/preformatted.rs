@@ -12,7 +12,7 @@ use nom::{
     bytes::complete::tag,
     character::complete::{char, space0, space1},
     combinator::{map_parser, not, opt, verify},
-    multi::{many0, separated_list},
+    multi::{many0, separated_list0},
     sequence::{delimited, preceded, separated_pair},
 };
 use std::{borrow::Cow, collections::HashMap};
@@ -61,7 +61,7 @@ fn preformatted_text_start<'a>(
     // Fourth, look for optional metadata and consume it
     //
     // e.g. {{{key1="value 1" key2="value 2"
-    let (input, pairs) = separated_list(
+    let (input, pairs) = separated_list0(
         space1,
         separated_pair(
             map_parser(take_line_until1("="), cow_str),

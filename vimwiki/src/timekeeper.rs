@@ -93,8 +93,8 @@ pub mod parsers {
 
     pub fn context<'a, T>(
         ctx: &'static str,
-        f: impl Fn(Span<'a>) -> IResult<T>,
-    ) -> impl Fn(Span<'a>) -> IResult<T> {
+        f: impl FnMut(Span<'a>) -> IResult<T>,
+    ) -> impl FnMut(Span<'a>) -> IResult<T> {
         move |input: Span| {
             let start = std::time::Instant::now();
 

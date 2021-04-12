@@ -12,7 +12,7 @@ use nom::{
     branch::alt,
     bytes::complete::tag,
     combinator::{map, map_parser, not, rest},
-    multi::separated_list,
+    multi::separated_list0,
     sequence::{delimited, preceded},
 };
 use std::{borrow::Cow, path::Path};
@@ -86,7 +86,7 @@ fn link_anchor<'a>(input: Span<'a>) -> IResult<Anchor<'a>> {
     let (input, _) = tag("#")(input)?;
 
     map(
-        separated_list(
+        separated_list0(
             tag("#"),
             map_parser(take_line_until_one_of_three1("|", "#", "]]"), cow_str),
         ),

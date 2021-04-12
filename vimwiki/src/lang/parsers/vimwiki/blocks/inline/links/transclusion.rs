@@ -12,7 +12,7 @@ use crate::lang::{
 use nom::{
     bytes::complete::tag,
     combinator::{map, map_parser, opt},
-    multi::separated_nonempty_list,
+    multi::separated_list1,
     sequence::{delimited, preceded, separated_pair},
 };
 use std::{borrow::Cow, collections::HashMap};
@@ -53,7 +53,7 @@ fn transclusion_properties<'a>(
     input: Span<'a>,
 ) -> IResult<HashMap<Cow<'a, str>, Cow<'a, str>>> {
     map(
-        separated_nonempty_list(
+        separated_list1(
             tag("|"),
             map_parser(
                 take_line_until_one_of_two1("|", "}}"),

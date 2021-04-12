@@ -18,9 +18,9 @@ use uriparse::URI;
 /// If the feature "location" is enabled, this will also compute the line
 /// and column information for the captured input.
 pub fn locate<'a, T>(
-    parser: impl Fn(Span<'a>) -> IResult<Captured<T>>,
-) -> impl Fn(Span<'a>) -> IResult<Located<T>> {
-    context("Locate", move |input: Span| {
+    mut parser: impl FnMut(Span<'a>) -> IResult<Captured<T>>,
+) -> impl FnMut(Span<'a>) -> IResult<Located<T>> {
+    context("Locate", move |input: Span<'a>| {
         let (input, c) = parser(input)?;
 
         // If enabled, we construct a region that includes line & column
@@ -38,9 +38,9 @@ pub fn locate<'a, T>(
 
 /// Parser that captures the input used to create the output of provided the parser
 pub fn capture<'a, T>(
-    parser: impl Fn(Span<'a>) -> IResult<T>,
-) -> impl Fn(Span<'a>) -> IResult<Captured<T>> {
-    context("Capture", move |input: Span| {
+    mut parser: impl FnMut(Span<'a>) -> IResult<T>,
+) -> impl FnMut(Span<'a>) -> IResult<Captured<T>> {
+    context("Capture", move |input: Span<'a>| {
         let start = input;
         let (input, x) = parser(input)?;
         let start =

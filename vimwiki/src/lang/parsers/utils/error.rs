@@ -13,7 +13,7 @@ use crate::lang::parsers::{IResult, Span};
 #[cfg(feature = "timekeeper")]
 pub fn context<'a, T>(
     ctx: &'static str,
-    f: impl Fn(Span<'a>) -> IResult<'a, T>,
-) -> impl Fn(Span<'a>) -> IResult<'a, T> {
+    f: impl FnMut(Span<'a>) -> IResult<'a, T>,
+) -> impl FnMut(Span<'a>) -> IResult<'a, T> {
     crate::timekeeper::parsers::context(ctx, f)
 }

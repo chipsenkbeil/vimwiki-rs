@@ -13,8 +13,8 @@ use nom::{
 /// that does not contain the given pattern
 pub fn not_contains<'a>(
     pattern: &'static str,
-    parser: impl Fn(Span<'a>) -> IResult<Span<'a>>,
-) -> impl Fn(Span<'a>) -> IResult<Span<'a>> {
+    mut parser: impl FnMut(Span<'a>) -> IResult<Span<'a>>,
+) -> impl FnMut(Span<'a>) -> IResult<Span<'a>> {
     move |input: Span| {
         let (input, result) = parser(input)?;
         let (result, _) = not(offset(pattern))(result)?;
@@ -24,7 +24,7 @@ pub fn not_contains<'a>(
 
 /// Parser that finds with byte offset of the given pattern within the provided
 /// input, or fails if not found; does not consume input
-pub fn offset(pattern: &'static str) -> impl Fn(Span) -> IResult<usize> {
+pub fn offset(pattern: &'static str) -> impl FnMut(Span) -> IResult<usize> {
     move |input: Span| {
         let bytes = input.as_bytes();
         for pos in memchr_iter(pattern.as_bytes()[0], bytes) {
@@ -54,11 +54,11 @@ pub fn offset(pattern: &'static str) -> impl Fn(Span) -> IResult<usize> {
 pub fn surround_in_line1<'a>(
     left: &'static str,
     right: &'static str,
-) -> impl Fn(Span<'a>) -> IResult<Span<'a>> {
+) -> impl FnMut(Span<'a>) -> IResult<Span<'a>> {
     fn inner<'a>(
         left: &'static str,
         right: &'static str,
-    ) -> impl Fn(Span<'a>) -> IResult<Span<'a>> {
+    ) -> impl FnMut(Span<'a>) -> IResult<Span<'a>> {
         move |input: Span| {
             let (input, _) = tag(left)(input)?;
             let input_bytes = input.as_bytes();
@@ -114,16 +114,16 @@ pub fn surround_in_line1<'a>(
 /// Parser that consumes input while the pattern succeeds or we reach the
 /// end of the line. Note that this does NOT consume the line termination.
 pub fn take_line_while<'a, T>(
-    parser: impl Fn(Span<'a>) -> IResult<T>,
-) -> impl Fn(Span<'a>) -> IResult<Span<'a>> {
+    parser: impl FnMut(Span<'a>) -> IResult<T>,
+) -> impl FnMut(Span<'a>) -> IResult<Span<'a>> {
     fn single_char<'a, T>(
-        parser: impl Fn(Span<'a>) -> IResult<T>,
-    ) -> impl Fn(Span<'a>) -> IResult<char> {
+        mut parser: impl FnMut(Span<'a>) -> IResult<T>,
+    ) -> impl FnMut(Span<'a>) -> IResult<char> {
         move |input: Span| {
             let (input, _) = not(end_of_line_or_input)(input)?;
 
             // NOTE: This is the same as peek(parser), but avoids the issue
-            //       of variable being moved out of captured Fn(...)
+            //       of variable being moved out of captured FnMut(...)
             let (_, _) = parser(input)?;
 
             anychar(input)
@@ -136,8 +136,8 @@ pub fn take_line_while<'a, T>(
 /// Parser that consumes input while the pattern succeeds or we reach the
 /// end of the line. Note that this does NOT consume the line termination.
 pub fn take_line_while1<'a, T>(
-    parser: impl Fn(Span<'a>) -> IResult<T>,
-) -> impl Fn(Span<'a>) -> IResult<Span<'a>> {
+    parser: impl FnMut(Span<'a>) -> IResult<T>,
+) -> impl FnMut(Span<'a>) -> IResult<Span<'a>> {
     context(
         "Take Line While 1",
         verify(take_line_while(parser), |s| !s.is_empty()),
@@ -149,8 +149,8 @@ pub fn take_line_while1<'a, T>(
 /// termination.
 pub fn take_line_until<'a>(
     pattern: &'static str,
-) -> impl Fn(Span<'a>) -> IResult<Span<'a>> {
-    context("Take Line Until", move |input: Span| {
+) -> impl FnMut(Span<'a>) -> IResult<Span<'a>> {
+    context("Take Line Until", move |input: Span<'a>| {
         let bytes = input.as_bytes();
         for pos in memchr2_iter(b'\n', pattern.as_bytes()[0], bytes) {
             // If we have reached the end of line, return with everything
@@ -184,7 +184,7 @@ pub fn take_line_until<'a>(
 /// termination.
 pub fn take_line_until1<'a>(
     pattern: &'static str,
-) -> impl Fn(Span<'a>) -> IResult<Span<'a>> {
+) -> impl FnMut(Span<'a>) -> IResult<Span<'a>> {
     context(
         "Take Line Until 1",
         verify(take_line_until(pattern), |s| !s.is_empty()),
@@ -197,8 +197,8 @@ pub fn take_line_until1<'a>(
 pub fn take_line_until_one_of_two<'a>(
     pattern1: &'static str,
     pattern2: &'static str,
-) -> impl Fn(Span<'a>) -> IResult<Span<'a>> {
-    context("Take Line Until One of Two", move |input: Span| {
+) -> impl FnMut(Span<'a>) -> IResult<Span<'a>> {
+    context("Take Line Until One of Two", move |input: Span<'a>| {
         let bytes = input.as_bytes();
 
         let p1_bytes = pattern1.as_bytes();
@@ -238,7 +238,7 @@ pub fn take_line_until_one_of_two<'a>(
 pub fn take_line_until_one_of_two1<'a>(
     pattern1: &'static str,
     pattern2: &'static str,
-) -> impl Fn(Span<'a>) -> IResult<Span<'a>> {
+) -> impl FnMut(Span<'a>) -> IResult<Span<'a>> {
     context(
         "Take Line Until One of Two 1",
         verify(take_line_until_one_of_two(pattern1, pattern2), |s| {
@@ -254,8 +254,8 @@ pub fn take_line_until_one_of_three<'a>(
     pattern1: &'static str,
     pattern2: &'static str,
     pattern3: &'static str,
-) -> impl Fn(Span<'a>) -> IResult<Span<'a>> {
-    context("Take Line Until One of Three", move |input: Span| {
+) -> impl FnMut(Span<'a>) -> IResult<Span<'a>> {
+    context("Take Line Until One of Three", move |input: Span<'a>| {
         let bytes = input.as_bytes();
 
         let maybe_line_pos = memchr(b'\n', bytes);
@@ -310,7 +310,7 @@ pub fn take_line_until_one_of_three1<'a>(
     pattern1: &'static str,
     pattern2: &'static str,
     pattern3: &'static str,
-) -> impl Fn(Span<'a>) -> IResult<Span<'a>> {
+) -> impl FnMut(Span<'a>) -> IResult<Span<'a>> {
     context(
         "Take Line Until One of Three 1",
         verify(
@@ -336,7 +336,7 @@ pub fn take_until_end_of_line_or_input(input: Span) -> IResult<Span> {
 /// failing if the pattern is never found
 pub fn take_until<'a>(
     pattern: &'static str,
-) -> impl Fn(Span<'a>) -> IResult<Span<'a>> {
+) -> impl FnMut(Span<'a>) -> IResult<Span<'a>> {
     move |input: Span| {
         let bytes = input.as_bytes();
         for pos in memchr_iter(pattern.as_bytes()[0], bytes) {
@@ -361,7 +361,7 @@ pub fn take_until<'a>(
 }
 
 /// Takes from the end instead of the beginning
-pub fn take_end<'a, C>(count: C) -> impl Fn(Span<'a>) -> IResult<Span<'a>>
+pub fn take_end<'a, C>(count: C) -> impl FnMut(Span<'a>) -> IResult<Span<'a>>
 where
     C: nom::ToUsize,
 {
@@ -370,7 +370,7 @@ where
         Err,
     };
     let cnt = count.to_usize();
-    context("Take End", move |input: Span| {
+    context("Take End", move |input: Span<'a>| {
         let len = input.input_len();
         if cnt > len {
             Err(Err::Error(Error::from_error_kind(input, ErrorKind::Eof)))

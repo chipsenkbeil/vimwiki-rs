@@ -518,7 +518,7 @@ impl<'a> InputIter for Span<'a> {
     }
 
     #[inline]
-    fn slice_index(&self, count: usize) -> Option<usize> {
+    fn slice_index(&self, count: usize) -> Result<usize, nom::Needed> {
         self.as_bytes().slice_index(count)
     }
 }
@@ -570,7 +570,7 @@ where
     {
         match self.as_bytes().position(predicate) {
             Some(n) => Ok(self.take_split(n)),
-            None => Err(Err::Incomplete(nom::Needed::Size(1))),
+            None => Err(Err::Incomplete(nom::Needed::new(1))),
         }
     }
 
@@ -585,7 +585,7 @@ where
         match self.as_bytes().position(predicate) {
             Some(0) => Err(Err::Error(E::from_error_kind(*self, e))),
             Some(n) => Ok(self.take_split(n)),
-            None => Err(Err::Incomplete(nom::Needed::Size(1))),
+            None => Err(Err::Incomplete(nom::Needed::new(1))),
         }
     }
 
@@ -851,13 +851,13 @@ mod tests {
         fn slice_index_should_yield_the_index_if_available_in_remaining_bytes()
         {
             let span = Span::from(b"abc123").starting_at(2);
-            assert_eq!(span.slice_index(3), Some(3));
+            assert_eq!(span.slice_index(3), Ok(3));
         }
 
         #[test]
         fn slice_index_should_yield_none_if_unavailable_in_remaining_bytes() {
             let span = Span::from(b"abc123").starting_at(3);
-            assert_eq!(span.slice_index(4), None);
+            assert_eq!(span.slice_index(4), Err(nom::Needed::new(1)));
         }
 
         #[test]
@@ -904,7 +904,7 @@ mod tests {
             let span = Span::from(b"abc123").starting_at(2);
             assert_eq!(
                 span.split_at_position::<_, ()>(|_| false),
-                Err(nom::Err::Incomplete(nom::Needed::Size(1)))
+                Err(nom::Err::Incomplete(nom::Needed::new(1)))
             );
         }
 
@@ -934,7 +934,7 @@ mod tests {
             let span = Span::from(b"abc123").starting_at(2);
             assert_eq!(
                 span.split_at_position1::<_, ()>(|_| false, ErrorKind::Alpha),
-                Err(nom::Err::Incomplete(nom::Needed::Size(1)))
+                Err(nom::Err::Incomplete(nom::Needed::new(1)))
             );
         }
 

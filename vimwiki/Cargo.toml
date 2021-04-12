@@ -24,7 +24,7 @@ bytecount = "0.6.0"
 chrono = { version = "0.4.15", features = ["serde"] }
 lazy_static = "1.4"
 memchr = "2.3.3"
-nom = "5.1.2"
+nom = "6.1.2"
 numerals = "0.1.4"
 serde = { version = "1.0.115", features = ["derive"] }
 # shellexpand = "2.0.0"

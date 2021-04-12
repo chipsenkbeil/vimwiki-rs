@@ -12,7 +12,7 @@ use nom::{
     branch::alt,
     bytes::complete::tag,
     combinator::{map, map_parser, rest},
-    multi::separated_list,
+    multi::separated_list0,
 };
 
 pub fn comment(input: Span) -> IResult<Located<Comment>> {
@@ -44,7 +44,7 @@ pub fn multi_line_comment(input: Span) -> IResult<Located<MultiLineComment>> {
         // Capture all content between comments as individual lines
         let (input, lines) = map_parser(
             take_until("+%%"),
-            separated_list(
+            separated_list0(
                 tag("\n"),
                 map_parser(alt((take_until("\n"), rest)), cow_str),
             ),

@@ -1,5 +1,5 @@
 use super::Span;
-use nom::error::{ErrorKind, ParseError};
+use nom::error::{ContextError, ErrorKind, FromExternalError, ParseError};
 use std::{borrow::Cow, fmt};
 
 /// Represents an encapsulated error that is encountered
@@ -77,6 +77,13 @@ impl<'a> LangParserError<'a> {
     }
 }
 
+impl<'a, E> FromExternalError<Span<'a>, E> for LangParserError<'a> {
+    fn from_external_error(input: Span<'a>, kind: ErrorKind, _e: E) -> Self {
+        // TODO: Support unique external error rendering
+        Self::from_error_kind(input, kind)
+    }
+}
+
 impl<'a> ParseError<Span<'a>> for LangParserError<'a> {
     fn from_error_kind(input: Span<'a>, kind: ErrorKind) -> Self {
         Self {
@@ -108,7 +115,9 @@ impl<'a> ParseError<Span<'a>> for LangParserError<'a> {
             other
         }
     }
+}
 
+impl<'a> ContextError<Span<'a>> for LangParserError<'a> {
     fn add_context(input: Span<'a>, ctx: &'static str, other: Self) -> Self {
         Self {
             ctx: Cow::from(ctx),
