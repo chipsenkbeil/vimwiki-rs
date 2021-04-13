@@ -1,5 +1,4 @@
 use crate::lang::parsers::Span;
-use derive_more::Constructor;
 use serde::{Deserialize, Serialize};
 use std::ops::{Range, RangeInclusive, RangeTo, RangeToInclusive};
 
@@ -13,95 +12,13 @@ pub struct Region {
 
     /// Length of this region from the offset
     len: usize,
-
-    /// Optional extra information about the region in the form of line/column
-    position: Option<Position>,
-}
-
-/// Represents the position of a region in the form of line/column
-#[derive(
-    Constructor, Copy, Clone, Debug, Hash, Eq, PartialEq, Serialize, Deserialize,
-)]
-pub struct Position {
-    start: LineColumn,
-    end: LineColumn,
-}
-
-impl Position {
-    #[inline]
-    pub fn start(&self) -> LineColumn {
-        self.start
-    }
-
-    #[inline]
-    pub fn end(&self) -> LineColumn {
-        self.end
-    }
-}
-
-/// Represents some position in the form of line/column
-#[derive(
-    Constructor, Copy, Clone, Debug, Hash, Eq, PartialEq, Serialize, Deserialize,
-)]
-pub struct LineColumn {
-    line: usize,
-    column: usize,
-}
-
-impl LineColumn {
-    #[inline]
-    pub fn line(&self) -> usize {
-        self.line
-    }
-
-    #[inline]
-    pub fn column(&self) -> usize {
-        self.column
-    }
 }
 
 impl Region {
     /// Constructs a new region with the given offset and length, containing
     /// no extra information
     pub fn new(offset: usize, len: usize) -> Self {
-        Self {
-            offset,
-            len,
-            position: None,
-        }
-    }
-
-    /// Constructs a new region with the given offset, length, and extra
-    /// information about the line & column position
-    pub fn new_with_position(
-        offset: usize,
-        len: usize,
-        position: Position,
-    ) -> Self {
-        Self {
-            offset,
-            len,
-            position: Some(position),
-        }
-    }
-
-    /// Consumes the given region and returns a new one with its position
-    /// set to the provided position
-    pub fn with_position(self, position: Position) -> Self {
-        Self::new_with_position(self.offset, self.len, position)
-    }
-
-    /// Constructs a new region based on the offset and length of the given
-    /// span. Additionally, computes the line & column position of the region.
-    pub fn from_span_with_position(span: Span) -> Self {
-        let start = LineColumn::new(span.line(), span.column());
-        let end = LineColumn::new(span.end_line(), span.end_column());
-        let position = Position::new(start, end);
-        Self::new_with_position(
-            span.start_offset(),
-            span.remaining_len(),
-            position,
-        )
+        Self { offset, len }
     }
 
     /// Checks if a position is contained within this region
@@ -126,13 +43,6 @@ impl Region {
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.len == 0
-    }
-
-    /// Returns the position of the region relative to some span of input
-    ///
-    /// Can be none if the region was not constructed with a position
-    pub fn position(&self) -> Option<Position> {
-        self.position
     }
 }
 

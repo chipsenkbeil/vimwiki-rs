@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 
 mod region;
-pub use region::{LineColumn, Position, Region};
+pub use region::Region;
 
 /// Represents an encapsulation of a language element and its location
 /// within some string/file

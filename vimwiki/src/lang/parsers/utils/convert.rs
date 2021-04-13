@@ -22,16 +22,7 @@ pub fn locate<'a, T>(
 ) -> impl FnMut(Span<'a>) -> IResult<Located<T>> {
     context("Locate", move |input: Span<'a>| {
         let (input, c) = parser(input)?;
-
-        // If enabled, we construct a region that includes line & column
-        // information, otherwise we construct a region with just the offset
-        // and length of the span
-        let region = if cfg!(feature = "location") {
-            Region::from_span_with_position(c.input())
-        } else {
-            Region::from(c.input())
-        };
-
+        let region = Region::from(c.input());
         Ok((input, Located::new(c.into_inner(), region)))
     })
 }
