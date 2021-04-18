@@ -5,6 +5,9 @@ pub use lang::{
     FromLanguage, Language,
 };
 
+mod utils;
+pub use utils::StrictEq;
+
 // Re-export the vendor libraries so we're able to reconstruct their
 // structs from macros
 pub mod vendor {

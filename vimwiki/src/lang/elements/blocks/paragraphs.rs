@@ -1,4 +1,9 @@
-use super::{InlineElement, InlineElementContainer, Located};
+use crate::{
+    lang::elements::{
+        InlineElement, InlineElementContainer, IntoChildren, Located,
+    },
+    StrictEq,
+};
 use derive_more::Constructor;
 use serde::{Deserialize, Serialize};
 
@@ -21,8 +26,10 @@ impl Paragraph<'_> {
     }
 }
 
-impl<'a> Paragraph<'a> {
-    pub fn into_children(self) -> Vec<Located<InlineElement<'a>>> {
+impl<'a> IntoChildren for Paragraph<'a> {
+    type Child = Located<InlineElement<'a>>;
+
+    fn into_children(self) -> Vec<Self::Child> {
         self.content.into_children()
     }
 }
@@ -40,5 +47,12 @@ impl<'a> From<Located<InlineElement<'a>>> for Paragraph<'a> {
     /// placed inside a paragraph
     fn from(element: Located<InlineElement<'a>>) -> Self {
         Self::new(element.into())
+    }
+}
+
+impl<'a> StrictEq for Paragraph<'a> {
+    /// Performs strict_eq on content
+    fn strict_eq(&self, other: &Self) -> bool {
+        self.content.strict_eq(&other.content)
     }
 }

@@ -404,5 +404,5 @@ fn test() {
     // %nohtml
     // "#;
 
-    compare_page_elements(&page.elements, &expected);
+    compare_page_elements(page.elements(), &expected);
 }

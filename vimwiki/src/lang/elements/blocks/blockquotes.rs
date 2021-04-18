@@ -1,3 +1,4 @@
+use crate::StrictEq;
 use derive_more::Constructor;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
@@ -7,6 +8,13 @@ use std::borrow::Cow;
 )]
 pub struct Blockquote<'a> {
     pub lines: Vec<Cow<'a, str>>,
+}
+
+impl<'a> Blockquote<'a> {
+    /// Returns lines within the blockquote
+    pub fn lines(&self) -> &[Cow<'a, str>] {
+        &self.lines
+    }
 }
 
 impl Blockquote<'_> {
@@ -35,5 +43,13 @@ impl Blockquote<'_> {
             .collect();
 
         Blockquote { lines }
+    }
+}
+
+impl<'a> StrictEq for Blockquote<'a> {
+    /// Same as PartialEq
+    #[inline]
+    fn strict_eq(&self, other: &Self) -> bool {
+        self == other
     }
 }

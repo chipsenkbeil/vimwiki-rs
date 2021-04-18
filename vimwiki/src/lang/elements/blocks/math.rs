@@ -1,3 +1,4 @@
+use crate::StrictEq;
 use derive_more::Constructor;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
@@ -43,5 +44,12 @@ impl MathBlock<'_> {
                 .collect(),
             environment: self.environment.map(|x| Cow::from(x.into_owned())),
         }
+    }
+}
+
+impl<'a> StrictEq for MathBlock<'a> {
+    /// Same as PartialEq
+    fn strict_eq(&self, other: &Self) -> bool {
+        self == other
     }
 }

@@ -1,3 +1,4 @@
+use crate::StrictEq;
 use derive_more::{Constructor, Display, From};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
@@ -23,6 +24,14 @@ impl Comment<'_> {
             Self::Line(x) => Comment::from(x.into_owned()),
             Self::MultiLine(x) => Comment::from(x.into_owned()),
         }
+    }
+}
+
+impl<'a> StrictEq for Comment<'a> {
+    /// Same as PartialEq
+    #[inline]
+    fn strict_eq(&self, other: &Self) -> bool {
+        self == other
     }
 }
 
@@ -66,6 +75,14 @@ impl<'a> From<&'a str> for LineComment<'a> {
 impl<'a> From<String> for LineComment<'a> {
     fn from(s: String) -> Self {
         Self::new(Cow::from(s))
+    }
+}
+
+impl<'a> StrictEq for LineComment<'a> {
+    /// Same as PartialEq
+    #[inline]
+    fn strict_eq(&self, other: &Self) -> bool {
+        self == other
     }
 }
 
@@ -121,5 +138,13 @@ impl<'a> From<&'a str> for MultiLineComment<'a> {
 impl<'a> From<String> for MultiLineComment<'a> {
     fn from(s: String) -> Self {
         Self::new(vec![Cow::from(s)])
+    }
+}
+
+impl<'a> StrictEq for MultiLineComment<'a> {
+    /// Same as PartialEq
+    #[inline]
+    fn strict_eq(&self, other: &Self) -> bool {
+        self == other
     }
 }

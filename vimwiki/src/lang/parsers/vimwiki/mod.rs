@@ -40,17 +40,19 @@ mod tests {
     #[test]
     fn page_should_skip_blank_lines_not_within_block_elements() {
         let (_, page) = page(Span::from("\n\n")).unwrap();
-        assert!(page.elements.is_empty());
+        assert!(page.elements().is_empty());
     }
 
     #[test]
     fn page_should_parse_blocks() {
         let (_, page) = page(Span::from("some text with % signs")).unwrap();
         assert_eq!(
-            page.elements,
-            vec![BlockElement::from(Paragraph::from(vec![Located::from(
-                InlineElement::Text(Text::from("some text with % signs"))
-            )]))]
+            page.elements(),
+            vec![Located::from(BlockElement::from(Paragraph::from(vec![
+                Located::from(InlineElement::Text(Text::from(
+                    "some text with % signs"
+                )))
+            ])))]
         );
     }
 }

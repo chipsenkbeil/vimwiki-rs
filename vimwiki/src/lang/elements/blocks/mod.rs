@@ -1,4 +1,7 @@
-use crate::lang::elements::{Element, Located};
+use crate::{
+    lang::elements::{Element, IntoChildren, Located},
+    StrictEq,
+};
 use derive_more::From;
 use serde::{Deserialize, Serialize};
 
@@ -76,8 +79,10 @@ impl BlockElement<'_> {
     }
 }
 
-impl<'a> BlockElement<'a> {
-    pub fn into_children(self) -> Vec<Located<Element<'a>>> {
+impl<'a> IntoChildren for BlockElement<'a> {
+    type Child = Located<Element<'a>>;
+
+    fn into_children(self) -> Vec<Self::Child> {
         match self {
             Self::DefinitionList(x) => x
                 .into_children()
@@ -105,6 +110,29 @@ impl<'a> BlockElement<'a> {
                 .map(|x| x.map(Element::from))
                 .collect(),
             _ => vec![],
+        }
+    }
+}
+
+impl<'a> StrictEq for BlockElement<'a> {
+    /// Performs strict_eq check on matching inner variants
+    fn strict_eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Blockquote(x), Self::Blockquote(y)) => x.strict_eq(y),
+            (Self::DefinitionList(x), Self::DefinitionList(y)) => {
+                x.strict_eq(y)
+            }
+            (Self::Divider(x), Self::Divider(y)) => x.strict_eq(y),
+            (Self::Header(x), Self::Header(y)) => x.strict_eq(y),
+            (Self::List(x), Self::List(y)) => x.strict_eq(y),
+            (Self::Math(x), Self::Math(y)) => x.strict_eq(y),
+            (Self::Paragraph(x), Self::Paragraph(y)) => x.strict_eq(y),
+            (Self::Placeholder(x), Self::Placeholder(y)) => x.strict_eq(y),
+            (Self::PreformattedText(x), Self::PreformattedText(y)) => {
+                x.strict_eq(y)
+            }
+            (Self::Table(x), Self::Table(y)) => x.strict_eq(y),
+            _ => false,
         }
     }
 }

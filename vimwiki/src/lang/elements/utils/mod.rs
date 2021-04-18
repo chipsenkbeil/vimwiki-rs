@@ -1,9 +1,40 @@
+use crate::StrictEq;
 use derive_more::{Constructor, Deref, DerefMut, Display};
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 
 mod region;
 pub use region::Region;
+
+/// Represents a trait that provides the ability to get the children of an
+/// element as a slice
+pub trait AsChildrenSlice {
+    /// The type of child contained within
+    type Child;
+
+    /// Returns a slice to children contained within
+    fn as_children_slice(&self) -> &[Self::Child];
+}
+
+/// Represents a trait that provides the ability to get the children of an
+/// element as a mut slice
+pub trait AsChildrenMutSlice {
+    /// The type of child contained within
+    type Child;
+
+    /// Returns a mutable slice to children contained within
+    fn as_children_mut_slice(&mut self) -> &mut [Self::Child];
+}
+
+/// Represents a trait that provides the ability to get the children of an
+/// element through a consuming conversion
+pub trait IntoChildren {
+    /// The type of child contained within
+    type Child;
+
+    /// Returns a vec of children contained within
+    fn into_children(self) -> Vec<Self::Child>;
+}
 
 /// Represents an encapsulation of a language element and its location
 /// within some string/file
@@ -75,6 +106,11 @@ impl<T> Located<T> {
         self.inner
     }
 
+    /// Returns depth of the inner value among other Located objects
+    pub fn depth(&self) -> u16 {
+        self.region.depth()
+    }
+
     /// Returns a copy of the region associated with the inner value
     pub fn region(&self) -> Region {
         self.region
@@ -110,6 +146,22 @@ impl<T: PartialEq> PartialEq for Located<T> {
 impl<T: PartialEq> PartialEq<T> for Located<T> {
     fn eq(&self, other: &T) -> bool {
         &self.inner == other
+    }
+}
+
+impl<T: StrictEq> StrictEq for Located<T> {
+    /// Performs strict equality check by verifying that inner value is
+    /// strict equal and that the regions of both located are equal
+    fn strict_eq(&self, other: &Self) -> bool {
+        self.inner.strict_eq(&other.inner) && self.region == other.region
+    }
+}
+
+impl<T: StrictEq> StrictEq<T> for Located<T> {
+    /// Performs strict equality check by verifying that inner value is
+    /// strict equal to the provided value
+    fn strict_eq(&self, other: &T) -> bool {
+        self.inner.strict_eq(&other)
     }
 }
 

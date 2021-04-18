@@ -7,6 +7,7 @@ pub enum VimwikiFile {
     VimwikiWikiTipsAndSnips,
     VimwikiWikiRelatedTools,
     PandocVimwikiReader,
+    MiscDepthCheck,
 }
 
 impl VimwikiFile {
@@ -34,6 +35,7 @@ impl VimwikiFile {
             Self::PandocVimwikiReader => {
                 PathBuf::from("pandoc/vimwiki-reader.wiki")
             }
+            Self::MiscDepthCheck => PathBuf::from("misc/depth-check.wiki"),
         };
         head.join(tail)
     }

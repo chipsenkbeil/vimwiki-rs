@@ -1,5 +1,6 @@
 use super::{fixtures, utils};
 
+mod misc_depth_check;
 mod pandoc_vimwiki_reader;
 mod vimwiki_wiki_index_page;
 mod vimwiki_wiki_related_tools_page;

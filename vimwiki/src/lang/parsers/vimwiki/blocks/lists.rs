@@ -6,7 +6,8 @@ use crate::lang::{
     },
     parsers::{
         utils::{
-            beginning_of_line, capture, context, end_of_line_or_input, locate,
+            beginning_of_line, capture, context, deeper, end_of_line_or_input,
+            locate,
         },
         vimwiki::blocks::inline::inline_element_container,
         IResult, Span,
@@ -26,7 +27,7 @@ pub fn list(input: Span) -> IResult<Located<List>> {
     fn inner(input: Span) -> IResult<List> {
         // A list must at least have one item, whose indentation level we will
         // use to determine how far to go
-        let (input, (indentation, item)) = list_item(input)?;
+        let (input, (indentation, item)) = deeper(list_item)(input)?;
 
         // TODO: Keep track of indentation level for a list based on its first
         //       item
@@ -43,7 +44,7 @@ pub fn list(input: Span) -> IResult<Located<List>> {
         let (input, (_, items)) = fold_many0(
             preceded(
                 verify(indentation_level(false), |level| *level == indentation),
-                map(list_item, |x| x.1),
+                map(deeper(list_item), |x| x.1),
             ),
             (1, vec![item]),
             |(index, mut items), mut item| {
@@ -103,10 +104,9 @@ fn list_item_tail(
         let (input, maybe_todo_status) = opt(todo_status)(input)?;
 
         // 5. Parse the rest of the current line
-        let (input, content) =
-            map(list_item_line_content, |c| c.map(ListItemContent::from))(
-                input,
-            )?;
+        let (input, content) = map(deeper(list_item_line_content), |c| {
+            c.map(ListItemContent::from)
+        })(input)?;
 
         // 6. Continue parsing additional lines as content for the
         //    current list item as long as the following are met:
@@ -121,8 +121,8 @@ fn list_item_tail(
         let (input, mut contents) = many0(preceded(
             verify(indentation_level(false), |level| *level > indentation),
             alt((
-                map(list, |c| c.map(ListItemContent::from)),
-                map(preceded(space0, list_item_line_content), |c| {
+                map(deeper(list), |c| c.map(ListItemContent::from)),
+                map(preceded(space0, deeper(list_item_line_content)), |c| {
                     c.map(ListItemContent::from)
                 }),
             )),
@@ -379,6 +379,32 @@ mod tests {
         assert!(list(Span::from("i)some item with no space")).is_err());
         assert!(list(Span::from("I)some item with no space")).is_err());
         assert!(list(Span::from("#some item with no space")).is_err());
+    }
+
+    #[test]
+    fn list_should_properly_adjust_depth_for_list_items_and_contents() {
+        let input = Span::from(indoc! {"
+            - list item 1
+              has extra content
+              - sublist item 1
+                has content
+              - sublist item 2
+              on multiple lines
+            - list item 2
+        "});
+
+        let (_, lst) = list(input).unwrap();
+        assert_eq!(lst.depth(), 0, "List depth was at wrong level");
+        for item in lst.items.iter() {
+            assert_eq!(item.depth(), 1, "List item depth was at wrong level");
+            for content in item.contents.contents.iter() {
+                assert_eq!(
+                    content.depth(),
+                    2,
+                    "List item inner content was at wrong level"
+                );
+            }
+        }
     }
 
     #[test]

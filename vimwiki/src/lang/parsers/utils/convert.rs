@@ -13,6 +13,16 @@ use nom::{
 use std::{borrow::Cow, convert::TryFrom, path::Path};
 use uriparse::URI;
 
+/// Parser that wraps a span in a deeper depth
+pub fn deeper<'a, T>(
+    mut parser: impl FnMut(Span<'a>) -> IResult<T>,
+) -> impl FnMut(Span<'a>) -> IResult<T> {
+    context("Deeper", move |input: Span<'a>| {
+        let (input, x) = parser(input.with_deeper_depth())?;
+        Ok((input.with_shallower_depth(), x))
+    })
+}
+
 /// Parser that transforms a `Captured<T>` to a `Located<T>`.
 ///
 /// If the feature "location" is enabled, this will also compute the line

@@ -1,4 +1,9 @@
-use super::{InlineElement, InlineElementContainer, Located};
+use crate::{
+    lang::elements::{
+        InlineElement, InlineElementContainer, IntoChildren, Located,
+    },
+    StrictEq,
+};
 use derive_more::{Constructor, From};
 use serde::{Deserialize, Serialize};
 
@@ -62,12 +67,29 @@ impl<'a> Table<'a> {
             _ => None,
         })
     }
+}
 
-    pub fn into_children(self) -> Vec<Located<InlineElement<'a>>> {
+impl<'a> IntoChildren for Table<'a> {
+    type Child = Located<InlineElement<'a>>;
+
+    fn into_children(self) -> Vec<Self::Child> {
         self.rows
             .into_iter()
             .flat_map(|x| x.into_inner().into_children())
             .collect()
+    }
+}
+
+impl<'a> StrictEq for Table<'a> {
+    /// Performs strict_eq on rows and centered status
+    fn strict_eq(&self, other: &Self) -> bool {
+        self.centered == other.centered
+            && self.rows.len() == other.rows.len()
+            && self
+                .rows
+                .iter()
+                .zip(other.rows.iter())
+                .all(|(x, y)| x.strict_eq(y))
     }
 }
 
@@ -91,6 +113,13 @@ impl Default for ColumnAlign {
     /// By default, columns align to the left
     fn default() -> Self {
         Self::Left
+    }
+}
+
+impl StrictEq for ColumnAlign {
+    /// Same as PartialEq
+    fn strict_eq(&self, other: &Self) -> bool {
+        self == other
     }
 }
 
@@ -122,14 +151,33 @@ impl Row<'_> {
     }
 }
 
-impl<'a> Row<'a> {
-    pub fn into_children(self) -> Vec<Located<InlineElement<'a>>> {
+impl<'a> IntoChildren for Row<'a> {
+    type Child = Located<InlineElement<'a>>;
+
+    fn into_children(self) -> Vec<Self::Child> {
         match self {
             Self::Content { cells } => cells
                 .into_iter()
                 .flat_map(|x| x.into_inner().into_children())
                 .collect(),
             _ => vec![],
+        }
+    }
+}
+
+impl<'a> StrictEq for Row<'a> {
+    /// Performs strict_eq check on columns or cells depending on row type
+    fn strict_eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Content { cells: x }, Self::Content { cells: y }) => {
+                x.len() == y.len()
+                    && x.iter().zip(y.iter()).all(|(x, y)| x.strict_eq(y))
+            }
+            (Self::Divider { columns: x }, Self::Divider { columns: y }) => {
+                x.len() == y.len()
+                    && x.iter().zip(y.iter()).all(|(x, y)| x.strict_eq(y))
+            }
+            _ => false,
         }
     }
 }
@@ -159,11 +207,25 @@ impl Cell<'_> {
     }
 }
 
-impl<'a> Cell<'a> {
-    pub fn into_children(self) -> Vec<Located<InlineElement<'a>>> {
+impl<'a> IntoChildren for Cell<'a> {
+    type Child = Located<InlineElement<'a>>;
+
+    fn into_children(self) -> Vec<Self::Child> {
         match self {
             Self::Content(x) => x.into_children(),
             _ => vec![],
+        }
+    }
+}
+
+impl<'a> StrictEq for Cell<'a> {
+    /// Performs strict_eq on cell content
+    fn strict_eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Content(x), Self::Content(y)) => x.strict_eq(y),
+            (Self::SpanLeft, Self::SpanLeft) => true,
+            (Self::SpanAbove, Self::SpanAbove) => true,
+            _ => false,
         }
     }
 }

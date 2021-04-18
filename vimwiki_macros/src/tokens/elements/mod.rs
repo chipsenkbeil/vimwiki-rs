@@ -10,7 +10,7 @@ pub mod location;
 impl_tokenize!(tokenize_page, Page<'a>, 'a);
 fn tokenize_page(page: &Page) -> TokenStream {
     let root = element_path();
-    let elements = page.elements.iter().map(|x| do_tokenize!(x));
+    let elements = page.elements().iter().map(|x| do_tokenize!(x));
     quote! {
         #root::Page {
             elements: vec![#(#elements),*],

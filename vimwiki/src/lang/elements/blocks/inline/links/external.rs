@@ -1,4 +1,5 @@
 use super::Description;
+use crate::StrictEq;
 use derive_more::Constructor;
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, fmt, path::Path};
@@ -9,6 +10,14 @@ pub enum ExternalFileLinkScheme {
     Local,
     File,
     Absolute,
+}
+
+impl StrictEq for ExternalFileLinkScheme {
+    /// Same as PartialEq
+    #[inline]
+    fn strict_eq(&self, other: &Self) -> bool {
+        self == other
+    }
 }
 
 /// Represents an external link to some file or directory on the host system
@@ -70,5 +79,13 @@ impl<'a> fmt::Display for ExternalFileLink<'a> {
         } else {
             write!(f, "{}", self.path.to_string_lossy())
         }
+    }
+}
+
+impl<'a> StrictEq for ExternalFileLink<'a> {
+    /// Same as PartialEq
+    #[inline]
+    fn strict_eq(&self, other: &Self) -> bool {
+        self == other
     }
 }

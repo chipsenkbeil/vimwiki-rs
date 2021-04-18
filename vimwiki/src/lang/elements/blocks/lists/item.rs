@@ -1,4 +1,9 @@
-use super::{Element, ListItemContent, ListItemContents, Located};
+use crate::{
+    lang::elements::{
+        Element, IntoChildren, ListItemContent, ListItemContents, Located,
+    },
+    StrictEq,
+};
 use derive_more::{Constructor, From};
 use numerals::roman::Roman;
 use serde::{Deserialize, Serialize};
@@ -38,11 +43,26 @@ impl ListItem<'_> {
     }
 }
 
-impl<'a> ListItem<'a> {
-    pub fn into_children(self) -> Vec<Located<Element<'a>>> {
+impl<'a> IntoChildren for ListItem<'a> {
+    type Child = Located<Element<'a>>;
+
+    fn into_children(self) -> Vec<Self::Child> {
         self.contents.into_children()
     }
+}
 
+impl<'a> StrictEq for ListItem<'a> {
+    /// Performs a strict_eq check against eqivalent variants
+    fn strict_eq(&self, other: &Self) -> bool {
+        self.item_type.strict_eq(&other.item_type)
+            && self.suffix.strict_eq(&other.suffix)
+            && self.pos == other.pos
+            && self.contents.strict_eq(&other.contents)
+            && self.attributes.strict_eq(&other.attributes)
+    }
+}
+
+impl<'a> ListItem<'a> {
     /// Indicates whether or not this list item represents an unordered item
     pub fn is_unordered(&self) -> bool {
         self.item_type.is_unordered()
@@ -219,6 +239,13 @@ impl Default for ListItemSuffix {
     }
 }
 
+impl StrictEq for ListItemSuffix {
+    /// Same as PartialEq
+    fn strict_eq(&self, other: &Self) -> bool {
+        self == other
+    }
+}
+
 #[derive(Clone, Debug, From, Eq, PartialEq, Serialize, Deserialize)]
 pub enum ListItemType<'a> {
     Ordered(OrderedListItemType),
@@ -264,6 +291,17 @@ impl<'a> Default for ListItemType<'a> {
     }
 }
 
+impl<'a> StrictEq for ListItemType<'a> {
+    /// Performs strict_eq on matching inner variants
+    fn strict_eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Ordered(x), Self::Ordered(y)) => x.strict_eq(y),
+            (Self::Unordered(x), Self::Unordered(y)) => x.strict_eq(y),
+            _ => false,
+        }
+    }
+}
+
 /// Represents the type associated with an unordered item
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum UnorderedListItemType<'a> {
@@ -299,6 +337,13 @@ impl UnorderedListItemType<'_> {
             Self::Hyphen => UnorderedListItemType::Hyphen,
             Self::Asterisk => UnorderedListItemType::Asterisk,
         }
+    }
+}
+
+impl<'a> StrictEq for UnorderedListItemType<'a> {
+    /// Same as PartialEq
+    fn strict_eq(&self, other: &Self) -> bool {
+        self == other
     }
 }
 
@@ -408,6 +453,13 @@ fn pos_to_alphabet(pos: usize, to_lower: bool) -> String {
     s.chars().rev().collect()
 }
 
+impl StrictEq for OrderedListItemType {
+    /// Same as PartialEq
+    fn strict_eq(&self, other: &Self) -> bool {
+        self == other
+    }
+}
+
 /// Represents the todo status for a list item
 #[derive(Copy, Clone, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub enum ListItemTodoStatus {
@@ -430,6 +482,13 @@ pub enum ListItemTodoStatus {
     Rejected,
 }
 
+impl StrictEq for ListItemTodoStatus {
+    /// Same as PartialEq
+    fn strict_eq(&self, other: &Self) -> bool {
+        self == other
+    }
+}
+
 /// Represents additional attributes associated with a list item
 #[derive(
     Copy, Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize,
@@ -437,6 +496,13 @@ pub enum ListItemTodoStatus {
 pub struct ListItemAttributes {
     /// The TODO status for a list item, if it has been associated with TODO
     pub todo_status: Option<ListItemTodoStatus>,
+}
+
+impl StrictEq for ListItemAttributes {
+    /// Same as PartialEq
+    fn strict_eq(&self, other: &Self) -> bool {
+        self == other
+    }
 }
 
 #[cfg(test)]

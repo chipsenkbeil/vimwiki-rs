@@ -4,8 +4,8 @@ use crate::lang::{
     },
     parsers::{
         utils::{
-            beginning_of_line, capture, context, end_of_line_or_input, locate,
-            take_line_until1, take_until_end_of_line_or_input,
+            beginning_of_line, capture, context, deeper, end_of_line_or_input,
+            locate, take_line_until1, take_until_end_of_line_or_input,
         },
         vimwiki::blocks::inline::inline_element_container,
         IResult, Span,
@@ -24,7 +24,7 @@ pub fn definition_list(input: Span) -> IResult<Located<DefinitionList>> {
     context(
         "Definition List",
         locate(capture(map(
-            many1(term_and_definitions),
+            many1(deeper(term_and_definitions)),
             DefinitionList::from,
         ))),
     )(input)
@@ -172,6 +172,23 @@ mod tests {
             term 2::
         "#});
         assert!(definition_list(input).is_err());
+    }
+
+    #[test]
+    fn definition_list_should_properly_adjust_depth_for_children() {
+        let input = Span::from("term1:: def1");
+        let (_, def_list) = definition_list(input).unwrap();
+        assert_eq!(
+            def_list.depth(),
+            0,
+            "Definition list depth was at wrong level"
+        );
+        for term in def_list.terms() {
+            assert_eq!(term.depth(), 1, "Term depth was at wrong level");
+        }
+        for def in def_list.definitions() {
+            assert_eq!(def.depth(), 1, "Definition depth was at wrong level");
+        }
     }
 
     #[test]

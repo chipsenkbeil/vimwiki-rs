@@ -12,13 +12,32 @@ pub struct Region {
 
     /// Length of this region from the offset
     len: usize,
+
+    /// Additional information highlighting how deep into a stack of elements
+    /// the current location is. This has no bearing on the actual location
+    /// in a byte stream
+    depth: u16,
 }
 
 impl Region {
     /// Constructs a new region with the given offset and length, containing
     /// no extra information
     pub fn new(offset: usize, len: usize) -> Self {
-        Self { offset, len }
+        Self {
+            offset,
+            len,
+            depth: 0,
+        }
+    }
+
+    /// Constructs a new region with the given offset and length and depth
+    pub fn new_at_depth(offset: usize, len: usize, depth: u16) -> Self {
+        Self { offset, len, depth }
+    }
+
+    /// Constructs a copy of a region with set to specified depth
+    pub fn with_depth(&self, depth: u16) -> Self {
+        Self::new_at_depth(self.offset, self.len, depth)
     }
 
     /// Checks if a position is contained within this region
@@ -39,6 +58,12 @@ impl Region {
         self.len
     }
 
+    /// The depth of the region
+    #[inline]
+    pub fn depth(&self) -> u16 {
+        self.depth
+    }
+
     /// Returns true if the length of the region is zero
     #[inline]
     pub fn is_empty(&self) -> bool {
@@ -47,10 +72,13 @@ impl Region {
 }
 
 impl<'a> From<Span<'a>> for Region {
-    /// Converts a `Span` to a region, but does not calculate the line &
-    /// column information
+    /// Converts a `Span` to a region
     fn from(span: Span<'a>) -> Self {
-        Self::new(span.start_offset(), span.remaining_len())
+        Self::new_at_depth(
+            span.start_offset(),
+            span.remaining_len(),
+            span.depth(),
+        )
     }
 }
 
@@ -68,7 +96,7 @@ impl From<Range<usize>> for Region {
 }
 
 impl From<RangeInclusive<usize>> for Region {
-    /// Converts from `start..=end` to `Region { offset: start, len: end - start + 1 }`
+    /// Converts from `start..=end` to `Region { offset: start, len: end - start + 1, depth: 0 }`
     /// where `end + 1 < start` will result in a length of zero
     fn from(range: RangeInclusive<usize>) -> Self {
         let (start, end) = range.into_inner();
@@ -82,20 +110,21 @@ impl From<RangeInclusive<usize>> for Region {
 }
 
 impl From<RangeTo<usize>> for Region {
-    /// Converts from `..end` to `Region { offset: 0, len: end }`
+    /// Converts from `..end` to `Region { offset: 0, len: end, depth: 0 }`
     fn from(range: RangeTo<usize>) -> Self {
         Self::new(0, range.end)
     }
 }
 
 impl From<RangeToInclusive<usize>> for Region {
-    /// Converts from `..=end` to `Region { offset: 0, len: end + 1 }`
+    /// Converts from `..=end` to `Region { offset: 0, len: end + 1, depth: 0 }`
     fn from(range: RangeToInclusive<usize>) -> Self {
         Self::new(0, range.end + 1)
     }
 }
 
 impl From<(usize, usize)> for Region {
+    /// Converts from `(start, end)` to `Region { offset: start, len: end, depth: 0 }`
     fn from(coords: (usize, usize)) -> Self {
         Self::new(coords.0, coords.1)
     }
@@ -167,5 +196,12 @@ mod tests {
 
         let region = Region::from(..=1);
         assert_eq!(region, Region::new(0, 2));
+    }
+
+    #[test]
+    fn from_should_properly_convert_span_to_region() {
+        let span = Span::new(&[], 3, 8, 2);
+        let region = Region::from(span);
+        assert_eq!(region, Region::new_at_depth(3, 5, 2));
     }
 }

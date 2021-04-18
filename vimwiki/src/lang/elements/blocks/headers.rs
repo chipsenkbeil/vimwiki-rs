@@ -1,4 +1,9 @@
-use super::{InlineElement, InlineElementContainer, Located};
+use crate::{
+    lang::elements::{
+        InlineElement, InlineElementContainer, IntoChildren, Located,
+    },
+    StrictEq,
+};
 use derive_more::Constructor;
 use serde::{Deserialize, Serialize};
 
@@ -35,8 +40,21 @@ impl<'a> Header<'a> {
 
     /// Represents teh largest a header's level can be
     pub const MAX_LEVEL: usize = 6;
+}
 
-    pub fn into_children(self) -> Vec<Located<InlineElement<'a>>> {
+impl<'a> IntoChildren for Header<'a> {
+    type Child = Located<InlineElement<'a>>;
+
+    fn into_children(self) -> Vec<Self::Child> {
         self.content.into_children()
+    }
+}
+
+impl<'a> StrictEq for Header<'a> {
+    /// Performs strict_eq on level, centered status, and content
+    fn strict_eq(&self, other: &Self) -> bool {
+        self.level == other.level
+            && self.centered == other.centered
+            && self.content.strict_eq(&other.content)
     }
 }

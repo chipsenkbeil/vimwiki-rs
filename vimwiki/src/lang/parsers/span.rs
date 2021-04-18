@@ -22,14 +22,21 @@ pub struct Span<'a> {
     inner: &'a [u8],
     start: usize,
     end: usize,
+    depth: u16,
 }
 
 impl<'a> Span<'a> {
     /// Creates a new span with the provided byte slice, start offset relative
-    /// to the provided byte slice, and end offset (exclusive) relative to the
-    /// provided byte slice
-    pub fn new(inner: &'a [u8], start: usize, end: usize) -> Self {
-        Self { inner, start, end }
+    /// to the provided byte slice, end offset (exclusive) relative to the
+    /// provided byte slice, and depth describing how deep some input is
+    /// relative to other input overlaying similar regions of bytes
+    pub fn new(inner: &'a [u8], start: usize, end: usize, depth: u16) -> Self {
+        Self {
+            inner,
+            start,
+            end,
+            depth,
+        }
     }
 
     /// Creates a copy of the span starting at the new offset relative to
@@ -40,7 +47,12 @@ impl<'a> Span<'a> {
     pub fn starting_at(&self, start: usize) -> Self {
         let start = self.start + start;
         let end = self.end;
-        Self::new(self.inner, if start > end { end } else { start }, end)
+        Self::new(
+            self.inner,
+            if start > end { end } else { start },
+            end,
+            self.depth,
+        )
     }
 
     /// Creates a copy of the span ending at the new offset (exclusive)
@@ -48,7 +60,7 @@ impl<'a> Span<'a> {
     ///
     /// e.g. start = 2, end = 4, ending_at(1) yields end = 3
     pub fn ending_at(&self, end: usize) -> Self {
-        Self::new(self.inner, self.start, self.start + end)
+        Self::new(self.inner, self.start, self.start + end, self.depth)
     }
 
     /// Creates a copy of the span starting at the end of its range. The
@@ -66,10 +78,36 @@ impl<'a> Span<'a> {
     /// greater than the current remaining len will do nothing.
     pub fn with_length(&self, len: usize) -> Self {
         if len < self.remaining_len() {
-            Self::new(self.inner, self.start, self.start + len)
+            Self::new(self.inner, self.start, self.start + len, self.depth)
         } else {
             *self
         }
+    }
+
+    /// Returns the depth of the current span
+    pub fn depth(&self) -> u16 {
+        self.depth
+    }
+
+    /// Returns a copy of the span whose depth is the specified depth
+    pub fn with_depth(&self, depth: u16) -> Self {
+        Self::new(self.inner, self.start, self.end, depth)
+    }
+
+    /// Returns a copy of the span with a depth one deeper than the current span
+    pub fn with_deeper_depth(&self) -> Self {
+        self.with_depth(self.depth() + 1)
+    }
+
+    /// Returns a copy of the span with a depth one shallower than the current span,
+    /// capping out at a depth of 0
+    pub fn with_shallower_depth(&self) -> Self {
+        let depth = if self.depth() > 0 {
+            self.depth() - 1
+        } else {
+            0
+        };
+        self.with_depth(depth)
     }
 
     /// Represents the inner byte slice starting from the original span
@@ -357,12 +395,14 @@ impl<'a> TryFrom<Span<'a>> for uriparse::URI<'a> {
 }
 
 impl<'a> From<&'a [u8]> for Span<'a> {
+    /// Creates a new span from the given byte slice with a depth of 0
     fn from(inner: &'a [u8]) -> Self {
-        Self::new(inner, 0, inner.len())
+        Self::new(inner, 0, inner.len(), 0)
     }
 }
 
 impl<'a> From<&'a str> for Span<'a> {
+    /// Creates a new span from the given str slice with a depth of 0
     fn from(inner: &'a str) -> Self {
         Self::from(inner.as_bytes())
     }

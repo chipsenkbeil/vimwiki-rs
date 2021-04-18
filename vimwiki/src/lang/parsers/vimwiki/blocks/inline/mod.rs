@@ -1,7 +1,7 @@
 use crate::lang::{
     elements::{InlineElement, InlineElementContainer, Located},
     parsers::{
-        utils::{capture, context, locate},
+        utils::{capture, context, deeper, locate},
         IResult, Span,
     },
 };
@@ -23,7 +23,7 @@ pub fn inline_element_container(
     context(
         "Inline Element Container",
         locate(capture(map(
-            many1(inline_element),
+            many1(deeper(inline_element)),
             InlineElementContainer::from,
         ))),
     )(input)
@@ -271,5 +271,25 @@ mod tests {
                 InlineElement::Keyword(Keyword::Done),
             ]
         );
+    }
+
+    #[test]
+    fn inline_element_container_should_adjust_depth_of_inline_elements() {
+        let input = Span::from(
+            "*item 1* has a [[link]] with `code` and :tag: and $formula$ is DONE",
+        );
+        let (_, container) = inline_element_container(input).unwrap();
+        assert_eq!(
+            container.depth(),
+            0,
+            "Inline element container has wrong depth level"
+        );
+        for element in container.elements.iter() {
+            assert_eq!(
+                element.depth(),
+                1,
+                "Inline element has wrong depth level"
+            );
+        }
     }
 }

@@ -1,12 +1,15 @@
 #![allow(clippy::large_enum_variant)]
 
+use crate::StrictEq;
 use derive_more::{Constructor, From};
 use serde::{Deserialize, Serialize};
 
 mod blocks;
 pub use blocks::*;
-mod location;
-pub use location::{Located, Region};
+mod utils;
+pub use utils::{
+    AsChildrenMutSlice, AsChildrenSlice, IntoChildren, Located, Region,
+};
 
 /// Represents a full page containing different elements
 #[derive(
@@ -15,6 +18,18 @@ pub use location::{Located, Region};
 pub struct Page<'a> {
     /// Comprised of the elements within a page
     pub elements: Vec<Located<BlockElement<'a>>>,
+}
+
+impl<'a> Page<'a> {
+    /// Returns elements within the page
+    pub fn elements(&self) -> &[Located<BlockElement<'a>>] {
+        &self.elements
+    }
+
+    /// Consumes the page and returns the elements within
+    pub fn into_elements(self) -> Vec<Located<BlockElement<'a>>> {
+        self.elements
+    }
 }
 
 impl Page<'_> {
@@ -36,6 +51,18 @@ impl Page<'_> {
             .collect();
 
         Page { elements }
+    }
+}
+
+impl<'a> StrictEq for Page<'a> {
+    /// Performs strict_eq on page elements
+    fn strict_eq(&self, other: &Self) -> bool {
+        self.elements.len() == other.elements.len()
+            && self
+                .elements
+                .iter()
+                .zip(other.elements.iter())
+                .all(|(x, y)| x.strict_eq(y))
     }
 }
 
@@ -66,9 +93,10 @@ impl Element<'_> {
     }
 }
 
-impl<'a> Element<'a> {
-    /// Consumes element and returns all children
-    pub fn into_children(self) -> Vec<Located<Element<'a>>> {
+impl<'a> IntoChildren for Element<'a> {
+    type Child = Located<Element<'a>>;
+
+    fn into_children(self) -> Vec<Self::Child> {
         match self {
             Self::Block(x) => x.into_children(),
             Self::Inline(x) => x
@@ -79,7 +107,20 @@ impl<'a> Element<'a> {
             Self::InlineBlock(x) => x.into_children(),
         }
     }
+}
 
+impl<'a> StrictEq for Element<'a> {
+    fn strict_eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Block(x), Self::Block(y)) => x.strict_eq(y),
+            (Self::Inline(x), Self::Inline(y)) => x.strict_eq(y),
+            (Self::InlineBlock(x), Self::InlineBlock(y)) => x.strict_eq(y),
+            _ => false,
+        }
+    }
+}
+
+impl<'a> Element<'a> {
     pub fn as_block_element(&self) -> Option<&BlockElement<'a>> {
         match self {
             Self::Block(ref x) => Some(x),
@@ -160,8 +201,10 @@ impl InlineBlockElement<'_> {
     }
 }
 
-impl<'a> InlineBlockElement<'a> {
-    pub fn into_children(self) -> Vec<Located<Element<'a>>> {
+impl<'a> IntoChildren for InlineBlockElement<'a> {
+    type Child = Located<Element<'a>>;
+
+    fn into_children(self) -> Vec<Self::Child> {
         match self {
             Self::ListItem(x) => x.into_children(),
             Self::Term(x) => x
@@ -174,6 +217,17 @@ impl<'a> InlineBlockElement<'a> {
                 .into_iter()
                 .map(|x| x.map(Element::from))
                 .collect(),
+        }
+    }
+}
+
+impl<'a> StrictEq for InlineBlockElement<'a> {
+    fn strict_eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::ListItem(x), Self::ListItem(y)) => x.strict_eq(y),
+            (Self::Term(x), Self::Term(y)) => x.strict_eq(y),
+            (Self::Definition(x), Self::Definition(y)) => x.strict_eq(y),
+            _ => false,
         }
     }
 }

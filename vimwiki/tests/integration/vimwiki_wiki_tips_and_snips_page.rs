@@ -248,5 +248,5 @@ let g:vimwiki_global_ext = 0
             .into(),
     ];
 
-    compare_page_elements(&page.elements, &expected);
+    compare_page_elements(page.elements(), &expected);
 }

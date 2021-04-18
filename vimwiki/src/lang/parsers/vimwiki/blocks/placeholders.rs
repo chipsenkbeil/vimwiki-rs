@@ -140,7 +140,10 @@ mod tests {
         let input = Span::from("%title some title");
         let (input, placeholder) = placeholder(input).unwrap();
         assert!(input.is_empty(), "Did not consume placeholder");
-        assert_eq!(placeholder, Placeholder::title_from_str("some title"));
+        assert_eq!(
+            placeholder.into_inner(),
+            Placeholder::title_from_str("some title")
+        );
     }
 
     #[test]
@@ -154,7 +157,7 @@ mod tests {
         let input = Span::from("%nohtml");
         let (input, placeholder) = placeholder(input).unwrap();
         assert!(input.is_empty(), "Did not consume placeholder");
-        assert_eq!(placeholder, Placeholder::NoHtml);
+        assert_eq!(placeholder.into_inner(), Placeholder::NoHtml);
     }
 
     #[test]
@@ -168,7 +171,10 @@ mod tests {
         let input = Span::from("%template my_template");
         let (input, placeholder) = placeholder(input).unwrap();
         assert!(input.is_empty(), "Did not consume placeholder");
-        assert_eq!(placeholder, Placeholder::template_from_str("my_template"),);
+        assert_eq!(
+            placeholder.into_inner(),
+            Placeholder::template_from_str("my_template"),
+        );
     }
 
     #[test]
@@ -189,7 +195,7 @@ mod tests {
         let (input, placeholder) = placeholder(input).unwrap();
         assert!(input.is_empty(), "Did not consume placeholder");
         assert_eq!(
-            placeholder,
+            placeholder.into_inner(),
             Placeholder::Date(NaiveDate::from_ymd(2012, 3, 5)),
         );
     }
@@ -237,7 +243,7 @@ mod tests {
         let (input, placeholder) = placeholder(input).unwrap();
         assert!(input.is_empty(), "Did not consume placeholder");
         assert_eq!(
-            placeholder,
+            placeholder.into_inner(),
             Placeholder::other_from_str("other", "something else"),
         );
     }

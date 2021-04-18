@@ -1,4 +1,5 @@
 use super::{uri_to_borrowed, Description};
+use crate::StrictEq;
 use derive_more::Constructor;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -127,5 +128,13 @@ impl<'a> TryFrom<&'a str> for TransclusionLink<'a> {
 
     fn try_from(str_uri: &'a str) -> Result<Self, Self::Error> {
         Ok(Self::from(URI::try_from(str_uri)?))
+    }
+}
+
+impl<'a> StrictEq for TransclusionLink<'a> {
+    /// Same as PartialEq
+    #[inline]
+    fn strict_eq(&self, other: &Self) -> bool {
+        self == other
     }
 }

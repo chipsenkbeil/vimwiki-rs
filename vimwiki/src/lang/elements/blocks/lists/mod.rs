@@ -1,5 +1,9 @@
-use crate::lang::elements::{
-    Element, InlineBlockElement, InlineElement, InlineElementContainer, Located,
+use crate::{
+    lang::elements::{
+        AsChildrenMutSlice, AsChildrenSlice, Element, InlineBlockElement,
+        InlineElement, InlineElementContainer, IntoChildren, Located,
+    },
+    StrictEq,
 };
 use derive_more::{
     Constructor, Deref, DerefMut, From, Index, IndexMut, Into, IntoIterator,
@@ -71,12 +75,39 @@ impl<'a> List<'a> {
 
         self
     }
+}
 
-    pub fn into_children(self) -> Vec<Located<InlineBlockElement<'a>>> {
+impl<'a> AsChildrenSlice for List<'a> {
+    type Child = Located<ListItem<'a>>;
+
+    fn as_children_slice(&self) -> &[Self::Child] {
+        &self.items
+    }
+}
+
+impl<'a> AsChildrenMutSlice for List<'a> {
+    type Child = Located<ListItem<'a>>;
+
+    fn as_children_mut_slice(&mut self) -> &mut [Self::Child] {
+        &mut self.items
+    }
+}
+
+impl<'a> IntoChildren for List<'a> {
+    type Child = Located<InlineBlockElement<'a>>;
+
+    fn into_children(self) -> Vec<Self::Child> {
         self.items
             .into_iter()
             .map(|x| x.map(InlineBlockElement::from))
             .collect()
+    }
+}
+
+impl<'a> StrictEq for List<'a> {
+    /// Performs a strict_eq check against list items
+    fn strict_eq(&self, other: &Self) -> bool {
+        self.items.strict_eq(&other.items)
     }
 }
 
@@ -102,6 +133,17 @@ impl ListItemContent<'_> {
         match self {
             Self::InlineContent(x) => ListItemContent::from(x.into_owned()),
             Self::List(x) => ListItemContent::from(x.into_owned()),
+        }
+    }
+}
+
+impl<'a> StrictEq for ListItemContent<'a> {
+    /// Performs a strict_eq check against eqivalent variants
+    fn strict_eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::InlineContent(x), Self::InlineContent(y)) => x.strict_eq(y),
+            (Self::List(x), Self::List(y)) => x.strict_eq(y),
+            _ => false,
         }
     }
 }
@@ -196,8 +238,28 @@ impl<'a> ListItemContents<'a> {
                 _ => None,
             })
     }
+}
 
-    pub fn into_children(self) -> Vec<Located<Element<'a>>> {
+impl<'a> AsChildrenSlice for ListItemContents<'a> {
+    type Child = Located<ListItemContent<'a>>;
+
+    fn as_children_slice(&self) -> &[Self::Child] {
+        &self.contents
+    }
+}
+
+impl<'a> AsChildrenMutSlice for ListItemContents<'a> {
+    type Child = Located<ListItemContent<'a>>;
+
+    fn as_children_mut_slice(&mut self) -> &mut [Self::Child] {
+        &mut self.contents
+    }
+}
+
+impl<'a> IntoChildren for ListItemContents<'a> {
+    type Child = Located<Element<'a>>;
+
+    fn into_children(self) -> Vec<Self::Child> {
         self.contents
             .into_iter()
             .flat_map(|x| {
@@ -214,5 +276,12 @@ impl<'a> ListItemContents<'a> {
                 }
             })
             .collect()
+    }
+}
+
+impl<'a> StrictEq for ListItemContents<'a> {
+    /// Performs a strict_eq check against inner contents
+    fn strict_eq(&self, other: &Self) -> bool {
+        self.contents.strict_eq(&other.contents)
     }
 }

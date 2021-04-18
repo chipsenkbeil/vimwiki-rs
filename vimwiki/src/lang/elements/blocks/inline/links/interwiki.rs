@@ -1,4 +1,5 @@
 use super::{Anchor, Description, WikiLink};
+use crate::StrictEq;
 use derive_more::{Constructor, Display, From};
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, fmt, path::Path};
@@ -67,6 +68,14 @@ impl<'a> InterWikiLink<'a> {
     }
 }
 
+impl<'a> StrictEq for InterWikiLink<'a> {
+    /// Same as PartialEq
+    #[inline]
+    fn strict_eq(&self, other: &Self) -> bool {
+        self == other
+    }
+}
+
 /// Represents a link to a file or directory in another wiki specified by
 /// an index that maps to the g:vimwiki_list
 #[derive(
@@ -102,6 +111,14 @@ impl<'a> fmt::Display for IndexedInterWikiLink<'a> {
 impl<'a> From<(u32, WikiLink<'a>)> for IndexedInterWikiLink<'a> {
     fn from((index, link): (u32, WikiLink<'a>)) -> Self {
         Self::new(index, link)
+    }
+}
+
+impl<'a> StrictEq for IndexedInterWikiLink<'a> {
+    /// Same as PartialEq
+    #[inline]
+    fn strict_eq(&self, other: &Self) -> bool {
+        self == other
     }
 }
 
@@ -151,5 +168,13 @@ impl<'a> From<(String, WikiLink<'a>)> for NamedInterWikiLink<'a> {
 impl<'a> From<(&'a str, WikiLink<'a>)> for NamedInterWikiLink<'a> {
     fn from((name, link): (&'a str, WikiLink<'a>)) -> Self {
         Self::new(Cow::from(name), link)
+    }
+}
+
+impl<'a> StrictEq for NamedInterWikiLink<'a> {
+    /// Same as PartialEq
+    #[inline]
+    fn strict_eq(&self, other: &Self) -> bool {
+        self == other
     }
 }

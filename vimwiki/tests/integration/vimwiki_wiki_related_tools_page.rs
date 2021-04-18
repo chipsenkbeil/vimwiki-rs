@@ -80,5 +80,5 @@ fn test() {
             .into(),
     ];
 
-    compare_page_elements(&page.elements, &expected);
+    compare_page_elements(page.elements(), &expected);
 }

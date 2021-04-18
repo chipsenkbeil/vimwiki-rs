@@ -1,4 +1,7 @@
-use super::Located;
+use crate::{
+    lang::elements::{IntoChildren, Located},
+    StrictEq,
+};
 use derive_more::{
     Constructor, Deref, DerefMut, Display, From, Index, IndexMut, Into,
     IntoIterator,
@@ -66,11 +69,30 @@ impl InlineElement<'_> {
     }
 }
 
-impl<'a> InlineElement<'a> {
-    pub fn into_children(self) -> Vec<Located<InlineElement<'a>>> {
+impl<'a> IntoChildren for InlineElement<'a> {
+    type Child = Located<InlineElement<'a>>;
+
+    fn into_children(self) -> Vec<Self::Child> {
         match self {
             Self::DecoratedText(x) => x.into_children(),
             _ => vec![],
+        }
+    }
+}
+
+impl<'a> StrictEq for InlineElement<'a> {
+    /// Performs strict_eq check on matching inner variants
+    fn strict_eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Text(x), Self::Text(y)) => x.strict_eq(y),
+            (Self::DecoratedText(x), Self::DecoratedText(y)) => x.strict_eq(y),
+            (Self::Keyword(x), Self::Keyword(y)) => x.strict_eq(y),
+            (Self::Link(x), Self::Link(y)) => x.strict_eq(y),
+            (Self::Tags(x), Self::Tags(y)) => x.strict_eq(y),
+            (Self::Code(x), Self::Code(y)) => x.strict_eq(y),
+            (Self::Math(x), Self::Math(y)) => x.strict_eq(y),
+            (Self::Comment(x), Self::Comment(y)) => x.strict_eq(y),
+            _ => false,
         }
     }
 }
@@ -119,8 +141,10 @@ impl InlineElementContainer<'_> {
     }
 }
 
-impl<'a> InlineElementContainer<'a> {
-    pub fn into_children(self) -> Vec<Located<InlineElement<'a>>> {
+impl<'a> IntoChildren for InlineElementContainer<'a> {
+    type Child = Located<InlineElement<'a>>;
+
+    fn into_children(self) -> Vec<Self::Child> {
         self.elements
     }
 }
@@ -149,6 +173,13 @@ impl<'a> From<Located<InlineElement<'a>>> for InlineElementContainer<'a> {
 impl<'a> From<Located<&'a str>> for InlineElementContainer<'a> {
     fn from(element: Located<&'a str>) -> Self {
         Self::from(element.map(Text::from))
+    }
+}
+
+impl<'a> StrictEq for InlineElementContainer<'a> {
+    /// Performs strict_eq check on inner elements
+    fn strict_eq(&self, other: &Self) -> bool {
+        self.elements.strict_eq(&other.elements)
     }
 }
 

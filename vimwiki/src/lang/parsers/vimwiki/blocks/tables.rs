@@ -5,8 +5,8 @@ use crate::lang::{
     },
     parsers::{
         utils::{
-            capture, context, end_of_line_or_input, locate, take_line_until1,
-            take_line_while1,
+            capture, context, deeper, end_of_line_or_input, locate,
+            take_line_until1, take_line_while1,
         },
         IResult, Span,
     },
@@ -25,10 +25,12 @@ pub fn table(input: Span) -> IResult<Located<Table>> {
     fn inner(input: Span) -> IResult<Table> {
         // Assume a table is centered if the first row is indented
         let (input, (table_header, centered)) =
-            map(pair(space0, row), |x| (x.1, !x.0.is_empty()))(input)?;
+            map(pair(space0, deeper(row)), |x| (x.1, !x.0.is_empty()))(input)?;
 
         // Retrieve remaining rows and prepend the header row
-        let (input, mut rows) = many0(preceded(space0, row))(input)?;
+        // NOTE: We must make input shallower because it went one deeper from
+        //       the earlier row parse
+        let (input, mut rows) = many0(preceded(space0, deeper(row)))(input)?;
         rows.insert(0, table_header);
         Ok((input, Table::new(rows, centered)))
     }
@@ -52,7 +54,7 @@ fn row(input: Span) -> IResult<Located<Row>> {
                 char('|'),
                 alt((
                     map(separated_list1(char('|'), column_align), Row::from),
-                    map(separated_list1(char('|'), cell), Row::from),
+                    map(separated_list1(char('|'), deeper(cell)), Row::from),
                 )),
                 char('|'),
             ),
@@ -166,6 +168,31 @@ mod tests {
     fn table_should_fail_if_no_content_row_found() {
         let input = Span::from("|---------|");
         assert!(table(input).is_err());
+    }
+
+    #[test]
+    fn table_should_properly_adjust_depth_for_rows_and_cells() {
+        let input = Span::from(indoc! {"
+        |one|two|
+        |---|---|
+        |abc|def|
+        |ghi|jkl|
+        "});
+
+        let (_, tbl) = table(input).unwrap();
+        assert_eq!(tbl.depth(), 0, "Table depth was at wrong level");
+        for row in tbl.rows.iter() {
+            assert_eq!(row.depth(), 1, "Row depth was at wrong level");
+            if let Row::Content { cells } = row.as_inner() {
+                for cell in cells.iter() {
+                    assert_eq!(
+                        cell.depth(),
+                        2,
+                        "Cell depth was at wrong level"
+                    );
+                }
+            }
+        }
     }
 
     #[test]

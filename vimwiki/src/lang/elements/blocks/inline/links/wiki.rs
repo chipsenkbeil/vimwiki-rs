@@ -1,4 +1,5 @@
 use super::{Anchor, Description};
+use crate::StrictEq;
 use derive_more::Constructor;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -111,5 +112,13 @@ impl From<String> for WikiLink<'static> {
 impl<'a> From<&'a str> for WikiLink<'a> {
     fn from(str_path: &'a str) -> Self {
         Self::from(Path::new(str_path))
+    }
+}
+
+impl<'a> StrictEq for WikiLink<'a> {
+    /// Same as PartialEq
+    #[inline]
+    fn strict_eq(&self, other: &Self) -> bool {
+        self == other
     }
 }

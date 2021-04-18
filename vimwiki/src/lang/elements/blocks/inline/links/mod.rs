@@ -1,3 +1,4 @@
+use crate::StrictEq;
 use derive_more::{
     Constructor, Deref, DerefMut, Display, From, Index, IndexMut, Into,
     IntoIterator, TryInto,
@@ -84,6 +85,14 @@ impl<'a> From<&'a str> for Description<'a> {
     }
 }
 
+impl<'a> StrictEq for Description<'a> {
+    /// Same as PartialEq
+    #[inline]
+    fn strict_eq(&self, other: &Self) -> bool {
+        self == other
+    }
+}
+
 /// Represents an anchor
 #[derive(
     Constructor,
@@ -157,6 +166,14 @@ impl<'a> From<&'a str> for Anchor<'a> {
     }
 }
 
+impl<'a> StrictEq for Anchor<'a> {
+    /// Same as PartialEq
+    #[inline]
+    fn strict_eq(&self, other: &Self) -> bool {
+        self == other
+    }
+}
+
 #[derive(
     Clone, Debug, Display, From, Eq, PartialEq, Hash, Serialize, Deserialize,
 )]
@@ -213,6 +230,21 @@ impl<'a> Link<'a> {
             Self::Raw(_) => None,
             Self::ExternalFile(_) => None,
             Self::Transclusion(_) => None,
+        }
+    }
+}
+
+impl<'a> StrictEq for Link<'a> {
+    /// Performs strict_eq check on matching inner variants
+    fn strict_eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Wiki(x), Self::Wiki(y)) => x.strict_eq(y),
+            (Self::InterWiki(x), Self::InterWiki(y)) => x.strict_eq(y),
+            (Self::Diary(x), Self::Diary(y)) => x.strict_eq(y),
+            (Self::Raw(x), Self::Raw(y)) => x.strict_eq(y),
+            (Self::ExternalFile(x), Self::ExternalFile(y)) => x.strict_eq(y),
+            (Self::Transclusion(x), Self::Transclusion(y)) => x.strict_eq(y),
+            _ => false,
         }
     }
 }

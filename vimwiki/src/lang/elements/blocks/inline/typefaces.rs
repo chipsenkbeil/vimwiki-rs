@@ -1,4 +1,10 @@
-use crate::lang::elements::{InlineElement, Link, Located};
+use crate::{
+    lang::elements::{
+        AsChildrenMutSlice, AsChildrenSlice, InlineElement, IntoChildren, Link,
+        Located,
+    },
+    StrictEq,
+};
 use derive_more::{AsMut, AsRef, Constructor, Display, From, Into};
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, fmt};
@@ -48,6 +54,14 @@ impl From<String> for Text<'static> {
 impl<'a> From<&'a str> for Text<'a> {
     fn from(s: &'a str) -> Self {
         Self::new(Cow::from(s))
+    }
+}
+
+impl<'a> StrictEq for Text<'a> {
+    /// Same as PartialEq
+    #[inline]
+    fn strict_eq(&self, other: &Self) -> bool {
+        self == other
     }
 }
 
@@ -106,11 +120,50 @@ impl<'a> DecoratedTextContent<'a> {
             Self::Link(x) => x.into(),
         }
     }
+}
 
-    pub fn into_children(self) -> Vec<Located<InlineElement<'a>>> {
+impl<'a> AsChildrenSlice for DecoratedTextContent<'a> {
+    type Child = Located<DecoratedTextContent<'a>>;
+
+    fn as_children_slice(&self) -> &[Self::Child] {
+        match self {
+            Self::DecoratedText(x) => x.as_children_slice(),
+            _ => &[],
+        }
+    }
+}
+
+impl<'a> AsChildrenMutSlice for DecoratedTextContent<'a> {
+    type Child = Located<DecoratedTextContent<'a>>;
+
+    fn as_children_mut_slice(&mut self) -> &mut [Self::Child] {
+        match self {
+            Self::DecoratedText(x) => x.as_children_mut_slice(),
+            _ => &mut [],
+        }
+    }
+}
+
+impl<'a> IntoChildren for DecoratedTextContent<'a> {
+    type Child = Located<InlineElement<'a>>;
+
+    fn into_children(self) -> Vec<Self::Child> {
         match self {
             Self::DecoratedText(x) => x.into_children(),
             _ => vec![],
+        }
+    }
+}
+
+impl<'a> StrictEq for DecoratedTextContent<'a> {
+    /// Performs strict_eq check on matching inner variants
+    fn strict_eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Text(x), Self::Text(y)) => x.strict_eq(y),
+            (Self::DecoratedText(x), Self::DecoratedText(y)) => x.strict_eq(y),
+            (Self::Keyword(x), Self::Keyword(y)) => x.strict_eq(y),
+            (Self::Link(x), Self::Link(y)) => x.strict_eq(y),
+            _ => false,
         }
     }
 }
@@ -188,8 +241,40 @@ impl<'a> DecoratedText<'a> {
             Self::Subscript(x) => x,
         }
     }
+}
 
-    pub fn into_children(self) -> Vec<Located<InlineElement<'a>>> {
+impl<'a> AsChildrenSlice for DecoratedText<'a> {
+    type Child = Located<DecoratedTextContent<'a>>;
+
+    fn as_children_slice(&self) -> &[Self::Child] {
+        match self {
+            Self::Bold(x) => x,
+            Self::Italic(x) => x,
+            Self::Strikeout(x) => x,
+            Self::Superscript(x) => x,
+            Self::Subscript(x) => x,
+        }
+    }
+}
+
+impl<'a> AsChildrenMutSlice for DecoratedText<'a> {
+    type Child = Located<DecoratedTextContent<'a>>;
+
+    fn as_children_mut_slice(&mut self) -> &mut [Self::Child] {
+        match self {
+            Self::Bold(x) => x,
+            Self::Italic(x) => x,
+            Self::Strikeout(x) => x,
+            Self::Superscript(x) => x,
+            Self::Subscript(x) => x,
+        }
+    }
+}
+
+impl<'a> IntoChildren for DecoratedText<'a> {
+    type Child = Located<InlineElement<'a>>;
+
+    fn into_children(self) -> Vec<Self::Child> {
         macro_rules! vec_to_owned {
             ($vec:expr) => {
                 $vec.into_iter()
@@ -216,6 +301,20 @@ impl<'a> fmt::Display for DecoratedText<'a> {
     }
 }
 
+impl<'a> StrictEq for DecoratedText<'a> {
+    /// Performs strict_eq check on matching inner variants
+    fn strict_eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Bold(x), Self::Bold(y)) => x.strict_eq(y),
+            (Self::Italic(x), Self::Italic(y)) => x.strict_eq(y),
+            (Self::Strikeout(x), Self::Strikeout(y)) => x.strict_eq(y),
+            (Self::Superscript(x), Self::Superscript(y)) => x.strict_eq(y),
+            (Self::Subscript(x), Self::Subscript(y)) => x.strict_eq(y),
+            _ => false,
+        }
+    }
+}
+
 /// Represents special keywords that have unique syntax highlighting
 #[derive(
     Copy, Clone, Debug, Display, Eq, PartialEq, Hash, Serialize, Deserialize,
@@ -233,4 +332,12 @@ pub enum Keyword {
     Fixed,
     #[display(fmt = "XXX")]
     Xxx,
+}
+
+impl StrictEq for Keyword {
+    /// Same as PartialEq
+    #[inline]
+    fn strict_eq(&self, other: &Self) -> bool {
+        self == other
+    }
 }

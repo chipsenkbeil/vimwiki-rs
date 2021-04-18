@@ -1,3 +1,4 @@
+use crate::StrictEq;
 use derive_more::Constructor;
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, collections::HashMap};
@@ -66,5 +67,12 @@ impl PreformattedText<'_> {
                 .map(|x| Cow::from(x.into_owned()))
                 .collect(),
         }
+    }
+}
+
+impl<'a> StrictEq for PreformattedText<'a> {
+    /// Same as PartialEq
+    fn strict_eq(&self, other: &Self) -> bool {
+        self == other
     }
 }

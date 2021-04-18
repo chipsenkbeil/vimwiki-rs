@@ -25,7 +25,7 @@ impl<'a> TryFrom<v::Page<'a>> for Page {
         )?;
 
         let mut contents = Vec::new();
-        for content in page.elements {
+        for content in page.into_elements() {
             contents.push(
                 BlockElement::from_vimwiki_element(ent.id(), None, content)?
                     .id(),

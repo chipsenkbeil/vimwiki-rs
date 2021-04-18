@@ -19,6 +19,10 @@ pub struct Region {
 
     /// The byte length of this element within a file
     len: usize,
+
+    /// The depth of the element within a series of elements with zero
+    /// being a top-level element
+    depth: u16,
 }
 
 impl From<v::Region> for Region {
@@ -26,6 +30,7 @@ impl From<v::Region> for Region {
         Self {
             offset: region.offset(),
             len: region.len(),
+            depth: region.depth(),
         }
     }
 }

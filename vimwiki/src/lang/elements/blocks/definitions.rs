@@ -1,5 +1,9 @@
-use crate::lang::elements::{
-    InlineBlockElement, InlineElement, InlineElementContainer, Located,
+use crate::{
+    lang::elements::{
+        InlineBlockElement, InlineElement, InlineElementContainer,
+        IntoChildren, Located,
+    },
+    StrictEq,
 };
 use derive_more::{Constructor, Display, IntoIterator};
 use serde::{Deserialize, Serialize};
@@ -32,8 +36,12 @@ impl<'a> DefinitionListValue<'a> {
     pub fn into_inner(self) -> InlineElementContainer<'a> {
         self.0
     }
+}
 
-    pub fn into_children(self) -> Vec<Located<InlineElement<'a>>> {
+impl<'a> IntoChildren for DefinitionListValue<'a> {
+    type Child = Located<InlineElement<'a>>;
+
+    fn into_children(self) -> Vec<Self::Child> {
         self.0.into_children()
     }
 }
@@ -77,6 +85,14 @@ impl<'a> From<&'a str> for DefinitionListValue<'a> {
     /// wrapping that in `InlineElementContainer`
     fn from(s: &'a str) -> Self {
         Self::new(InlineElementContainer::from(Located::from(s)))
+    }
+}
+
+impl<'a> StrictEq for DefinitionListValue<'a> {
+    /// Performs strict_eq on inner container
+    #[inline]
+    fn strict_eq(&self, other: &Self) -> bool {
+        self.0.strict_eq(&other.0)
     }
 }
 
@@ -175,8 +191,12 @@ impl<'a> DefinitionList<'a> {
     ) -> impl Iterator<Item = &Located<Definition<'a>>> {
         self.mapping.values().flatten()
     }
+}
 
-    pub fn into_children(mut self) -> Vec<Located<InlineBlockElement<'a>>> {
+impl<'a> IntoChildren for DefinitionList<'a> {
+    type Child = Located<InlineBlockElement<'a>>;
+
+    fn into_children(mut self) -> Vec<Self::Child> {
         self.mapping
             .drain()
             .flat_map(|(term, defs)| {
@@ -205,6 +225,18 @@ impl<'a> From<Vec<(Located<Term<'a>>, Vec<Located<Definition<'a>>>)>>
         }
 
         dl
+    }
+}
+
+impl<'a> StrictEq for DefinitionList<'a> {
+    /// Performs strict_eq on inner mapping
+    fn strict_eq(&self, other: &Self) -> bool {
+        self.mapping.len() == other.mapping.len()
+            && self.mapping.iter().all(|(key, value)| {
+                other.mapping.get_key_value(key).map_or(false, |(k, v)| {
+                    key.strict_eq(k) && value.strict_eq(v)
+                })
+            })
     }
 }
 

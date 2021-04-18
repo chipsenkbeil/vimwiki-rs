@@ -8,7 +8,8 @@ use crate::lang::{
     },
     parsers::{
         utils::{
-            capture, context, cow_str, locate, not_contains, surround_in_line1,
+            capture, context, cow_str, deeper, locate, not_contains,
+            surround_in_line1,
         },
         IResult, Span,
     },
@@ -94,7 +95,7 @@ fn italic_text(input: Span) -> IResult<DecoratedText> {
         map(
             map_parser(
                 not_contains("%%", surround_in_line1("_", "_")),
-                decorated_text_contents,
+                deeper(decorated_text_contents),
             ),
             DecoratedText::Italic,
         ),
@@ -107,7 +108,7 @@ fn bold_text(input: Span) -> IResult<DecoratedText> {
         map(
             map_parser(
                 not_contains("%%", surround_in_line1("*", "*")),
-                decorated_text_contents,
+                deeper(decorated_text_contents),
             ),
             DecoratedText::Bold,
         ),
@@ -120,7 +121,7 @@ fn strikeout_text(input: Span) -> IResult<DecoratedText> {
         map(
             map_parser(
                 not_contains("%%", surround_in_line1("~~", "~~")),
-                decorated_text_contents,
+                deeper(decorated_text_contents),
             ),
             DecoratedText::Strikeout,
         ),
@@ -133,7 +134,7 @@ fn superscript_text(input: Span) -> IResult<DecoratedText> {
         map(
             map_parser(
                 not_contains("%%", surround_in_line1("^", "^")),
-                decorated_text_contents,
+                deeper(decorated_text_contents),
             ),
             DecoratedText::Superscript,
         ),
@@ -146,7 +147,7 @@ fn subscript_text(input: Span) -> IResult<DecoratedText> {
         map(
             map_parser(
                 not_contains("%%", surround_in_line1(",,", ",,")),
-                decorated_text_contents,
+                deeper(decorated_text_contents),
             ),
             DecoratedText::Subscript,
         ),
@@ -408,6 +409,23 @@ mod tests {
                 ))
             ])
         );
+    }
+
+    #[test]
+    fn decorated_text_should_properly_adjust_depth_for_content() {
+        let input = Span::from(
+            "*bold _italic_ DONE ~~strikeout~~ ^^superscript^^ ,,subscript,, [[some link]]*",
+        );
+        let (_, dt) = decorated_text(input).unwrap();
+
+        assert_eq!(dt.depth(), 0, "Decorated text was at wrong level");
+        for content in dt.as_contents().iter() {
+            assert_eq!(
+                content.depth(),
+                1,
+                "Decorated text content depth was at wrong level"
+            );
+        }
     }
 
     #[test]

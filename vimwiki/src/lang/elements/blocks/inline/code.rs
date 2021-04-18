@@ -1,3 +1,4 @@
+use crate::StrictEq;
 use derive_more::{Constructor, Display};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
@@ -39,5 +40,13 @@ impl CodeInline<'_> {
 impl<'a> From<&'a str> for CodeInline<'a> {
     fn from(s: &'a str) -> Self {
         Self::new(Cow::from(s))
+    }
+}
+
+impl<'a> StrictEq for CodeInline<'a> {
+    /// Same as PartialEq
+    #[inline]
+    fn strict_eq(&self, other: &Self) -> bool {
+        self == other
     }
 }

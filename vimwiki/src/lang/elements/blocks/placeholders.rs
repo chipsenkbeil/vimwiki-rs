@@ -1,3 +1,4 @@
+use crate::StrictEq;
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
@@ -91,5 +92,12 @@ impl<'a> Placeholder<'a> {
             name: Cow::from(name),
             value: Cow::from(value),
         }
+    }
+}
+
+impl<'a> StrictEq for Placeholder<'a> {
+    /// Same as PartialEq
+    fn strict_eq(&self, other: &Self) -> bool {
+        self == other
     }
 }

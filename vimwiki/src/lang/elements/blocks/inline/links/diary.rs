@@ -1,4 +1,5 @@
 use super::{Anchor, Description};
+use crate::StrictEq;
 use chrono::naive::NaiveDate;
 use derive_more::Constructor;
 use serde::{Deserialize, Serialize};
@@ -67,5 +68,13 @@ impl TryFrom<&str> for DiaryLink<'static> {
     fn try_from(str_date: &str) -> Result<Self, Self::Error> {
         let date = NaiveDate::parse_from_str(str_date, "%Y-%m-%d")?;
         Ok(Self::from(date))
+    }
+}
+
+impl<'a> StrictEq for DiaryLink<'a> {
+    /// Same as PartialEq
+    #[inline]
+    fn strict_eq(&self, other: &Self) -> bool {
+        self == other
     }
 }
