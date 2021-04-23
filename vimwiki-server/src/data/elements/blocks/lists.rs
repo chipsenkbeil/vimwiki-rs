@@ -4,16 +4,17 @@ use crate::data::{
     Region,
 };
 use entity::*;
+use entity_async_graphql::*;
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
 use vimwiki::{elements as v, Located};
 
 /// Represents a single document list
 #[simple_ent]
-#[derive(AsyncGraphqlEnt, AsyncGraphqlEntFilter)]
+#[derive(EntObject, EntFilter)]
 pub struct List {
     /// The segment of the document this list covers
-    #[ent(field, ext(async_graphql(filter_untyped)))]
+    #[ent(field(graphql(filter_untyped)))]
     region: Region,
 
     /// The items contained in the list
@@ -25,7 +26,7 @@ pub struct List {
     page: Page,
 
     /// Parent element to this list
-    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
 }
 
@@ -65,25 +66,25 @@ impl<'a> FromVimwikiElement<'a> for List {
 
 /// Represents a single item within a list in a document
 #[simple_ent]
-#[derive(AsyncGraphqlEnt, AsyncGraphqlEntFilter)]
+#[derive(EntObject, EntFilter)]
 pub struct ListItem {
     /// The segment of the document this list item covers
-    #[ent(field, ext(async_graphql(filter_untyped)))]
+    #[ent(field(graphql(filter_untyped)))]
     region: Region,
 
     /// The type of the list item
-    #[ent(field, ext(async_graphql(filter_untyped)))]
+    #[ent(field(graphql(filter_untyped)))]
     item_type: ListItemType,
 
     /// The suffix to a list item
-    #[ent(field, ext(async_graphql(filter_untyped)))]
+    #[ent(field(graphql(filter_untyped)))]
     suffix: ListItemSuffix,
 
     /// The position of this list item among all items in a list
     position: i32,
 
     /// The contents contained within the list item
-    #[ent(edge(policy = "deep", wrap), ext(async_graphql(filter_untyped)))]
+    #[ent(edge(policy = "deep", wrap, graphql(filter_untyped)))]
     contents: Vec<ListItemContent>,
 
     /// Additional attributes associated with the list item
@@ -95,7 +96,7 @@ pub struct ListItem {
     page: Page,
 
     /// Parent element to this list item
-    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
 }
 
@@ -301,9 +302,9 @@ impl<'a> FromVimwikiElement<'a> for ListItemContent {
 }
 
 #[simple_ent]
-#[derive(AsyncGraphqlEnt, AsyncGraphqlEntFilter)]
+#[derive(EntObject, EntFilter)]
 pub struct InlineContent {
-    #[ent(edge(policy = "deep", wrap), ext(async_graphql(filter_untyped)))]
+    #[ent(edge(policy = "deep", wrap, graphql(filter_untyped)))]
     contents: Vec<InlineElement>,
 
     /// Page containing this inline content
@@ -311,7 +312,7 @@ pub struct InlineContent {
     page: Page,
 
     /// Parent element to this inline content
-    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
 }
 
@@ -351,9 +352,9 @@ impl<'a> FromVimwikiElement<'a> for InlineContent {
 }
 
 #[simple_ent]
-#[derive(AsyncGraphqlEnt, AsyncGraphqlEntFilter)]
+#[derive(EntObject, EntFilter)]
 pub struct ListItemAttributes {
-    #[ent(field, ext(async_graphql(filter_untyped)))]
+    #[ent(field(graphql(filter_untyped)))]
     todo_status: Option<ListItemTodoStatus>,
 
     /// Page containing this list item attribute set
@@ -361,7 +362,7 @@ pub struct ListItemAttributes {
     page: Page,
 
     /// Parent element to this list item attribute set
-    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
 }
 
@@ -435,6 +436,7 @@ impl ValueLike for ListItemTodoStatus {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use entity_inmemory::InmemoryDatabase;
     use vimwiki_macros::*;
 
     #[test]

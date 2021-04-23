@@ -4,12 +4,13 @@ use crate::data::{
 };
 
 use entity::*;
+use entity_async_graphql::*;
 use vimwiki::{elements as v, Located};
 
 #[simple_ent]
-#[derive(AsyncGraphqlEnt, AsyncGraphqlEntFilter)]
+#[derive(EntObject, EntFilter)]
 pub struct Blockquote {
-    #[ent(field, ext(async_graphql(filter_untyped)))]
+    #[ent(field(graphql(filter_untyped)))]
     region: Region,
     lines: Vec<String>,
 
@@ -18,7 +19,7 @@ pub struct Blockquote {
     page: Page,
 
     /// Parent element to this blockquote
-    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
 }
 
@@ -51,6 +52,7 @@ impl<'a> FromVimwikiElement<'a> for Blockquote {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use entity_inmemory::InmemoryDatabase;
     use vimwiki_macros::*;
 
     #[test]

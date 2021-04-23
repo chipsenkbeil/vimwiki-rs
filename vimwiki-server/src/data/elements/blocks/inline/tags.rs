@@ -3,15 +3,16 @@ use crate::data::{
     GraphqlDatabaseError, Page, PageQuery, Region,
 };
 use entity::*;
+use entity_async_graphql::*;
 use std::fmt;
 use vimwiki::{elements as v, Located};
 
 /// Represents a single document inline set of tags
 #[simple_ent]
-#[derive(AsyncGraphqlEnt, AsyncGraphqlEntFilter)]
+#[derive(EntObject, EntFilter)]
 pub struct Tags {
     /// The segment of the document this inline set of tags covers
-    #[ent(field, ext(async_graphql(filter_untyped)))]
+    #[ent(field(graphql(filter_untyped)))]
     region: Region,
 
     /// The set of tag names
@@ -22,7 +23,7 @@ pub struct Tags {
     page: Page,
 
     /// Parent element to this element
-    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
 }
 
@@ -62,6 +63,7 @@ impl<'a> FromVimwikiElement<'a> for Tags {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use entity_inmemory::InmemoryDatabase;
     use vimwiki_macros::*;
 
     #[test]

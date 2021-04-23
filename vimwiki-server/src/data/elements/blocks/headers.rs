@@ -5,19 +5,20 @@ use crate::data::{
 };
 
 use entity::*;
+use entity_async_graphql::*;
 use std::fmt;
 use vimwiki::{elements as v, Located};
 
 #[simple_ent]
-#[derive(AsyncGraphqlEntFilter)]
+#[derive(EntFilter)]
 pub struct Header {
-    #[ent(field, ext(async_graphql(filter_untyped)))]
+    #[ent(field(graphql(filter_untyped)))]
     region: Region,
 
     level: i32,
     centered: bool,
 
-    #[ent(edge(policy = "deep", wrap), ext(async_graphql(filter_untyped)))]
+    #[ent(edge(policy = "deep", wrap, graphql(filter_untyped)))]
     contents: Vec<InlineElement>,
 
     /// Page containing the element
@@ -25,7 +26,7 @@ pub struct Header {
     page: Page,
 
     /// Parent element to this element
-    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
 }
 
@@ -140,6 +141,7 @@ impl<'a> FromVimwikiElement<'a> for Header {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use entity_inmemory::InmemoryDatabase;
     use vimwiki_macros::*;
 
     #[test]

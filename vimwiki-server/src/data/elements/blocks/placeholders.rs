@@ -3,6 +3,7 @@ use crate::data::{
     GraphqlDatabaseError, Page, PageQuery, Region,
 };
 use entity::*;
+use entity_async_graphql::*;
 use vimwiki::{elements as v, Located};
 
 #[simple_ent]
@@ -110,10 +111,10 @@ impl<'a> FromVimwikiElement<'a> for Placeholder {
 
 /// Represents a single document title placeholder
 #[simple_ent]
-#[derive(AsyncGraphqlEnt, AsyncGraphqlEntFilter)]
+#[derive(EntObject, EntFilter)]
 pub struct PlaceholderTitle {
     /// The segment of the document this placeholder covers
-    #[ent(field, ext(async_graphql(filter_untyped)))]
+    #[ent(field(graphql(filter_untyped)))]
     region: Region,
 
     /// The title associated with this placeholder
@@ -124,16 +125,16 @@ pub struct PlaceholderTitle {
     page: Page,
 
     /// Parent element to this placeholder
-    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
 }
 
 /// Represents a single document nohtml placeholder
 #[simple_ent]
-#[derive(AsyncGraphqlEnt, AsyncGraphqlEntFilter)]
+#[derive(EntObject, EntFilter)]
 pub struct PlaceholderNoHtml {
     /// The segment of the document this placeholder covers
-    #[ent(field, ext(async_graphql(filter_untyped)))]
+    #[ent(field(graphql(filter_untyped)))]
     region: Region,
 
     /// Page containing the placeholder
@@ -141,16 +142,16 @@ pub struct PlaceholderNoHtml {
     page: Page,
 
     /// Parent element to this placeholder
-    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
 }
 
 /// Represents a single document template placeholder
 #[simple_ent]
-#[derive(AsyncGraphqlEnt, AsyncGraphqlEntFilter)]
+#[derive(EntObject, EntFilter)]
 pub struct PlaceholderTemplate {
     /// The segment of the document this placeholder covers
-    #[ent(field, ext(async_graphql(filter_untyped)))]
+    #[ent(field(graphql(filter_untyped)))]
     region: Region,
 
     /// The template associated with this placeholder
@@ -161,20 +162,20 @@ pub struct PlaceholderTemplate {
     page: Page,
 
     /// Parent element to this placeholder
-    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
 }
 
 /// Represents a single document date placeholder
 #[simple_ent]
-#[derive(AsyncGraphqlEnt, AsyncGraphqlEntFilter)]
+#[derive(EntObject, EntFilter)]
 pub struct PlaceholderDate {
     /// The segment of the document this placeholder covers
-    #[ent(field, ext(async_graphql(filter_untyped)))]
+    #[ent(field(graphql(filter_untyped)))]
     region: Region,
 
     /// The date associated with this placeholder
-    #[ent(field, ext(async_graphql(filter_untyped)))]
+    #[ent(field(graphql(filter_untyped)))]
     date: Date,
 
     /// Page containing the placeholder
@@ -182,16 +183,16 @@ pub struct PlaceholderDate {
     page: Page,
 
     /// Parent element to this placeholder
-    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
 }
 
 /// Represents a single document other placeholder
 #[simple_ent]
-#[derive(AsyncGraphqlEnt, AsyncGraphqlEntFilter)]
+#[derive(EntObject, EntFilter)]
 pub struct PlaceholderOther {
     /// The segment of the document this placeholder covers
-    #[ent(field, ext(async_graphql(filter_untyped)))]
+    #[ent(field(graphql(filter_untyped)))]
     region: Region,
 
     /// The name associated with this placeholder
@@ -205,13 +206,14 @@ pub struct PlaceholderOther {
     page: Page,
 
     /// Parent element to this placeholder
-    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use entity_inmemory::InmemoryDatabase;
     use vimwiki_macros::*;
 
     #[test]

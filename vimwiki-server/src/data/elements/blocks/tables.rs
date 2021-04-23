@@ -4,20 +4,21 @@ use crate::data::{
     Region,
 };
 use entity::*;
+use entity_async_graphql::*;
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
 use vimwiki::{elements as v, Located};
 
 /// Represents a single document table
 #[simple_ent]
-#[derive(AsyncGraphqlEnt, AsyncGraphqlEntFilter)]
+#[derive(EntObject, EntFilter)]
 pub struct Table {
     /// The segment of the document this table covers
-    #[ent(field, ext(async_graphql(filter_untyped)))]
+    #[ent(field(graphql(filter_untyped)))]
     region: Region,
 
     /// The rows contained in this table
-    #[ent(edge(policy = "deep", wrap), ext(async_graphql(filter_untyped)))]
+    #[ent(edge(policy = "deep", wrap, graphql(filter_untyped)))]
     rows: Vec<Row>,
 
     /// Whether or not the table is centered
@@ -28,7 +29,7 @@ pub struct Table {
     page: Page,
 
     /// Parent element to this table
-    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
 }
 
@@ -159,17 +160,17 @@ impl Row {
 /// Represents a row that acts as a divider between other rows, usually for
 /// a header and later data rows
 #[simple_ent]
-#[derive(AsyncGraphqlEnt, AsyncGraphqlEntFilter)]
+#[derive(EntObject, EntFilter)]
 pub struct DividerRow {
     /// The segment of the document this row covers
-    #[ent(field, ext(async_graphql(filter_untyped)))]
+    #[ent(field(graphql(filter_untyped)))]
     region: Region,
 
     /// The position of this row amongst all rows in the table
     position: i32,
 
     /// The alignment of each column according to this divider
-    #[ent(field, ext(async_graphql(filter_untyped)))]
+    #[ent(field(graphql(filter_untyped)))]
     columns: Vec<ColumnAlign>,
 
     /// Page containing this row
@@ -177,7 +178,7 @@ pub struct DividerRow {
     page: Page,
 
     /// Parent element to this row
-    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
 }
 
@@ -221,17 +222,17 @@ impl ValueLike for ColumnAlign {
 
 /// Represents a row that contains one or more cells of data
 #[simple_ent]
-#[derive(AsyncGraphqlEnt, AsyncGraphqlEntFilter)]
+#[derive(EntObject, EntFilter)]
 pub struct ContentRow {
     /// The segment of the document this row covers
-    #[ent(field, ext(async_graphql(filter_untyped)))]
+    #[ent(field(graphql(filter_untyped)))]
     region: Region,
 
     /// The position of this row amongst all rows in the table
     position: i32,
 
     /// The cells contained within this row
-    #[ent(edge(policy = "deep", wrap), ext(async_graphql(filter_untyped)))]
+    #[ent(edge(policy = "deep", wrap, graphql(filter_untyped)))]
     cells: Vec<Cell>,
 
     /// Page containing this row
@@ -239,7 +240,7 @@ pub struct ContentRow {
     page: Page,
 
     /// Parent element to this row
-    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
 }
 
@@ -332,10 +333,10 @@ impl Cell {
 
 /// Represents a cell with content
 #[simple_ent]
-#[derive(AsyncGraphqlEnt, AsyncGraphqlEntFilter)]
+#[derive(EntObject, EntFilter)]
 pub struct ContentCell {
     /// The segment of the document this cell covers
-    #[ent(field, ext(async_graphql(filter_untyped)))]
+    #[ent(field(graphql(filter_untyped)))]
     region: Region,
 
     /// The position of this cell amongst all cells in the row
@@ -345,7 +346,7 @@ pub struct ContentCell {
     row_position: i32,
 
     /// Contents within the cell
-    #[ent(edge(policy = "deep", wrap), ext(async_graphql(filter_untyped)))]
+    #[ent(edge(policy = "deep", wrap, graphql(filter_untyped)))]
     contents: Vec<InlineElement>,
 
     /// Page containing this cell
@@ -353,16 +354,16 @@ pub struct ContentCell {
     page: Page,
 
     /// Parent element to this cell
-    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
 }
 
 /// Represents a cell with no content that spans the left cell
 #[simple_ent]
-#[derive(AsyncGraphqlEnt, AsyncGraphqlEntFilter)]
+#[derive(EntObject, EntFilter)]
 pub struct SpanLeftCell {
     /// The segment of the document this cell covers
-    #[ent(field, ext(async_graphql(filter_untyped)))]
+    #[ent(field(graphql(filter_untyped)))]
     region: Region,
 
     /// The position of this cell amongst all cells in the row
@@ -376,16 +377,16 @@ pub struct SpanLeftCell {
     page: Page,
 
     /// Parent element to this cell
-    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
 }
 
 /// Represents a cell with no content that spans the above row
 #[simple_ent]
-#[derive(AsyncGraphqlEnt, AsyncGraphqlEntFilter)]
+#[derive(EntObject, EntFilter)]
 pub struct SpanAboveCell {
     /// The segment of the document this cell covers
-    #[ent(field, ext(async_graphql(filter_untyped)))]
+    #[ent(field(graphql(filter_untyped)))]
     region: Region,
 
     /// The position of this cell amongst all cells in the row
@@ -399,13 +400,14 @@ pub struct SpanAboveCell {
     page: Page,
 
     /// Parent element to this cell
-    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use entity_inmemory::InmemoryDatabase;
     use vimwiki_macros::*;
 
     #[test]

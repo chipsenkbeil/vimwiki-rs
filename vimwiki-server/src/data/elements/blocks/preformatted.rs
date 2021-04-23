@@ -3,13 +3,14 @@ use crate::data::{
     GraphqlDatabaseError, Page, PageQuery, Region,
 };
 use entity::*;
+use entity_async_graphql::*;
 use std::collections::HashMap;
 use vimwiki::{elements as v, Located};
 
 #[simple_ent]
-#[derive(AsyncGraphqlEntFilter)]
+#[derive(EntFilter)]
 pub struct PreformattedText {
-    #[ent(field, ext(async_graphql(filter_untyped)))]
+    #[ent(field(graphql(filter_untyped)))]
     region: Region,
 
     language: Option<String>,
@@ -17,7 +18,7 @@ pub struct PreformattedText {
 
     // TODO: Support a typed filter once predicate available:
     //       https://github.com/chipsenkbeil/entity-rs/issues/53
-    #[ent(field, ext(async_graphql(filter_untyped)))]
+    #[ent(field(graphql(filter_untyped)))]
     metadata: HashMap<String, String>,
 
     /// Page containing the preformatted text
@@ -25,7 +26,7 @@ pub struct PreformattedText {
     page: Page,
 
     /// Parent element to this preformatted text
-    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
 }
 
@@ -130,6 +131,7 @@ impl<'a> FromVimwikiElement<'a> for PreformattedText {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use entity_inmemory::InmemoryDatabase;
     use vimwiki_macros::*;
 
     #[test]

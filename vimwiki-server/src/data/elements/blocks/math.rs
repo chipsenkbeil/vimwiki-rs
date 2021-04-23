@@ -3,12 +3,13 @@ use crate::data::{
     GraphqlDatabaseError, Page, PageQuery, Region,
 };
 use entity::*;
+use entity_async_graphql::*;
 use vimwiki::{elements as v, Located};
 
 #[simple_ent]
-#[derive(AsyncGraphqlEntFilter)]
+#[derive(EntFilter)]
 pub struct MathBlock {
-    #[ent(field, ext(async_graphql(filter_untyped)))]
+    #[ent(field(graphql(filter_untyped)))]
     region: Region,
 
     lines: Vec<String>,
@@ -19,7 +20,7 @@ pub struct MathBlock {
     page: Page,
 
     /// Parent element to this math block
-    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
 }
 
@@ -101,6 +102,7 @@ impl<'a> FromVimwikiElement<'a> for MathBlock {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use entity_inmemory::InmemoryDatabase;
     use vimwiki_macros::*;
 
     #[test]

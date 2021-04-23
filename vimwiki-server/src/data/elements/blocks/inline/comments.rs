@@ -4,6 +4,7 @@ use crate::data::{
 };
 use derive_more::Display;
 use entity::*;
+use entity_async_graphql::*;
 use std::fmt;
 use vimwiki::{elements as v, Located};
 
@@ -68,10 +69,10 @@ impl<'a> FromVimwikiElement<'a> for Comment {
 
 /// Represents a comment on a single line of a document
 #[simple_ent]
-#[derive(AsyncGraphqlEnt, AsyncGraphqlEntFilter)]
+#[derive(EntObject, EntFilter)]
 pub struct LineComment {
     /// The segment of the document this comment covers
-    #[ent(field, ext(async_graphql(filter_untyped)))]
+    #[ent(field(graphql(filter_untyped)))]
     region: Region,
 
     /// The line of content contained within this comment
@@ -82,7 +83,7 @@ pub struct LineComment {
     page: Page,
 
     /// Parent element to this element
-    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
 }
 
@@ -113,10 +114,10 @@ impl<'a> FromVimwikiElement<'a> for LineComment {
 
 /// Represents a comment that can potentially cross multiple lines of a document
 #[simple_ent]
-#[derive(AsyncGraphqlEnt, AsyncGraphqlEntFilter)]
+#[derive(EntObject, EntFilter)]
 pub struct MultiLineComment {
     /// The segment of the document this comment covers
-    #[ent(field, ext(async_graphql(filter_untyped)))]
+    #[ent(field(graphql(filter_untyped)))]
     region: Region,
 
     /// The lines of content contained within this comment
@@ -127,7 +128,7 @@ pub struct MultiLineComment {
     page: Page,
 
     /// Parent element to this element
-    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
 }
 
@@ -169,6 +170,7 @@ impl<'a> FromVimwikiElement<'a> for MultiLineComment {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use entity_inmemory::InmemoryDatabase;
     use vimwiki_macros::*;
 
     #[test]

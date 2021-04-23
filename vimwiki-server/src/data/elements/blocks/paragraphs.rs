@@ -4,16 +4,17 @@ use crate::data::{
     Region,
 };
 use entity::*;
+use entity_async_graphql::*;
 use std::fmt;
 use vimwiki::{elements as v, Located};
 
 #[simple_ent]
-#[derive(AsyncGraphqlEntFilter)]
+#[derive(EntFilter)]
 pub struct Paragraph {
-    #[ent(field, ext(async_graphql(filter_untyped)))]
+    #[ent(field(graphql(filter_untyped)))]
     region: Region,
 
-    #[ent(edge(policy = "deep", wrap), ext(async_graphql(filter_untyped)))]
+    #[ent(edge(policy = "deep", wrap, graphql(filter_untyped)))]
     contents: Vec<InlineElement>,
 
     /// Page containing the paragraph
@@ -21,7 +22,7 @@ pub struct Paragraph {
     page: Page,
 
     /// Parent element to this paragraph
-    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
 }
 
@@ -120,6 +121,7 @@ impl<'a> FromVimwikiElement<'a> for Paragraph {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use entity_inmemory::InmemoryDatabase;
     use vimwiki_macros::*;
 
     #[test]

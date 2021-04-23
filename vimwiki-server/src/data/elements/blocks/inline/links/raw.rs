@@ -3,19 +3,20 @@ use crate::data::{
     GraphqlDatabaseError, Page, PageQuery, Region, Uri,
 };
 use entity::*;
+use entity_async_graphql::*;
 use std::fmt;
 use vimwiki::{elements as v, Located};
 
 /// Represents a single document link formed from a raw URI
 #[simple_ent]
-#[derive(AsyncGraphqlEnt, AsyncGraphqlEntFilter)]
+#[derive(EntObject, EntFilter)]
 pub struct RawLink {
     /// The segment of the document this link covers
-    #[ent(field, ext(async_graphql(filter_untyped)))]
+    #[ent(field(graphql(filter_untyped)))]
     region: Region,
 
     /// The URI representing the link
-    #[ent(field, ext(async_graphql(filter_untyped)))]
+    #[ent(field(graphql(filter_untyped)))]
     uri: Uri,
 
     /// Page containing the element
@@ -23,7 +24,7 @@ pub struct RawLink {
     page: Page,
 
     /// Parent element to this element
-    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
 }
 
@@ -56,6 +57,7 @@ impl<'a> FromVimwikiElement<'a> for RawLink {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use entity_inmemory::InmemoryDatabase;
     use vimwiki_macros::*;
 
     #[test]

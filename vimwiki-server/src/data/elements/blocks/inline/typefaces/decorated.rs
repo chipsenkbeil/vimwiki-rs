@@ -4,23 +4,24 @@ use crate::data::{
 };
 use derive_more::Display;
 use entity::*;
+use entity_async_graphql::*;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use vimwiki::{elements as v, Located};
 
 #[simple_ent]
-#[derive(AsyncGraphqlEntFilter)]
+#[derive(EntFilter)]
 pub struct DecoratedText {
     /// The segment of the document this decorated text covers
-    #[ent(field, ext(async_graphql(filter_untyped)))]
+    #[ent(field(graphql(filter_untyped)))]
     region: Region,
 
     /// The decoration applied to this decorated text
-    #[ent(field, ext(async_graphql(filter_untyped)))]
+    #[ent(field(graphql(filter_untyped)))]
     decoration: Decoration,
 
     /// The contents of this decorated text
-    #[ent(edge(policy = "deep", wrap), ext(async_graphql(filter_untyped)))]
+    #[ent(edge(policy = "deep", wrap, graphql(filter_untyped)))]
     contents: Vec<DecoratedTextContent>,
 
     /// Page containing the element
@@ -28,7 +29,7 @@ pub struct DecoratedText {
     page: Page,
 
     /// Parent element to this element
-    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
 }
 
@@ -269,6 +270,7 @@ impl ValueLike for Decoration {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use entity_inmemory::InmemoryDatabase;
     use vimwiki_macros::*;
 
     #[test]

@@ -1,6 +1,7 @@
 use crate::{data::Wiki, utils, Config};
 use async_graphql::ErrorExtensions;
 use entity::*;
+use entity_inmemory::InmemoryDatabase;
 use snafu::{ResultExt, Snafu};
 use std::path::PathBuf;
 

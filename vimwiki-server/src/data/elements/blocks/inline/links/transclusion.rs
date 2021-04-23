@@ -3,28 +3,29 @@ use crate::data::{
     GraphqlDatabaseError, Page, PageQuery, Region, Uri,
 };
 use entity::*;
+use entity_async_graphql::*;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use vimwiki::{elements as v, Located};
 
 /// Represents a single document transclusion link
 #[simple_ent]
-#[derive(AsyncGraphqlEnt, AsyncGraphqlEntFilter)]
+#[derive(EntObject, EntFilter)]
 pub struct TransclusionLink {
     /// The segment of the document this link covers
-    #[ent(field, ext(async_graphql(filter_untyped)))]
+    #[ent(field(graphql(filter_untyped)))]
     region: Region,
 
     /// The URI representing the link's content to pull in
-    #[ent(field, ext(async_graphql(filter_untyped)))]
+    #[ent(field(graphql(filter_untyped)))]
     uri: Uri,
 
     /// Optional description associated with the link
-    #[ent(field, ext(async_graphql(filter_untyped)))]
+    #[ent(field(graphql(filter_untyped)))]
     description: Option<Description>,
 
     /// Additional properties associated with the link
-    #[ent(field, ext(async_graphql(filter_untyped)))]
+    #[ent(field(graphql(filter_untyped)))]
     properties: Vec<Property>,
 
     /// Page containing the element
@@ -32,7 +33,7 @@ pub struct TransclusionLink {
     page: Page,
 
     /// Parent element to this element
-    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
 }
 
@@ -95,6 +96,7 @@ pub struct Property {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use entity_inmemory::InmemoryDatabase;
     use vimwiki_macros::*;
 
     #[test]

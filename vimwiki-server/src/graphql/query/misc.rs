@@ -27,7 +27,7 @@ impl MiscQuery {
                 )
                 .into(),
             )
-            .execute(gql_db_typed_ref!()?)
+            .execute()
             .map(|x| x.into_iter().next())
             .map_err(|x| async_graphql::Error::new(x.to_string()))
     }

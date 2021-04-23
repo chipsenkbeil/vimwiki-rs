@@ -3,15 +3,16 @@ use crate::data::{
     GqlPageFilter, GraphqlDatabaseError, Page, PageQuery, Region,
 };
 use entity::*;
+use entity_async_graphql::*;
 use std::fmt;
 use vimwiki::{elements as v, Located};
 
 /// Represents a single document wiki link
 #[simple_ent]
-#[derive(AsyncGraphqlEnt, AsyncGraphqlEntFilter)]
+#[derive(EntObject, EntFilter)]
 pub struct WikiLink {
     /// The segment of the document this link covers
-    #[ent(field, ext(async_graphql(filter_untyped)))]
+    #[ent(field(graphql(filter_untyped)))]
     region: Region,
 
     /// Whether or not the link connects to a directory
@@ -25,11 +26,11 @@ pub struct WikiLink {
     path: String,
 
     /// Optional description associated with the link
-    #[ent(field, ext(async_graphql(filter_untyped)))]
+    #[ent(field(graphql(filter_untyped)))]
     description: Option<Description>,
 
     /// Optional anchor associated with the link
-    #[ent(field, ext(async_graphql(filter_untyped)))]
+    #[ent(field(graphql(filter_untyped)))]
     anchor: Option<Anchor>,
 
     /// Page containing the element
@@ -37,7 +38,7 @@ pub struct WikiLink {
     page: Page,
 
     /// Parent element to this element
-    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
 }
 
@@ -78,6 +79,7 @@ impl<'a> FromVimwikiElement<'a> for WikiLink {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use entity_inmemory::InmemoryDatabase;
     use vimwiki_macros::*;
 
     #[test]

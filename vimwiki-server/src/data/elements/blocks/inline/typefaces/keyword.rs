@@ -3,20 +3,21 @@ use crate::data::{
     GraphqlDatabaseError, Page, PageQuery, Region,
 };
 use entity::*;
+use entity_async_graphql::*;
 use serde::{Deserialize, Serialize};
 use std::{fmt, str::FromStr};
 use vimwiki::{elements as v, Located};
 
 /// Represents special keywords that have unique syntax highlighting
 #[simple_ent]
-#[derive(AsyncGraphqlEnt, AsyncGraphqlEntFilter)]
+#[derive(EntObject, EntFilter)]
 pub struct Keyword {
     /// The segment of the document this keyword covers
-    #[ent(field, ext(async_graphql(filter_untyped)))]
+    #[ent(field(graphql(filter_untyped)))]
     region: Region,
 
     /// The type of keyword
-    #[ent(field, ext(async_graphql(filter_untyped)))]
+    #[ent(field(graphql(filter_untyped)))]
     ty: KeywordType,
 
     /// Page containing the element
@@ -24,7 +25,7 @@ pub struct Keyword {
     page: Page,
 
     /// Parent element to this element
-    #[ent(edge(policy = "shallow", wrap), ext(async_graphql(filter_untyped)))]
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
 }
 
@@ -136,6 +137,7 @@ impl ValueLike for KeywordType {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use entity_inmemory::InmemoryDatabase;
     use vimwiki_macros::*;
 
     #[test]

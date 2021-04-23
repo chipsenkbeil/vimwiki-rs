@@ -1,5 +1,6 @@
 use crate::{data::*, database::gql_db};
 use entity::{TypedPredicate as P, *};
+use entity_async_graphql::*;
 
 #[derive(Default)]
 pub struct ObjQuery;
@@ -7,9 +8,10 @@ pub struct ObjQuery;
 #[async_graphql::Object]
 impl ObjQuery {
     /// Query for single instance of any ent by its id
-    async fn ent(&self, id: Id) -> async_graphql::Result<Option<Box<dyn Ent>>> {
+    async fn ent(&self, id: Id) -> async_graphql::Result<Option<GqlDynEnt>> {
         gql_db()?
             .get(id)
+            .map(|maybe_ent| maybe_ent.map(GqlDynEnt::from))
             .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
 
@@ -17,8 +19,8 @@ impl ObjQuery {
     /// return all instances if no filter provided
     async fn ents(
         &self,
-        filter: Option<entity::ext::async_graphql::GqlEntFilter>,
-    ) -> async_graphql::Result<Vec<Box<dyn Ent>>> {
+        filter: Option<GqlEntFilter>,
+    ) -> async_graphql::Result<Vec<GqlDynEnt>> {
         let query: entity::Query = match filter {
             Some(x) => x.into(),
             None => entity::Query::default().where_created(P::greater_than(0)),
@@ -26,6 +28,7 @@ impl ObjQuery {
 
         gql_db()?
             .find_all(query)
+            .map(|ents| ents.into_iter().map(GqlDynEnt::from).collect())
             .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
 
@@ -105,7 +108,7 @@ impl ObjQuery {
     /// return all instances if no filter provided
     async fn elements(
         &self,
-        filter: Option<entity::ext::async_graphql::GqlEntFilter>,
+        filter: Option<GqlEntFilter>,
     ) -> async_graphql::Result<Vec<Element>> {
         let query: entity::Query = match filter {
             Some(x) => x.into(),
@@ -113,7 +116,7 @@ impl ObjQuery {
         };
 
         ElementQuery::from(query)
-            .execute(gql_db_typed_ref!()?)
+            .execute()
             .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
 
@@ -121,7 +124,7 @@ impl ObjQuery {
     async fn element(&self, id: Id) -> async_graphql::Result<Option<Element>> {
         Element::query()
             .where_id(P::equals(id))
-            .execute(gql_db_typed_ref!()?)
+            .execute()
             .map(|x| x.into_iter().next())
             .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
@@ -130,7 +133,7 @@ impl ObjQuery {
     /// return all instances if no filter provided
     async fn block_elements(
         &self,
-        filter: Option<entity::ext::async_graphql::GqlEntFilter>,
+        filter: Option<GqlEntFilter>,
     ) -> async_graphql::Result<Vec<BlockElement>> {
         let query: entity::Query = match filter {
             Some(x) => x.into(),
@@ -138,7 +141,7 @@ impl ObjQuery {
         };
 
         BlockElementQuery::from(query)
-            .execute(gql_db_typed_ref!()?)
+            .execute()
             .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
 
@@ -149,7 +152,7 @@ impl ObjQuery {
     ) -> async_graphql::Result<Option<BlockElement>> {
         BlockElement::query()
             .where_id(P::equals(id))
-            .execute(gql_db_typed_ref!()?)
+            .execute()
             .map(|x| x.into_iter().next())
             .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
@@ -158,7 +161,7 @@ impl ObjQuery {
     /// return all instances if no filter provided
     async fn inline_block_elements(
         &self,
-        filter: Option<entity::ext::async_graphql::GqlEntFilter>,
+        filter: Option<GqlEntFilter>,
     ) -> async_graphql::Result<Vec<InlineBlockElement>> {
         let query: entity::Query = match filter {
             Some(x) => x.into(),
@@ -166,7 +169,7 @@ impl ObjQuery {
         };
 
         InlineBlockElementQuery::from(query)
-            .execute(gql_db_typed_ref!()?)
+            .execute()
             .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
 
@@ -177,7 +180,7 @@ impl ObjQuery {
     ) -> async_graphql::Result<Option<InlineBlockElement>> {
         InlineBlockElement::query()
             .where_id(P::equals(id))
-            .execute(gql_db_typed_ref!()?)
+            .execute()
             .map(|x| x.into_iter().next())
             .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
@@ -186,7 +189,7 @@ impl ObjQuery {
     /// return all instances if no filter provided
     async fn inline_elements(
         &self,
-        filter: Option<entity::ext::async_graphql::GqlEntFilter>,
+        filter: Option<GqlEntFilter>,
     ) -> async_graphql::Result<Vec<InlineElement>> {
         let query: entity::Query = match filter {
             Some(x) => x.into(),
@@ -194,7 +197,7 @@ impl ObjQuery {
         };
 
         InlineElementQuery::from(query)
-            .execute(gql_db_typed_ref!()?)
+            .execute()
             .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
 
@@ -205,7 +208,7 @@ impl ObjQuery {
     ) -> async_graphql::Result<Option<InlineElement>> {
         InlineElement::query()
             .where_id(P::equals(id))
-            .execute(gql_db_typed_ref!()?)
+            .execute()
             .map(|x| x.into_iter().next())
             .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
@@ -436,7 +439,7 @@ impl ObjQuery {
     /// return all instances if no filter provided
     async fn list_item_contents(
         &self,
-        filter: Option<entity::ext::async_graphql::GqlEntFilter>,
+        filter: Option<GqlEntFilter>,
     ) -> async_graphql::Result<Vec<ListItemContent>> {
         let query: entity::Query = match filter {
             Some(x) => x.into(),
@@ -444,7 +447,7 @@ impl ObjQuery {
         };
 
         ListItemContentQuery::from(query)
-            .execute(gql_db_typed_ref!()?)
+            .execute()
             .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
 
@@ -455,7 +458,7 @@ impl ObjQuery {
     ) -> async_graphql::Result<Option<ListItemContent>> {
         ListItemContent::query()
             .where_id(P::equals(id))
-            .execute(gql_db_typed_ref!()?)
+            .execute()
             .map(|x| x.into_iter().next())
             .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
@@ -516,7 +519,7 @@ impl ObjQuery {
     /// return all instances if no filter provided
     async fn placeholders(
         &self,
-        filter: Option<entity::ext::async_graphql::GqlEntFilter>,
+        filter: Option<GqlEntFilter>,
     ) -> async_graphql::Result<Vec<Placeholder>> {
         let query: entity::Query = match filter {
             Some(x) => x.into(),
@@ -524,7 +527,7 @@ impl ObjQuery {
         };
 
         PlaceholderQuery::from(query)
-            .execute(gql_db_typed_ref!()?)
+            .execute()
             .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
 
@@ -535,7 +538,7 @@ impl ObjQuery {
     ) -> async_graphql::Result<Option<Placeholder>> {
         Placeholder::query()
             .where_id(P::equals(id))
-            .execute(gql_db_typed_ref!()?)
+            .execute()
             .map(|x| x.into_iter().next())
             .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
@@ -723,7 +726,7 @@ impl ObjQuery {
     /// return all instances if no filter provided
     async fn rows(
         &self,
-        filter: Option<entity::ext::async_graphql::GqlEntFilter>,
+        filter: Option<GqlEntFilter>,
     ) -> async_graphql::Result<Vec<Row>> {
         let query: entity::Query = match filter {
             Some(x) => x.into(),
@@ -731,7 +734,7 @@ impl ObjQuery {
         };
 
         RowQuery::from(query)
-            .execute(gql_db_typed_ref!()?)
+            .execute()
             .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
 
@@ -739,7 +742,7 @@ impl ObjQuery {
     async fn row(&self, id: Id) -> async_graphql::Result<Option<Row>> {
         Row::query()
             .where_id(P::equals(id))
-            .execute(gql_db_typed_ref!()?)
+            .execute()
             .map(|x| x.into_iter().next())
             .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
@@ -800,7 +803,7 @@ impl ObjQuery {
     /// return all instances if no filter provided
     async fn cells(
         &self,
-        filter: Option<entity::ext::async_graphql::GqlEntFilter>,
+        filter: Option<GqlEntFilter>,
     ) -> async_graphql::Result<Vec<Cell>> {
         let query: entity::Query = match filter {
             Some(x) => x.into(),
@@ -808,7 +811,7 @@ impl ObjQuery {
         };
 
         CellQuery::from(query)
-            .execute(gql_db_typed_ref!()?)
+            .execute()
             .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
 
@@ -816,7 +819,7 @@ impl ObjQuery {
     async fn cell(&self, id: Id) -> async_graphql::Result<Option<Cell>> {
         Cell::query()
             .where_id(P::equals(id))
-            .execute(gql_db_typed_ref!()?)
+            .execute()
             .map(|x| x.into_iter().next())
             .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
@@ -952,7 +955,7 @@ impl ObjQuery {
     /// return all instances if no filter provided
     async fn decorated_text_contents(
         &self,
-        filter: Option<entity::ext::async_graphql::GqlEntFilter>,
+        filter: Option<GqlEntFilter>,
     ) -> async_graphql::Result<Vec<DecoratedTextContent>> {
         let query: entity::Query = match filter {
             Some(x) => x.into(),
@@ -960,7 +963,7 @@ impl ObjQuery {
         };
 
         DecoratedTextContentQuery::from(query)
-            .execute(gql_db_typed_ref!()?)
+            .execute()
             .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
 
@@ -971,7 +974,7 @@ impl ObjQuery {
     ) -> async_graphql::Result<Option<DecoratedTextContent>> {
         DecoratedTextContent::query()
             .where_id(P::equals(id))
-            .execute(gql_db_typed_ref!()?)
+            .execute()
             .map(|x| x.into_iter().next())
             .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
@@ -1003,7 +1006,7 @@ impl ObjQuery {
     /// return all instances if no filter provided
     async fn links(
         &self,
-        filter: Option<entity::ext::async_graphql::GqlEntFilter>,
+        filter: Option<GqlEntFilter>,
     ) -> async_graphql::Result<Vec<Link>> {
         let query: entity::Query = match filter {
             Some(x) => x.into(),
@@ -1011,7 +1014,7 @@ impl ObjQuery {
         };
 
         LinkQuery::from(query)
-            .execute(gql_db_typed_ref!()?)
+            .execute()
             .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
 
@@ -1019,7 +1022,7 @@ impl ObjQuery {
     async fn link(&self, id: Id) -> async_graphql::Result<Option<Link>> {
         Link::query()
             .where_id(P::equals(id))
-            .execute(gql_db_typed_ref!()?)
+            .execute()
             .map(|x| x.into_iter().next())
             .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
@@ -1282,7 +1285,7 @@ impl ObjQuery {
     /// return all instances if no filter provided
     async fn comments(
         &self,
-        filter: Option<entity::ext::async_graphql::GqlEntFilter>,
+        filter: Option<GqlEntFilter>,
     ) -> async_graphql::Result<Vec<Comment>> {
         let query: entity::Query = match filter {
             Some(x) => x.into(),
@@ -1290,7 +1293,7 @@ impl ObjQuery {
         };
 
         CommentQuery::from(query)
-            .execute(gql_db_typed_ref!()?)
+            .execute()
             .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
 
@@ -1298,7 +1301,7 @@ impl ObjQuery {
     async fn comment(&self, id: Id) -> async_graphql::Result<Option<Comment>> {
         Comment::query()
             .where_id(P::equals(id))
-            .execute(gql_db_typed_ref!()?)
+            .execute()
             .map(|x| x.into_iter().next())
             .map_err(|x| async_graphql::Error::new(x.to_string()))
     }

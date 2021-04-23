@@ -45,9 +45,9 @@ checksum = "cff77d8686867eceff3105329d4698d96c2391c176d5d03adc90c7389162b5b8"
 
 [[package]]
 name = "async-graphql"
-version = "2.8.1"
+version = "2.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ced1c47dc5b7882550772329653a1eb7de41bc3f4fc1de168720a92190147e6"
+checksum = "8c11be6c0007e57ddc3ccfaaec854063ef975e800d376277ae0854925074bd74"
 dependencies = [
  "async-graphql-derive",
  "async-graphql-parser",
@@ -71,14 +71,14 @@ dependencies = [
 
 [[package]]
 name = "async-graphql-derive"
-version = "2.8.1"
+version = "2.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "41b572929c2639b7cdc655aacc5b86a42ce37ec04ff856c79dfb3c87d9398558"
+checksum = "74a7a23428b13e2f950e3fa04de4978184cd133f193f63c838d70ed38c543747"
 dependencies = [
  "Inflector",
  "async-graphql-parser",
  "darling",
- "proc-macro-crate 1.0.0",
+ "proc-macro-crate",
  "proc-macro2",
  "quote",
  "syn",
@@ -110,9 +110,9 @@ dependencies = [
 
 [[package]]
 name = "async-graphql-warp"
-version = "2.8.1"
+version = "2.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c3edc626b073be7528dc530ad76cd6fe0ee6ee52b19f68dc4c1515dc623e3d0"
+checksum = "7c66660fc96612efa390c0e243f81933dd1a9fc6b6452ea26af2fdfc527f0fef"
 dependencies = [
  "async-graphql",
  "futures-util",
@@ -690,11 +690,10 @@ dependencies = [
 
 [[package]]
 name = "entity"
-version = "0.2.5"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f16d6006aec1baaf07b4e09b2dfa5cbdfc1dab6983dc09dd7cded8d373d7a9e7"
+checksum = "40f2929839be927f9b31d5f522a28bed0f3d0b4767a71524ca7719f0202f9093"
 dependencies = [
- "async-graphql",
  "derivative",
  "derive_more",
  "doc-comment",
@@ -709,24 +708,76 @@ dependencies = [
 ]
 
 [[package]]
-name = "entity_macros"
-version = "0.2.5"
+name = "entity-async-graphql"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "109643ca1b484d7cb0e85187972a2441d550c172339a1f052c8ceefc6f8eb332"
+checksum = "0d9b612dfdddc9d4ec168785742cb158e960b015ad3f0a9b424061e93100226b"
+dependencies = [
+ "async-graphql",
+ "derive_more",
+ "entity",
+ "entity-async-graphql-macros",
+ "paste",
+]
+
+[[package]]
+name = "entity-async-graphql-macros"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e3dcb0ba1a77557e98739893710f80601e0a84dd3cd222ee9abc2171cdd4c7a0"
 dependencies = [
  "darling",
+ "entity_macros_data",
  "heck",
- "proc-macro-crate 0.1.5",
+ "proc-macro-crate",
  "proc-macro2",
  "quote",
  "syn",
 ]
 
 [[package]]
-name = "entity_noop_macros"
-version = "0.1.0"
+name = "entity-inmemory"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "484679de13a49254bdab192bcbabaf4574d07c4f08471a60ed2d82fa8a99a309"
+checksum = "8c9782f064842d5df8f9fc8d719a5b6cb87f66d0e07d35186cdf43a74e8ce763"
+dependencies = [
+ "dyn-clone",
+ "entity",
+ "serde",
+]
+
+[[package]]
+name = "entity_macros"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "486c0e6c99804cf9b3afa44d94a1b12756ec0c8a05ca65886974999eefd14362"
+dependencies = [
+ "darling",
+ "entity_macros_data",
+ "heck",
+ "proc-macro-crate",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "entity_macros_data"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "82cd915b0a3297dc409a1cd498300af9a48cf7a69ef68bce03ebcfb2cc7c2df8"
+dependencies = [
+ "darling",
+ "heck",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "entity_noop_macros"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d257faa4b4faf08cdd6ab0df7709c8ac438b16da3f81c1d89fa9717b10f5c46"
 
 [[package]]
 name = "erased-serde"
@@ -1720,15 +1771,6 @@ name = "ppv-lite86"
 version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "237a5ed80e274dbc66f86bd59c1e25edc039660be53194b5fe0a482e0f2612ea"
-
-[[package]]
-name = "proc-macro-crate"
-version = "0.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d6ea3c4595b96363c13943497db34af4460fb474a95c43f4446ad341b8c9785"
-dependencies = [
- "toml",
-]
 
 [[package]]
 name = "proc-macro-crate"
@@ -2734,6 +2776,8 @@ dependencies = [
  "derive_more",
  "directories",
  "entity",
+ "entity-async-graphql",
+ "entity-inmemory",
  "flexi_logger",
  "indicatif",
  "lazy_static",

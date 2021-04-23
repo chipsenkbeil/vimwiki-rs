@@ -19,12 +19,14 @@ name = "vimwiki-server"
 path = "src/main.rs"
 
 [dependencies]
-async-graphql = "2.8.1"
-async-graphql-warp = "2.8.1"
+async-graphql = "2.8.4"
+async-graphql-warp = "2.8.4"
 clap = "3.0.0-beta.2"
 derive_more = { version = "0.99.0", default-features = false, features = [ "display", "error", "from" ] }
 directories = "3.0.1"
-entity = { version = "0.2.5", features = ["async-graphql", "global", "macros", "inmemory_db", "serde-1"] }
+entity = { version = "0.3.0", features = ["global", "macros", "serde-1"] }
+entity-inmemory = { version = "0.3.0", features = ["serde-1"] }
+entity-async-graphql = { version = "0.3.0", features = ["macros"] }
 flexi_logger = "0.16.1"
 indicatif = "0.15.0"
 lazy_static = "1.4.0"

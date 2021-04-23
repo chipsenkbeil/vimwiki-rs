@@ -2,6 +2,7 @@
 
 use crate::{database::gql_db, utils, Config};
 use entity::{TypedPredicate as P, *};
+use entity_async_graphql::*;
 use sha1::{Digest, Sha1};
 use std::{
     convert::TryFrom,
@@ -16,7 +17,7 @@ mod elements;
 pub use elements::*;
 
 #[simple_ent]
-#[derive(AsyncGraphqlEnt, AsyncGraphqlEntFilter)]
+#[derive(EntObject, EntFilter)]
 pub struct Wiki {
     index: usize,
     name: Option<String>,
@@ -119,7 +120,7 @@ impl Wiki {
 }
 
 #[simple_ent]
-#[derive(AsyncGraphqlEnt, AsyncGraphqlEntFilter)]
+#[derive(EntObject, EntFilter)]
 pub struct ParsedFile {
     #[ent(field(mutable))]
     path: String,
