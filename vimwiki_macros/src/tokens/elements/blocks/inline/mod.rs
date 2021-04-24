@@ -21,7 +21,7 @@ fn tokenize_inline_element_container(
         .map(|c| do_tokenize!(c));
     quote! {
         #root::InlineElementContainer {
-            elements: vec![#(#elements),*],
+            elements: ::std::vec![#(#elements),*],
         }
     }
 }

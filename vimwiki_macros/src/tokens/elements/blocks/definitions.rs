@@ -8,7 +8,12 @@ fn tokenize_definition_list(definition_list: &DefinitionList) -> TokenStream {
     let root = element_path();
     let td = definition_list.iter().map(tokenize_term_and_definitions);
     quote! {
-        #root::DefinitionList::from(vec![#(#td),*])
+        <#root::DefinitionList as ::std::convert::From<
+            ::std::vec::Vec<(
+                #root::Located<#root::Term>,
+                ::std::vec::Vec<#root::Located<#root::Definition>>,
+            )>
+        >>::from(::std::vec![#(#td),*])
     }
 }
 
@@ -18,7 +23,7 @@ fn tokenize_term_and_definitions(
     let term = do_tokenize!(term);
     let definitions = definitions.iter().map(|x| do_tokenize!(x));
     quote! {
-        (#term, vec![#(#definitions),*])
+        (#term, ::std::vec![#(#definitions),*])
     }
 }
 

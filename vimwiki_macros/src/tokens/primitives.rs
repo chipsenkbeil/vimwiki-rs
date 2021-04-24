@@ -15,13 +15,13 @@ impl_tokenize!(String);
 
 impl_tokenize!(tokenize_cow_str, Cow<'a, str>, 'a);
 pub fn tokenize_cow_str(inner: &str) -> TokenStream {
-    quote! { std::borrow::Cow::from(#inner) }
+    quote! { ::std::borrow::Cow::Borrowed(#inner) }
 }
 
 impl_tokenize!(tokenize_cow_path, Cow<'a, Path>, 'a);
 pub fn tokenize_cow_path(path: &Path) -> TokenStream {
     let inner = path.to_str().expect("Unable to translate path to str");
-    quote! { std::borrow::Cow::from(std::path::Path::new(#inner)) }
+    quote! { ::std::borrow::Cow::Borrowed(::std::path::Path::new(#inner)) }
 }
 
 impl_tokenize!(tokenize_naive_date, NaiveDate);
@@ -40,7 +40,7 @@ fn tokenize_uri(uri: &URI) -> TokenStream {
     let uri_string = uri.to_string();
     quote! {
         {
-            use std::convert::TryFrom;
+            use ::std::convert::TryFrom;
             #root::uriparse::URI::try_from(#uri_string)
                 .expect("Failed to parse URI").into_owned()
         }
@@ -52,6 +52,6 @@ fn tokenize_path(path: &Path) -> TokenStream {
     // TODO: Support cases where pathbuf cannot be converted back to Rust str
     let t = path.to_str().expect("Path cannot be converted to &str");
     quote! {
-        std::path::Path::new(#t)
+        ::std::path::Path::new(#t)
     }
 }

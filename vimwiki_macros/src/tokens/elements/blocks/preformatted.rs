@@ -26,7 +26,7 @@ fn tokenize_preformatted_text(
         #root::PreformattedText {
             lang: #lang,
             metadata: #metadata,
-            lines: vec![#(#lines),*],
+            lines: ::std::vec![#(#lines),*],
         }
     }
 }

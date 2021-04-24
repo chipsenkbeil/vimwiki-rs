@@ -208,7 +208,7 @@ fn tokenize_anchor(anchor: &Anchor) -> TokenStream {
     let elements = anchor.elements.iter().map(|x| do_tokenize!(x));
     quote! {
         #root::Anchor {
-            elements: vec![#(#elements),*],
+            elements: ::std::vec![#(#elements),*],
         }
     }
 }

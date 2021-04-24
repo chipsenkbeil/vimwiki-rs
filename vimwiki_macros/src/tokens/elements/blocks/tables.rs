@@ -10,7 +10,7 @@ fn tokenize_table(table: &Table) -> TokenStream {
     let centered = table.centered;
     quote! {
         #root::Table {
-            rows: vec![#(#rows),*],
+            rows: ::std::vec![#(#rows),*],
             centered: #centered,
         }
     }
@@ -22,11 +22,11 @@ fn tokenize_row(row: &Row) -> TokenStream {
     match &row {
         Row::Content { cells } => {
             let t = cells.iter().map(|x| do_tokenize!(x));
-            quote! { #root::Row::Content { cells: vec![#(#t),*] } }
+            quote! { #root::Row::Content { cells: ::std::vec![#(#t),*] } }
         }
         Row::Divider { columns } => {
             let t = columns.iter().map(|x| do_tokenize!(x));
-            quote! { #root::Row::Divider { columns: vec![#(#t),*] } }
+            quote! { #root::Row::Divider { columns: ::std::vec![#(#t),*] } }
         }
     }
 }

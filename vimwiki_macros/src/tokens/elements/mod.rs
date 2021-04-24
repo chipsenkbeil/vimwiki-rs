@@ -13,7 +13,7 @@ fn tokenize_page(page: &Page) -> TokenStream {
     let elements = page.elements().iter().map(|x| do_tokenize!(x));
     quote! {
         #root::Page {
-            elements: vec![#(#elements),*],
+            elements: ::std::vec![#(#elements),*],
         }
     }
 }

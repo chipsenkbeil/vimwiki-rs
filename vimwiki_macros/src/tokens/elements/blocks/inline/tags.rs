@@ -8,7 +8,7 @@ fn tokenize_tags(tags: &Tags) -> TokenStream {
     let root = element_path();
     let inner = tags.0.iter().map(tokenize_tag);
     quote! {
-        #root::Tags(vec![#(#inner),*])
+        #root::Tags(::std::vec![#(#inner),*])
     }
 }
 

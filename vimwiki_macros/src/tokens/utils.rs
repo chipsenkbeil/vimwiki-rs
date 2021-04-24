@@ -31,7 +31,7 @@ pub fn vendor_path() -> TokenStream {
 /// Produces a `TokenStream` for the `String` type
 #[inline]
 pub fn tokenize_cow_str_type() -> TokenStream {
-    quote! { std::borrow::Cow<'_, str >}
+    quote! { ::std::borrow::Cow<'_, str >}
 }
 
 /// Tokenizes a `HashMap<K, V>` where both the key and value implement the
@@ -51,7 +51,9 @@ pub fn tokenize_hashmap<K: Tokenize, V: Tokenize>(
         quote! { (#tk, #tv) }
     });
     quote! {
-        vec![#(#pairs),*].drain(..).collect::<std::collections::HashMap<#kty,#vty>>()
+        ::std::iter::Iterator::collect::<::std::collections::HashMap<#kty,#vty>>(
+            ::std::vec![#(#pairs),*].drain(..),
+        )
     }
 }
 
@@ -64,8 +66,8 @@ pub fn tokenize_option<T: Tokenize>(
 ) -> TokenStream {
     if let Some(ref x) = *o {
         let t = f(x);
-        quote! { Some(#t) }
+        quote! { ::std::option::Option::Some(#t) }
     } else {
-        quote! { None }
+        quote! { ::std::option::Option::None }
     }
 }

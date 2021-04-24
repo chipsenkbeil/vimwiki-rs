@@ -34,6 +34,6 @@ fn tokenize_multi_line_comment(
     let root = element_path();
     let t = multi_line_comment.0.iter().map(|x| do_tokenize!(x));
     quote! {
-        #root::MultiLineComment(vec![#(#t),*])
+        #root::MultiLineComment(::std::vec![#(#t),*])
     }
 }

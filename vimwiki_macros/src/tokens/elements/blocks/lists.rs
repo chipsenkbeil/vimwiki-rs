@@ -9,7 +9,7 @@ fn tokenize_list(list: &List) -> TokenStream {
     let items = list.items.iter().map(|x| do_tokenize!(x));
     quote! {
         #root::List {
-            items: vec![#(#items),*],
+            items: ::std::vec![#(#items),*],
         }
     }
 }
@@ -64,7 +64,7 @@ fn tokenize_list_item_contents(
     let contents = list_item_contents.contents.iter().map(|x| do_tokenize!(x));
     quote! {
         #root::ListItemContents {
-            contents: vec![#(#contents),*],
+            contents: ::std::vec![#(#contents),*],
         }
     }
 }

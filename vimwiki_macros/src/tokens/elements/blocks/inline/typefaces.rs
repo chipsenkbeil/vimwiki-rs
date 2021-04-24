@@ -46,7 +46,7 @@ fn tokenize_decorated_text(decorated_text: &DecoratedText) -> TokenStream {
             let contents = x.iter().map(|x| do_tokenize!(x));
             quote! {
                 #root::DecoratedText::Bold(
-                    vec![#(#contents),*],
+                    ::std::vec![#(#contents),*],
                 )
             }
         }
@@ -55,7 +55,7 @@ fn tokenize_decorated_text(decorated_text: &DecoratedText) -> TokenStream {
             {
                 quote! {
                     #root::DecoratedText::Italic(
-                        vec![#(#contents),*],
+                        ::std::vec![#(#contents),*],
                     )
                 }
             }
@@ -65,7 +65,7 @@ fn tokenize_decorated_text(decorated_text: &DecoratedText) -> TokenStream {
             {
                 quote! {
                     #root::DecoratedText::Strikeout(
-                        vec![#(#contents),*],
+                        ::std::vec![#(#contents),*],
                     )
                 }
             }
@@ -75,7 +75,7 @@ fn tokenize_decorated_text(decorated_text: &DecoratedText) -> TokenStream {
             {
                 quote! {
                     #root::DecoratedText::Subscript(
-                        vec![#(#contents),*],
+                        ::std::vec![#(#contents),*],
                     )
                 }
             }
@@ -85,7 +85,7 @@ fn tokenize_decorated_text(decorated_text: &DecoratedText) -> TokenStream {
             {
                 quote! {
                     #root::DecoratedText::Superscript(
-                        vec![#(#contents),*],
+                        ::std::vec![#(#contents),*],
                     )
                 }
             }
