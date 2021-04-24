@@ -2,7 +2,7 @@ use crate::tokens::{
     utils::{
         element_path, tokenize_cow_str_type, tokenize_hashmap, tokenize_option,
     },
-    Tokenize,
+    Tokenize, TokenizeContext,
 };
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -10,18 +10,21 @@ use vimwiki::elements::*;
 
 impl_tokenize!(tokenize_preformatted_text, PreformattedText<'a>, 'a);
 fn tokenize_preformatted_text(
+    ctx: &TokenizeContext,
     preformatted_text: &PreformattedText,
 ) -> TokenStream {
     let root = element_path();
-    let lang = tokenize_option(&preformatted_text.lang, |x| do_tokenize!(x));
+    let lang = tokenize_option(ctx, &preformatted_text.lang, |ctx, x| {
+        do_tokenize!(ctx, x)
+    });
     let metadata = tokenize_hashmap(
         &preformatted_text.metadata,
         tokenize_cow_str_type(),
         tokenize_cow_str_type(),
-        |x| do_tokenize!(x),
-        |x| do_tokenize!(x),
+        |x| do_tokenize!(ctx, x),
+        |x| do_tokenize!(ctx, x),
     );
-    let lines = preformatted_text.lines.iter().map(|x| do_tokenize!(x));
+    let lines = preformatted_text.lines.iter().map(|x| do_tokenize!(ctx, x));
     quote! {
         #root::PreformattedText {
             lang: #lang,

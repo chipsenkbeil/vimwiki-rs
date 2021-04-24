@@ -1,12 +1,14 @@
-use crate::tokens::{utils::element_path, utils::tokenize_option, Tokenize};
+use crate::tokens::{
+    utils::element_path, utils::tokenize_option, Tokenize, TokenizeContext,
+};
 use proc_macro2::TokenStream;
 use quote::quote;
 use vimwiki::elements::*;
 
 impl_tokenize!(tokenize_list, List<'a>, 'a);
-fn tokenize_list(list: &List) -> TokenStream {
+fn tokenize_list(ctx: &TokenizeContext, list: &List) -> TokenStream {
     let root = element_path();
-    let items = list.items.iter().map(|x| do_tokenize!(x));
+    let items = list.items.iter().map(|x| do_tokenize!(ctx, x));
     quote! {
         #root::List {
             items: ::std::vec![#(#items),*],
@@ -15,7 +17,10 @@ fn tokenize_list(list: &List) -> TokenStream {
 }
 
 impl_tokenize!(tokenize_list_item, ListItem<'a>, 'a);
-fn tokenize_list_item(list_item: &ListItem) -> TokenStream {
+fn tokenize_list_item(
+    ctx: &TokenizeContext,
+    list_item: &ListItem,
+) -> TokenStream {
     let root = element_path();
     let ListItem {
         item_type,
@@ -24,10 +29,10 @@ fn tokenize_list_item(list_item: &ListItem) -> TokenStream {
         contents,
         attributes,
     } = list_item;
-    let item_type_t = tokenize_list_item_type(&item_type);
-    let suffix_t = tokenize_list_item_suffix(&suffix);
-    let contents_t = tokenize_list_item_contents(&contents);
-    let attributes_t = tokenize_list_item_attributes(&attributes);
+    let item_type_t = tokenize_list_item_type(ctx, &item_type);
+    let suffix_t = tokenize_list_item_suffix(ctx, &suffix);
+    let contents_t = tokenize_list_item_contents(ctx, &contents);
+    let attributes_t = tokenize_list_item_attributes(ctx, &attributes);
     quote! {
         #root::ListItem {
             item_type: #item_type_t,
@@ -41,16 +46,17 @@ fn tokenize_list_item(list_item: &ListItem) -> TokenStream {
 
 impl_tokenize!(tokenize_list_item_content, ListItemContent<'a>, 'a);
 fn tokenize_list_item_content(
+    ctx: &TokenizeContext,
     list_item_content: &ListItemContent,
 ) -> TokenStream {
     let root = element_path();
     match &list_item_content {
         ListItemContent::InlineContent(x) => {
-            let t = do_tokenize!(&x);
+            let t = do_tokenize!(ctx, &x);
             quote! { #root::ListItemContent::InlineContent(#t) }
         }
         ListItemContent::List(x) => {
-            let t = do_tokenize!(&x);
+            let t = do_tokenize!(ctx, &x);
             quote! { #root::ListItemContent::List(#t) }
         }
     }
@@ -58,10 +64,14 @@ fn tokenize_list_item_content(
 
 impl_tokenize!(tokenize_list_item_contents, ListItemContents<'a>, 'a);
 fn tokenize_list_item_contents(
+    ctx: &TokenizeContext,
     list_item_contents: &ListItemContents,
 ) -> TokenStream {
     let root = element_path();
-    let contents = list_item_contents.contents.iter().map(|x| do_tokenize!(x));
+    let contents = list_item_contents
+        .contents
+        .iter()
+        .map(|x| do_tokenize!(ctx, x));
     quote! {
         #root::ListItemContents {
             contents: ::std::vec![#(#contents),*],
@@ -70,7 +80,10 @@ fn tokenize_list_item_contents(
 }
 
 impl_tokenize!(tokenize_list_item_suffix, ListItemSuffix);
-fn tokenize_list_item_suffix(list_item_suffix: &ListItemSuffix) -> TokenStream {
+fn tokenize_list_item_suffix(
+    _ctx: &TokenizeContext,
+    list_item_suffix: &ListItemSuffix,
+) -> TokenStream {
     let root = element_path();
     match &list_item_suffix {
         ListItemSuffix::None => {
@@ -86,15 +99,18 @@ fn tokenize_list_item_suffix(list_item_suffix: &ListItemSuffix) -> TokenStream {
 }
 
 impl_tokenize!(tokenize_list_item_type, ListItemType<'a>, 'a);
-fn tokenize_list_item_type(list_item_type: &ListItemType) -> TokenStream {
+fn tokenize_list_item_type(
+    ctx: &TokenizeContext,
+    list_item_type: &ListItemType,
+) -> TokenStream {
     let root = element_path();
     match &list_item_type {
         ListItemType::Ordered(x) => {
-            let t = tokenize_ordered_list_item_type(&x);
+            let t = tokenize_ordered_list_item_type(ctx, &x);
             quote! { #root::ListItemType::Ordered(#t) }
         }
         ListItemType::Unordered(x) => {
-            let t = tokenize_unordered_list_item_type(&x);
+            let t = tokenize_unordered_list_item_type(ctx, &x);
             quote! { #root::ListItemType::Unordered(#t) }
         }
     }
@@ -102,6 +118,7 @@ fn tokenize_list_item_type(list_item_type: &ListItemType) -> TokenStream {
 
 impl_tokenize!(tokenize_ordered_list_item_type, OrderedListItemType);
 fn tokenize_ordered_list_item_type(
+    _ctx: &TokenizeContext,
     ordered_list_item_type: &OrderedListItemType,
 ) -> TokenStream {
     let root = element_path();
@@ -129,6 +146,7 @@ fn tokenize_ordered_list_item_type(
 
 impl_tokenize!(tokenize_unordered_list_item_type, UnorderedListItemType<'a>, 'a);
 fn tokenize_unordered_list_item_type(
+    ctx: &TokenizeContext,
     unordered_list_item_type: &UnorderedListItemType,
 ) -> TokenStream {
     let root = element_path();
@@ -140,7 +158,7 @@ fn tokenize_unordered_list_item_type(
             quote! { #root::UnorderedListItemType::Asterisk }
         }
         UnorderedListItemType::Other(x) => {
-            let t = do_tokenize!(&x);
+            let t = do_tokenize!(ctx, &x);
             quote! { #root::UnorderedListItemType::Other(#t) }
         }
     }
@@ -148,11 +166,14 @@ fn tokenize_unordered_list_item_type(
 
 impl_tokenize!(tokenize_list_item_attributes, ListItemAttributes);
 fn tokenize_list_item_attributes(
+    ctx: &TokenizeContext,
     list_item_attributes: &ListItemAttributes,
 ) -> TokenStream {
     let root = element_path();
     let todo_status =
-        tokenize_option(&list_item_attributes.todo_status, |x| do_tokenize!(x));
+        tokenize_option(ctx, &list_item_attributes.todo_status, |ctx, x| {
+            do_tokenize!(ctx, x)
+        });
     quote! {
         #root::ListItemAttributes {
             todo_status: #todo_status
@@ -162,6 +183,7 @@ fn tokenize_list_item_attributes(
 
 impl_tokenize!(tokenize_list_item_todo_status, ListItemTodoStatus);
 fn tokenize_list_item_todo_status(
+    _ctx: &TokenizeContext,
     list_item_todo_status: &ListItemTodoStatus,
 ) -> TokenStream {
     let root = element_path();

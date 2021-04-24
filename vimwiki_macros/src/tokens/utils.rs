@@ -1,4 +1,4 @@
-use crate::tokens::Tokenize;
+use crate::tokens::{Tokenize, TokenizeContext};
 use proc_macro2::TokenStream;
 use quote::quote;
 use std::collections::HashMap;
@@ -61,11 +61,12 @@ pub fn tokenize_hashmap<K: Tokenize, V: Tokenize>(
 /// trait. Additionally, uses the *f* function to transform each inner value
 /// into a `TokenStream`.
 pub fn tokenize_option<T: Tokenize>(
+    ctx: &TokenizeContext,
     o: &Option<T>,
-    f: impl Fn(&T) -> TokenStream,
+    f: impl Fn(&TokenizeContext, &T) -> TokenStream,
 ) -> TokenStream {
     if let Some(ref x) = *o {
-        let t = f(x);
+        let t = f(ctx, x);
         quote! { ::std::option::Option::Some(#t) }
     } else {
         quote! { ::std::option::Option::None }

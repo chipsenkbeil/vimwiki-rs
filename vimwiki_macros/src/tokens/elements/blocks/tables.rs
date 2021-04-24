@@ -1,12 +1,12 @@
-use crate::tokens::{utils::element_path, Tokenize};
+use crate::tokens::{utils::element_path, Tokenize, TokenizeContext};
 use proc_macro2::TokenStream;
 use quote::quote;
 use vimwiki::elements::*;
 
 impl_tokenize!(tokenize_table, Table<'a>, 'a);
-fn tokenize_table(table: &Table) -> TokenStream {
+fn tokenize_table(ctx: &TokenizeContext, table: &Table) -> TokenStream {
     let root = element_path();
-    let rows = table.rows.iter().map(|x| do_tokenize!(x));
+    let rows = table.rows.iter().map(|x| do_tokenize!(ctx, x));
     let centered = table.centered;
     quote! {
         #root::Table {
@@ -17,26 +17,26 @@ fn tokenize_table(table: &Table) -> TokenStream {
 }
 
 impl_tokenize!(tokenize_row, Row<'a>, 'a);
-fn tokenize_row(row: &Row) -> TokenStream {
+fn tokenize_row(ctx: &TokenizeContext, row: &Row) -> TokenStream {
     let root = element_path();
     match &row {
         Row::Content { cells } => {
-            let t = cells.iter().map(|x| do_tokenize!(x));
+            let t = cells.iter().map(|x| do_tokenize!(ctx, x));
             quote! { #root::Row::Content { cells: ::std::vec![#(#t),*] } }
         }
         Row::Divider { columns } => {
-            let t = columns.iter().map(|x| do_tokenize!(x));
+            let t = columns.iter().map(|x| do_tokenize!(ctx, x));
             quote! { #root::Row::Divider { columns: ::std::vec![#(#t),*] } }
         }
     }
 }
 
 impl_tokenize!(tokenize_cell, Cell<'a>, 'a);
-fn tokenize_cell(cell: &Cell) -> TokenStream {
+fn tokenize_cell(ctx: &TokenizeContext, cell: &Cell) -> TokenStream {
     let root = element_path();
     match &cell {
         Cell::Content(x) => {
-            let t = do_tokenize!(&x);
+            let t = do_tokenize!(ctx, &x);
             quote! { #root::Cell::Content(#t) }
         }
         Cell::SpanAbove => {
@@ -49,7 +49,10 @@ fn tokenize_cell(cell: &Cell) -> TokenStream {
 }
 
 impl_tokenize!(tokenize_column_align, ColumnAlign);
-fn tokenize_column_align(column_align: &ColumnAlign) -> TokenStream {
+fn tokenize_column_align(
+    _ctx: &TokenizeContext,
+    column_align: &ColumnAlign,
+) -> TokenStream {
     let root = element_path();
     match column_align {
         ColumnAlign::Left => {

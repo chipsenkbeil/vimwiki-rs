@@ -1,12 +1,12 @@
-use crate::tokens::{utils::element_path, Tokenize};
+use crate::tokens::{utils::element_path, Tokenize, TokenizeContext};
 use proc_macro2::TokenStream;
 use quote::quote;
 use vimwiki::elements::*;
 
 impl_tokenize!(tokenize_text, Text<'a>, 'a);
-fn tokenize_text(text: &Text) -> TokenStream {
+fn tokenize_text(ctx: &TokenizeContext, text: &Text) -> TokenStream {
     let root = element_path();
-    let inner = do_tokenize!(text.as_ref());
+    let inner = do_tokenize!(ctx, text.as_ref());
     quote! {
         #root::Text::new(#inner)
     }
@@ -14,36 +14,40 @@ fn tokenize_text(text: &Text) -> TokenStream {
 
 impl_tokenize!(tokenize_decorated_text_content, DecoratedTextContent<'a>, 'a);
 fn tokenize_decorated_text_content(
+    ctx: &TokenizeContext,
     decorated_text_content: &DecoratedTextContent,
 ) -> TokenStream {
     let root = element_path();
     match &decorated_text_content {
         DecoratedTextContent::Keyword(x) => {
-            let t = do_tokenize!(&x);
+            let t = do_tokenize!(ctx, &x);
             quote! { #root::DecoratedTextContent::Keyword(#t) }
         }
         DecoratedTextContent::Link(x) => {
-            let t = do_tokenize!(&x);
+            let t = do_tokenize!(ctx, &x);
             quote! { #root::DecoratedTextContent::Link(#t) }
         }
         DecoratedTextContent::DecoratedText(x) => {
-            let t = do_tokenize!(&x);
+            let t = do_tokenize!(ctx, &x);
             quote! { #root::DecoratedTextContent::DecoratedText(#t) }
         }
         DecoratedTextContent::Text(x) => {
-            let t = do_tokenize!(&x);
+            let t = do_tokenize!(ctx, &x);
             quote! { #root::DecoratedTextContent::Text(#t) }
         }
     }
 }
 
 impl_tokenize!(tokenize_decorated_text, DecoratedText<'a>, 'a);
-fn tokenize_decorated_text(decorated_text: &DecoratedText) -> TokenStream {
+fn tokenize_decorated_text(
+    ctx: &TokenizeContext,
+    decorated_text: &DecoratedText,
+) -> TokenStream {
     let root = element_path();
 
     match decorated_text {
         DecoratedText::Bold(x) => {
-            let contents = x.iter().map(|x| do_tokenize!(x));
+            let contents = x.iter().map(|x| do_tokenize!(ctx, x));
             quote! {
                 #root::DecoratedText::Bold(
                     ::std::vec![#(#contents),*],
@@ -51,7 +55,7 @@ fn tokenize_decorated_text(decorated_text: &DecoratedText) -> TokenStream {
             }
         }
         DecoratedText::Italic(x) => {
-            let contents = x.iter().map(|x| do_tokenize!(x));
+            let contents = x.iter().map(|x| do_tokenize!(ctx, x));
             {
                 quote! {
                     #root::DecoratedText::Italic(
@@ -61,7 +65,7 @@ fn tokenize_decorated_text(decorated_text: &DecoratedText) -> TokenStream {
             }
         }
         DecoratedText::Strikeout(x) => {
-            let contents = x.iter().map(|x| do_tokenize!(x));
+            let contents = x.iter().map(|x| do_tokenize!(ctx, x));
             {
                 quote! {
                     #root::DecoratedText::Strikeout(
@@ -71,7 +75,7 @@ fn tokenize_decorated_text(decorated_text: &DecoratedText) -> TokenStream {
             }
         }
         DecoratedText::Subscript(x) => {
-            let contents = x.iter().map(|x| do_tokenize!(x));
+            let contents = x.iter().map(|x| do_tokenize!(ctx, x));
             {
                 quote! {
                     #root::DecoratedText::Subscript(
@@ -81,7 +85,7 @@ fn tokenize_decorated_text(decorated_text: &DecoratedText) -> TokenStream {
             }
         }
         DecoratedText::Superscript(x) => {
-            let contents = x.iter().map(|x| do_tokenize!(x));
+            let contents = x.iter().map(|x| do_tokenize!(ctx, x));
             {
                 quote! {
                     #root::DecoratedText::Superscript(
@@ -94,7 +98,7 @@ fn tokenize_decorated_text(decorated_text: &DecoratedText) -> TokenStream {
 }
 
 impl_tokenize!(tokenize_keyword, Keyword);
-fn tokenize_keyword(keyword: &Keyword) -> TokenStream {
+fn tokenize_keyword(_ctx: &TokenizeContext, keyword: &Keyword) -> TokenStream {
     let root = element_path();
     match keyword {
         Keyword::Done => {

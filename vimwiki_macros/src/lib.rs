@@ -6,7 +6,7 @@ mod error;
 use error::{Error, Result};
 
 mod tokens;
-use tokens::Tokenize;
+use tokens::{Tokenize, TokenizeContext};
 
 mod utils;
 
@@ -39,8 +39,9 @@ macro_rules! impl_macro {
                     .map_err(|x| Error::new(Span::call_site(), &format!("{}", x)))?;
 
                 // Stuff our structure language into a proper token stream
+                let ctx = TokenizeContext::default();
                 let mut stream = TokenStream::new();
-                element.tokenize(&mut stream);
+                element.tokenize(&ctx, &mut stream);
                 Ok(stream)
             }
 
