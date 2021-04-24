@@ -8,20 +8,26 @@ use entity_async_graphql::*;
 use std::fmt;
 use vimwiki::{elements as v, Located};
 
-#[simple_ent]
-#[derive(EntFilter)]
+#[gql_ent]
 pub struct Paragraph {
+    /// The segment of the document this paragraph covers
     #[ent(field(graphql(filter_untyped)))]
     region: Region,
 
+    /// The content within the paragraph as individual elements
     #[ent(edge(policy = "deep", wrap, graphql(filter_untyped)))]
     contents: Vec<InlineElement>,
 
-    /// Page containing the paragraph
+    /// The content within the paragraph as it would be read by humans
+    /// without frills
+    #[ent(field(computed = "self.to_string()"))]
+    text: String,
+
+    /// The page containing this paragraph
     #[ent(edge)]
     page: Page,
 
-    /// Parent element to this paragraph
+    /// The parent element containing this paragraph
     #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
 }
@@ -40,43 +46,6 @@ impl fmt::Display for Paragraph {
                 Ok(())
             }
         }
-    }
-}
-
-#[async_graphql::Object]
-impl Paragraph {
-    /// The segment of the document this paragraph covers
-    #[graphql(name = "region")]
-    async fn gql_region(&self) -> &Region {
-        self.region()
-    }
-
-    /// The content within the paragraph as individual elements
-    #[graphql(name = "contents")]
-    async fn gql_contents(&self) -> async_graphql::Result<Vec<InlineElement>> {
-        self.load_contents()
-            .map_err(|x| async_graphql::Error::new(x.to_string()))
-    }
-
-    /// The content within the paragraph as it would be read by humans
-    /// without frills
-    #[graphql(name = "text")]
-    async fn gql_text(&self) -> String {
-        self.to_string()
-    }
-
-    /// The page containing this paragraph
-    #[graphql(name = "page")]
-    async fn gql_page(&self) -> async_graphql::Result<Page> {
-        self.load_page()
-            .map_err(|x| async_graphql::Error::new(x.to_string()))
-    }
-
-    /// The parent element containing this paragraph
-    #[graphql(name = "parent")]
-    async fn gql_parent(&self) -> async_graphql::Result<Option<Element>> {
-        self.load_parent()
-            .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
 }
 

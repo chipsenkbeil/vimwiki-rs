@@ -8,8 +8,7 @@ use std::fmt;
 use vimwiki::{elements as v, Located};
 
 /// Represents a single document inline code
-#[simple_ent]
-#[derive(EntObject, EntFilter)]
+#[gql_ent]
 pub struct CodeInline {
     /// The segment of the document this inline code covers
     #[ent(field(graphql(filter_untyped)))]

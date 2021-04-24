@@ -6,64 +6,29 @@ use entity::*;
 use entity_async_graphql::*;
 use vimwiki::{elements as v, Located};
 
-#[simple_ent]
-#[derive(EntFilter)]
+#[gql_ent]
 pub struct MathBlock {
+    /// The segment of the document this math block covers
     #[ent(field(graphql(filter_untyped)))]
     region: Region,
 
+    /// The lines of content contained within this math block
     lines: Vec<String>,
+
+    /// The lines joined with " " inbetween
+    #[ent(field(computed = "self.lines.join(\" \")"))]
+    text: String,
+
+    /// The environment associated with this math block
     environment: Option<String>,
 
-    /// Page containing this math block
+    /// The page containing this math block
     #[ent(edge)]
     page: Page,
 
-    /// Parent element to this math block
+    /// The parent element containing this math block
     #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
-}
-
-/// Represents a single document multi-line math formula
-#[async_graphql::Object]
-impl MathBlock {
-    /// The segment of the document this math block covers
-    #[graphql(name = "region")]
-    async fn gql_region(&self) -> &Region {
-        &self.region
-    }
-
-    /// The lines of content contained within this math block
-    #[graphql(name = "lines")]
-    async fn gql_lines(&self) -> &[String] {
-        &self.lines
-    }
-
-    /// The lines joined with " " inbetween
-    #[graphql(name = "text")]
-    async fn gql_text(&self) -> String {
-        self.lines.join(" ")
-    }
-
-    /// The environment associated with this math block
-    #[graphql(name = "environment")]
-    async fn gql_environment(&self) -> Option<&String> {
-        self.environment.as_ref()
-    }
-
-    /// The page containing this math block
-    #[graphql(name = "page")]
-    async fn gql_page(&self) -> async_graphql::Result<Page> {
-        self.load_page()
-            .map_err(|x| async_graphql::Error::new(x.to_string()))
-    }
-
-    /// The parent element containing this math block
-    #[graphql(name = "parent")]
-    async fn gql_parent(&self) -> async_graphql::Result<Option<Element>> {
-        self.load_parent()
-            .map_err(|x| async_graphql::Error::new(x.to_string()))
-    }
 }
 
 impl<'a> FromVimwikiElement<'a> for MathBlock {

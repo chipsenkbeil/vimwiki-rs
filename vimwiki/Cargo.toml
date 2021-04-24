@@ -1,6 +1,6 @@
 [package]
 name = "vimwiki"
-description = "Library that provides support to parse, generate, and manipulate vimwiki langauge."
+description = "Library that provides support to parse, generate, and manipulate vimwiki language."
 categories = ["parser-implementations", "template-engine"]
 version = "0.1.0-alpha.6"
 authors = ["Chip Senkbeil <chip@senkbeil.org>"]

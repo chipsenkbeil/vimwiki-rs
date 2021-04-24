@@ -10,8 +10,7 @@ use strum::{Display, EnumString};
 use vimwiki::{elements as v, Located};
 
 /// Represents a single document list
-#[simple_ent]
-#[derive(EntObject, EntFilter)]
+#[gql_ent]
 pub struct List {
     /// The segment of the document this list covers
     #[ent(field(graphql(filter_untyped)))]
@@ -65,8 +64,7 @@ impl<'a> FromVimwikiElement<'a> for List {
 }
 
 /// Represents a single item within a list in a document
-#[simple_ent]
-#[derive(EntObject, EntFilter)]
+#[gql_ent]
 pub struct ListItem {
     /// The segment of the document this list item covers
     #[ent(field(graphql(filter_untyped)))]
@@ -250,8 +248,7 @@ impl ValueLike for ListItemSuffix {
     }
 }
 
-#[simple_ent]
-#[derive(async_graphql::Union, Debug)]
+#[gql_ent]
 pub enum ListItemContent {
     InlineContent(InlineContent),
     List(List),
@@ -301,8 +298,7 @@ impl<'a> FromVimwikiElement<'a> for ListItemContent {
     }
 }
 
-#[simple_ent]
-#[derive(EntObject, EntFilter)]
+#[gql_ent]
 pub struct InlineContent {
     #[ent(edge(policy = "deep", wrap, graphql(filter_untyped)))]
     contents: Vec<InlineElement>,
@@ -351,8 +347,7 @@ impl<'a> FromVimwikiElement<'a> for InlineContent {
     }
 }
 
-#[simple_ent]
-#[derive(EntObject, EntFilter)]
+#[gql_ent]
 pub struct ListItemAttributes {
     #[ent(field(graphql(filter_untyped)))]
     todo_status: Option<ListItemTodoStatus>,

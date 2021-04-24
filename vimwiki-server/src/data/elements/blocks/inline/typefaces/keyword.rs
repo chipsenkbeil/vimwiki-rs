@@ -9,8 +9,7 @@ use std::{fmt, str::FromStr};
 use vimwiki::{elements as v, Located};
 
 /// Represents special keywords that have unique syntax highlighting
-#[simple_ent]
-#[derive(EntObject, EntFilter)]
+#[gql_ent]
 pub struct Keyword {
     /// The segment of the document this keyword covers
     #[ent(field(graphql(filter_untyped)))]

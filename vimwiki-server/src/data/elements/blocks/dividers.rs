@@ -6,8 +6,7 @@ use entity::*;
 use entity_async_graphql::*;
 use vimwiki::{elements as v, Located};
 
-#[simple_ent]
-#[derive(EntObject, EntFilter)]
+#[gql_ent]
 pub struct Divider {
     #[ent(field(graphql(filter_untyped)))]
     region: Region,

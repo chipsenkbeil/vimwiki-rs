@@ -6,8 +6,8 @@ use entity::*;
 use entity_async_graphql::*;
 use vimwiki::{elements as v, Located};
 
-#[simple_ent]
-#[derive(async_graphql::Union, Debug)]
+#[gql_ent]
+#[derive(Debug)]
 pub enum Placeholder {
     Title(PlaceholderTitle),
     NoHtml(PlaceholderNoHtml),
@@ -110,8 +110,7 @@ impl<'a> FromVimwikiElement<'a> for Placeholder {
 }
 
 /// Represents a single document title placeholder
-#[simple_ent]
-#[derive(EntObject, EntFilter)]
+#[gql_ent]
 pub struct PlaceholderTitle {
     /// The segment of the document this placeholder covers
     #[ent(field(graphql(filter_untyped)))]
@@ -130,8 +129,7 @@ pub struct PlaceholderTitle {
 }
 
 /// Represents a single document nohtml placeholder
-#[simple_ent]
-#[derive(EntObject, EntFilter)]
+#[gql_ent]
 pub struct PlaceholderNoHtml {
     /// The segment of the document this placeholder covers
     #[ent(field(graphql(filter_untyped)))]
@@ -147,8 +145,7 @@ pub struct PlaceholderNoHtml {
 }
 
 /// Represents a single document template placeholder
-#[simple_ent]
-#[derive(EntObject, EntFilter)]
+#[gql_ent]
 pub struct PlaceholderTemplate {
     /// The segment of the document this placeholder covers
     #[ent(field(graphql(filter_untyped)))]
@@ -167,8 +164,7 @@ pub struct PlaceholderTemplate {
 }
 
 /// Represents a single document date placeholder
-#[simple_ent]
-#[derive(EntObject, EntFilter)]
+#[gql_ent]
 pub struct PlaceholderDate {
     /// The segment of the document this placeholder covers
     #[ent(field(graphql(filter_untyped)))]
@@ -188,8 +184,7 @@ pub struct PlaceholderDate {
 }
 
 /// Represents a single document other placeholder
-#[simple_ent]
-#[derive(EntObject, EntFilter)]
+#[gql_ent]
 pub struct PlaceholderOther {
     /// The segment of the document this placeholder covers
     #[ent(field(graphql(filter_untyped)))]

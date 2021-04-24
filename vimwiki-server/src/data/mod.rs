@@ -16,8 +16,7 @@ pub use errors::*;
 mod elements;
 pub use elements::*;
 
-#[simple_ent]
-#[derive(EntObject, EntFilter)]
+#[gql_ent]
 pub struct Wiki {
     index: usize,
     name: Option<String>,
@@ -119,8 +118,7 @@ impl Wiki {
     }
 }
 
-#[simple_ent]
-#[derive(EntObject, EntFilter)]
+#[gql_ent]
 pub struct ParsedFile {
     #[ent(field(mutable))]
     path: String,

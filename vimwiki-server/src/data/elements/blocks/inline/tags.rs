@@ -8,8 +8,7 @@ use std::fmt;
 use vimwiki::{elements as v, Located};
 
 /// Represents a single document inline set of tags
-#[simple_ent]
-#[derive(EntObject, EntFilter)]
+#[gql_ent]
 pub struct Tags {
     /// The segment of the document this inline set of tags covers
     #[ent(field(graphql(filter_untyped)))]

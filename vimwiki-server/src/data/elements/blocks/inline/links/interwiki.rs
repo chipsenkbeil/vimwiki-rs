@@ -9,8 +9,7 @@ use vimwiki::{elements as v, Located};
 
 /// Represents a single document wiki link within another wiki
 /// referenced by index
-#[simple_ent]
-#[derive(EntObject, EntFilter)]
+#[gql_ent]
 pub struct IndexedInterWikiLink {
     /// The segment of the document this link covers
     #[ent(field(graphql(filter_untyped)))]
@@ -84,8 +83,7 @@ impl<'a> FromVimwikiElement<'a> for IndexedInterWikiLink {
 
 /// Represents a single document wiki link within another wiki
 /// referenced by name
-#[simple_ent]
-#[derive(EntObject, EntFilter)]
+#[gql_ent]
 pub struct NamedInterWikiLink {
     /// The segment of the document this link covers
     #[ent(field(graphql(filter_untyped)))]

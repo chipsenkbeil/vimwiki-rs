@@ -1,6 +1,7 @@
 use crate::data::{FromVimwikiElement, GraphqlDatabaseError};
 use derive_more::Display;
 use entity::*;
+use entity_async_graphql::*;
 use vimwiki::{elements as v, Located};
 
 mod code;
@@ -16,8 +17,8 @@ pub use tags::*;
 mod typefaces;
 pub use typefaces::*;
 
-#[simple_ent]
-#[derive(async_graphql::Union, Debug, Display)]
+#[gql_ent]
+#[derive(Debug, Display)]
 pub enum InlineElement {
     Text(Text),
     DecoratedText(DecoratedText),

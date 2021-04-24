@@ -1,6 +1,7 @@
 use crate::data::{FromVimwikiElement, GraphqlDatabaseError};
 use derive_more::Display;
 use entity::*;
+use entity_async_graphql::*;
 use vimwiki::{elements as v, Located};
 
 mod common;
@@ -24,8 +25,8 @@ pub use external::*;
 mod transclusion;
 pub use transclusion::*;
 
-#[simple_ent]
-#[derive(async_graphql::Union, Debug, Display)]
+#[gql_ent]
+#[derive(Debug, Display)]
 pub enum Link {
     Wiki(WikiLink),
     IndexedInterWiki(IndexedInterWikiLink),

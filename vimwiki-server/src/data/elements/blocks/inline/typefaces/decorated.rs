@@ -9,26 +9,30 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use vimwiki::{elements as v, Located};
 
-#[simple_ent]
-#[derive(EntFilter)]
+#[gql_ent]
 pub struct DecoratedText {
-    /// The segment of the document this decorated text covers
+    /// The segment of the document this decorated text is within
     #[ent(field(graphql(filter_untyped)))]
     region: Region,
 
-    /// The decoration applied to this decorated text
+    /// Represents the decoration applied to some text
     #[ent(field(graphql(filter_untyped)))]
     decoration: Decoration,
 
-    /// The contents of this decorated text
+    /// The content within the decoration as individual elements
     #[ent(edge(policy = "deep", wrap, graphql(filter_untyped)))]
     contents: Vec<DecoratedTextContent>,
 
-    /// Page containing the element
+    /// The content within the decoration as it would be read by humans
+    /// without frills
+    #[ent(field(computed = "self.to_string()"))]
+    text: String,
+
+    /// The page containing this decorated text
     #[ent(edge)]
     page: Page,
 
-    /// Parent element to this element
+    /// The parent element containing this decorated text
     #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
 }
@@ -47,53 +51,6 @@ impl fmt::Display for DecoratedText {
                 Ok(())
             }
         }
-    }
-}
-
-/// Represents some text (or series of inline content) that has a decoration
-/// applied to it
-#[async_graphql::Object]
-impl DecoratedText {
-    /// The segment of the document this decorated text is within
-    #[graphql(name = "region")]
-    async fn gql_region(&self) -> &Region {
-        self.region()
-    }
-
-    /// The content within the decoration as individual elements
-    #[graphql(name = "contents")]
-    async fn gql_contents(
-        &self,
-    ) -> async_graphql::Result<Vec<DecoratedTextContent>> {
-        self.load_contents()
-            .map_err(|x| async_graphql::Error::new(x.to_string()))
-    }
-
-    /// The content within the decoration as it would be read by humans
-    /// without frills
-    #[graphql(name = "text")]
-    async fn gql_text(&self) -> String {
-        self.to_string()
-    }
-
-    /// Represents the decoration applied to some text
-    #[graphql(name = "decoration")]
-    async fn gql_decoration(&self) -> &Decoration {
-        self.decoration()
-    }
-
-    /// The page containing this decorated text
-    #[graphql(name = "page")]
-    async fn gql_page(&self) -> async_graphql::Result<Page> {
-        self.load_page()
-            .map_err(|x| async_graphql::Error::new(x.to_string()))
-    }
-
-    /// The parent element containing this decorated text
-    #[graphql(name = "parent")]
-    async fn gql_parent(&self) -> async_graphql::Result<Option<Element>> {
-        self.load_parent()
-            .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
 }
 
@@ -149,8 +106,8 @@ impl<'a> FromVimwikiElement<'a> for DecoratedText {
 }
 
 /// Represents content that can be contained within a decoration
-#[simple_ent]
-#[derive(async_graphql::Union, Debug, Display)]
+#[gql_ent]
+#[derive(Debug, Display)]
 pub enum DecoratedTextContent {
     Text(Text),
     Keyword(Keyword),

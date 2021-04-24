@@ -9,8 +9,8 @@ use std::fmt;
 use vimwiki::{elements as v, Located};
 
 /// Represents a single document comment
-#[simple_ent]
-#[derive(async_graphql::Union, Debug, Display)]
+#[gql_ent]
+#[derive(Debug, Display)]
 pub enum Comment {
     Line(LineComment),
     MultiLine(MultiLineComment),
@@ -68,8 +68,7 @@ impl<'a> FromVimwikiElement<'a> for Comment {
 }
 
 /// Represents a comment on a single line of a document
-#[simple_ent]
-#[derive(EntObject, EntFilter)]
+#[gql_ent]
 pub struct LineComment {
     /// The segment of the document this comment covers
     #[ent(field(graphql(filter_untyped)))]
@@ -113,8 +112,7 @@ impl<'a> FromVimwikiElement<'a> for LineComment {
 }
 
 /// Represents a comment that can potentially cross multiple lines of a document
-#[simple_ent]
-#[derive(EntObject, EntFilter)]
+#[gql_ent]
 pub struct MultiLineComment {
     /// The segment of the document this comment covers
     #[ent(field(graphql(filter_untyped)))]

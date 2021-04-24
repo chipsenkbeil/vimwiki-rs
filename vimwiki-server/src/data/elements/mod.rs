@@ -10,8 +10,7 @@ use entity_async_graphql::*;
 use std::convert::TryFrom;
 use vimwiki::{elements as v, Located};
 
-#[simple_ent]
-#[derive(EntObject, EntFilter)]
+#[gql_ent]
 pub struct Page {
     #[ent(edge(policy = "deep", wrap, graphql(filter_untyped)))]
     contents: Vec<BlockElement>,
@@ -51,8 +50,7 @@ pub trait FromVimwikiElement<'a>: Sized {
     ) -> Result<Self, GraphqlDatabaseError>;
 }
 
-#[simple_ent]
-#[derive(async_graphql::Union)]
+#[gql_ent]
 pub enum Element {
     #[ent(wrap)]
     #[graphql(flatten)]
@@ -120,8 +118,7 @@ impl<'a> FromVimwikiElement<'a> for Element {
     }
 }
 
-#[simple_ent]
-#[derive(async_graphql::Union, Debug)]
+#[gql_ent]
 pub enum InlineBlockElement {
     ListItem(ListItem),
     Term(Term),

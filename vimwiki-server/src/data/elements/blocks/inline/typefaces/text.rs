@@ -8,8 +8,7 @@ use std::fmt;
 use vimwiki::{elements as v, Located};
 
 /// Represents raw text within a single document
-#[simple_ent]
-#[derive(EntObject, EntFilter)]
+#[gql_ent]
 pub struct Text {
     /// The segment of the document this text covers
     #[ent(field(graphql(filter_untyped)))]

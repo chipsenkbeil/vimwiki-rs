@@ -10,8 +10,7 @@ use strum::{Display, EnumString};
 use vimwiki::{elements as v, Located};
 
 /// Represents a single document table
-#[simple_ent]
-#[derive(EntObject, EntFilter)]
+#[gql_ent]
 pub struct Table {
     /// The segment of the document this table covers
     #[ent(field(graphql(filter_untyped)))]
@@ -75,8 +74,8 @@ impl<'a> FromVimwikiElement<'a> for Table {
 }
 
 /// Represents a single row within a table in a document
-#[simple_ent]
-#[derive(async_graphql::Union, Debug)]
+#[gql_ent]
+#[derive(Debug)]
 pub enum Row {
     Content(ContentRow),
     Divider(DividerRow),
@@ -159,8 +158,7 @@ impl Row {
 
 /// Represents a row that acts as a divider between other rows, usually for
 /// a header and later data rows
-#[simple_ent]
-#[derive(EntObject, EntFilter)]
+#[gql_ent]
 pub struct DividerRow {
     /// The segment of the document this row covers
     #[ent(field(graphql(filter_untyped)))]
@@ -221,8 +219,7 @@ impl ValueLike for ColumnAlign {
 }
 
 /// Represents a row that contains one or more cells of data
-#[simple_ent]
-#[derive(EntObject, EntFilter)]
+#[gql_ent]
 pub struct ContentRow {
     /// The segment of the document this row covers
     #[ent(field(graphql(filter_untyped)))]
@@ -245,8 +242,7 @@ pub struct ContentRow {
 }
 
 /// Represents a cell within a row
-#[simple_ent]
-#[derive(async_graphql::Union, Debug)]
+#[gql_ent]
 pub enum Cell {
     Content(ContentCell),
     SpanLeft(SpanLeftCell),
@@ -332,8 +328,7 @@ impl Cell {
 }
 
 /// Represents a cell with content
-#[simple_ent]
-#[derive(EntObject, EntFilter)]
+#[gql_ent]
 pub struct ContentCell {
     /// The segment of the document this cell covers
     #[ent(field(graphql(filter_untyped)))]
@@ -359,8 +354,7 @@ pub struct ContentCell {
 }
 
 /// Represents a cell with no content that spans the left cell
-#[simple_ent]
-#[derive(EntObject, EntFilter)]
+#[gql_ent]
 pub struct SpanLeftCell {
     /// The segment of the document this cell covers
     #[ent(field(graphql(filter_untyped)))]
@@ -382,8 +376,7 @@ pub struct SpanLeftCell {
 }
 
 /// Represents a cell with no content that spans the above row
-#[simple_ent]
-#[derive(EntObject, EntFilter)]
+#[gql_ent]
 pub struct SpanAboveCell {
     /// The segment of the document this cell covers
     #[ent(field(graphql(filter_untyped)))]

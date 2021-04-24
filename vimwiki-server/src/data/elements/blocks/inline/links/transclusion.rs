@@ -9,8 +9,7 @@ use std::fmt;
 use vimwiki::{elements as v, Located};
 
 /// Represents a single document transclusion link
-#[simple_ent]
-#[derive(EntObject, EntFilter)]
+#[gql_ent]
 pub struct TransclusionLink {
     /// The segment of the document this link covers
     #[ent(field(graphql(filter_untyped)))]

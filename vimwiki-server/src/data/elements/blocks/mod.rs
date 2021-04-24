@@ -1,5 +1,6 @@
 use crate::data::{FromVimwikiElement, GraphqlDatabaseError};
 use entity::*;
+use entity_async_graphql::*;
 use vimwiki::{elements as v, Located};
 
 mod blockquotes;
@@ -26,8 +27,7 @@ mod tables;
 pub use tables::*;
 
 /// Represents a single document element at a block-level
-#[simple_ent]
-#[derive(async_graphql::Union, Debug)]
+#[gql_ent]
 pub enum BlockElement {
     Blockquote(Blockquote),
     DefinitionList(DefinitionList),

@@ -145,68 +145,31 @@ impl<'a> FromVimwikiElement<'a> for DefinitionList {
     }
 }
 
-#[simple_ent]
-#[derive(EntFilter)]
+#[gql_ent]
 pub struct Term {
+    /// The segment of the document this term covers
     #[ent(field(graphql(filter_untyped)))]
     region: Region,
 
+    /// The content within the term as individual elements
     #[ent(edge(policy = "deep", wrap, graphql(filter_untyped)))]
     contents: Vec<InlineElement>,
 
+    /// The content within the term as it would be read by humans without frills
+    #[ent(field(computed = "self.to_string()"))]
+    text: String,
+
+    /// The definitions associated with this term
     #[ent(edge(policy = "deep"))]
     definitions: Vec<Definition>,
 
-    /// Page containing the element
+    /// The page containing this term
     #[ent(edge)]
     page: Page,
 
-    /// Parent element to this element
+    /// The parent element containing this term
     #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
-}
-
-#[async_graphql::Object]
-impl Term {
-    /// The segment of the document this term covers
-    #[graphql(name = "region")]
-    async fn gql_region(&self) -> &Region {
-        self.region()
-    }
-
-    /// The content within the term as individual elements
-    #[graphql(name = "contents")]
-    async fn gql_contents(&self) -> async_graphql::Result<Vec<InlineElement>> {
-        self.load_contents()
-            .map_err(|x| async_graphql::Error::new(x.to_string()))
-    }
-
-    /// The content within the term as it would be read by humans without frills
-    #[graphql(name = "text")]
-    async fn gql_text(&self) -> String {
-        self.to_string()
-    }
-
-    /// The definitions associated with this term
-    #[graphql(name = "definitions")]
-    async fn gql_definitions(&self) -> async_graphql::Result<Vec<Definition>> {
-        self.load_definitions()
-            .map_err(|x| async_graphql::Error::new(x.to_string()))
-    }
-
-    /// The page containing this term
-    #[graphql(name = "page")]
-    async fn gql_page(&self) -> async_graphql::Result<Page> {
-        self.load_page()
-            .map_err(|x| async_graphql::Error::new(x.to_string()))
-    }
-
-    /// The parent element containing this term
-    #[graphql(name = "parent")]
-    async fn gql_parent(&self) -> async_graphql::Result<Option<Element>> {
-        self.load_parent()
-            .map_err(|x| async_graphql::Error::new(x.to_string()))
-    }
 }
 
 impl fmt::Display for Term {
@@ -267,59 +230,28 @@ impl<'a> FromVimwikiElement<'a> for Term {
     }
 }
 
-#[simple_ent]
-#[derive(EntFilter)]
+#[gql_ent]
 pub struct Definition {
+    /// The segment of the document this definition covers
     #[ent(field(graphql(filter_untyped)))]
     region: Region,
 
+    /// The content within the definition as individual elements
     #[ent(edge(policy = "deep", wrap, graphql(filter_untyped)))]
     contents: Vec<InlineElement>,
 
-    /// Page containing the element
+    /// The content within the definition as it would be read by humans
+    /// without frills
+    #[ent(field(computed = "self.to_string()"))]
+    text: String,
+
+    /// The page containing this definition
     #[ent(edge)]
     page: Page,
 
-    /// Parent element to this element
+    /// The parent element containing this definition
     #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
-}
-
-#[async_graphql::Object]
-impl Definition {
-    /// The segment of the document this definition covers
-    #[graphql(name = "region")]
-    async fn gql_region(&self) -> &Region {
-        self.region()
-    }
-
-    /// The content within the definition as individual elements
-    #[graphql(name = "contents")]
-    async fn gql_contents(&self) -> async_graphql::Result<Vec<InlineElement>> {
-        self.load_contents()
-            .map_err(|x| async_graphql::Error::new(x.to_string()))
-    }
-
-    /// The content within the definition as it would be read by humans
-    /// without frills
-    #[graphql(name = "text")]
-    async fn gql_text(&self) -> String {
-        self.to_string()
-    }
-
-    /// The page containing this definition
-    #[graphql(name = "page")]
-    async fn gql_page(&self) -> async_graphql::Result<Page> {
-        self.load_page()
-            .map_err(|x| async_graphql::Error::new(x.to_string()))
-    }
-
-    /// The parent element containing this definition
-    #[graphql(name = "parent")]
-    async fn gql_parent(&self) -> async_graphql::Result<Option<Element>> {
-        self.load_parent()
-            .map_err(|x| async_graphql::Error::new(x.to_string()))
-    }
 }
 
 impl fmt::Display for Definition {

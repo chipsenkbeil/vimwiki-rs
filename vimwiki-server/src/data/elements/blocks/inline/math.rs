@@ -8,8 +8,7 @@ use std::fmt;
 use vimwiki::{elements as v, Located};
 
 /// Represents a single document inline math formula
-#[simple_ent]
-#[derive(EntObject, EntFilter)]
+#[gql_ent]
 pub struct MathInline {
     /// The segment of the document this inline math covers
     #[ent(field(graphql(filter_untyped)))]
