@@ -16,3 +16,5 @@
 ### Changed
 
 - `entity_macros` is now more hygienic through proper testing
+- `entity_macros` now uses `syn` for some parsing and `proc-macro-crate`
+  to detect and get the root of the `vimwiki` crate

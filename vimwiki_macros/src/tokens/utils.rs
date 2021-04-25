@@ -1,15 +1,29 @@
 use crate::tokens::{Tokenize, TokenizeContext};
-use proc_macro2::TokenStream;
+use proc_macro2::{Span, TokenStream};
+use proc_macro_crate::{crate_name, FoundCrate};
 use quote::quote;
 use std::collections::HashMap;
+use syn::{parse_quote, Ident, Path};
 
 /// Generates a `TokenStream` that provides the root of an import path for
 /// the `vimwiki` crate
 #[inline]
-pub fn root_crate() -> TokenStream {
-    // TODO: Support detecting if we're within the vimwiki crate
-    //       (for unit tests only, not integration tests)
-    quote! { ::vimwiki }
+pub fn root_crate() -> Path {
+    get_crate("vimwiki").expect("vimwiki crate exists")
+}
+
+fn get_crate(cname: &str) -> syn::Result<Path> {
+    crate_name(cname)
+        .map(|found_crate| match found_crate {
+            FoundCrate::Itself => {
+                parse_quote!(crate)
+            }
+            FoundCrate::Name(name) => {
+                let crate_ident = Ident::new(&name, Span::mixed_site());
+                parse_quote!(::#crate_ident)
+            }
+        })
+        .map_err(|msg| syn::Error::new(Span::mixed_site(), msg))
 }
 
 /// Generates a `TokenStream` that provides the path to element types in

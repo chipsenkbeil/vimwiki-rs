@@ -2820,6 +2820,7 @@ version = "0.1.0-alpha.6"
 dependencies = [
  "lazy_static",
  "paste",
+ "proc-macro-crate",
  "proc-macro2",
  "quote",
  "regex",

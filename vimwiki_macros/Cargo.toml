@@ -18,6 +18,7 @@ name = "vimwiki_macros"
 lazy_static = "1.4.0"
 paste = "1.0"
 proc-macro2 = { version = "1.0", features = [ "span-locations" ] }
+proc-macro-crate = "1.0.0"
 quote = "1.0"
 regex = "1.4.6"
 syn = "1.0.70"
