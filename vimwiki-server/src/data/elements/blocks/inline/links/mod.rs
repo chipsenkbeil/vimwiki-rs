@@ -2,7 +2,7 @@ use crate::data::{FromVimwikiElement, GraphqlDatabaseError};
 use derive_more::Display;
 use entity::*;
 use entity_async_graphql::*;
-use vimwiki::{elements as v, Located};
+use vimwiki::{self as v, Located};
 
 mod common;
 pub use common::*;

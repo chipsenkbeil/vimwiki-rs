@@ -4,7 +4,7 @@ use crate::data::{
 };
 use entity::*;
 use entity_async_graphql::*;
-use vimwiki::{elements as v, Located};
+use vimwiki::{self as v, Located};
 
 #[gql_ent]
 #[derive(Debug)]

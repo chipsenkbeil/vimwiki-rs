@@ -3,7 +3,7 @@ use entity::*;
 use serde::{Deserialize, Serialize};
 use std::{convert::TryFrom, fmt, str::FromStr};
 use vimwiki::{
-    elements as v,
+    self as v,
     vendor::{
         chrono::{self, NaiveDate},
         uriparse::{self, URI},

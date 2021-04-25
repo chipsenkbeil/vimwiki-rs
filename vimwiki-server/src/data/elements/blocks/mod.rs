@@ -1,7 +1,7 @@
 use crate::data::{FromVimwikiElement, GraphqlDatabaseError};
 use entity::*;
 use entity_async_graphql::*;
-use vimwiki::{elements as v, Located};
+use vimwiki::{self as v, Located};
 
 mod blockquotes;
 pub use blockquotes::*;

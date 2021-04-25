@@ -6,7 +6,7 @@ use entity::*;
 use entity_async_graphql::*;
 use serde::{Deserialize, Serialize};
 use std::{fmt, str::FromStr};
-use vimwiki::{elements as v, Located};
+use vimwiki::{self as v, Located};
 
 /// Represents special keywords that have unique syntax highlighting
 #[gql_ent]

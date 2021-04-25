@@ -7,7 +7,7 @@ use entity::*;
 use entity_async_graphql::*;
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
-use vimwiki::{elements as v, Located};
+use vimwiki::{self as v, Located};
 
 /// Represents a single document list
 #[gql_ent]
@@ -227,7 +227,7 @@ impl<'a> From<v::ListItemType<'a>> for ListItemType {
     Serialize,
     Deserialize,
 )]
-#[graphql(remote = "vimwiki::elements::ListItemSuffix")]
+#[graphql(remote = "vimwiki::ListItemSuffix")]
 #[strum(serialize_all = "snake_case")]
 pub enum ListItemSuffix {
     None,
@@ -393,7 +393,7 @@ impl<'a> FromVimwikiElement<'a> for ListItemAttributes {
     Serialize,
     Deserialize,
 )]
-#[graphql(remote = "vimwiki::elements::ListItemTodoStatus")]
+#[graphql(remote = "vimwiki::ListItemTodoStatus")]
 #[strum(serialize_all = "snake_case")]
 pub enum ListItemTodoStatus {
     /// Flags list item as a TODO item that has not been completed

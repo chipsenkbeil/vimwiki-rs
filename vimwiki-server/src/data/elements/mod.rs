@@ -8,7 +8,7 @@ use crate::data::GraphqlDatabaseError;
 use entity::*;
 use entity_async_graphql::*;
 use std::convert::TryFrom;
-use vimwiki::{elements as v, Located};
+use vimwiki::{self as v, Located};
 
 #[gql_ent]
 pub struct Page {

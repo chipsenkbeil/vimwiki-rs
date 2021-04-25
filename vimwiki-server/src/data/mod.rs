@@ -8,7 +8,7 @@ use std::{
     convert::TryFrom,
     path::{Path, PathBuf},
 };
-use vimwiki::{elements as v, Language, ParseError};
+use vimwiki::{self as v, Language, ParseError};
 
 mod errors;
 pub use errors::*;

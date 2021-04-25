@@ -7,7 +7,7 @@ use crate::data::{
 use entity::*;
 use entity_async_graphql::*;
 use std::fmt;
-use vimwiki::{elements as v, Located};
+use vimwiki::{self as v, Located};
 
 #[gql_ent]
 pub struct Header {

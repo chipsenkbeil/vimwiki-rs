@@ -5,7 +5,7 @@ mod utils;
 pub use lang::elements::*;
 
 // Export our parser error, which is used for language parsing
-pub use lang::parsers::Error;
+pub use lang::parsers::Error as ParseError;
 
 // Export our primary language structure and trait
 pub use lang::{FromLanguage, Language};

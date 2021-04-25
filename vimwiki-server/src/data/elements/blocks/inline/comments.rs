@@ -6,7 +6,7 @@ use derive_more::Display;
 use entity::*;
 use entity_async_graphql::*;
 use std::fmt;
-use vimwiki::{elements as v, Located};
+use vimwiki::{self as v, Located};
 
 /// Represents a single document comment
 #[gql_ent]

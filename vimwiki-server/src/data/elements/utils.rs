@@ -1,6 +1,6 @@
 use entity::*;
 use serde::{Deserialize, Serialize};
-use vimwiki::elements as v;
+use vimwiki::{self as v};
 
 /// Represents a segment of a document marked by a byte offset and length
 #[derive(

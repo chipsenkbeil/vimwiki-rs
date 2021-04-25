@@ -5,7 +5,7 @@ use crate::data::{
 use entity::*;
 use entity_async_graphql::*;
 use std::fmt;
-use vimwiki::{elements as v, Located};
+use vimwiki::{self as v, Located};
 
 /// Represents a single document wiki link
 #[gql_ent]
