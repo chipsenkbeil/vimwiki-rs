@@ -1,16 +1,20 @@
 use crate::tokens::{
     utils::{
-        element_path, tokenize_cow_str_type, tokenize_hashmap, tokenize_option,
+        root_crate, tokenize_cow_str_type, tokenize_hashmap, tokenize_option,
     },
     Tokenize, TokenizeContext,
 };
 use proc_macro2::TokenStream;
 use quote::quote;
-use vimwiki::elements::*;
+use vimwiki::{
+    Anchor, Description, DiaryLink, ExternalFileLink, ExternalFileLinkScheme,
+    IndexedInterWikiLink, InterWikiLink, Link, NamedInterWikiLink, RawLink,
+    TransclusionLink, WikiLink,
+};
 
 impl_tokenize!(tokenize_link, Link<'a>, 'a);
 fn tokenize_link(ctx: &TokenizeContext, link: &Link) -> TokenStream {
-    let root = element_path();
+    let root = root_crate();
     match &link {
         Link::Diary(x) => {
             let t = tokenize_diary_link(ctx, &x);
@@ -44,7 +48,7 @@ fn tokenize_diary_link(
     ctx: &TokenizeContext,
     diary_link: &DiaryLink,
 ) -> TokenStream {
-    let root = element_path();
+    let root = root_crate();
     let date = do_tokenize!(ctx, &diary_link.date);
     let description =
         tokenize_option(ctx, &diary_link.description, tokenize_description);
@@ -63,7 +67,7 @@ fn tokenize_external_file_link(
     ctx: &TokenizeContext,
     external_file_link: &ExternalFileLink,
 ) -> TokenStream {
-    let root = element_path();
+    let root = root_crate();
     let scheme =
         tokenize_external_file_link_scheme(ctx, &external_file_link.scheme);
     let path = do_tokenize!(ctx, &external_file_link.path);
@@ -86,7 +90,7 @@ fn tokenize_external_file_link_scheme(
     _ctx: &TokenizeContext,
     external_file_link_scheme: &ExternalFileLinkScheme,
 ) -> TokenStream {
-    let root = element_path();
+    let root = root_crate();
     match &external_file_link_scheme {
         ExternalFileLinkScheme::Absolute => {
             quote! { #root::ExternalFileLinkScheme::Absolute }
@@ -102,7 +106,7 @@ fn tokenize_external_file_link_scheme(
 
 impl_tokenize!(tokenize_raw_link, RawLink<'a>, 'a);
 fn tokenize_raw_link(ctx: &TokenizeContext, raw_link: &RawLink) -> TokenStream {
-    let root = element_path();
+    let root = root_crate();
     let uri = do_tokenize!(ctx, &raw_link.uri);
     quote! {
         #root::RawLink {
@@ -116,7 +120,7 @@ fn tokenize_transclusion_link(
     ctx: &TokenizeContext,
     transclusion_link: &TransclusionLink,
 ) -> TokenStream {
-    let root = element_path();
+    let root = root_crate();
     let uri = do_tokenize!(ctx, &transclusion_link.uri);
     let description = tokenize_option(
         ctx,
@@ -144,7 +148,7 @@ fn tokenize_wiki_link(
     ctx: &TokenizeContext,
     wiki_link: &WikiLink,
 ) -> TokenStream {
-    let root = element_path();
+    let root = root_crate();
     let path = do_tokenize!(ctx, &wiki_link.path);
     let description =
         tokenize_option(ctx, &wiki_link.description, tokenize_description);
@@ -163,7 +167,7 @@ fn tokenize_inter_wiki_link(
     ctx: &TokenizeContext,
     inter_wiki_link: &InterWikiLink,
 ) -> TokenStream {
-    let root = element_path();
+    let root = root_crate();
     match &inter_wiki_link {
         InterWikiLink::Indexed(x) => {
             let t = tokenize_indexed_inter_wiki_link(ctx, &x);
@@ -181,7 +185,7 @@ fn tokenize_indexed_inter_wiki_link(
     ctx: &TokenizeContext,
     indexed_inter_wiki_link: &IndexedInterWikiLink,
 ) -> TokenStream {
-    let root = element_path();
+    let root = root_crate();
     let index = indexed_inter_wiki_link.index;
     let link = tokenize_wiki_link(ctx, &indexed_inter_wiki_link.link);
     quote! {
@@ -197,7 +201,7 @@ fn tokenize_named_inter_wiki_link(
     ctx: &TokenizeContext,
     named_inter_wiki_link: &NamedInterWikiLink,
 ) -> TokenStream {
-    let root = element_path();
+    let root = root_crate();
     let name = do_tokenize!(ctx, &named_inter_wiki_link.name);
     let link = tokenize_wiki_link(ctx, &named_inter_wiki_link.link);
     quote! {
@@ -213,7 +217,7 @@ fn tokenize_description(
     ctx: &TokenizeContext,
     description: &Description,
 ) -> TokenStream {
-    let root = element_path();
+    let root = root_crate();
     match &description {
         Description::Text(x) => {
             let t = do_tokenize!(ctx, &x);
@@ -228,7 +232,7 @@ fn tokenize_description(
 
 impl_tokenize!(tokenize_anchor, Anchor<'a>, 'a);
 fn tokenize_anchor(ctx: &TokenizeContext, anchor: &Anchor) -> TokenStream {
-    let root = element_path();
+    let root = root_crate();
     let elements = anchor.elements.iter().map(|x| do_tokenize!(ctx, x));
     quote! {
         #root::Anchor {

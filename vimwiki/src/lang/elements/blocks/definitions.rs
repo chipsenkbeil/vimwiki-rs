@@ -243,7 +243,7 @@ impl<'a> StrictEq for DefinitionList<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::elements::{InlineElement, Located};
+    use crate::{InlineElement, Located};
 
     #[test]
     fn term_should_equal_other_instance_if_string_representations_are_same() {

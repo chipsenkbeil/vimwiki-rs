@@ -1,7 +1,7 @@
-use crate::tokens::{utils::element_path, Tokenize, TokenizeContext};
+use crate::tokens::{utils::root_crate, Tokenize, TokenizeContext};
 use proc_macro2::TokenStream;
 use quote::quote;
-use vimwiki::elements::*;
+use vimwiki::{BlockElement, InlineBlockElement};
 
 pub mod blockquotes;
 pub mod definitions;
@@ -20,7 +20,7 @@ fn tokenize_block_element(
     ctx: &TokenizeContext,
     block_element: &BlockElement,
 ) -> TokenStream {
-    let root = element_path();
+    let root = root_crate();
     match block_element {
         BlockElement::Blockquote(x) => {
             let t = do_tokenize!(ctx, &x);
@@ -70,7 +70,7 @@ fn tokenize_inline_block_element(
     ctx: &TokenizeContext,
     inline_block_element: &InlineBlockElement,
 ) -> TokenStream {
-    let root = element_path();
+    let root = root_crate();
     match inline_block_element {
         InlineBlockElement::ListItem(x) => {
             let t = do_tokenize!(ctx, &x);

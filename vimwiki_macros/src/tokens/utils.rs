@@ -16,7 +16,13 @@ fn get_crate(cname: &str) -> syn::Result<Path> {
     crate_name(cname)
         .map(|found_crate| match found_crate {
             FoundCrate::Itself => {
-                parse_quote!(crate)
+                // Special case for vimwiki integration tests that can be removed when
+                // https://github.com/bkchr/proc-macro-crate/issues/10 is resolved
+                //
+                // NOTE: Must check at compile-time as CARGO_BIN_EXE_ is not
+                //       available during runtime
+                //parse_quote!(crate)
+                parse_quote!(::vimwiki)
             }
             FoundCrate::Name(name) => {
                 let crate_ident = Ident::new(&name, Span::mixed_site());
@@ -24,14 +30,6 @@ fn get_crate(cname: &str) -> syn::Result<Path> {
             }
         })
         .map_err(|msg| syn::Error::new(Span::mixed_site(), msg))
-}
-
-/// Generates a `TokenStream` that provides the path to element types in
-/// the `vimwiki` crate
-#[inline]
-pub fn element_path() -> TokenStream {
-    let root = root_crate();
-    quote! { #root::elements }
 }
 
 /// Generates a `TokenStream` that provides the path to vendor types in

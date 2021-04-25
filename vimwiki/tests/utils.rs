@@ -1,4 +1,4 @@
-use vimwiki::elements::{BlockElement, Located};
+use vimwiki::{BlockElement, Located};
 
 /// Compares top-level block elements from a page against an expected set
 pub fn compare_page_elements<'a>(

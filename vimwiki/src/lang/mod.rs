@@ -19,7 +19,7 @@ pub trait FromLanguage<'a>: Sized {
 /// ## Examples
 ///
 /// ```
-/// use vimwiki::{Language, elements::*};
+/// use vimwiki::{Language, Page};
 ///
 /// // Load some language as a string
 /// let language = Language::from_vimwiki_str(r#"

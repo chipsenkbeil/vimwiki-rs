@@ -1,5 +1,5 @@
 use super::fixtures::VimwikiFile;
-use vimwiki::{elements::*, Language, StrictEq};
+use vimwiki::*;
 
 #[test]
 fn test() {

@@ -1,11 +1,11 @@
-use crate::tokens::{utils::element_path, Tokenize, TokenizeContext};
+use crate::tokens::{utils::root_crate, Tokenize, TokenizeContext};
 use proc_macro2::TokenStream;
 use quote::quote;
-use vimwiki::elements::*;
+use vimwiki::{Cell, ColumnAlign, Row, Table};
 
 impl_tokenize!(tokenize_table, Table<'a>, 'a);
 fn tokenize_table(ctx: &TokenizeContext, table: &Table) -> TokenStream {
-    let root = element_path();
+    let root = root_crate();
     let rows = table.rows.iter().map(|x| do_tokenize!(ctx, x));
     let centered = table.centered;
     quote! {
@@ -18,7 +18,7 @@ fn tokenize_table(ctx: &TokenizeContext, table: &Table) -> TokenStream {
 
 impl_tokenize!(tokenize_row, Row<'a>, 'a);
 fn tokenize_row(ctx: &TokenizeContext, row: &Row) -> TokenStream {
-    let root = element_path();
+    let root = root_crate();
     match &row {
         Row::Content { cells } => {
             let t = cells.iter().map(|x| do_tokenize!(ctx, x));
@@ -33,7 +33,7 @@ fn tokenize_row(ctx: &TokenizeContext, row: &Row) -> TokenStream {
 
 impl_tokenize!(tokenize_cell, Cell<'a>, 'a);
 fn tokenize_cell(ctx: &TokenizeContext, cell: &Cell) -> TokenStream {
-    let root = element_path();
+    let root = root_crate();
     match &cell {
         Cell::Content(x) => {
             let t = do_tokenize!(ctx, &x);
@@ -53,7 +53,7 @@ fn tokenize_column_align(
     _ctx: &TokenizeContext,
     column_align: &ColumnAlign,
 ) -> TokenStream {
-    let root = element_path();
+    let root = root_crate();
     match column_align {
         ColumnAlign::Left => {
             quote! { #root::ColumnAlign::Left }

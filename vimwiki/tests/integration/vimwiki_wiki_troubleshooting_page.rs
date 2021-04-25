@@ -1,5 +1,5 @@
 use super::{fixtures::VimwikiFile, utils::compare_page_elements};
-use vimwiki::{elements::*, Language};
+use vimwiki::*;
 use vimwiki_macros::*;
 
 #[test]

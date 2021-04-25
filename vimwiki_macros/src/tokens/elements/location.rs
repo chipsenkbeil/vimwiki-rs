@@ -1,11 +1,11 @@
-use crate::tokens::{utils::element_path, Tokenize, TokenizeContext};
+use crate::tokens::{utils::root_crate, Tokenize, TokenizeContext};
 use proc_macro2::TokenStream;
 use quote::quote;
-use vimwiki::elements::{Located, Region};
+use vimwiki::{Located, Region};
 
 impl<T: Tokenize> Tokenize for Located<T> {
     fn tokenize(&self, ctx: &TokenizeContext, stream: &mut TokenStream) {
-        let root = element_path();
+        let root = root_crate();
         let mut element = TokenStream::new();
         self.as_inner().tokenize(ctx, &mut element);
 
@@ -24,7 +24,7 @@ impl<T: Tokenize> Tokenize for Located<T> {
 
 impl_tokenize!(tokenize_region, Region);
 fn tokenize_region(_ctx: &TokenizeContext, region: &Region) -> TokenStream {
-    let root = element_path();
+    let root = root_crate();
     let offset = region.offset();
     let len = region.len();
     quote! {

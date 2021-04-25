@@ -5,8 +5,8 @@ categories = ["web-programming::http-server"]
 version = "0.1.0-alpha.6"
 authors = ["Chip Senkbeil <chip@senkbeil.org>"]
 edition = "2018"
-homepage = "https://github.com/chipsenkbeil/vimwiki-server"
-repository = "https://github.com/chipsenkbeil/vimwiki-server"
+homepage = "https://github.com/chipsenkbeil/vimwiki-rs"
+repository = "https://github.com/chipsenkbeil/vimwiki-rs"
 readme = "README.md"
 license = "MIT OR Apache-2.0"
 

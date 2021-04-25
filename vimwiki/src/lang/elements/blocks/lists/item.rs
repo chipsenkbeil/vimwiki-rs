@@ -508,7 +508,7 @@ impl StrictEq for ListItemAttributes {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::elements::{List, ListItemContent, Located, Text};
+    use crate::{List, ListItemContent, Located, Text};
 
     macro_rules! unordered_item {
         ($type:ident, $pos:expr, $content:expr) => {

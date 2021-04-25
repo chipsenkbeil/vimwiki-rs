@@ -1,11 +1,11 @@
-use crate::tokens::{utils::element_path, Tokenize, TokenizeContext};
+use crate::tokens::{utils::root_crate, Tokenize, TokenizeContext};
 use proc_macro2::TokenStream;
 use quote::quote;
-use vimwiki::elements::*;
+use vimwiki::{DecoratedText, DecoratedTextContent, Keyword, Text};
 
 impl_tokenize!(tokenize_text, Text<'a>, 'a);
 fn tokenize_text(ctx: &TokenizeContext, text: &Text) -> TokenStream {
-    let root = element_path();
+    let root = root_crate();
     let inner = do_tokenize!(ctx, text.as_ref());
     quote! {
         #root::Text::new(#inner)
@@ -17,7 +17,7 @@ fn tokenize_decorated_text_content(
     ctx: &TokenizeContext,
     decorated_text_content: &DecoratedTextContent,
 ) -> TokenStream {
-    let root = element_path();
+    let root = root_crate();
     match &decorated_text_content {
         DecoratedTextContent::Keyword(x) => {
             let t = do_tokenize!(ctx, &x);
@@ -43,7 +43,7 @@ fn tokenize_decorated_text(
     ctx: &TokenizeContext,
     decorated_text: &DecoratedText,
 ) -> TokenStream {
-    let root = element_path();
+    let root = root_crate();
 
     match decorated_text {
         DecoratedText::Bold(x) => {
@@ -99,7 +99,7 @@ fn tokenize_decorated_text(
 
 impl_tokenize!(tokenize_keyword, Keyword);
 fn tokenize_keyword(_ctx: &TokenizeContext, keyword: &Keyword) -> TokenStream {
-    let root = element_path();
+    let root = root_crate();
     match keyword {
         Keyword::Done => {
             quote! { #root::Keyword::Done }

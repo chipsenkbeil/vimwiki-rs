@@ -1,11 +1,16 @@
 mod lang;
-pub use lang::{
-    elements::{self, Located, Region},
-    parsers::Error as ParseError,
-    FromLanguage, Language,
-};
-
 mod utils;
+
+// Export all elements at top level
+pub use lang::elements::*;
+
+// Export our parser error, which is used for language parsing
+pub use lang::parsers::Error;
+
+// Export our primary language structure and trait
+pub use lang::{FromLanguage, Language};
+
+// Export our trait to do stronger comparsisons that include the region of elements
 pub use utils::StrictEq;
 
 // Re-export the vendor libraries so we're able to reconstruct their

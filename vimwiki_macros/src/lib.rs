@@ -1,7 +1,7 @@
 use paste::paste;
 use proc_macro2::{Span, TokenStream};
 use syn::parse_macro_input;
-use vimwiki::{elements, Language, Located};
+use vimwiki::*;
 
 mod error;
 use error::{Error, Result};
@@ -99,37 +99,34 @@ macro_rules! impl_macro_vimwiki {
 ///////////////////////////////////////////////////////////////////////////////
 // Implement macros for vimwiki
 ///////////////////////////////////////////////////////////////////////////////
-impl_macro_vimwiki!(page, elements::Page);
-impl_macro_vimwiki!(block_element, Located<elements::BlockElement>);
-impl_macro_vimwiki!(
-    inline_element_container,
-    Located<elements::InlineElementContainer>
-);
-impl_macro_vimwiki!(inline_element, Located<elements::InlineElement>);
-impl_macro_vimwiki!(blockquote, Located<elements::Blockquote>);
-impl_macro_vimwiki!(comment, Located<elements::Comment>);
-impl_macro_vimwiki!(line_comment, Located<elements::LineComment>);
-impl_macro_vimwiki!(multi_line_comment, Located<elements::MultiLineComment>);
-impl_macro_vimwiki!(definition_list, Located<elements::DefinitionList>);
-impl_macro_vimwiki!(divider, Located<elements::Divider>);
-impl_macro_vimwiki!(header, Located<elements::Header>);
-impl_macro_vimwiki!(link, Located<elements::Link>);
-impl_macro_vimwiki!(diary_link, Located<elements::DiaryLink>);
-impl_macro_vimwiki!(external_file_link, Located<elements::ExternalFileLink>);
-impl_macro_vimwiki!(raw_link, Located<elements::RawLink>);
-impl_macro_vimwiki!(transclusion_link, Located<elements::TransclusionLink>);
-impl_macro_vimwiki!(wiki_link, Located<elements::WikiLink>);
-impl_macro_vimwiki!(inter_wiki_link, Located<elements::InterWikiLink>);
-impl_macro_vimwiki!(list, Located<elements::List>);
-impl_macro_vimwiki!(list_item, Located<elements::ListItem>);
-impl_macro_vimwiki!(code_inline, Located<elements::CodeInline>);
-impl_macro_vimwiki!(math_inline, Located<elements::MathInline>);
-impl_macro_vimwiki!(math_block, Located<elements::MathBlock>);
-impl_macro_vimwiki!(paragraph, Located<elements::Paragraph>);
-impl_macro_vimwiki!(placeholder, Located<elements::Placeholder>);
-impl_macro_vimwiki!(preformatted_text, Located<elements::PreformattedText>);
-impl_macro_vimwiki!(table, Located<elements::Table>);
-impl_macro_vimwiki!(tags, Located<elements::Tags>);
-impl_macro_vimwiki!(decorated_text, Located<elements::DecoratedText>);
-impl_macro_vimwiki!(keyword, Located<elements::Keyword>);
-impl_macro_vimwiki!(text, Located<elements::Text>);
+impl_macro_vimwiki!(page, Page);
+impl_macro_vimwiki!(block_element, Located<BlockElement>);
+impl_macro_vimwiki!(inline_element_container, Located<InlineElementContainer>);
+impl_macro_vimwiki!(inline_element, Located<InlineElement>);
+impl_macro_vimwiki!(blockquote, Located<Blockquote>);
+impl_macro_vimwiki!(comment, Located<Comment>);
+impl_macro_vimwiki!(line_comment, Located<LineComment>);
+impl_macro_vimwiki!(multi_line_comment, Located<MultiLineComment>);
+impl_macro_vimwiki!(definition_list, Located<DefinitionList>);
+impl_macro_vimwiki!(divider, Located<Divider>);
+impl_macro_vimwiki!(header, Located<Header>);
+impl_macro_vimwiki!(link, Located<Link>);
+impl_macro_vimwiki!(diary_link, Located<DiaryLink>);
+impl_macro_vimwiki!(external_file_link, Located<ExternalFileLink>);
+impl_macro_vimwiki!(raw_link, Located<RawLink>);
+impl_macro_vimwiki!(transclusion_link, Located<TransclusionLink>);
+impl_macro_vimwiki!(wiki_link, Located<WikiLink>);
+impl_macro_vimwiki!(inter_wiki_link, Located<InterWikiLink>);
+impl_macro_vimwiki!(list, Located<List>);
+impl_macro_vimwiki!(list_item, Located<ListItem>);
+impl_macro_vimwiki!(code_inline, Located<CodeInline>);
+impl_macro_vimwiki!(math_inline, Located<MathInline>);
+impl_macro_vimwiki!(math_block, Located<MathBlock>);
+impl_macro_vimwiki!(paragraph, Located<Paragraph>);
+impl_macro_vimwiki!(placeholder, Located<Placeholder>);
+impl_macro_vimwiki!(preformatted_text, Located<PreformattedText>);
+impl_macro_vimwiki!(table, Located<Table>);
+impl_macro_vimwiki!(tags, Located<Tags>);
+impl_macro_vimwiki!(decorated_text, Located<DecoratedText>);
+impl_macro_vimwiki!(keyword, Located<Keyword>);
+impl_macro_vimwiki!(text, Located<Text>);
