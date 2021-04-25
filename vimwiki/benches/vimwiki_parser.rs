@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use std::{fs, path::PathBuf, time::Duration};
-use vimwiki::{elements::*, Language};
+use vimwiki::{Language, Page};
 
 fn parse_page_benchmark(c: &mut Criterion) {
     let base =
