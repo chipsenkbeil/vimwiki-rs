@@ -10,18 +10,42 @@ impl_tokenize!(i32);
 impl_tokenize!(u32);
 impl_tokenize!(f32);
 impl_tokenize!(f64);
-impl_tokenize!(str);
-impl_tokenize!(String);
+
+impl_tokenize!(tokenize_str, str);
+impl_tokenize!(tokenize_str, String);
+pub fn tokenize_str(ctx: &TokenizeContext, s: &str) -> TokenStream {
+    ctx.quote_str(s)
+}
 
 impl_tokenize!(tokenize_cow_str, Cow<'a, str>, 'a);
-pub fn tokenize_cow_str(_ctx: &TokenizeContext, inner: &str) -> TokenStream {
-    quote! { ::std::borrow::Cow::Borrowed(#inner) }
+pub fn tokenize_cow_str(ctx: &TokenizeContext, inner: &str) -> TokenStream {
+    let inner_t = ctx.quote_str(inner);
+    if ctx.verbatim {
+        quote! { ::std::borrow::Cow::Borrowed(#inner_t) }
+    } else {
+        quote! { ::std::borrow::Cow::Owned(#inner_t) }
+    }
 }
 
 impl_tokenize!(tokenize_cow_path, Cow<'a, Path>, 'a);
-pub fn tokenize_cow_path(_ctx: &TokenizeContext, path: &Path) -> TokenStream {
+pub fn tokenize_cow_path(ctx: &TokenizeContext, path: &Path) -> TokenStream {
     let inner = path.to_str().expect("Unable to translate path to str");
-    quote! { ::std::borrow::Cow::Borrowed(::std::path::Path::new(#inner)) }
+    let inner_t = ctx.quote_str(inner);
+
+    if ctx.verbatim {
+        quote! { ::std::borrow::Cow::Borrowed(::std::path::Path::new(#inner_t)) }
+    } else {
+        quote! {
+            ::std::borrow::Cow::Owned(
+                <
+                    ::std::path::PathBuf as
+                    ::std::convert::From<::std::string::String>
+                >::from(
+                    #inner_t
+                )
+            )
+        }
+    }
 }
 
 impl_tokenize!(tokenize_naive_date, NaiveDate);

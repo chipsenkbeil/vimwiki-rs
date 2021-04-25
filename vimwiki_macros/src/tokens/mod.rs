@@ -1,9 +1,24 @@
 use proc_macro2::TokenStream;
+use quote::quote;
+use syn::Error;
 
 /// Represents some context to apply when tokenizing a stream
-#[derive(Default)]
 pub struct TokenizeContext {
     pub verbatim: bool,
+    pub formatter: crate::Formatter,
+}
+
+impl TokenizeContext {
+    /// Performs a &str tokenization, potentially using format args
+    pub fn quote_str(&self, s: &str) -> TokenStream {
+        if self.verbatim {
+            quote!(#s)
+        } else {
+            self.formatter
+                .quote_format_str(s)
+                .unwrap_or_else(Error::into_compile_error)
+        }
+    }
 }
 
 /// Tokenize a value into a stream of tokens.

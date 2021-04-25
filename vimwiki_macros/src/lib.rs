@@ -1,5 +1,6 @@
 use paste::paste;
 use proc_macro2::{Span, TokenStream};
+use syn::parse_macro_input;
 use vimwiki::{elements, Language, Located};
 
 mod error;
@@ -8,15 +9,23 @@ use error::{Error, Result};
 mod tokens;
 use tokens::{Tokenize, TokenizeContext};
 
+mod args;
+use args::FormatArgs;
+
+mod formatter;
+use formatter::Formatter;
+
 mod utils;
 
 macro_rules! impl_macro {
-    ($name:ident, $from_str:ident, $type:ty, $raw_mode:expr) => {
+    ($name:ident, $from_str:ident, $type:ty, $raw_mode:expr, $verbatim:expr) => {
         #[proc_macro]
         pub fn $name(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-            let input = TokenStream::from(input);
+            let input_2 = input.clone();
+            let args = parse_macro_input!(input as FormatArgs);
+            let input = TokenStream::from(input_2);
 
-            fn try_expand(input: TokenStream) -> Result<TokenStream> {
+            fn try_expand(input: TokenStream, args: FormatArgs) -> Result<TokenStream> {
                 let mut input = input.into_iter();
 
                 let first = input.next().ok_or_else(|| {
@@ -27,7 +36,7 @@ macro_rules! impl_macro {
                 })?;
 
                 // Validate we did indeed only get a single argument
-                utils::require_empty_or_trailing_comma(&mut input)?;
+                // utils::require_empty_or_trailing_comma(&mut input)?;
 
                 // Load our input into a string
                 let input = utils::input_to_string(first, $raw_mode)?;
@@ -39,7 +48,10 @@ macro_rules! impl_macro {
                     .map_err(|x| Error::new(Span::call_site(), &format!("{}", x)))?;
 
                 // Stuff our structure language into a proper token stream
-                let ctx = TokenizeContext::default();
+                let ctx = TokenizeContext {
+                    formatter: Formatter::new(args),
+                    verbatim: $verbatim,
+                };
                 let mut stream = TokenStream::new();
                 element.tokenize(&ctx, &mut stream);
                 Ok(stream)
@@ -47,7 +59,7 @@ macro_rules! impl_macro {
 
             // Do the act of expanding our input language into Rust code
             // at compile-time, reporting an error if we fail
-            let output = match try_expand(input) {
+            let output = match try_expand(input, args) {
                 Ok(tokens) => tokens,
                 Err(err) => err.to_compile_error(),
             };
@@ -57,21 +69,29 @@ macro_rules! impl_macro {
     };
 }
 
-/// Macro that generates two macros in the form of
+/// Macro that generates four macros in the form of
 ///
-///     vimwiki_${suffix}
-///     vimwiki_${suffix}_raw
+/// 1. vimwiki_${suffix}
+/// 2. vimwiki_${suffix}_raw
+/// 3. vimwiki_${suffix}_format
+/// 4. vimwiki_${suffix}_raw_format
 ///
-/// Both convert the given text to the specified vimwiki type at compile time,
-/// but the raw version uses the string literal as-is while the non-raw
+/// All convert the given text to the specified vimwiki type at compile time.
+///
+/// The raw versions use the string literal as-is while the non-raw
 /// version removes all leading and trailing blank lines AND determines the
 /// minimum indentation level (poor man's indoc) and removes that from the
 /// beginning of each line.
+///
+/// The format versions perform variable substitution in the same way that
+/// format!, println!, and write! can inject content.
 macro_rules! impl_macro_vimwiki {
     ($suffix:ident, $type:ty) => {
         paste! {
-            impl_macro!([<vimwiki_ $suffix>], from_vimwiki_str, $type, false);
-            impl_macro!([<vimwiki_ $suffix _raw>], from_vimwiki_str, $type, true);
+            impl_macro!([<vimwiki_ $suffix>], from_vimwiki_str, $type, false, true);
+            impl_macro!([<vimwiki_ $suffix _raw>], from_vimwiki_str, $type, true, true);
+            impl_macro!([<vimwiki_ $suffix _format>], from_vimwiki_str, $type, false, false);
+            impl_macro!([<vimwiki_ $suffix _raw_format>], from_vimwiki_str, $type, true, false);
         }
     };
 }
