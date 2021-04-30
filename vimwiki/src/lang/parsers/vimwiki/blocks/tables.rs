@@ -1,7 +1,8 @@
 use super::inline::inline_element_container;
 use crate::lang::{
     elements::{
-        Cell, ColumnAlign, InlineElementContainer, Located, Row, Table,
+        Cell, CellPos, CellSpan, ColumnAlign, InlineElementContainer, Located,
+        Table,
     },
     parsers::{
         utils::{
@@ -19,6 +20,7 @@ use nom::{
     multi::{many0, separated_list1},
     sequence::{delimited, pair, preceded, terminated},
 };
+use std::collections::HashMap;
 
 #[inline]
 pub fn table(input: Span) -> IResult<Located<Table>> {
@@ -32,37 +34,45 @@ pub fn table(input: Span) -> IResult<Located<Table>> {
         //       the earlier row parse
         let (input, mut rows) = many0(preceded(space0, deeper(row)))(input)?;
         rows.insert(0, table_header);
-        Ok((input, Table::new(rows, centered)))
+
+        // We now need to convert a Vec<Vec<Located<Cell>>> into a
+        // HashMap<CellPos, Located<Cell>> by using the ordering of the vecs
+        // to build out the position
+        let cells: HashMap<CellPos, Located<Cell>> = rows
+            .into_iter()
+            .enumerate()
+            .flat_map(|(row_idx, row)| {
+                row.into_iter().enumerate().map(|(col_idx, cell)| {
+                    (CellPos::new(row_idx, col_idx), cell)
+                })
+            })
+            .collect();
+
+        Ok((input, Table::new(cells, centered)))
     }
 
     // Parse the table and make sure it isn't comprised entirely of divider rows
     context(
         "Table",
         locate(capture(verify(inner, |t| {
-            !t.rows
-                .iter()
-                .all(|r| matches!(r.as_inner(), Row::Divider { .. }))
+            !t.rows().all(|r| r.is_divider_row())
         }))),
     )(input)
 }
 
 #[inline]
-fn row(input: Span) -> IResult<Located<Row>> {
-    fn inner(input: Span) -> IResult<Row> {
+fn row(input: Span) -> IResult<Vec<Located<Cell>>> {
+    context(
+        "Row",
         terminated(
             delimited(
                 char('|'),
-                alt((
-                    map(separated_list1(char('|'), column_align), Row::from),
-                    map(separated_list1(char('|'), deeper(cell)), Row::from),
-                )),
+                separated_list1(char('|'), deeper(cell)),
                 char('|'),
             ),
             end_of_line_or_input,
-        )(input)
-    }
-
-    context("Row", locate(capture(inner)))(input)
+        ),
+    )(input)
 }
 
 #[inline]
@@ -85,8 +95,9 @@ fn column_align(input: Span) -> IResult<ColumnAlign> {
 fn cell(input: Span) -> IResult<Located<Cell>> {
     fn inner(input: Span) -> IResult<Cell> {
         alt((
-            cell_span_above,
-            cell_span_left,
+            map(cell_span_above, Cell::Span),
+            map(cell_span_left, Cell::Span),
+            map(column_align, Cell::Align),
             map(
                 map_parser(take_line_until1("|"), inline_element_container),
                 |l: Located<InlineElementContainer>| {
@@ -100,13 +111,13 @@ fn cell(input: Span) -> IResult<Located<Cell>> {
 }
 
 #[inline]
-fn cell_span_left(input: Span) -> IResult<Cell> {
-    value(Cell::SpanLeft, delimited(space0, tag(">"), space0))(input)
+fn cell_span_left(input: Span) -> IResult<CellSpan> {
+    value(CellSpan::FromLeft, delimited(space0, tag(">"), space0))(input)
 }
 
 #[inline]
-fn cell_span_above(input: Span) -> IResult<Cell> {
-    value(Cell::SpanAbove, delimited(space0, tag("\\/"), space0))(input)
+fn cell_span_above(input: Span) -> IResult<CellSpan> {
+    value(CellSpan::FromAbove, delimited(space0, tag("\\/"), space0))(input)
 }
 
 #[cfg(test)]

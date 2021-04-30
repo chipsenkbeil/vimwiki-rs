@@ -4,6 +4,9 @@ mod utils;
 // Export all elements at top level
 pub use lang::elements::*;
 
+// Export all outputs at top level
+pub use lang::outputs::*;
+
 // Export our parser error, which is used for language parsing
 pub use lang::parsers::Error as ParseError;
 

@@ -44,6 +44,22 @@ impl List<'_> {
 }
 
 impl<'a> List<'a> {
+    /// Returns whether or not the list represents an ordered list based on
+    /// the first list item; if there are no items then this would return false
+    pub fn is_ordered(&self) -> bool {
+        self.items
+            .first()
+            .map_or(false, |item| item.item_type.is_ordered())
+    }
+
+    /// Returns whether or not the list represents an unordered list based on
+    /// the first list item; if there are no items then this would return false
+    pub fn is_unordered(&self) -> bool {
+        self.items
+            .first()
+            .map_or(false, |item| item.item_type.is_unordered())
+    }
+
     /// Normalizes the list by standardizing the item types based on the
     /// first list item.
     ///
