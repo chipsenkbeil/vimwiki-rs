@@ -52,6 +52,11 @@ impl<'a> HtmlFormatter<'a> {
         self.last_seen_headers.get(&level).map(String::as_str)
     }
 
+    /// Returns the level of the biggest header (level) stored at the moment
+    pub fn max_header_level(&self) -> Option<usize> {
+        self.last_seen_headers.keys().max().copied()
+    }
+
     /// Sets the title referenced by the formatter
     pub fn set_title(&mut self, title: &str) {
         self.title.clear();

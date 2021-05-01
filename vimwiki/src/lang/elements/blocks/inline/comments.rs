@@ -66,6 +66,17 @@ impl LineComment<'_> {
     }
 }
 
+impl<'a> LineComment<'a> {
+    pub fn as_str(&self) -> &'a str {
+        use self::Cow::*;
+
+        match self.0 {
+            Borrowed(x) => x,
+            Owned(x) => x.as_str(),
+        }
+    }
+}
+
 impl<'a> From<&'a str> for LineComment<'a> {
     fn from(s: &'a str) -> Self {
         Self::new(Cow::from(s))
@@ -126,6 +137,12 @@ impl MultiLineComment<'_> {
             .collect();
 
         MultiLineComment(inner)
+    }
+}
+
+impl<'a> MultiLineComment<'a> {
+    pub fn as_lines(&self) -> &[Cow<'a, str>] {
+        &self.0
     }
 }
 

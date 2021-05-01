@@ -13,6 +13,8 @@ pub struct HtmlConfig {
     pub header: HtmlHeaderConfig,
     #[serde(default)]
     pub code: HtmlCodeConfig,
+    #[serde(default)]
+    pub comment: HtmlCommentConfig,
 }
 
 /// Represents configuration options related to lists
@@ -143,5 +145,28 @@ impl HtmlCodeConfig {
     #[inline]
     pub fn default_syntax_dir() -> Option<PathBuf> {
         None
+    }
+}
+
+/// Represents configuration options related to comments
+#[derive(Serialize, Deserialize)]
+pub struct HtmlCommentConfig {
+    /// If true, will include comments in HTML output as `<!-- {comment} -->`
+    #[serde(default = "HtmlCommentConfig::default_include")]
+    pub include: bool,
+}
+
+impl Default for HtmlCommentConfig {
+    fn default() -> Self {
+        Self {
+            include: Self::default_include(),
+        }
+    }
+}
+
+impl HtmlCommentConfig {
+    #[inline]
+    pub fn default_include() -> bool {
+        false
     }
 }

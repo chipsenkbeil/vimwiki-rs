@@ -120,6 +120,17 @@ impl Tag<'_> {
     }
 }
 
+impl<'a> Tag<'a> {
+    pub fn as_str(&self) -> &'a str {
+        use self::Cow::*;
+
+        match self.0 {
+            Borrowed(x) => x,
+            Owned(x) => x.as_str(),
+        }
+    }
+}
+
 impl<'a> From<&'a str> for Tag<'a> {
     fn from(s: &'a str) -> Self {
         Self::new(Cow::from(s))

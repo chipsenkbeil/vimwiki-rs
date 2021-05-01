@@ -12,7 +12,7 @@ use crate::lang::{
     outputs::{Output, OutputError, OutputResult},
 };
 use lazy_static::lazy_static;
-use std::fmt::Write;
+use std::{fmt::Write, path::Path};
 
 use syntect::{
     easy::HighlightLines,
@@ -47,16 +47,16 @@ impl<'a> Output for BlockElement<'a> {
 
     fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
         match self {
-            Self::Blockquote(x) => x.fmt(f),
-            Self::DefinitionList(x) => x.fmt(f),
-            Self::Divider(x) => x.fmt(f),
-            Self::Header(x) => x.fmt(f),
-            Self::List(x) => x.fmt(f),
-            Self::Math(x) => x.fmt(f),
-            Self::Paragraph(x) => x.fmt(f),
-            Self::Placeholder(x) => x.fmt(f),
-            Self::PreformattedText(x) => x.fmt(f),
-            Self::Table(x) => x.fmt(f),
+            Self::Blockquote(x) => x.fmt(f)?,
+            Self::DefinitionList(x) => x.fmt(f)?,
+            Self::Divider(x) => x.fmt(f)?,
+            Self::Header(x) => x.fmt(f)?,
+            Self::List(x) => x.fmt(f)?,
+            Self::Math(x) => x.fmt(f)?,
+            Self::Paragraph(x) => x.fmt(f)?,
+            Self::Placeholder(x) => x.fmt(f)?,
+            Self::PreformattedText(x) => x.fmt(f)?,
+            Self::Table(x) => x.fmt(f)?,
         }
 
         Ok(())
@@ -67,6 +67,8 @@ impl<'a> Output for Blockquote<'a> {
     type Formatter = HtmlFormatter<'a>;
 
     /// Writes a blockquote in HTML
+    ///
+    /// ### Example
     ///
     /// ```html
     /// <blockquote>
@@ -96,6 +98,8 @@ impl<'a> Output for DefinitionList<'a> {
 
     /// Writes a definition list in HTML
     ///
+    /// ### Example
+    ///
     /// ```html
     /// <dl>
     ///     <dt>Term 1</dt>
@@ -123,6 +127,15 @@ impl<'a> Output for DefinitionList<'a> {
         }
         writeln!(f, "</dl>")?;
         Ok(())
+    }
+}
+
+impl<'a> Output for DefinitionListValue<'a> {
+    type Formatter = HtmlFormatter<'a>;
+
+    /// Writes a definition list value in HTML
+    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+        self.as_inner().fmt(f)
     }
 }
 
@@ -183,13 +196,8 @@ impl<'a> Output for Header<'a> {
         } else {
             // Build our full id using each of the most recent header's
             // contents (earlier levels) up to and including the current header
-            let mut complete_header_id = String::new();
-            for i in 1..self.level {
-                if let Some(id) = f.get_header_text(self.level) {
-                    write!(&mut complete_header_id, "{}-", id)?;
-                }
-            }
-            write!(&mut complete_header_id, "{}", header_id)?;
+            let complete_header_id =
+                build_complete_id(f, self.level, &header_id)?;
 
             write!(f, r#"<div id="{}">"#, complete_header_id)?;
             write!(
@@ -366,6 +374,14 @@ impl<'a> Output for MathBlock<'a> {
     /// ```html
     /// \[some math enclosed in block notation\]
     /// ```
+    ///
+    /// ### With environment
+    ///
+    /// ```html
+    /// \begin{environment}
+    /// some math enclosed in block notation
+    /// \end{environment}
+    /// ```
     fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
         if let Some(env) = self.environment.as_deref() {
             writeln!(f, r"\begin{{{}}}", env)?;
@@ -414,6 +430,44 @@ impl<'a> Output for PreformattedText<'a> {
     type Formatter = HtmlFormatter<'a>;
 
     /// Writes a preformatted text block in HTML
+    ///
+    /// ### Client-side
+    ///
+    /// Supporting browser highlighters written in JavaScript such as
+    /// `highlight.js`:
+    ///
+    /// ```html
+    /// <pre>
+    ///     <code class="{language}">
+    ///         // Rust source
+    ///         fn main() {
+    ///             println!("Hello World!");
+    ///         }
+    ///     </code>
+    /// </pre>
+    /// ```
+    ///
+    /// ### Server-side
+    ///
+    /// When supporting CSS classes:
+    ///
+    /// ```html
+    /// <pre class="code">
+    ///     <span class="source rust">
+    ///         <span class="comment line double-slash rust">
+    ///             <span class="punctuation definition comment rust">//</span> Rust source</span>
+    ///         ...
+    /// </pre>
+    /// ```
+    ///
+    /// When inlining all stylings:
+    ///
+    /// ```html
+    /// <pre style="background-color:#2b303b;">
+    ///     <span style="color:#c0c5ce;">// Rust source</span>
+    ///     ...
+    /// </pre>
+    /// ```
     fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
         // TODO: Support different ways of generating
         //
@@ -563,6 +617,74 @@ impl<'a> Output for Table<'a> {
     type Formatter = HtmlFormatter<'a>;
 
     /// Writes a table in HTML
+    ///
+    /// ### Normal
+    ///
+    /// ```html
+    /// <table>
+    ///     <tbody>
+    ///         <tr>
+    ///             <td>Data 1</td>
+    ///             <td>Data 2</td>
+    ///         </tr>
+    ///         <tr>
+    ///             <td>Data 3</td>
+    ///             <td>Data 4</td>
+    ///         </tr>
+    ///     </tbody>
+    /// </table>
+    /// ```
+    ///
+    /// ### With a header
+    ///
+    /// ```html
+    /// <table>
+    ///     <thead>
+    ///         <tr>
+    ///             <th>Column 1</th>
+    ///             <th>Column 2</th>
+    ///         </tr>
+    ///     </thead>
+    ///     <tbody>
+    ///         <tr>
+    ///             <td>Data 1</td>
+    ///             <td>Data 2</td>
+    ///         </tr>
+    ///         <tr>
+    ///             <td>Data 3</td>
+    ///             <td>Data 4</td>
+    ///         </tr>
+    ///     </tbody>
+    /// </table>
+    /// ```
+    ///
+    /// ### Centered
+    ///
+    /// If the table is considered centered, it will add a **center** class:
+    ///
+    /// ```html
+    /// <table class="center">
+    ///     <!-- ... -->
+    /// </table>
+    /// ```
+    ///
+    /// ### Cell spans
+    ///
+    /// If `>` or `\/` is used, the cells to the left or above will have
+    /// a `rowspan` or `colspan` attribute added:
+    ///
+    /// ```html
+    /// <table>
+    ///     <tbody>
+    ///         <tr>
+    ///             <td rowspan="2">Data 1</td>
+    ///             <td rowspan="3" colspan="2">Data 2</td>
+    ///             <td colspan="2">Data 3</td>
+    ///         </tr>
+    ///     </tbody>
+    /// </table>
+    /// ```
+    ///
     fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
         if self.is_centered() {
             writeln!(f, "<table class\"center\">")?;
@@ -630,4 +752,555 @@ impl<'a> Output for Table<'a> {
 
         Ok(())
     }
+}
+
+impl<'a> Output for InlineElementContainer<'a> {
+    type Formatter = HtmlFormatter<'a>;
+
+    /// Writes a collection of inline elements in HTML
+    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+        for element in self.elements.iter() {
+            element.fmt(f)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl<'a> Output for InlineElement<'a> {
+    type Formatter = HtmlFormatter<'a>;
+
+    /// Writes an inline element in HTML
+    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+        match self {
+            Self::Text(x) => x.fmt(f),
+            Self::DecoratedText(x) => x.fmt(f),
+            Self::Keyword(x) => x.fmt(f),
+            Self::Link(x) => x.fmt(f),
+            Self::Tags(x) => x.fmt(f),
+            Self::Code(x) => x.fmt(f),
+            Self::Math(x) => x.fmt(f),
+            Self::Comment(x) => x.fmt(f),
+        }
+    }
+}
+
+impl<'a> Output for Text<'a> {
+    type Formatter = HtmlFormatter<'a>;
+
+    /// Writes text in HTML
+    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+        write!(f, "{}", self.0)?;
+        Ok(())
+    }
+}
+
+impl<'a> Output for DecoratedText<'a> {
+    type Formatter = HtmlFormatter<'a>;
+
+    /// Writes decorated text in HTML
+    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+        // First, we figure out the type of decoration to apply with bold
+        // having the most unique situation as it can also act as an anchor
+        match self {
+            Self::Bold(contents) => {
+                // First, build up the isolated id using contents
+                let mut id = String::new();
+                for content in contents {
+                    write!(&mut id, "{}", content.to_string())?;
+                }
+
+                // Second, build up the full id using all headers leading up
+                // to this bold text
+                let complete_id = build_complete_id(
+                    f,
+                    f.max_header_level().unwrap_or_default() + 1,
+                    &id,
+                )?;
+
+                // Third, produce HTML span (anchor) in front of <strong> tag
+                // using the complete id produced
+                write!(f, r#"<span id="{}"></span><strong>"#, complete_id)?;
+
+                // Fourth, write out all of the contents and then close the
+                // <strong> tag
+                for content in contents {
+                    content.fmt(f)?;
+                }
+                writeln!(f, "</strong>")?;
+            }
+            Self::Italic(contents) => {
+                write!(f, "<em>")?;
+                for content in contents {
+                    content.fmt(f)?;
+                }
+                writeln!(f, "</em>")?;
+            }
+            Self::Strikeout(contents) => {
+                write!(f, "<del>")?;
+                for content in contents {
+                    content.fmt(f)?;
+                }
+                writeln!(f, "</del>")?;
+            }
+            Self::Superscript(contents) => {
+                write!(f, "<sup><small>")?;
+                for content in contents {
+                    content.fmt(f)?;
+                }
+                writeln!(f, "</small></sup>")?;
+            }
+            Self::Subscript(contents) => {
+                write!(f, "<sub><small>")?;
+                for content in contents {
+                    content.fmt(f)?;
+                }
+                writeln!(f, "</small></sub>")?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl<'a> Output for DecoratedTextContent<'a> {
+    type Formatter = HtmlFormatter<'a>;
+
+    /// Writes decorated text content in HTML
+    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+        match self {
+            Self::Text(x) => x.fmt(f)?,
+            Self::DecoratedText(x) => x.fmt(f)?,
+            Self::Keyword(x) => x.fmt(f)?,
+            Self::Link(x) => x.fmt(f)?,
+        }
+
+        Ok(())
+    }
+}
+
+impl<'a> Output for &'a Keyword {
+    type Formatter = HtmlFormatter<'a>;
+
+    /// Writes keyword in HTML
+    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+        // For all keywords other than todo, they are treated as plain output
+        // for HTML. For todo, it is wrapped in a span with a todo class
+        match **self {
+            Keyword::Todo => write!(f, "<span class=\"todo\">TODO</span>")?,
+            Keyword::Done => write!(f, "DONE")?,
+            Keyword::Started => write!(f, "STARTED")?,
+            Keyword::Fixme => write!(f, "FIXME")?,
+            Keyword::Fixed => write!(f, "FIXED")?,
+            Keyword::Xxx => write!(f, "XXX")?,
+        }
+
+        Ok(())
+    }
+}
+
+impl<'a> Output for Link<'a> {
+    type Formatter = HtmlFormatter<'a>;
+
+    /// Writes a link in HTML
+    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+        match self {
+            Self::Wiki(x) => x.fmt(f)?,
+            Self::InterWiki(x) => x.fmt(f)?,
+            Self::Diary(x) => x.fmt(f)?,
+            Self::Raw(x) => x.fmt(f)?,
+            Self::ExternalFile(x) => x.fmt(f)?,
+            Self::Transclusion(x) => x.fmt(f)?,
+        }
+
+        Ok(())
+    }
+}
+
+impl<'a> Output for WikiLink<'a> {
+    type Formatter = HtmlFormatter<'a>;
+
+    /// Writes a wiki link in HTML
+    ///
+    /// ### Plain link
+    ///
+    /// For `[[url]]` in vimwiki:
+    ///
+    /// ```html
+    /// <a href="url.html">url</a>
+    /// ```
+    ///
+    /// ### Link with description
+    ///
+    /// For `[[url|descr]]` in vimwiki:
+    ///
+    /// ```html
+    /// <a href="url.html">descr</a>
+    /// ```
+    ///
+    /// ### Link with embedded image
+    ///
+    /// For `[[url|{{...}}]]` in vimwiki:
+    ///
+    /// ```html
+    /// <a href="url.html"> ... </a>
+    /// ```
+    ///
+    ///
+    /// ### Link with anchors
+    ///
+    /// For `[[url#a1#a2]]` in vimwiki:
+    ///
+    /// ```html
+    /// <a href="url.html#a1-a2">url#a1#a2</a>
+    /// ```
+    ///
+    /// ### Only anchors
+    ///
+    /// For `[[#a1#a2]]` in vimwiki:
+    ///
+    /// ```html
+    /// <a href="#a1-a2">#a1#a2</a>
+    /// ```
+    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+        write_link(
+            f,
+            self.path,
+            self.anchor.as_ref(),
+            self.description.as_ref(),
+        )
+    }
+}
+
+impl<'a> Output for InterWikiLink<'a> {
+    type Formatter = HtmlFormatter<'a>;
+
+    /// Writes an interwiki link in HTML
+    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+        match self {
+            Self::Indexed(x) => x.fmt(f)?,
+            Self::Named(x) => x.fmt(f)?,
+        }
+
+        Ok(())
+    }
+}
+
+impl<'a> Output for IndexedInterWikiLink<'a> {
+    type Formatter = HtmlFormatter<'a>;
+
+    /// Writes an indexed interwiki link in HTML
+    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+        // TODO: Need to do link resolution as this should
+        //
+        // 1. Look up the wiki with the given index (return error if fails to resolve)
+        // 2. Grab the path to the wiki
+        // 3. Convert path to a relative link in the form of
+        //    ../{other wiki}/page.html
+        write_link(
+            f,
+            self.link.path,
+            self.link.anchor.as_ref(),
+            self.link.description.as_ref(),
+        )
+    }
+}
+
+impl<'a> Output for NamedInterWikiLink<'a> {
+    type Formatter = HtmlFormatter<'a>;
+
+    /// Writes an named interwiki link in HTML
+    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+        // TODO: Need to do link resolution as this should
+        //
+        // 1. Look up the wiki with the given name (return error if fails to resolve)
+        // 2. Grab the path to the wiki
+        // 3. Convert path to a relative link in the form of
+        //    ../{other wiki}/page.html
+        write_link(
+            f,
+            self.link.path,
+            self.link.anchor.as_ref(),
+            self.link.description.as_ref(),
+        )
+    }
+}
+
+impl<'a> Output for DiaryLink<'a> {
+    type Formatter = HtmlFormatter<'a>;
+
+    /// Writes an diary link in HTML
+    ///
+    /// ### Example
+    ///
+    /// For `[[diary:2021-03-05]]` and `[[diary:2021-03-05|description]]`:
+    ///
+    /// ```html
+    /// <a href="diary/2021-03-05.html">diary:2021-03-05</a>
+    /// <a href="diary/2021-03-05.html">description</a>
+    /// ```
+    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+        // TODO: Need some sort of base wiki path for us to provide the
+        //       diary link; add our end_path_str to the end of the base path
+        let end_path_str = format!("diary/{}.html", self.date.to_string());
+        write_link(f, end_path_str, None, self.description.as_ref())
+    }
+}
+
+impl<'a> Output for RawLink<'a> {
+    type Formatter = HtmlFormatter<'a>;
+
+    /// Writes a raw link in HTML
+    ///
+    /// ### Example
+    ///
+    /// For `https://example.com`:
+    ///
+    /// ```html
+    /// <a href="https://example.com">https://example.com</a>
+    /// ```
+    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+        write_link(f, self.uri.to_string(), None, None)
+    }
+}
+
+impl<'a> Output for ExternalFileLink<'a> {
+    type Formatter = HtmlFormatter<'a>;
+
+    /// Writes an external file link in HTML
+    ///
+    /// ### Link to file
+    ///
+    /// For `[[fileurl.ext|descr]]` in vimwiki:
+    ///
+    /// ```html
+    /// <a href="fileurl.ext">descr</a>
+    /// ```
+    ///
+    /// ### Link to directory
+    ///
+    /// For `[[dirurl/|descr]]` in vimwiki:
+    ///
+    /// ```html
+    /// <a href="dirurl/index.html">descr</a>
+    /// ```
+    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+        // TODO: Need to construct relative path based on file/dir relative
+        //       to the wiki containing it
+        let path = if self.path.is_dir() {
+            self.path.as_ref().join("index.html")
+        } else {
+            self.path.to_path_buf()
+        };
+        write_link(f, path, None, self.description.as_ref())
+    }
+}
+
+impl<'a> Output for TransclusionLink<'a> {
+    type Formatter = HtmlFormatter<'a>;
+
+    /// Writes a transclusion link in HTML
+    ///
+    /// ### Images
+    ///
+    /// For `{{path/to/img.png}}`, `{{path/to/img.png|descr}}`, and
+    /// `{{path/to/img.png|descr|style="A"}}`:
+    ///
+    /// ```html
+    /// <img src="path/to/img.png" />
+    /// <img src="path/to/img.png" alt="descr" />
+    /// <img src="path/to/img.png" alt="descr" style="A" />
+    /// ```
+    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+        write!(f, "<img src=\"{}\"", self.uri)?;
+        if let Some(description) = self.description.as_ref() {
+            write!(f, " alt=\"{}\"", description.to_string())?;
+        }
+        for (k, v) in self.properties.iter() {
+            write!(f, " {}=\"{}\"", k, v)?;
+        }
+        write!(f, " />")?;
+        Ok(())
+    }
+}
+
+impl<'a> Output for Tags<'a> {
+    type Formatter = HtmlFormatter<'a>;
+
+    /// Writes tags in HTML
+    ///
+    /// ### Example
+    ///
+    /// If placed after a header called *Header 1*, the tag will inject a span
+    /// in front of itself that acts as an anchor to itself:
+    ///
+    /// ```html
+    /// <span id="Header 1-tag1"></span><span class="tag" id="tag1">tag1</span>
+    /// ```
+    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+        for tag in self.iter() {
+            let id = tag.as_str();
+            let complete_id = build_complete_id(
+                f,
+                f.max_header_level().unwrap_or_default() + 1,
+                id,
+            )?;
+            write!(f, "<span id=\"{}\"></span>", complete_id)?;
+            write!(f, "<span class=\"tag\" id=\"{}\">{}</span>", id, id)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl<'a> Output for CodeInline<'a> {
+    type Formatter = HtmlFormatter<'a>;
+
+    /// Writes inline code in HTML
+    ///
+    /// ### Example
+    ///
+    /// ```html
+    /// <code>some code</code>
+    /// ```
+    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+        write!(f, "<code>{}</code>", self.code)?;
+        Ok(())
+    }
+}
+
+impl<'a> Output for MathInline<'a> {
+    type Formatter = HtmlFormatter<'a>;
+
+    /// Writes inline math in HTML
+    ///
+    /// ### Example
+    ///
+    /// ```html
+    /// \(some math\)
+    /// ```
+    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+        write!(f, r"\({}\)", self.formula)?;
+        Ok(())
+    }
+}
+
+impl<'a> Output for Comment<'a> {
+    type Formatter = HtmlFormatter<'a>;
+
+    /// Writes a comment in HTML
+    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+        match self {
+            Self::Line(x) => x.fmt(f),
+            Self::MultiLine(x) => x.fmt(f),
+        }
+    }
+}
+
+impl<'a> Output for LineComment<'a> {
+    type Formatter = HtmlFormatter<'a>;
+
+    /// Writes a line comment in HTML
+    ///
+    /// ### Example
+    ///
+    /// If `config.comment.include` is true, will output the following:
+    ///
+    /// ```html
+    /// <!-- {line} -->
+    /// ```
+    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+        if f.config().comment.include {
+            write!(f, "<!-- {} -->", self.as_str())?;
+        }
+        Ok(())
+    }
+}
+
+impl<'a> Output for MultiLineComment<'a> {
+    type Formatter = HtmlFormatter<'a>;
+
+    /// Writes a multiline comment in HTML
+    ///
+    /// ### Example
+    ///
+    /// If `config.comment.include` is true, will output the following:
+    ///
+    /// ```html
+    /// <!-- {line1}
+    /// {line2}
+    /// ...
+    /// {lineN} -->
+    /// ```
+    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+        if f.config().comment.include {
+            write!(f, "<!-- ")?;
+            for line in self.as_lines() {
+                writeln!(f, "{}", line)?;
+            }
+            write!(f, " -->")?;
+        }
+        Ok(())
+    }
+}
+
+fn build_complete_id<'a>(
+    f: &mut HtmlFormatter<'a>,
+    max_level: usize,
+    id: &str,
+) -> Result<String, OutputError> {
+    let mut complete_id = String::new();
+    for i in 1..max_level {
+        if let Some(id) = f.get_header_text(i) {
+            write!(&mut complete_id, "{}-", id)?;
+        }
+    }
+    write!(&mut complete_id, "{}", id)?;
+
+    Ok(complete_id)
+}
+
+fn write_link<'a>(
+    f: &mut HtmlFormatter<'a>,
+    path: impl AsRef<Path>,
+    maybe_anchor: Option<&Anchor>,
+    maybe_description: Option<&Description>,
+) -> OutputResult {
+    // Build url#a1-a2
+    let mut src = path.as_ref().to_string_lossy().to_string();
+    if let Some(anchor) = maybe_anchor {
+        write!(&mut src, "#{}", anchor.elements.join("-"))?;
+    }
+
+    // Build descr or url#a1#a2 or embed an image
+    let mut text = String::new();
+    if let Some(description) = maybe_description {
+        match description {
+            Description::Text(x) => write!(&mut text, "{}", x)?,
+
+            // If description is a url, this signifies it is something we want
+            // to pull in rather than use directly
+            //
+            // TODO: vimwiki supports the following while we only support
+            //       the raw url; so, we need to update description to take
+            //       in extra information that isn't just the url
+            //
+            //      {{imgurl|arg1|arg2}}    -> ???
+            //      {{imgurl}}                -> <img src="imgurl"/>
+            //      {{imgurl|descr|style="A"}} -> <img src="imgurl" alt="descr" style="A" />
+            //      {{imgurl|descr|class="B"}} -> <img src="imgurl" alt="descr" class="B" />
+            Description::Uri(x) => write!(&mut text, "<img src=\"{}\" />", x)?,
+        }
+    } else {
+        write!(&mut text, "{}", path.as_ref().to_string_lossy())?;
+
+        if let Some(anchor) = maybe_anchor {
+            for element in anchor.elements.iter() {
+                write!(&mut text, "{}", element)?;
+            }
+        }
+    }
+
+    write!(f, r#"<a href="{}">{}</a>"#, src, text)?;
+    Ok(())
 }

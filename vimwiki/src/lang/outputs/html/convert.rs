@@ -48,6 +48,6 @@ impl<'a, T: Output<Formatter = HtmlFormatter<'a>>> ToHtmlString for T {
         //       as well (let config have a default impl) since we would have
         //       no idea what some of the above items like title would be
         //       without a file name
-        content
+        ammonia::clean(&content)
     }
 }
