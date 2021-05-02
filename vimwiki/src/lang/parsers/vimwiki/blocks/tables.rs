@@ -42,9 +42,12 @@ pub fn table(input: Span) -> IResult<Located<Table>> {
             .into_iter()
             .enumerate()
             .flat_map(|(row_idx, row)| {
-                row.into_iter().enumerate().map(|(col_idx, cell)| {
-                    (CellPos::new(row_idx, col_idx), cell)
-                })
+                row.into_iter()
+                    .enumerate()
+                    .map(|(col_idx, cell)| {
+                        (CellPos::new(row_idx, col_idx), cell)
+                    })
+                    .collect::<Vec<(CellPos, Located<Cell>)>>()
             })
             .collect();
 

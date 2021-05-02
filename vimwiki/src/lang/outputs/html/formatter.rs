@@ -8,37 +8,48 @@ use std::{
 
 /// Represents the formatter to use to write HTML output that includes various
 /// options that can be set as well as a context for use when writing output
-pub struct HtmlFormatter<'a> {
+pub struct HtmlFormatter {
     /// Represents the configuration associated with the formatter
-    config: &'a HtmlConfig,
+    config: HtmlConfig,
 
     /// Mapping of header level -> text (with details stripped)
     last_seen_headers: HashMap<usize, String>,
 
     /// Contains the title to be used for the page
-    title: &'a mut String,
+    title: Option<String>,
 
     /// Contains the date to be used for the page
-    date: &'a mut String,
+    date: Option<NaiveDate>,
 
     /// Contains the template to be used for the page
-    template: &'a mut PathBuf,
+    template: Option<PathBuf>,
 
     /// Contains the content to be injected into a template
-    content: &'a mut (dyn Write + 'a),
+    content: String,
 }
 
-impl<'a> Write for HtmlFormatter<'a> {
+impl Write for HtmlFormatter {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         self.content.write_str(s)
     }
 }
 
-impl<'a> HtmlFormatter<'a> {
+impl HtmlFormatter {
+    pub fn new(config: HtmlConfig) -> Self {
+        Self {
+            config,
+            last_seen_headers: HashMap::new(),
+            title: None,
+            date: None,
+            template: None,
+            content: String::new(),
+        }
+    }
+
     /// Represents the config contained within the formatter
     #[inline]
     pub fn config(&self) -> &HtmlConfig {
-        self.config
+        &self.config
     }
 
     /// Inserts text for the header at the given level to be remembered when
@@ -57,22 +68,47 @@ impl<'a> HtmlFormatter<'a> {
         self.last_seen_headers.keys().max().copied()
     }
 
-    /// Sets the title referenced by the formatter
     pub fn set_title(&mut self, title: &str) {
-        self.title.clear();
-        write!(self.title, "{}", title)
-            .expect("Writing title should never fail")
+        self.title = Some(title.to_string());
     }
 
-    /// Sets the date referenced by the formatter
+    pub fn get_title(&self) -> Option<&str> {
+        self.title.as_deref()
+    }
+
+    pub fn take_title(&mut self) -> Option<String> {
+        self.title.take()
+    }
+
     pub fn set_date(&mut self, date: &NaiveDate) {
-        self.date.clear();
-        write!(self.date, "{}", date).expect("Writing date should never fail")
+        self.date = Some(date.clone());
     }
 
-    /// Sets the template referenced by the formatter
+    pub fn get_date(&self) -> Option<&NaiveDate> {
+        self.date.as_ref()
+    }
+
+    pub fn take_date(&mut self) -> Option<NaiveDate> {
+        self.date.take()
+    }
+
     pub fn set_template(&mut self, template: impl AsRef<Path>) {
-        self.template.clear();
-        self.template.push(template);
+        self.template = Some(template.as_ref().to_path_buf());
+    }
+
+    pub fn get_template(&self) -> Option<&Path> {
+        self.template.as_deref()
+    }
+
+    pub fn take_template(&mut self) -> Option<PathBuf> {
+        self.template.take()
+    }
+
+    pub fn get_content(&self) -> &str {
+        self.content.as_str()
+    }
+
+    pub fn into_content(self) -> String {
+        self.content
     }
 }

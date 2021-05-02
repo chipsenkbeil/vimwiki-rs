@@ -31,7 +31,7 @@ lazy_static! {
 }
 
 impl<'a> Output for Page<'a> {
-    type Formatter = HtmlFormatter<'a>;
+    type Formatter = HtmlFormatter;
 
     fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
         for element in self.elements.iter() {
@@ -43,13 +43,13 @@ impl<'a> Output for Page<'a> {
 }
 
 impl<'a> Output for BlockElement<'a> {
-    type Formatter = HtmlFormatter<'a>;
+    type Formatter = HtmlFormatter;
 
     fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
         match self {
             Self::Blockquote(x) => x.fmt(f),
             Self::DefinitionList(x) => x.fmt(f),
-            Self::Divider(x) => write_divider(*x, f),
+            Self::Divider(x) => x.fmt(f),
             Self::Header(x) => x.fmt(f),
             Self::List(x) => x.fmt(f),
             Self::Math(x) => x.fmt(f),
@@ -62,7 +62,7 @@ impl<'a> Output for BlockElement<'a> {
 }
 
 impl<'a> Output for Blockquote<'a> {
-    type Formatter = HtmlFormatter<'a>;
+    type Formatter = HtmlFormatter;
 
     /// Writes a blockquote in HTML
     ///
@@ -92,7 +92,7 @@ impl<'a> Output for Blockquote<'a> {
 }
 
 impl<'a> Output for DefinitionList<'a> {
-    type Formatter = HtmlFormatter<'a>;
+    type Formatter = HtmlFormatter;
 
     /// Writes a definition list in HTML
     ///
@@ -129,7 +129,7 @@ impl<'a> Output for DefinitionList<'a> {
 }
 
 impl<'a> Output for DefinitionListValue<'a> {
-    type Formatter = HtmlFormatter<'a>;
+    type Formatter = HtmlFormatter;
 
     /// Writes a definition list value in HTML
     fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
@@ -137,18 +137,22 @@ impl<'a> Output for DefinitionListValue<'a> {
     }
 }
 
-/// Writes a divider in HTML
-///
-/// ```html
-/// <hr />
-/// ```
-fn write_divider(_: Divider, f: &mut HtmlFormatter<'_>) -> OutputResult {
-    writeln!(f, "<hr />")?;
-    Ok(())
+impl Output for Divider {
+    type Formatter = HtmlFormatter;
+
+    /// Writes a divider in HTML
+    ///
+    /// ```html
+    /// <hr />
+    /// ```
+    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+        writeln!(f, "<hr />")?;
+        Ok(())
+    }
 }
 
 impl<'a> Output for Header<'a> {
-    type Formatter = HtmlFormatter<'a>;
+    type Formatter = HtmlFormatter;
 
     /// Writes a header in HTML
     ///
@@ -209,7 +213,7 @@ impl<'a> Output for Header<'a> {
 }
 
 impl<'a> Output for List<'a> {
-    type Formatter = HtmlFormatter<'a>;
+    type Formatter = HtmlFormatter;
 
     /// Writes a list in HTML
     ///
@@ -232,7 +236,7 @@ impl<'a> Output for List<'a> {
     /// ```
     fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
         // TODO: This should be used for list items... how?
-        let ignore_newlines = f.config().list.ignore_newline;
+        let _ignore_newlines = f.config().list.ignore_newline;
 
         // If the list is ordered, we use an ordered HTML list
         if self.is_ordered() {
@@ -259,7 +263,7 @@ impl<'a> Output for List<'a> {
 }
 
 impl<'a> Output for ListItem<'a> {
-    type Formatter = HtmlFormatter<'a>;
+    type Formatter = HtmlFormatter;
 
     /// Writes a list item in HTML
     ///
@@ -296,7 +300,7 @@ impl<'a> Output for ListItem<'a> {
     /// ```
     fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
         // TODO: This should be used for list items... how?
-        let ignore_newlines = f.config().list.ignore_newline;
+        let _ignore_newlines = f.config().list.ignore_newline;
 
         // First, figure out what class we should be using
         let todo_class = if self.is_todo_incomplete() {
@@ -331,7 +335,7 @@ impl<'a> Output for ListItem<'a> {
 }
 
 impl<'a> Output for ListItemContents<'a> {
-    type Formatter = HtmlFormatter<'a>;
+    type Formatter = HtmlFormatter;
 
     /// Writes a list item's contents in HTML
     fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
@@ -344,7 +348,7 @@ impl<'a> Output for ListItemContents<'a> {
 }
 
 impl<'a> Output for ListItemContent<'a> {
-    type Formatter = HtmlFormatter<'a>;
+    type Formatter = HtmlFormatter;
 
     /// Writes one piece of content within a list item in HTML
     fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
@@ -358,7 +362,7 @@ impl<'a> Output for ListItemContent<'a> {
 }
 
 impl<'a> Output for MathBlock<'a> {
-    type Formatter = HtmlFormatter<'a>;
+    type Formatter = HtmlFormatter;
 
     /// Writes a math block in HTML
     ///
@@ -400,7 +404,7 @@ impl<'a> Output for MathBlock<'a> {
 }
 
 impl<'a> Output for Placeholder<'a> {
-    type Formatter = HtmlFormatter<'a>;
+    type Formatter = HtmlFormatter;
 
     /// Writes placeholders in HTML
     ///
@@ -421,7 +425,7 @@ impl<'a> Output for Placeholder<'a> {
 }
 
 impl<'a> Output for PreformattedText<'a> {
-    type Formatter = HtmlFormatter<'a>;
+    type Formatter = HtmlFormatter;
 
     /// Writes a preformatted text block in HTML
     ///
@@ -476,19 +480,27 @@ impl<'a> Output for PreformattedText<'a> {
         if f.config().code.server_side {
             // Load and use the syntax set from the specified directory if
             // given, otherwise use the default syntax set
-            let ss = if let Some(dir) = f.config().code.syntax_dir.as_ref() {
-                &SyntaxSet::load_from_folder(dir).map_err(OutputError::from)?
-            } else {
-                &DEFAULT_SYNTAX_SET
-            };
+            let custom_ss = f
+                .config()
+                .code
+                .syntax_dir
+                .as_ref()
+                .map(SyntaxSet::load_from_folder)
+                .transpose()
+                .map_err(OutputError::from)?;
+            let ss = custom_ss.as_ref().unwrap_or(&DEFAULT_SYNTAX_SET);
 
             // Load and use the theme set from the specified directory if
             // given, otherwise use the default theme set
-            let ts = if let Some(dir) = f.config().code.theme_dir.as_ref() {
-                &ThemeSet::load_from_folder(dir).map_err(OutputError::from)?
-            } else {
-                &DEFAULT_THEME_SET
-            };
+            let custom_ts = f
+                .config()
+                .code
+                .theme_dir
+                .as_ref()
+                .map(ThemeSet::load_from_folder)
+                .transpose()
+                .map_err(OutputError::from)?;
+            let ts = custom_ts.as_ref().unwrap_or(&DEFAULT_THEME_SET);
 
             // Get syntax using language specifier, otherwise use plain text
             let syntax = if let Some(lang) = self.lang.as_ref() {
@@ -524,7 +536,7 @@ impl<'a> Output for PreformattedText<'a> {
                         &regions[..],
                         IncludeBackground::No,
                     )
-                );
+                )?;
             }
 
             writeln!(f, "</pre>")?;
@@ -551,7 +563,7 @@ impl<'a> Output for PreformattedText<'a> {
                 writeln!(f, ">")?;
             }
 
-            for line in self.lines {
+            for line in self.lines.iter() {
                 writeln!(f, "{}", line)?;
             }
 
@@ -564,7 +576,7 @@ impl<'a> Output for PreformattedText<'a> {
 }
 
 impl<'a> Output for Paragraph<'a> {
-    type Formatter = HtmlFormatter<'a>;
+    type Formatter = HtmlFormatter;
 
     /// Writes a paragraph in HTML
     ///
@@ -589,8 +601,8 @@ impl<'a> Output for Paragraph<'a> {
 
         write!(f, "<p>")?;
 
-        for line in self.lines {
-            for element in line {
+        for line in self.lines.iter() {
+            for element in line.elements.iter() {
                 element.fmt(f)?;
             }
 
@@ -608,7 +620,7 @@ impl<'a> Output for Paragraph<'a> {
 }
 
 impl<'a> Output for Table<'a> {
-    type Formatter = HtmlFormatter<'a>;
+    type Formatter = HtmlFormatter;
 
     /// Writes a table in HTML
     ///
@@ -749,7 +761,7 @@ impl<'a> Output for Table<'a> {
 }
 
 impl<'a> Output for InlineElementContainer<'a> {
-    type Formatter = HtmlFormatter<'a>;
+    type Formatter = HtmlFormatter;
 
     /// Writes a collection of inline elements in HTML
     fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
@@ -762,14 +774,14 @@ impl<'a> Output for InlineElementContainer<'a> {
 }
 
 impl<'a> Output for InlineElement<'a> {
-    type Formatter = HtmlFormatter<'a>;
+    type Formatter = HtmlFormatter;
 
     /// Writes an inline element in HTML
     fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
         match self {
             Self::Text(x) => x.fmt(f),
             Self::DecoratedText(x) => x.fmt(f),
-            Self::Keyword(x) => write_keyword(*x, f),
+            Self::Keyword(x) => x.fmt(f),
             Self::Link(x) => x.fmt(f),
             Self::Tags(x) => x.fmt(f),
             Self::Code(x) => x.fmt(f),
@@ -780,7 +792,7 @@ impl<'a> Output for InlineElement<'a> {
 }
 
 impl<'a> Output for Text<'a> {
-    type Formatter = HtmlFormatter<'a>;
+    type Formatter = HtmlFormatter;
 
     /// Writes text in HTML
     fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
@@ -790,7 +802,7 @@ impl<'a> Output for Text<'a> {
 }
 
 impl<'a> Output for DecoratedText<'a> {
-    type Formatter = HtmlFormatter<'a>;
+    type Formatter = HtmlFormatter;
 
     /// Writes decorated text in HTML
     fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
@@ -858,40 +870,44 @@ impl<'a> Output for DecoratedText<'a> {
 }
 
 impl<'a> Output for DecoratedTextContent<'a> {
-    type Formatter = HtmlFormatter<'a>;
+    type Formatter = HtmlFormatter;
 
     /// Writes decorated text content in HTML
     fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
         match self {
             Self::Text(x) => x.fmt(f),
             Self::DecoratedText(x) => x.fmt(f),
-            Self::Keyword(x) => write_keyword(*x, f),
+            Self::Keyword(x) => x.fmt(f),
             Self::Link(x) => x.fmt(f),
         }
     }
 }
 
-/// Writes keyword in HTML
-///
-/// Unable to be implemented via Output trait as generic associated types
-/// would be required.
-fn write_keyword(keyword: Keyword, f: &mut HtmlFormatter<'_>) -> OutputResult {
-    // For all keywords other than todo, they are treated as plain output
-    // for HTML. For todo, it is wrapped in a span with a todo class
-    match keyword {
-        Keyword::Todo => write!(f, "<span class=\"todo\">TODO</span>")?,
-        Keyword::Done => write!(f, "DONE")?,
-        Keyword::Started => write!(f, "STARTED")?,
-        Keyword::Fixme => write!(f, "FIXME")?,
-        Keyword::Fixed => write!(f, "FIXED")?,
-        Keyword::Xxx => write!(f, "XXX")?,
-    }
+impl Output for Keyword {
+    type Formatter = HtmlFormatter;
 
-    Ok(())
+    /// Writes keyword in HTML
+    ///
+    /// Unable to be implemented via Output trait as generic associated types
+    /// would be required.
+    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+        // For all keywords other than todo, they are treated as plain output
+        // for HTML. For todo, it is wrapped in a span with a todo class
+        match self {
+            Self::Todo => write!(f, "<span class=\"todo\">TODO</span>")?,
+            Self::Done => write!(f, "DONE")?,
+            Self::Started => write!(f, "STARTED")?,
+            Self::Fixme => write!(f, "FIXME")?,
+            Self::Fixed => write!(f, "FIXED")?,
+            Self::Xxx => write!(f, "XXX")?,
+        }
+
+        Ok(())
+    }
 }
 
 impl<'a> Output for Link<'a> {
-    type Formatter = HtmlFormatter<'a>;
+    type Formatter = HtmlFormatter;
 
     /// Writes a link in HTML
     fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
@@ -909,7 +925,7 @@ impl<'a> Output for Link<'a> {
 }
 
 impl<'a> Output for WikiLink<'a> {
-    type Formatter = HtmlFormatter<'a>;
+    type Formatter = HtmlFormatter;
 
     /// Writes a wiki link in HTML
     ///
@@ -956,7 +972,7 @@ impl<'a> Output for WikiLink<'a> {
     fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
         write_link(
             f,
-            self.path,
+            self.path.as_ref(),
             self.anchor.as_ref(),
             self.description.as_ref(),
         )
@@ -964,7 +980,7 @@ impl<'a> Output for WikiLink<'a> {
 }
 
 impl<'a> Output for InterWikiLink<'a> {
-    type Formatter = HtmlFormatter<'a>;
+    type Formatter = HtmlFormatter;
 
     /// Writes an interwiki link in HTML
     fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
@@ -978,7 +994,7 @@ impl<'a> Output for InterWikiLink<'a> {
 }
 
 impl<'a> Output for IndexedInterWikiLink<'a> {
-    type Formatter = HtmlFormatter<'a>;
+    type Formatter = HtmlFormatter;
 
     /// Writes an indexed interwiki link in HTML
     fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
@@ -990,7 +1006,7 @@ impl<'a> Output for IndexedInterWikiLink<'a> {
         //    ../{other wiki}/page.html
         write_link(
             f,
-            self.link.path,
+            self.link.path.as_ref(),
             self.link.anchor.as_ref(),
             self.link.description.as_ref(),
         )
@@ -998,7 +1014,7 @@ impl<'a> Output for IndexedInterWikiLink<'a> {
 }
 
 impl<'a> Output for NamedInterWikiLink<'a> {
-    type Formatter = HtmlFormatter<'a>;
+    type Formatter = HtmlFormatter;
 
     /// Writes an named interwiki link in HTML
     fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
@@ -1010,7 +1026,7 @@ impl<'a> Output for NamedInterWikiLink<'a> {
         //    ../{other wiki}/page.html
         write_link(
             f,
-            self.link.path,
+            self.link.path.as_ref(),
             self.link.anchor.as_ref(),
             self.link.description.as_ref(),
         )
@@ -1018,7 +1034,7 @@ impl<'a> Output for NamedInterWikiLink<'a> {
 }
 
 impl<'a> Output for DiaryLink<'a> {
-    type Formatter = HtmlFormatter<'a>;
+    type Formatter = HtmlFormatter;
 
     /// Writes an diary link in HTML
     ///
@@ -1039,7 +1055,7 @@ impl<'a> Output for DiaryLink<'a> {
 }
 
 impl<'a> Output for RawLink<'a> {
-    type Formatter = HtmlFormatter<'a>;
+    type Formatter = HtmlFormatter;
 
     /// Writes a raw link in HTML
     ///
@@ -1056,7 +1072,7 @@ impl<'a> Output for RawLink<'a> {
 }
 
 impl<'a> Output for ExternalFileLink<'a> {
-    type Formatter = HtmlFormatter<'a>;
+    type Formatter = HtmlFormatter;
 
     /// Writes an external file link in HTML
     ///
@@ -1088,7 +1104,7 @@ impl<'a> Output for ExternalFileLink<'a> {
 }
 
 impl<'a> Output for TransclusionLink<'a> {
-    type Formatter = HtmlFormatter<'a>;
+    type Formatter = HtmlFormatter;
 
     /// Writes a transclusion link in HTML
     ///
@@ -1116,7 +1132,7 @@ impl<'a> Output for TransclusionLink<'a> {
 }
 
 impl<'a> Output for Tags<'a> {
-    type Formatter = HtmlFormatter<'a>;
+    type Formatter = HtmlFormatter;
 
     /// Writes tags in HTML
     ///
@@ -1145,7 +1161,7 @@ impl<'a> Output for Tags<'a> {
 }
 
 impl<'a> Output for CodeInline<'a> {
-    type Formatter = HtmlFormatter<'a>;
+    type Formatter = HtmlFormatter;
 
     /// Writes inline code in HTML
     ///
@@ -1161,7 +1177,7 @@ impl<'a> Output for CodeInline<'a> {
 }
 
 impl<'a> Output for MathInline<'a> {
-    type Formatter = HtmlFormatter<'a>;
+    type Formatter = HtmlFormatter;
 
     /// Writes inline math in HTML
     ///
@@ -1177,7 +1193,7 @@ impl<'a> Output for MathInline<'a> {
 }
 
 impl<'a> Output for Comment<'a> {
-    type Formatter = HtmlFormatter<'a>;
+    type Formatter = HtmlFormatter;
 
     /// Writes a comment in HTML
     fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
@@ -1189,7 +1205,7 @@ impl<'a> Output for Comment<'a> {
 }
 
 impl<'a> Output for LineComment<'a> {
-    type Formatter = HtmlFormatter<'a>;
+    type Formatter = HtmlFormatter;
 
     /// Writes a line comment in HTML
     ///
@@ -1209,7 +1225,7 @@ impl<'a> Output for LineComment<'a> {
 }
 
 impl<'a> Output for MultiLineComment<'a> {
-    type Formatter = HtmlFormatter<'a>;
+    type Formatter = HtmlFormatter;
 
     /// Writes a multiline comment in HTML
     ///
@@ -1235,8 +1251,8 @@ impl<'a> Output for MultiLineComment<'a> {
     }
 }
 
-fn build_complete_id<'a>(
-    f: &mut HtmlFormatter<'a>,
+fn build_complete_id(
+    f: &mut HtmlFormatter,
     max_level: usize,
     id: &str,
 ) -> Result<String, OutputError> {
@@ -1251,8 +1267,8 @@ fn build_complete_id<'a>(
     Ok(complete_id)
 }
 
-fn write_link<'a>(
-    f: &mut HtmlFormatter<'a>,
+fn write_link(
+    f: &mut HtmlFormatter,
     path: impl AsRef<Path>,
     maybe_anchor: Option<&Anchor>,
     maybe_description: Option<&Description>,

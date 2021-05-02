@@ -150,6 +150,19 @@ impl<'a> Table<'a> {
         self.cells.len()
     }
 
+    /// Returns true if the total cells (rows * columns) contained in the table
+    /// is zero
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.cells.is_empty()
+    }
+
+    /// Returns raw table cell data as a reference to the hashmap
+    #[inline]
+    pub fn as_data(&self) -> &HashMap<CellPos, Located<Cell<'a>>> {
+        &self.cells
+    }
+
     /// Returns an iterator of refs through all rows in the table
     pub fn rows(&self) -> iter::Rows<'_, 'a> {
         iter::Rows::new(self)
@@ -158,11 +171,6 @@ impl<'a> Table<'a> {
     /// Returns an iterator of refs through a specific row in the table
     pub fn row(&self, idx: usize) -> iter::Row<'_, 'a> {
         iter::Row::new(self, idx, 0)
-    }
-
-    /// Consumes the table and returns an iterator through all rows in the table
-    pub fn into_rows(self) -> iter::IntoRows<'a> {
-        iter::IntoRows::new(self)
     }
 
     /// Consumes the table and returns an iterator through a specific row in the table
@@ -178,11 +186,6 @@ impl<'a> Table<'a> {
     /// Returns an iterator of refs through a specific column in the table
     pub fn column(&self, idx: usize) -> iter::Column<'_, 'a> {
         iter::Column::new(self, 0, idx)
-    }
-
-    /// Consumes the table and returns an iterator through all columns in the table
-    pub fn into_columns(self) -> iter::IntoColumns<'a> {
-        iter::IntoColumns::new(self)
     }
 
     /// Consumes the table and returns an iterator through a specific column in the table
@@ -215,7 +218,7 @@ impl<'a> Table<'a> {
 
     /// Returns mut reference to the cell found at the specified row and column
     pub fn get_mut_cell(
-        &self,
+        &mut self,
         row: usize,
         col: usize,
     ) -> Option<&mut Located<Cell<'a>>> {
@@ -549,38 +552,6 @@ pub mod iter {
         }
     }
 
-    pub struct IntoRows<'a> {
-        table: Table<'a>,
-        idx: usize,
-    }
-
-    impl<'a> IntoRows<'a> {
-        /// Produces an iterator that will iterator through all rows from the
-        /// beginning of the table
-        pub fn new(table: Table<'a>) -> Self {
-            Self { table, idx: 0 }
-        }
-    }
-
-    impl<'a> Iterator for IntoRows<'a> {
-        type Item = IntoRow<'a>;
-
-        fn next(&mut self) -> Option<Self::Item> {
-            if self.idx < self.table.row_cnt() {
-                let row = IntoRow::new(self.table, self.idx, 0);
-                self.idx += 1;
-                Some(row)
-            } else {
-                None
-            }
-        }
-
-        fn size_hint(&self) -> (usize, Option<usize>) {
-            let remaining = self.table.row_cnt() - self.idx;
-            (remaining, Some(remaining))
-        }
-    }
-
     #[derive(Constructor)]
     pub struct Row<'a, 'b> {
         table: &'a Table<'b>,
@@ -691,38 +662,6 @@ pub mod iter {
         fn next(&mut self) -> Option<Self::Item> {
             if self.idx < self.table.col_cnt() {
                 let col = Column::new(self.table, self.idx, 0);
-                self.idx += 1;
-                Some(col)
-            } else {
-                None
-            }
-        }
-
-        fn size_hint(&self) -> (usize, Option<usize>) {
-            let remaining = self.table.col_cnt() - self.idx;
-            (remaining, Some(remaining))
-        }
-    }
-
-    pub struct IntoColumns<'a> {
-        table: Table<'a>,
-        idx: usize,
-    }
-
-    impl<'a> IntoColumns<'a> {
-        /// Produces an iterator that will iterator through all columns from the
-        /// beginning of the table
-        pub fn new(table: Table<'a>) -> Self {
-            Self { table, idx: 0 }
-        }
-    }
-
-    impl<'a> Iterator for IntoColumns<'a> {
-        type Item = IntoColumn<'a>;
-
-        fn next(&mut self) -> Option<Self::Item> {
-            if self.idx < self.table.col_cnt() {
-                let col = IntoColumn::new(self.table, self.idx, 0);
                 self.idx += 1;
                 Some(col)
             } else {

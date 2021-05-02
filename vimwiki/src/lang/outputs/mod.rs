@@ -26,6 +26,11 @@ pub enum OutputError {
 
     ThemeMissing(#[error(not(source))] String),
 
+    TemplateNotLoaded {
+        #[error(source)]
+        source: std::io::Error,
+    },
+
     Fmt {
         #[error(source)]
         source: std::fmt::Error,

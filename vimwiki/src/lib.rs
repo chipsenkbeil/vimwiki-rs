@@ -14,7 +14,7 @@ pub use lang::parsers::Error as ParseError;
 pub use lang::{FromLanguage, Language};
 
 // Export our trait to do stronger comparsisons that include the region of elements
-pub use utils::StrictEq;
+pub use utils::{StrictEq, VimVar, VimVarScope};
 
 // Re-export the vendor libraries so we're able to reconstruct their
 // structs from macros

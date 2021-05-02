@@ -1,53 +1,56 @@
-use super::{HtmlConfig, HtmlFormatter, Output};
-use std::{collections::HashMap, path::PathBuf};
+use super::{HtmlConfig, HtmlFormatter, Output, OutputError};
+use chrono::Local;
 
-/// Provides an interface to convert some vimwiki element to HTML
+static DEFAULT_TEMPLATE_STR: &str = r#"""
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="Stylesheet" type="text/css" href="%root_path%%css%">
+<title>%title%</title>
+<meta http-equiv="Content-Type" content="text/html; charset=%encoding%">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+%content%
+</body>
+</html>
+"""#;
+
 pub trait ToHtmlString {
-    /// Produces a string representing the output generated as HTML
-    fn to_html_string(&self) -> String;
+    fn to_html_string(&self, config: HtmlConfig)
+        -> Result<String, OutputError>;
 }
 
-/// # Panics
-///
-/// In this implementation, the `to_html_string` method panics if the `Output`
-/// implementation returns an error.  This indicates an incorrect `Output`
-/// implementation since `fmt::Write for String` never returns an error itself.
-impl<'a, T: Output<Formatter = HtmlFormatter<'a>>> ToHtmlString for T {
-    /// Blanket implementation that uses the html formatter to produce
-    /// appropriate html output
-    fn to_html_string(&self) -> String {
-        let config = HtmlConfig::default();
+impl<T: Output<Formatter = HtmlFormatter>> ToHtmlString for T {
+    fn to_html_string(
+        &self,
+        config: HtmlConfig,
+    ) -> Result<String, OutputError> {
+        let mut formatter = HtmlFormatter::new(config);
+        self.fmt(&mut formatter)?;
 
-        // TODO: Use template to load the appropriate template for HTML output,
-        //       defaulting to a static template we'll keep in file (from config)
-        //       otherwise
-        // TODO: Do a find & replace of %title% for the assigned title if the
-        //       string is not empty, otherwise use the filename (from config)
-        // TODO: Do a find & replace of %date% for the assigned date if the
-        //       string is not empty, otherwise use the current date
-        let mut title = String::new();
-        let mut date = String::new();
-        let mut template = PathBuf::new();
-        let mut content = String::new();
-        let mut formatter = HtmlFormatter {
-            config: &config,
-            last_seen_headers: HashMap::new(),
-            title: &mut title,
-            date: &mut date,
-            template: &mut template,
-            content: &mut content,
-        };
+        // TODO: Support file name as default
+        let title = formatter.take_title().unwrap_or_else(|| String::new());
+        let date = formatter
+            .take_date()
+            .unwrap_or_else(|| Local::now().naive_local().date());
+        let template = formatter
+            .take_template()
+            .map(std::fs::read_to_string)
+            .transpose()
+            .map_err(OutputError::from)?
+            .unwrap_or_else(|| DEFAULT_TEMPLATE_STR.to_string());
 
-        self.fmt(&mut formatter)
-            .expect("Writing strings should not fail");
-
-        // TODO: This should include the filled out template
-        //
-        // TODO: Does this need to be a blanket implementation? Or should this
-        //       be limited to a page? Probably needs to include the config
-        //       as well (let config have a default impl) since we would have
-        //       no idea what some of the above items like title would be
-        //       without a file name
-        ammonia::clean(&content)
+        // Fill in template variables
+        // TODO: Support root path variable
+        // TODO: Support wiki path variable
+        let template = template
+            .replace("%title%", &title)
+            .replace("%date%", &date.to_string())
+            .replace("%root_path%", "")
+            .replace("%wiki_path%", "")
+            .replace("%encoding%", "utf-8")
+            .replace("%contents%", formatter.get_content());
+        Ok(ammonia::clean(&template))
     }
 }

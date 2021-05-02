@@ -67,13 +67,8 @@ impl LineComment<'_> {
 }
 
 impl<'a> LineComment<'a> {
-    pub fn as_str(&self) -> &'a str {
-        use self::Cow::*;
-
-        match self.0 {
-            Borrowed(x) => x,
-            Owned(x) => x.as_str(),
-        }
+    pub fn as_str(&self) -> &str {
+        self.0.as_ref()
     }
 }
 
