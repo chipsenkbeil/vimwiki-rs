@@ -30,7 +30,7 @@ pub fn paragraph(input: Span) -> IResult<Located<Paragraph>> {
 
         // Continuously take content until we encounter another type of
         // element
-        let (input, elements) = context(
+        let (input, lines) = context(
             "Paragraph",
             many1(delimited(
                 continue_paragraph,
@@ -40,7 +40,7 @@ pub fn paragraph(input: Span) -> IResult<Located<Paragraph>> {
         )(input)?;
 
         // Transform contents into the paragraph itself
-        let paragraph = Paragraph::new(From::from(elements));
+        let paragraph = Paragraph::new(lines);
 
         Ok((input, paragraph))
     }
@@ -99,7 +99,7 @@ mod tests {
         assert!(input.is_empty(), "Did not consume paragraph");
 
         assert_eq!(
-            p.content
+            p.lines[0]
                 .elements
                 .drain(..)
                 .map(|c| c.into_inner())
@@ -132,7 +132,7 @@ mod tests {
         assert!(input.is_empty(), "Did not consume paragraph");
 
         assert_eq!(
-            p.content
+            p.lines[0]
                 .elements
                 .drain(..)
                 .map(|c| c.into_inner())
@@ -145,6 +145,16 @@ mod tests {
                     )))
                 ])),
                 InlineElement::Text(Text::from(",")),
+            ],
+        );
+
+        assert_eq!(
+            p.lines[1]
+                .elements
+                .drain(..)
+                .map(|c| c.into_inner())
+                .collect::<Vec<InlineElement>>(),
+            vec![
                 InlineElement::Link(Link::from(WikiLink::from(PathBuf::from(
                     "links"
                 )))),
@@ -166,7 +176,7 @@ mod tests {
         assert!(input.is_empty(), "Did not consume paragraph");
 
         assert_eq!(
-            p.content
+            p.lines[0]
                 .elements
                 .drain(..)
                 .map(|c| c.into_inner())
@@ -179,6 +189,16 @@ mod tests {
                     )))
                 ])),
                 InlineElement::Text(Text::from(",")),
+            ],
+        );
+
+        assert_eq!(
+            p.lines[1]
+                .elements
+                .drain(..)
+                .map(|c| c.into_inner())
+                .collect::<Vec<InlineElement>>(),
+            vec![
                 InlineElement::Link(Link::from(WikiLink::from(PathBuf::from(
                     "links"
                 )))),
@@ -205,7 +225,7 @@ mod tests {
         );
 
         assert_eq!(
-            p.content
+            p.lines[0]
                 .elements
                 .drain(..)
                 .map(|c| c.into_inner())
@@ -218,6 +238,16 @@ mod tests {
                     )))
                 ],)),
                 InlineElement::Text(Text::from(",")),
+            ],
+        );
+
+        assert_eq!(
+            p.lines[1]
+                .elements
+                .drain(..)
+                .map(|c| c.into_inner())
+                .collect::<Vec<InlineElement>>(),
+            vec![
                 InlineElement::Link(Link::from(WikiLink::from(PathBuf::from(
                     "links"
                 )))),

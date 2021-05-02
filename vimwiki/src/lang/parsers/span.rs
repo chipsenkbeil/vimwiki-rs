@@ -776,7 +776,7 @@ mod tests {
         #[test]
         fn new_builder_should_create_an_empty_byte_vec() {
             let span1 = Span::from("abc");
-            assert_eq!(span1.new_builder(), vec![]);
+            assert_eq!(span1.new_builder(), Vec::<u8>::new());
         }
 
         #[test]

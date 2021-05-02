@@ -19,8 +19,8 @@ fn test() {
             Region::new_at_depth(0, 13, 0),
         ),
         Located::new(
-            BlockElement::from(Paragraph::new(InlineElementContainer::new(
-                vec![
+            BlockElement::from(Paragraph::new(vec![
+                InlineElementContainer::new(vec![
                     Located::new(
                         InlineElement::from(Text::from(
                             "Paragraph with text, ",
@@ -86,6 +86,8 @@ fn test() {
                         InlineElement::from(Text::from(",")),
                         Region::new_at_depth(82, 1, 1),
                     ),
+                ]),
+                InlineElementContainer::new(vec![
                     Located::new(
                         InlineElement::from(DecoratedText::Superscript(vec![
                             Located::new(
@@ -127,7 +129,8 @@ fn test() {
                         Region::new_at_depth(127, 1, 1),
                     ),
                 ],
-            ))),
+            )
+            ])),
             Region::new_at_depth(14, 115, 0),
         ),
         Located::new(
