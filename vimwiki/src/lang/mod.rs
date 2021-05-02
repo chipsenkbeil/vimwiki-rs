@@ -1,5 +1,5 @@
 pub mod elements;
-pub mod outputs;
+pub mod output;
 pub mod parsers;
 
 use derive_more::Display;

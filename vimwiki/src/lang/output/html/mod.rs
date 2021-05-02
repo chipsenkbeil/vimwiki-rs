@@ -9,7 +9,7 @@ pub use convert::ToHtmlString;
 
 use crate::lang::{
     elements::*,
-    outputs::{Output, OutputError, OutputResult},
+    output::{Output, OutputError, OutputResult},
 };
 use lazy_static::lazy_static;
 use std::{fmt::Write, path::Path};
