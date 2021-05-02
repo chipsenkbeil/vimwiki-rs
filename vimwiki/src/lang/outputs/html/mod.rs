@@ -47,19 +47,17 @@ impl<'a> Output for BlockElement<'a> {
 
     fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
         match self {
-            Self::Blockquote(x) => x.fmt(f)?,
-            Self::DefinitionList(x) => x.fmt(f)?,
-            Self::Divider(x) => x.fmt(f)?,
-            Self::Header(x) => x.fmt(f)?,
-            Self::List(x) => x.fmt(f)?,
-            Self::Math(x) => x.fmt(f)?,
-            Self::Paragraph(x) => x.fmt(f)?,
-            Self::Placeholder(x) => x.fmt(f)?,
-            Self::PreformattedText(x) => x.fmt(f)?,
-            Self::Table(x) => x.fmt(f)?,
+            Self::Blockquote(x) => x.fmt(f),
+            Self::DefinitionList(x) => x.fmt(f),
+            Self::Divider(x) => write_divider(*x, f),
+            Self::Header(x) => x.fmt(f),
+            Self::List(x) => x.fmt(f),
+            Self::Math(x) => x.fmt(f),
+            Self::Paragraph(x) => x.fmt(f),
+            Self::Placeholder(x) => x.fmt(f),
+            Self::PreformattedText(x) => x.fmt(f),
+            Self::Table(x) => x.fmt(f),
         }
-
-        Ok(())
     }
 }
 
@@ -139,18 +137,14 @@ impl<'a> Output for DefinitionListValue<'a> {
     }
 }
 
-impl<'a> Output for &'a Divider {
-    type Formatter = HtmlFormatter<'a>;
-
-    /// Writes a divider in HTML
-    ///
-    /// ```html
-    /// <hr />
-    /// ```
-    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
-        writeln!(f, "<hr />")?;
-        Ok(())
-    }
+/// Writes a divider in HTML
+///
+/// ```html
+/// <hr />
+/// ```
+fn write_divider(_: Divider, f: &mut HtmlFormatter<'_>) -> OutputResult {
+    writeln!(f, "<hr />")?;
+    Ok(())
 }
 
 impl<'a> Output for Header<'a> {
@@ -775,7 +769,7 @@ impl<'a> Output for InlineElement<'a> {
         match self {
             Self::Text(x) => x.fmt(f),
             Self::DecoratedText(x) => x.fmt(f),
-            Self::Keyword(x) => x.fmt(f),
+            Self::Keyword(x) => write_keyword(*x, f),
             Self::Link(x) => x.fmt(f),
             Self::Tags(x) => x.fmt(f),
             Self::Code(x) => x.fmt(f),
@@ -869,34 +863,31 @@ impl<'a> Output for DecoratedTextContent<'a> {
     /// Writes decorated text content in HTML
     fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
         match self {
-            Self::Text(x) => x.fmt(f)?,
-            Self::DecoratedText(x) => x.fmt(f)?,
-            Self::Keyword(x) => x.fmt(f)?,
-            Self::Link(x) => x.fmt(f)?,
+            Self::Text(x) => x.fmt(f),
+            Self::DecoratedText(x) => x.fmt(f),
+            Self::Keyword(x) => write_keyword(*x, f),
+            Self::Link(x) => x.fmt(f),
         }
-
-        Ok(())
     }
 }
 
-impl<'a> Output for &'a Keyword {
-    type Formatter = HtmlFormatter<'a>;
-
-    /// Writes keyword in HTML
-    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
-        // For all keywords other than todo, they are treated as plain output
-        // for HTML. For todo, it is wrapped in a span with a todo class
-        match **self {
-            Keyword::Todo => write!(f, "<span class=\"todo\">TODO</span>")?,
-            Keyword::Done => write!(f, "DONE")?,
-            Keyword::Started => write!(f, "STARTED")?,
-            Keyword::Fixme => write!(f, "FIXME")?,
-            Keyword::Fixed => write!(f, "FIXED")?,
-            Keyword::Xxx => write!(f, "XXX")?,
-        }
-
-        Ok(())
+/// Writes keyword in HTML
+///
+/// Unable to be implemented via Output trait as generic associated types
+/// would be required.
+fn write_keyword(keyword: Keyword, f: &mut HtmlFormatter<'_>) -> OutputResult {
+    // For all keywords other than todo, they are treated as plain output
+    // for HTML. For todo, it is wrapped in a span with a todo class
+    match keyword {
+        Keyword::Todo => write!(f, "<span class=\"todo\">TODO</span>")?,
+        Keyword::Done => write!(f, "DONE")?,
+        Keyword::Started => write!(f, "STARTED")?,
+        Keyword::Fixme => write!(f, "FIXME")?,
+        Keyword::Fixed => write!(f, "FIXED")?,
+        Keyword::Xxx => write!(f, "XXX")?,
     }
+
+    Ok(())
 }
 
 impl<'a> Output for Link<'a> {
