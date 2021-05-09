@@ -13,13 +13,13 @@ use crate::lang::{
 };
 use lazy_static::lazy_static;
 use std::{fmt::Write, path::Path};
-
 use syntect::{
     easy::HighlightLines,
     highlighting::ThemeSet,
     html::{self, IncludeBackground},
     parsing::SyntaxSet,
 };
+use voca_rs::escape;
 
 lazy_static! {
     /// Default syntax set for languages
@@ -84,7 +84,7 @@ impl<'a> Output for Blockquote<'a> {
         // the arrow style, which is what we'll be doing for now
         writeln!(f, "<blockquote>")?;
         for line in self.lines.iter() {
-            writeln!(f, "<p>{}</p>", line.trim())?;
+            writeln!(f, "<p>{}</p>", escape::escape_html(line.trim()))?;
         }
         writeln!(f, "</blockquote>")?;
         Ok(())
@@ -178,7 +178,7 @@ impl<'a> Output for Header<'a> {
     /// </div>
     /// ```
     fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
-        let header_id = self.content.to_string();
+        let header_id = escape::html_escape(self.content);
         f.insert_header_text(self.level, header_id.clone());
 
         let is_toc = header_id.trim() == f.config().header.table_of_contents;
@@ -384,7 +384,7 @@ impl<'a> Output for MathBlock<'a> {
         if let Some(env) = self.environment.as_deref() {
             writeln!(f, r"\begin{{{}}}", env)?;
             for line in self.lines.iter() {
-                writeln!(f, "{}", line)?;
+                writeln!(f, "{}", escape::escape_html(line))?;
             }
             writeln!(f, r"\end{{{}}}", env)?;
         } else {
@@ -394,7 +394,7 @@ impl<'a> Output for MathBlock<'a> {
             //       starting notation \[<CLASS>
             writeln!(f, r"\[")?;
             for line in self.lines.iter() {
-                writeln!(f, "{}", line)?;
+                writeln!(f, "{}", escape::escape_html(line))?;
             }
             writeln!(f, r"\]")?;
         }
@@ -467,13 +467,6 @@ impl<'a> Output for PreformattedText<'a> {
     /// </pre>
     /// ```
     fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
-        // TODO: Support different ways of generating
-        //
-        // 1. Use https://github.com/trishume/syntect to produce colored
-        //    <pre> tags on the backend
-        // 2. Produce <pre><code class="lang">...</code></pre> for highlight.js
-        // 3. Compatibility with vimwiki plugin
-
         // If we are told to perform a server-side render of styles, we
         // build out the <pre> tag and then inject a variety of <span> wrapping
         // individual text elements with associated stylings

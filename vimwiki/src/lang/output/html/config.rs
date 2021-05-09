@@ -1,28 +1,116 @@
+use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::path::{Component, Path, PathBuf};
+
+/// Represents a configuration specifically geared towards converting to an
+/// HTML page (not element) based on wiki properties
+#[derive(Builder, Debug, Default)]
+#[builder(pattern = "owned", build_fn(name = "finish"), setter(into))]
+pub struct HtmlWikiPageConfig {
+    #[builder(default)]
+    pub wiki_root: Option<PathBuf>,
+    pub page: PathBuf,
+    #[builder(default)]
+    pub css_name: Option<String>,
+}
+
+impl HtmlWikiPageConfig {
+    #[inline]
+    pub fn build() -> HtmlWikiPageConfigBuilder {
+        HtmlWikiPageConfigBuilder::default()
+    }
+
+    #[inline]
+    pub fn get_wiki_root_path(&self) -> Option<&Path> {
+        self.wiki_root.as_deref()
+    }
+
+    #[inline]
+    pub fn get_page_path(&self) -> &Path {
+        self.page.as_path()
+    }
+
+    /// Returns the relative path of the page to the wiki root, or yields
+    /// an empty path if just the page without a wiki root
+    ///
+    /// ### Examples
+    ///
+    /// ```rust
+    /// use vimwiki::HtmlWikiPageConfig;
+    /// use std::path::PathBuf;
+    ///
+    /// let config = HtmlWikiPageConfig {
+    ///     wiki_root: Some(PathBuf::from("/some/wiki/dir")),
+    ///     page: PathBuf::from("/some/wiki/dir/to/file.wiki"),
+    ///     css_name: None,
+    /// };
+    /// assert_eq!(config.get_page_relative_path_to_root(), PathBuf::from("../.."));
+    /// ```
+    pub fn get_page_relative_path_to_root(&self) -> PathBuf {
+        // We figure out if our page is part of the given root and, if
+        // not, we return an empty pathbuf to signify that the root is the
+        // same as the page
+        let root = self.get_wiki_root_path();
+        let page = self.get_page_path();
+        if let Some(path) = root.and_then(|r| page.strip_prefix(r).ok()) {
+            // Now, we convert each component to a .. to signify that we have
+            // to go back up
+            let mut rel_path = PathBuf::new();
+            for _ in path.components() {
+                rel_path.push(Component::ParentDir);
+            }
+            rel_path
+        } else {
+            PathBuf::new()
+        }
+    }
+
+    #[inline]
+    pub fn get_css_name_or_default(&self) -> &str {
+        self.css_name.as_deref().unwrap_or("style.css")
+    }
+}
 
 /// Represents configuration properties for HTML writing that are separate from
 /// the running state during HTML conversion
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Builder, Debug, Default, Serialize, Deserialize)]
+#[builder(pattern = "owned", build_fn(name = "finish"), setter(into))]
 pub struct HtmlConfig {
+    #[builder(default)]
     #[serde(default)]
     pub list: HtmlListConfig,
+    #[builder(default)]
     #[serde(default)]
     pub text: HtmlTextConfig,
+    #[builder(default)]
     #[serde(default)]
     pub header: HtmlHeaderConfig,
+    #[builder(default)]
     #[serde(default)]
     pub code: HtmlCodeConfig,
+    #[builder(default)]
     #[serde(default)]
     pub comment: HtmlCommentConfig,
+    #[builder(default)]
+    #[serde(default)]
+    pub template: HtmlTemplateConfig,
+}
+
+impl HtmlConfig {
+    #[inline]
+    pub fn build() -> HtmlConfigBuilder {
+        HtmlConfigBuilder::default()
+    }
 }
 
 /// Represents configuration options related to lists
-#[derive(Serialize, Deserialize)]
+#[derive(Builder, Debug, Serialize, Deserialize)]
+#[builder(pattern = "owned", build_fn(name = "finish"), setter(into))]
 pub struct HtmlListConfig {
     /// If true, newlines are ignored when producing lists, otherwise the
     /// line breaks are respected and <br /> is added for each line break in
     /// a list
+    #[builder(default = "HtmlListConfig::default_ignore_newline()")]
     #[serde(default = "HtmlListConfig::default_ignore_newline")]
     pub ignore_newline: bool,
 }
@@ -37,17 +125,24 @@ impl Default for HtmlListConfig {
 
 impl HtmlListConfig {
     #[inline]
+    pub fn build() -> HtmlListConfigBuilder {
+        HtmlListConfigBuilder::default()
+    }
+
+    #[inline]
     pub fn default_ignore_newline() -> bool {
         true
     }
 }
 
 /// Represents configuration options related to text
-#[derive(Serialize, Deserialize)]
+#[derive(Builder, Debug, Serialize, Deserialize)]
+#[builder(pattern = "owned", build_fn(name = "finish"), setter(into))]
 pub struct HtmlTextConfig {
     /// If true, newlines are ignored when producing paragraphs, otherwise the
     /// line breaks are respected and <br /> is added for each line break in
     /// a paragraph
+    #[builder(default = "HtmlTextConfig::default_ignore_newline()")]
     #[serde(default = "HtmlTextConfig::default_ignore_newline")]
     pub ignore_newline: bool,
 }
@@ -62,15 +157,22 @@ impl Default for HtmlTextConfig {
 
 impl HtmlTextConfig {
     #[inline]
+    pub fn build() -> HtmlTextConfigBuilder {
+        HtmlTextConfigBuilder::default()
+    }
+
+    #[inline]
     pub fn default_ignore_newline() -> bool {
         true
     }
 }
 
 /// Represents configuration options related to headers
-#[derive(Serialize, Deserialize)]
+#[derive(Builder, Debug, Serialize, Deserialize)]
+#[builder(pattern = "owned", build_fn(name = "finish"), setter(into))]
 pub struct HtmlHeaderConfig {
     /// Represents the text that a header could have to be marked as the ToC
+    #[builder(default = "HtmlHeaderConfig::default_table_of_contents()")]
     #[serde(default = "HtmlHeaderConfig::default_table_of_contents")]
     pub table_of_contents: String,
 }
@@ -85,32 +187,42 @@ impl Default for HtmlHeaderConfig {
 
 impl HtmlHeaderConfig {
     #[inline]
+    pub fn build() -> HtmlHeaderConfigBuilder {
+        HtmlHeaderConfigBuilder::default()
+    }
+
+    #[inline]
     pub fn default_table_of_contents() -> String {
         String::from("Contents")
     }
 }
 
 /// Represents configuration options related to code
-#[derive(Serialize, Deserialize)]
+#[derive(Builder, Debug, Serialize, Deserialize)]
+#[builder(pattern = "owned", build_fn(name = "finish"), setter(into))]
 pub struct HtmlCodeConfig {
     /// Represents the built-in theme to be used for syntax highlighting when
     /// being performed server-side instead of client-side
+    #[builder(default = "HtmlCodeConfig::default_theme()")]
     #[serde(default = "HtmlCodeConfig::default_theme")]
     pub theme: String,
 
     /// Represents the directory containing `.tmTheme` theme files to be used
     /// for syntax highlighting when being performed server-side instead of
     /// client-side
+    #[builder(default = "HtmlCodeConfig::default_theme_dir()")]
     #[serde(default = "HtmlCodeConfig::default_theme_dir")]
     pub theme_dir: Option<PathBuf>,
 
     /// If true, will perform server-side rendering instead of client-side
     /// rendering for syntax highlighting
+    #[builder(default = "HtmlCodeConfig::default_server_side()")]
     #[serde(default = "HtmlCodeConfig::default_server_side")]
     pub server_side: bool,
 
     /// Represents the directory containing `.tmLanguage` syntax files to be used
     /// for language syntax when being performed server-side instead of client-side
+    #[builder(default = "HtmlCodeConfig::default_syntax_dir()")]
     #[serde(default = "HtmlCodeConfig::default_syntax_dir")]
     pub syntax_dir: Option<PathBuf>,
 }
@@ -127,6 +239,11 @@ impl Default for HtmlCodeConfig {
 }
 
 impl HtmlCodeConfig {
+    #[inline]
+    pub fn build() -> HtmlCodeConfigBuilder {
+        HtmlCodeConfigBuilder::default()
+    }
+
     #[inline]
     pub fn default_theme() -> String {
         String::from("InspiredGitHub")
@@ -149,9 +266,11 @@ impl HtmlCodeConfig {
 }
 
 /// Represents configuration options related to comments
-#[derive(Serialize, Deserialize)]
+#[derive(Builder, Debug, Serialize, Deserialize)]
+#[builder(pattern = "owned", build_fn(name = "finish"), setter(into))]
 pub struct HtmlCommentConfig {
     /// If true, will include comments in HTML output as `<!-- {comment} -->`
+    #[builder(default = "HtmlCommentConfig::default_include()")]
     #[serde(default = "HtmlCommentConfig::default_include")]
     pub include: bool,
 }
@@ -166,7 +285,97 @@ impl Default for HtmlCommentConfig {
 
 impl HtmlCommentConfig {
     #[inline]
+    pub fn build() -> HtmlCommentConfigBuilder {
+        HtmlCommentConfigBuilder::default()
+    }
+
+    #[inline]
     pub fn default_include() -> bool {
         false
+    }
+}
+
+/// Represents configuration options related to templates
+#[derive(Builder, Debug, Serialize, Deserialize)]
+#[builder(pattern = "owned", build_fn(name = "finish"), setter(into))]
+pub struct HtmlTemplateConfig {
+    /// Represents the name of the default template to use (e.g. default)
+    #[builder(default = "HtmlTemplateConfig::default_name()")]
+    #[serde(default = "HtmlTemplateConfig::default_name")]
+    pub name: String,
+
+    /// Represents the file extension to use for all template files (e.g. tpl)
+    #[builder(default = "HtmlTemplateConfig::default_ext()")]
+    #[serde(default = "HtmlTemplateConfig::default_ext")]
+    pub ext: String,
+
+    /// Represents the directory containing all vimwiki templates
+    /// (e.g. $HOME/vimwiki/templates)
+    #[builder(default = "HtmlTemplateConfig::default_dir()")]
+    #[serde(default = "HtmlTemplateConfig::default_dir")]
+    pub dir: PathBuf,
+
+    /// Represents the text to use for the template if no explicit template
+    /// is specified
+    #[builder(default = "HtmlTemplateConfig::default_text()")]
+    #[serde(default = "HtmlTemplateConfig::default_text")]
+    pub text: String,
+}
+
+impl Default for HtmlTemplateConfig {
+    fn default() -> Self {
+        Self {
+            name: Self::default_name(),
+            ext: Self::default_ext(),
+            dir: Self::default_dir(),
+            text: Self::default_text(),
+        }
+    }
+}
+
+impl HtmlTemplateConfig {
+    #[inline]
+    pub fn build() -> HtmlTemplateConfigBuilder {
+        HtmlTemplateConfigBuilder::default()
+    }
+
+    #[inline]
+    pub fn default_name() -> String {
+        String::from("default")
+    }
+
+    #[inline]
+    pub fn default_ext() -> String {
+        String::from("tpl")
+    }
+
+    #[inline]
+    pub fn default_dir() -> PathBuf {
+        let mut path = PathBuf::new();
+        if let Some(dir) = dirs::home_dir() {
+            path.push(dir);
+        }
+        path.push("vimwiki");
+        path.push("templates");
+        path
+    }
+
+    #[inline]
+    pub fn default_text() -> String {
+        static DEFAULT_TEMPLATE_STR: &str = r#"<!DOCTYPE html>
+<html>
+<head>
+<link rel="Stylesheet" type="text/css" href="%root_path%%css%">
+<title>%title%</title>
+<meta http-equiv="Content-Type" content="text/html; charset=%encoding%">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+%content%
+</body>
+</html>
+"#;
+
+        DEFAULT_TEMPLATE_STR.to_string()
     }
 }

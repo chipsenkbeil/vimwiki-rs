@@ -19,6 +19,7 @@ pub type OutputResult = Result<(), OutputError>;
 
 #[derive(Debug, Display, Error, From)]
 pub enum OutputError {
+    #[cfg(feature = "html")]
     SyntaxOrThemeNotLoaded {
         #[error(source)]
         source: syntect::LoadingError,
