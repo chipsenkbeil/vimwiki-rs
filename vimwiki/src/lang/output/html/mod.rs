@@ -178,7 +178,7 @@ impl<'a> Output for Header<'a> {
     /// </div>
     /// ```
     fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
-        let header_id = escape::html_escape(self.content);
+        let header_id = escape::escape_html(&self.content.to_string());
         f.insert_header_text(self.level, header_id.clone());
 
         let is_toc = header_id.trim() == f.config().header.table_of_contents;

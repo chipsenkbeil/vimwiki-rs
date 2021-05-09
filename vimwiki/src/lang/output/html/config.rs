@@ -4,13 +4,13 @@ use std::path::{Component, Path, PathBuf};
 
 /// Represents a configuration specifically geared towards converting to an
 /// HTML page (not element) based on wiki properties
-#[derive(Builder, Debug, Default)]
+#[derive(Builder, Clone, Debug, Default)]
 #[builder(pattern = "owned", build_fn(name = "finish"), setter(into))]
 pub struct HtmlWikiPageConfig {
-    #[builder(default)]
+    #[builder(default, setter(strip_option))]
     pub wiki_root: Option<PathBuf>,
     pub page: PathBuf,
-    #[builder(default)]
+    #[builder(default, setter(strip_option))]
     pub css_name: Option<String>,
 }
 
@@ -30,8 +30,8 @@ impl HtmlWikiPageConfig {
         self.page.as_path()
     }
 
-    /// Returns the relative path of the page to the wiki root, or yields
-    /// an empty path if just the page without a wiki root
+    /// Returns the relative path of the page to the wiki root if the page is
+    /// found within the wiki root
     ///
     /// ### Examples
     ///
@@ -41,39 +41,68 @@ impl HtmlWikiPageConfig {
     ///
     /// let config = HtmlWikiPageConfig {
     ///     wiki_root: Some(PathBuf::from("/some/wiki/dir")),
-    ///     page: PathBuf::from("/some/wiki/dir/to/file.wiki"),
+    ///     page: PathBuf::from("/some/wiki/dir/to/a/file.wiki"),
     ///     css_name: None,
     /// };
-    /// assert_eq!(config.get_page_relative_path_to_root(), PathBuf::from("../.."));
+    /// let path = config.get_page_relative_path_to_root().unwrap();
+    /// assert_eq!(path, PathBuf::from("../.."));
     /// ```
-    pub fn get_page_relative_path_to_root(&self) -> PathBuf {
-        // We figure out if our page is part of the given root and, if
-        // not, we return an empty pathbuf to signify that the root is the
-        // same as the page
+    pub fn get_page_relative_path_to_root(&self) -> Option<PathBuf> {
+        // Remove the directory from the file path as well as remove the file
+        // from the path itself
+        self.get_page_path_within_root()
+            .and_then(|p| p.parent())
+            .map(|path| {
+                // Now, we convert each component to a .. to signify that we have
+                // to go back up
+                let mut rel_path = PathBuf::new();
+                for _ in path.components() {
+                    rel_path.push(Component::ParentDir);
+                }
+                rel_path
+            })
+    }
+
+    /// Returns the relative path of the page to the wiki root if a wiki root
+    /// exists and the page is found within it
+    ///
+    /// ### Examples
+    ///
+    /// ```rust
+    /// use vimwiki::HtmlWikiPageConfig;
+    /// use std::path::{PathBuf, Path};
+    ///
+    /// let config = HtmlWikiPageConfig {
+    ///     wiki_root: Some(PathBuf::from("/some/wiki/dir")),
+    ///     page: PathBuf::from("/some/wiki/dir/to/a/file.wiki"),
+    ///     css_name: None,
+    /// };
+    /// let path = config.get_page_path_within_root().unwrap();
+    /// assert_eq!(path, Path::new("to/a/file.wiki"));
+    /// ```
+    pub fn get_page_path_within_root(&self) -> Option<&Path> {
         let root = self.get_wiki_root_path();
         let page = self.get_page_path();
-        if let Some(path) = root.and_then(|r| page.strip_prefix(r).ok()) {
-            // Now, we convert each component to a .. to signify that we have
-            // to go back up
-            let mut rel_path = PathBuf::new();
-            for _ in path.components() {
-                rel_path.push(Component::ParentDir);
-            }
-            rel_path
-        } else {
-            PathBuf::new()
-        }
+
+        root.and_then(|r| page.strip_prefix(r).ok())
     }
 
     #[inline]
     pub fn get_css_name_or_default(&self) -> &str {
-        self.css_name.as_deref().unwrap_or("style.css")
+        self.css_name
+            .as_deref()
+            .unwrap_or_else(|| Self::default_css_name())
+    }
+
+    #[inline]
+    pub const fn default_css_name() -> &'static str {
+        "style.css"
     }
 }
 
 /// Represents configuration properties for HTML writing that are separate from
 /// the running state during HTML conversion
-#[derive(Builder, Debug, Default, Serialize, Deserialize)]
+#[derive(Builder, Clone, Debug, Default, Serialize, Deserialize)]
 #[builder(pattern = "owned", build_fn(name = "finish"), setter(into))]
 pub struct HtmlConfig {
     #[builder(default)]
@@ -104,7 +133,7 @@ impl HtmlConfig {
 }
 
 /// Represents configuration options related to lists
-#[derive(Builder, Debug, Serialize, Deserialize)]
+#[derive(Builder, Clone, Debug, Serialize, Deserialize)]
 #[builder(pattern = "owned", build_fn(name = "finish"), setter(into))]
 pub struct HtmlListConfig {
     /// If true, newlines are ignored when producing lists, otherwise the
@@ -136,7 +165,7 @@ impl HtmlListConfig {
 }
 
 /// Represents configuration options related to text
-#[derive(Builder, Debug, Serialize, Deserialize)]
+#[derive(Builder, Clone, Debug, Serialize, Deserialize)]
 #[builder(pattern = "owned", build_fn(name = "finish"), setter(into))]
 pub struct HtmlTextConfig {
     /// If true, newlines are ignored when producing paragraphs, otherwise the
@@ -168,7 +197,7 @@ impl HtmlTextConfig {
 }
 
 /// Represents configuration options related to headers
-#[derive(Builder, Debug, Serialize, Deserialize)]
+#[derive(Builder, Clone, Debug, Serialize, Deserialize)]
 #[builder(pattern = "owned", build_fn(name = "finish"), setter(into))]
 pub struct HtmlHeaderConfig {
     /// Represents the text that a header could have to be marked as the ToC
@@ -198,7 +227,7 @@ impl HtmlHeaderConfig {
 }
 
 /// Represents configuration options related to code
-#[derive(Builder, Debug, Serialize, Deserialize)]
+#[derive(Builder, Clone, Debug, Serialize, Deserialize)]
 #[builder(pattern = "owned", build_fn(name = "finish"), setter(into))]
 pub struct HtmlCodeConfig {
     /// Represents the built-in theme to be used for syntax highlighting when
@@ -266,7 +295,7 @@ impl HtmlCodeConfig {
 }
 
 /// Represents configuration options related to comments
-#[derive(Builder, Debug, Serialize, Deserialize)]
+#[derive(Builder, Clone, Debug, Serialize, Deserialize)]
 #[builder(pattern = "owned", build_fn(name = "finish"), setter(into))]
 pub struct HtmlCommentConfig {
     /// If true, will include comments in HTML output as `<!-- {comment} -->`
@@ -296,7 +325,7 @@ impl HtmlCommentConfig {
 }
 
 /// Represents configuration options related to templates
-#[derive(Builder, Debug, Serialize, Deserialize)]
+#[derive(Builder, Clone, Debug, Serialize, Deserialize)]
 #[builder(pattern = "owned", build_fn(name = "finish"), setter(into))]
 pub struct HtmlTemplateConfig {
     /// Represents the name of the default template to use (e.g. default)
@@ -337,6 +366,13 @@ impl HtmlTemplateConfig {
     #[inline]
     pub fn build() -> HtmlTemplateConfigBuilder {
         HtmlTemplateConfigBuilder::default()
+    }
+
+    pub fn from_text(text: impl Into<String>) -> Self {
+        Self {
+            text: text.into(),
+            ..Default::default()
+        }
     }
 
     #[inline]
