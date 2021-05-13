@@ -808,6 +808,7 @@ impl<'a> Output for DecoratedText<'a> {
                 for content in contents {
                     write!(&mut id, "{}", content.to_string())?;
                 }
+                id = escape::escape_html(&id);
 
                 // Second, build up the full id using all headers leading up
                 // to this bold text
@@ -1139,11 +1140,11 @@ impl<'a> Output for Tags<'a> {
     /// ```
     fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
         for tag in self.iter() {
-            let id = tag.as_str();
+            let id = escape::escape_html(tag.as_str());
             let complete_id = build_complete_id(
                 f,
                 f.max_header_level().unwrap_or_default() + 1,
-                id,
+                id.as_str(),
             )?;
             write!(f, "<span id=\"{}\"></span>", complete_id)?;
             write!(f, "<span class=\"tag\" id=\"{}\">{}</span>", id, id)?;
@@ -1303,4 +1304,430 @@ fn write_link(
 
     write!(f, r#"<a href="{}">{}</a>"#, src, text)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn page_should_output_tags_based_on_block_elements() {
+        todo!();
+    }
+
+    #[test]
+    fn block_element_should_output_tag_based_on_inner_element() {
+        // Test each type!
+        todo!();
+    }
+
+    #[test]
+    fn blockquote_with_arrows_should_output_blockquote_tag_with_paragraph_for_each_group_of_lines(
+    ) {
+        todo!();
+    }
+
+    #[test]
+    fn blockquote_with_indent_should_output_blockquote_tag_with_no_paragraphs_inside(
+    ) {
+        todo!();
+    }
+
+    #[test]
+    fn blockquote_should_escape_html_in_each_line() {
+        todo!();
+    }
+
+    #[test]
+    fn definition_list_should_output_list_tag_with_term_and_definition_tags_together(
+    ) {
+        todo!();
+    }
+
+    #[test]
+    fn divider_should_output_hr_tag() {
+        let divider = Divider;
+
+        let mut f = HtmlFormatter::default();
+        divider.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "<hr />\n");
+    }
+
+    #[test]
+    fn header_should_output_div_h_and_a_tags() {
+        todo!();
+    }
+
+    #[test]
+    fn header_should_support_toc_variant() {
+        todo!();
+    }
+
+    #[test]
+    fn header_should_escape_html_in_ids() {
+        todo!();
+    }
+
+    #[test]
+    fn header_should_escape_html_in_ids_for_toc() {
+        todo!();
+    }
+
+    #[test]
+    fn list_should_output_ordered_list_if_ordered_type() {
+        todo!();
+    }
+
+    #[test]
+    fn list_should_output_unordered_list_if_unordered_type() {
+        todo!();
+    }
+
+    #[test]
+    fn list_item_should_output_li_tag() {
+        todo!();
+    }
+
+    #[test]
+    fn list_item_should_support_adding_class_based_on_todo_status() {
+        todo!();
+    }
+
+    #[test]
+    fn list_item_contents_should_output_individual_items() {
+        todo!();
+    }
+
+    #[test]
+    fn list_item_content_should_output_tag_based_on_inner_content() {
+        todo!();
+    }
+
+    #[test]
+    fn math_block_should_output_a_mathjax_notation() {
+        todo!();
+    }
+
+    #[test]
+    fn math_block_should_support_environments() {
+        todo!();
+    }
+
+    #[test]
+    fn placeholder_should_set_title_if_specified() {
+        todo!();
+    }
+
+    #[test]
+    fn placeholder_should_set_date_if_specified() {
+        todo!();
+    }
+
+    #[test]
+    fn placeholder_should_set_template_if_specified() {
+        todo!();
+    }
+
+    #[test]
+    fn preformatted_text_should_output_pre_code_tags_for_clientside_render() {
+        todo!();
+    }
+
+    #[test]
+    fn preformatted_text_should_support_serverside_render() {
+        todo!();
+    }
+
+    #[test]
+    fn preformatted_text_should_support_serverside_render_with_no_language() {
+        todo!("Defaults to plain text");
+    }
+
+    #[test]
+    #[ignore]
+    fn preformatted_text_should_support_serverside_render_with_custom_syntax_dir(
+    ) {
+        todo!();
+    }
+
+    #[test]
+    #[ignore]
+    fn preformatted_text_should_support_serverside_render_with_custom_theme_dir(
+    ) {
+        todo!();
+    }
+
+    #[test]
+    fn paragraph_should_output_p_tag() {
+        todo!();
+    }
+
+    #[test]
+    fn paragraph_should_support_linebreaks_if_configured() {
+        todo!();
+    }
+
+    #[test]
+    fn table_should_output_table_and_other_relevant_tags_for_header_and_body() {
+        todo!();
+    }
+
+    #[test]
+    fn table_should_support_rowspan_attr_on_header_cells() {
+        todo!();
+    }
+
+    #[test]
+    fn table_should_support_colspan_attr_on_header_cells() {
+        todo!();
+    }
+
+    #[test]
+    fn table_should_support_rowspan_attr_on_body_cells() {
+        todo!();
+    }
+
+    #[test]
+    fn table_should_support_colspan_attr_on_body_cells() {
+        todo!();
+    }
+
+    #[test]
+    fn table_should_support_being_centered() {
+        todo!();
+    }
+
+    #[test]
+    fn inline_element_container_should_output_inner_elements() {
+        todo!();
+    }
+
+    #[test]
+    fn inline_element_should_output_tag_based_on_inner_element() {
+        // Test each type!
+        todo!();
+    }
+
+    #[test]
+    fn text_should_output_inner_str() {
+        todo!();
+    }
+
+    #[test]
+    fn decorated_text_should_output_strong_tag_for_bold_text() {
+        todo!();
+    }
+
+    #[test]
+    fn decorated_text_should_escape_id_for_bold_text() {
+        todo!();
+    }
+
+    #[test]
+    fn decorated_text_should_output_em_tag_for_italic_text() {
+        todo!();
+    }
+
+    #[test]
+    fn decorated_text_should_output_del_tag_for_strikeout_text() {
+        todo!();
+    }
+
+    #[test]
+    fn decorated_text_should_output_sup_tag_for_superscript_text() {
+        todo!();
+    }
+
+    #[test]
+    fn decorated_text_should_output_sub_tag_for_subscript_text() {
+        todo!();
+    }
+
+    #[test]
+    fn decorated_text_content_should_output_tag_based_on_inner_element() {
+        // Test each type!
+        todo!();
+    }
+
+    #[test]
+    fn keyword_should_output_span_with_class_for_todo() {
+        todo!();
+    }
+
+    #[test]
+    fn keyword_should_output_self_in_all_caps() {
+        todo!();
+    }
+
+    #[test]
+    fn link_should_output_tag_based_on_inner_element() {
+        // Test each type!
+        todo!();
+    }
+
+    #[test]
+    fn wiki_link_should_output_a_tag() {
+        todo!();
+    }
+
+    #[test]
+    fn wiki_link_should_support_anchors() {
+        todo!();
+    }
+
+    #[test]
+    fn wiki_link_should_support_text_description() {
+        todo!();
+    }
+
+    #[test]
+    fn wiki_link_should_support_transclusion_link_description() {
+        todo!();
+    }
+
+    #[test]
+    fn inter_wiki_link_should_output_tag_based_on_inner_element() {
+        // Test each type!
+        todo!();
+    }
+
+    #[test]
+    fn indexed_inter_wiki_link_should_output_a_tag() {
+        // TODO: Need to validate link resolution for another wiki
+        todo!();
+    }
+
+    #[test]
+    fn indexed_inter_wiki_link_should_support_anchors() {
+        todo!();
+    }
+
+    #[test]
+    fn indexed_inter_wiki_link_should_support_text_description() {
+        todo!();
+    }
+
+    #[test]
+    fn indexed_inter_wiki_link_should_support_transclusion_link_description() {
+        todo!();
+    }
+
+    #[test]
+    fn named_inter_wiki_link_should_output_a_tag() {
+        // TODO: Need to validate link resolution for another wiki
+        todo!();
+    }
+
+    #[test]
+    fn named_inter_wiki_link_should_support_anchors() {
+        todo!();
+    }
+
+    #[test]
+    fn named_inter_wiki_link_should_support_text_description() {
+        todo!();
+    }
+
+    #[test]
+    fn named_inter_wiki_link_should_support_transclusion_link_description() {
+        todo!();
+    }
+
+    #[test]
+    fn diary_link_should_output_a_tag() {
+        // TODO: Need to validate that diary portion is appended to base wiki
+        //       path
+        todo!();
+    }
+
+    #[test]
+    fn diary_link_should_support_text_description() {
+        todo!();
+    }
+
+    #[test]
+    fn diary_link_should_support_transclusion_link_description() {
+        todo!();
+    }
+
+    #[test]
+    fn raw_link_should_output_a_tag() {
+        todo!();
+    }
+
+    #[test]
+    fn external_file_link_should_output_a_tag() {
+        // TODO: Need to validate that external_file portion is appended to base wiki
+        //       path
+        todo!();
+    }
+
+    #[test]
+    fn external_file_link_should_include_index_in_link_if_is_directory() {
+        todo!();
+    }
+
+    #[test]
+    fn external_file_link_should_support_text_description() {
+        todo!();
+    }
+
+    #[test]
+    fn external_file_link_should_support_transclusion_link_description() {
+        todo!();
+    }
+
+    #[test]
+    fn transclusion_link_should_output_img_tag() {
+        todo!();
+    }
+
+    #[test]
+    fn transclusion_link_should_use_description_as_alt_text() {
+        todo!();
+    }
+
+    #[test]
+    fn transclusion_link_should_support_arbitrary_attrs_on_img() {
+        todo!();
+    }
+
+    #[test]
+    fn tags_should_output_two_span_tags_for_each_tag() {
+        todo!();
+    }
+
+    #[test]
+    fn tags_should_escape_id() {
+        todo!();
+    }
+
+    #[test]
+    fn code_inline_should_output_code_tag() {
+        todo!();
+    }
+
+    #[test]
+    fn math_inline_should_output_a_mathjax_notation() {
+        todo!();
+    }
+
+    #[test]
+    fn comment_should_output_tag_based_on_inner_element() {
+        // Test each type!
+        todo!();
+    }
+
+    #[test]
+    fn line_comment_should_output_html_comment_if_flagged() {
+        // Test with config on and off for comment output
+        todo!();
+    }
+
+    #[test]
+    fn multi_line_comment_should_output_html_comment_if_flagged() {
+        // Test with config on and off for comment output
+        todo!();
+    }
 }

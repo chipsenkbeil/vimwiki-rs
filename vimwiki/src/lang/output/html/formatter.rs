@@ -8,6 +8,7 @@ use std::{
 
 /// Represents the formatter to use to write HTML output that includes various
 /// options that can be set as well as a context for use when writing output
+#[derive(Default)]
 pub struct HtmlFormatter {
     /// Represents the configuration associated with the formatter
     config: HtmlConfig,
@@ -81,7 +82,7 @@ impl HtmlFormatter {
     }
 
     pub fn set_date(&mut self, date: &NaiveDate) {
-        self.date = Some(date.clone());
+        self.date = Some(*date);
     }
 
     pub fn get_date(&self) -> Option<&NaiveDate> {
