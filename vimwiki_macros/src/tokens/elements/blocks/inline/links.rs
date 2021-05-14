@@ -223,9 +223,11 @@ fn tokenize_description(
             let t = do_tokenize!(ctx, &x);
             quote! { #root::Description::Text(#t) }
         }
-        Description::Uri(x) => {
-            let t = do_tokenize!(ctx, &x);
-            quote! { #root::Description::Uri(#t) }
+        Description::TransclusionLink(x) => {
+            let t = tokenize_transclusion_link(ctx, &x);
+            quote! {
+                #root::Description::TransclusionLink(::std::boxed::Box::new(#t))
+            }
         }
     }
 }

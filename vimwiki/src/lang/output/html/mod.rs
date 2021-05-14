@@ -1284,19 +1284,11 @@ fn write_link(
     if let Some(description) = maybe_description {
         match description {
             Description::Text(x) => write!(&mut text, "{}", x)?,
-
-            // If description is a url, this signifies it is something we want
-            // to pull in rather than use directly
-            //
-            // TODO: vimwiki supports the following while we only support
-            //       the raw url; so, we need to update description to take
-            //       in extra information that isn't just the url
-            //
-            //      {{imgurl|arg1|arg2}}    -> ???
-            //      {{imgurl}}                -> <img src="imgurl"/>
-            //      {{imgurl|descr|style="A"}} -> <img src="imgurl" alt="descr" style="A" />
-            //      {{imgurl|descr|class="B"}} -> <img src="imgurl" alt="descr" class="B" />
-            Description::Uri(x) => write!(&mut text, "<img src=\"{}\" />", x)?,
+            Description::TransclusionLink(x) => {
+                let mut f2 = HtmlFormatter::new(f.config().clone());
+                x.fmt(&mut f2)?;
+                write!(&mut text, "{}", f2.get_content())?;
+            }
         }
     } else {
         write!(&mut text, "{}", path.as_ref().to_string_lossy())?;

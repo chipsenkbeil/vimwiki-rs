@@ -40,7 +40,7 @@ pub use wiki::WikiLink;
 )]
 pub enum Description<'a> {
     Text(Cow<'a, str>),
-    Uri(URI<'a>),
+    TransclusionLink(Box<TransclusionLink<'a>>),
 }
 
 impl Description<'_> {
@@ -52,36 +52,42 @@ impl Description<'_> {
                 Borrowed(x) => *x,
                 Owned(x) => x.as_str(),
             })),
-            Self::Uri(ref x) => Description::from(uri_to_borrowed(x)),
+            Self::TransclusionLink(ref x) => Description::from(x.to_borrowed()),
         }
     }
 
     pub fn into_owned(self) -> Description<'static> {
         match self {
             Self::Text(x) => Description::from(Cow::from(x.into_owned())),
-            Self::Uri(x) => Description::from(x.into_owned()),
+            Self::TransclusionLink(x) => Description::from(x.into_owned()),
         }
     }
 }
 
-/// Helper function to borrow a `URI` similar to our other approaches as the
-/// functionality is not available directly in the `uriparse` crate
-fn uri_to_borrowed<'a>(uri: &'a URI<'a>) -> URI<'a> {
-    let scheme = uri.scheme().as_borrowed();
-    let authority = uri.authority().map(|x| x.as_borrowed());
-    let query = uri.query().map(|x| x.as_borrowed());
-    let fragment = uri.fragment().map(|x| x.as_borrowed());
-
-    // NOTE: Requires an allocation of a new Vec of borrowed elements
-    let path = uri.path().to_borrowed();
-
-    URI::from_parts(scheme, authority, path, query, fragment)
-        .expect("URI failed to borrow itself")
+impl<'a> Description<'a> {
+    pub fn into_uri(self) -> Option<URI<'a>> {
+        match self {
+            Self::TransclusionLink(x) => Some((*x).uri),
+            _ => None,
+        }
+    }
 }
 
 impl<'a> From<&'a str> for Description<'a> {
     fn from(s: &'a str) -> Self {
         Self::from(Cow::from(s))
+    }
+}
+
+impl<'a> From<URI<'a>> for Description<'a> {
+    fn from(uri: URI<'a>) -> Self {
+        Self::from(TransclusionLink::from(uri))
+    }
+}
+
+impl<'a> From<TransclusionLink<'a>> for Description<'a> {
+    fn from(link: TransclusionLink<'a>) -> Self {
+        Self::TransclusionLink(Box::new(link))
     }
 }
 
@@ -247,4 +253,19 @@ impl<'a> StrictEq for Link<'a> {
             _ => false,
         }
     }
+}
+
+/// Helper function to borrow a `URI` similar to our other approaches as the
+/// functionality is not available directly in the `uriparse` crate
+fn uri_to_borrowed<'a>(uri: &'a URI<'a>) -> URI<'a> {
+    let scheme = uri.scheme().as_borrowed();
+    let authority = uri.authority().map(|x| x.as_borrowed());
+    let query = uri.query().map(|x| x.as_borrowed());
+    let fragment = uri.fragment().map(|x| x.as_borrowed());
+
+    // NOTE: Requires an allocation of a new Vec of borrowed elements
+    let path = uri.path().to_borrowed();
+
+    URI::from_parts(scheme, authority, path, query, fragment)
+        .expect("URI failed to borrow itself")
 }

@@ -29,7 +29,7 @@ impl<'a> From<v::Description<'a>> for Description {
     fn from(d: v::Description<'a>) -> Self {
         match d {
             v::Description::Text(x) => Self::Text(x.to_string()),
-            v::Description::Uri(x) => Self::Uri(Uri::from(x)),
+            v::Description::TransclusionLink(x) => Self::Uri(Uri::from(x.uri)),
         }
     }
 }

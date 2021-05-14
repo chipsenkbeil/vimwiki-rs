@@ -722,83 +722,6 @@ impl ObjQuery {
             .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
 
-    /// Queries for instances of Row that matches the given filter, or
-    /// return all instances if no filter provided
-    async fn rows(
-        &self,
-        filter: Option<GqlEntFilter>,
-    ) -> async_graphql::Result<Vec<Row>> {
-        let query: entity::Query = match filter {
-            Some(x) => x.into(),
-            None => entity::Query::default().where_created(P::greater_than(0)),
-        };
-
-        RowQuery::from(query)
-            .execute()
-            .map_err(|x| async_graphql::Error::new(x.to_string()))
-    }
-
-    /// Queries for a single instance of Row by its id
-    async fn row(&self, id: Id) -> async_graphql::Result<Option<Row>> {
-        Row::query()
-            .where_id(P::equals(id))
-            .execute()
-            .map(|x| x.into_iter().next())
-            .map_err(|x| async_graphql::Error::new(x.to_string()))
-    }
-
-    /// Queries for instances of ContentRow that match the filter, or return all
-    /// instances if no filter provided
-    async fn content_rows(
-        &self,
-        filter: Option<GqlContentRowFilter>,
-    ) -> async_graphql::Result<Vec<ContentRow>> {
-        let query: entity::Query = match filter {
-            Some(x) => x.into(),
-            None => ContentRow::query().into(),
-        };
-
-        gql_db()?
-            .find_all_typed::<ContentRow>(query)
-            .map_err(|x| async_graphql::Error::new(x.to_string()))
-    }
-
-    /// Queries for a single instance of ContentRow by its id
-    async fn content_row(
-        &self,
-        id: Id,
-    ) -> async_graphql::Result<Option<ContentRow>> {
-        gql_db()?
-            .get_typed::<ContentRow>(id)
-            .map_err(|x| async_graphql::Error::new(x.to_string()))
-    }
-
-    /// Queries for instances of DividerRow that match the filter, or return all
-    /// instances if no filter provided
-    async fn divider_rows(
-        &self,
-        filter: Option<GqlDividerRowFilter>,
-    ) -> async_graphql::Result<Vec<DividerRow>> {
-        let query: entity::Query = match filter {
-            Some(x) => x.into(),
-            None => DividerRow::query().into(),
-        };
-
-        gql_db()?
-            .find_all_typed::<DividerRow>(query)
-            .map_err(|x| async_graphql::Error::new(x.to_string()))
-    }
-
-    /// Queries for a single instance of DividerRow by its id
-    async fn divider_row(
-        &self,
-        id: Id,
-    ) -> async_graphql::Result<Option<DividerRow>> {
-        gql_db()?
-            .get_typed::<DividerRow>(id)
-            .map_err(|x| async_graphql::Error::new(x.to_string()))
-    }
-
     /// Queries for instances of Cell that matches the given filter, or
     /// return all instances if no filter provided
     async fn cells(
@@ -850,55 +773,55 @@ impl ObjQuery {
             .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
 
-    /// Queries for instances of SpanLeftCell that match the filter, or return all
+    /// Queries for instances of SpanCell that match the filter, or return all
     /// instances if no filter provided
-    async fn span_left_cells(
+    async fn span_cells(
         &self,
-        filter: Option<GqlSpanLeftCellFilter>,
-    ) -> async_graphql::Result<Vec<SpanLeftCell>> {
+        filter: Option<GqlSpanCellFilter>,
+    ) -> async_graphql::Result<Vec<SpanCell>> {
         let query: entity::Query = match filter {
             Some(x) => x.into(),
-            None => SpanLeftCell::query().into(),
+            None => SpanCell::query().into(),
         };
 
         gql_db()?
-            .find_all_typed::<SpanLeftCell>(query)
+            .find_all_typed::<SpanCell>(query)
             .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
 
-    /// Queries for a single instance of SpanLeftCell by its id
-    async fn span_left_cell(
+    /// Queries for a single instance of SpanCell by its id
+    async fn span_cell(
         &self,
         id: Id,
-    ) -> async_graphql::Result<Option<SpanLeftCell>> {
+    ) -> async_graphql::Result<Option<SpanCell>> {
         gql_db()?
-            .get_typed::<SpanLeftCell>(id)
+            .get_typed::<SpanCell>(id)
             .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
 
-    /// Queries for instances of SpanAboveCell that match the filter, or return all
+    /// Queries for instances of AlignCell that match the filter, or return all
     /// instances if no filter provided
-    async fn span_above_cells(
+    async fn align_cells(
         &self,
-        filter: Option<GqlSpanAboveCellFilter>,
-    ) -> async_graphql::Result<Vec<SpanAboveCell>> {
+        filter: Option<GqlAlignCellFilter>,
+    ) -> async_graphql::Result<Vec<AlignCell>> {
         let query: entity::Query = match filter {
             Some(x) => x.into(),
-            None => SpanAboveCell::query().into(),
+            None => AlignCell::query().into(),
         };
 
         gql_db()?
-            .find_all_typed::<SpanAboveCell>(query)
+            .find_all_typed::<AlignCell>(query)
             .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
 
     /// Queries for a single instance of SpanAboveCell by its id
-    async fn span_above_cell(
+    async fn align_cell(
         &self,
         id: Id,
-    ) -> async_graphql::Result<Option<SpanAboveCell>> {
+    ) -> async_graphql::Result<Option<AlignCell>> {
         gql_db()?
-            .get_typed::<SpanAboveCell>(id)
+            .get_typed::<AlignCell>(id)
             .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
 

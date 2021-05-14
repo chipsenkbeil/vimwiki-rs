@@ -3,7 +3,7 @@ use crate::lang::{
     parsers::{
         utils::{
             context, cow_path, cow_str, take_line_until1,
-            take_line_until_one_of_three1, uri,
+            take_line_until_one_of_three1,
         },
         IResult, Span,
     },
@@ -13,7 +13,7 @@ use nom::{
     bytes::complete::tag,
     combinator::{map, map_parser, not, rest},
     multi::separated_list0,
-    sequence::{delimited, preceded},
+    sequence::preceded,
 };
 use std::{borrow::Cow, path::Path};
 
@@ -95,28 +95,17 @@ fn link_anchor<'a>(input: Span<'a>) -> IResult<Anchor<'a>> {
 }
 
 /// Extracts the description-portion of a link
+///
+/// Can either be a text description OR an embeded {{...}} transclusion link
 fn link_description<'a>(input: Span<'a>) -> IResult<Description<'a>> {
     map_parser(
         take_line_until1("]]"),
         alt((
-            description_from_uri,
+            map(transclusion::transclusion_link, |l| {
+                Description::from(l.into_inner())
+            }),
             map(rest, |s: Span| Description::Text(s.into())),
         )),
-    )(input)
-}
-
-// NOTE: This function exists purely because we were hitting some nom
-//       error about type-length limit being reached and that means that
-//       we've nested too many parsers without breaking them up into
-//       functions that do NOT take parsers at input
-fn description_from_uri<'a>(input: Span<'a>) -> IResult<Description<'a>> {
-    map(
-        delimited(
-            tag("{{"),
-            map_parser(take_line_until1("}}"), uri),
-            tag("}}"),
-        ),
-        Description::from,
     )(input)
 }
 
