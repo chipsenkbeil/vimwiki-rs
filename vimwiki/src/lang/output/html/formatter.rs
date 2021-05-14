@@ -55,8 +55,12 @@ impl HtmlFormatter {
 
     /// Inserts text for the header at the given level to be remembered when
     /// keeping track of the last header seen at a given level
-    pub fn insert_header_text(&mut self, level: usize, text: String) {
-        self.last_seen_headers.insert(level, text);
+    pub fn insert_header_text<Text: Into<String>>(
+        &mut self,
+        level: usize,
+        text: Text,
+    ) {
+        self.last_seen_headers.insert(level, text.into());
     }
 
     /// Returns the text of the last header seen at the given level

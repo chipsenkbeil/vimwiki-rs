@@ -787,9 +787,9 @@ impl<'a> Output for InlineElement<'a> {
 impl<'a> Output for Text<'a> {
     type Formatter = HtmlFormatter;
 
-    /// Writes text in HTML
+    /// Writes text in HTML, escaping any HTML-specific characters
     fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
-        write!(f, "{}", self.0)?;
+        write!(f, "{}", escape::escape_html(&self.0))?;
         Ok(())
     }
 }
@@ -1115,10 +1115,14 @@ impl<'a> Output for TransclusionLink<'a> {
     fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
         write!(f, "<img src=\"{}\"", self.uri)?;
         if let Some(description) = self.description.as_ref() {
-            write!(f, " alt=\"{}\"", description.to_string())?;
+            write!(
+                f,
+                " alt=\"{}\"",
+                escape::escape_html(&description.to_string())
+            )?;
         }
         for (k, v) in self.properties.iter() {
-            write!(f, " {}=\"{}\"", k, v)?;
+            write!(f, " {}=\"{}\"", k, escape::escape_html(v))?;
         }
         write!(f, " />")?;
         Ok(())
@@ -1165,7 +1169,7 @@ impl<'a> Output for CodeInline<'a> {
     /// <code>some code</code>
     /// ```
     fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
-        write!(f, "<code>{}</code>", self.code)?;
+        write!(f, "<code>{}</code>", escape::escape_html(&self.code))?;
         Ok(())
     }
 }
@@ -1181,7 +1185,7 @@ impl<'a> Output for MathInline<'a> {
     /// \(some math\)
     /// ```
     fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
-        write!(f, r"\({}\)", self.formula)?;
+        write!(f, r"\({}\)", escape::escape_html(&self.formula))?;
         Ok(())
     }
 }
@@ -1228,18 +1232,20 @@ impl<'a> Output for MultiLineComment<'a> {
     /// If `config.comment.include` is true, will output the following:
     ///
     /// ```html
-    /// <!-- {line1}
+    /// <!--
+    /// {line1}
     /// {line2}
     /// ...
-    /// {lineN} -->
+    /// {lineN}
+    /// -->
     /// ```
     fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
         if f.config().comment.include {
-            write!(f, "<!-- ")?;
+            writeln!(f, "<!--")?;
             for line in self.as_lines() {
                 writeln!(f, "{}", line)?;
             }
-            write!(f, " -->")?;
+            write!(f, "-->")?;
         }
         Ok(())
     }
@@ -1309,6 +1315,8 @@ fn write_link(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::{borrow::Cow, collections::HashMap, convert::TryFrom};
+    use uriparse::URI;
 
     #[test]
     fn page_should_output_tags_based_on_block_elements() {
@@ -1511,7 +1519,20 @@ mod tests {
 
     #[test]
     fn text_should_output_inner_str() {
-        todo!();
+        let text = Text::from("some text");
+        let mut f = HtmlFormatter::default();
+        text.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "some text");
+    }
+
+    #[test]
+    fn text_should_escape_html() {
+        let text = Text::from("<some>html</some>");
+        let mut f = HtmlFormatter::default();
+        text.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), r"&lt;some&gt;html&lt;/some&gt;");
     }
 
     #[test]
@@ -1680,54 +1701,234 @@ mod tests {
 
     #[test]
     fn transclusion_link_should_output_img_tag() {
-        todo!();
+        let link = TransclusionLink::new(
+            URI::try_from("https://example.com/img.jpg").unwrap(),
+            None,
+            HashMap::new(),
+        );
+        let mut f = HtmlFormatter::default();
+        link.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            r#"<img src="https://example.com/img.jpg" />"#
+        );
     }
 
     #[test]
     fn transclusion_link_should_use_description_as_alt_text() {
-        todo!();
+        let link = TransclusionLink::new(
+            URI::try_from("https://example.com/img.jpg").unwrap(),
+            Some(Description::from("some description")),
+            HashMap::new(),
+        );
+        let mut f = HtmlFormatter::default();
+        link.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            r#"<img src="https://example.com/img.jpg" alt="some description" />"#
+        );
     }
 
     #[test]
     fn transclusion_link_should_support_arbitrary_attrs_on_img() {
-        todo!();
+        let mut properties: HashMap<Cow<str>, Cow<str>> = HashMap::new();
+        properties.insert(Cow::from("key1"), Cow::from("value1"));
+        properties.insert(Cow::from("key2"), Cow::from("value2"));
+
+        let link = TransclusionLink::new(
+            URI::try_from("https://example.com/img.jpg").unwrap(),
+            Some(Description::from("some description")),
+            properties,
+        );
+        let mut f = HtmlFormatter::default();
+        link.fmt(&mut f).unwrap();
+
+        // NOTE: The order of properties isn't guaranteed, so we have to check
+        //       both possibilities
+        let equal1 = f.get_content()
+            == r#"<img src="https://example.com/img.jpg" alt="some description" key1="value1" key2="value2" />"#;
+        let equal2 = f.get_content()
+            == r#"<img src="https://example.com/img.jpg" alt="some description" key2="value2" key1="value1" />"#;
+        assert!(equal1 || equal2);
+    }
+
+    #[test]
+    fn transclusion_link_should_escape_html() {
+        let mut properties: HashMap<Cow<str>, Cow<str>> = HashMap::new();
+        properties.insert(Cow::from("key1"), Cow::from("<test>value1</test>"));
+
+        let link = TransclusionLink::new(
+            URI::try_from("https://example.com/img.jpg?a=b&c=d").unwrap(),
+            Some(Description::from("<test>some description</test>")),
+            properties,
+        );
+        let mut f = HtmlFormatter::default();
+        link.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            r#"<img src="https://example.com/img.jpg?a=b&c=d" alt="&lt;test&gt;some description&lt;/test&gt;" key1="&lt;test&gt;value1&lt;/test&gt;" />"#
+        );
     }
 
     #[test]
     fn tags_should_output_two_span_tags_for_each_tag() {
-        todo!();
+        let tags = Tags::from(vec!["one", "two"]);
+        let mut f = HtmlFormatter::default();
+        tags.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), [
+            r#"<span id="one"></span><span class="tag" id="one">one</span>"#,
+            r#"<span id="two"></span><span class="tag" id="two">two</span>"#,
+        ].join(""));
     }
 
     #[test]
-    fn tags_should_escape_id() {
-        todo!();
+    fn tags_should_use_id_comprised_of_previous_headers() {
+        let tags = Tags::from(vec!["one", "two"]);
+        let mut f = HtmlFormatter::default();
+        f.insert_header_text(1, "first id");
+        f.insert_header_text(3, "third id");
+
+        tags.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), [
+            r#"<span id="first id-third id-one"></span><span class="tag" id="one">one</span>"#,
+            r#"<span id="first id-third id-two"></span><span class="tag" id="two">two</span>"#,
+        ].join(""));
+    }
+
+    #[test]
+    fn tags_should_escape_html() {
+        let tags = Tags::from(vec!["one&", "two>"]);
+        let mut f = HtmlFormatter::default();
+        tags.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), [
+            r#"<span id="one&amp;"></span><span class="tag" id="one&amp;">one&amp;</span>"#,
+            r#"<span id="two&gt;"></span><span class="tag" id="two&gt;">two&gt;</span>"#,
+        ].join(""));
     }
 
     #[test]
     fn code_inline_should_output_code_tag() {
-        todo!();
+        let code_inline = CodeInline::from("some code");
+        let mut f = HtmlFormatter::default();
+        code_inline.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "<code>some code</code>");
+    }
+
+    #[test]
+    fn code_inline_should_escape_html() {
+        let code_inline = CodeInline::from("<test>some code</test>");
+        let mut f = HtmlFormatter::default();
+        code_inline.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            "<code>&lt;test&gt;some code&lt;/test&gt;</code>"
+        );
     }
 
     #[test]
     fn math_inline_should_output_a_mathjax_notation() {
-        todo!();
+        let math_inline = MathInline::from("some math");
+        let mut f = HtmlFormatter::default();
+        math_inline.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), r"\(some math\)");
+    }
+
+    #[test]
+    fn math_inline_should_escape_html() {
+        let math_inline = MathInline::from("<test>some math</test>");
+        let mut f = HtmlFormatter::default();
+        math_inline.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), r"\(&lt;test&gt;some math&lt;/test&gt;\)");
     }
 
     #[test]
     fn comment_should_output_tag_based_on_inner_element() {
-        // Test each type!
-        todo!();
+        let comment = Comment::from(LineComment::from("some comment"));
+        let mut f = HtmlFormatter::new(
+            HtmlConfig::build()
+                .comment(
+                    HtmlCommentConfig::build().include(true).finish().unwrap(),
+                )
+                .finish()
+                .unwrap(),
+        );
+        comment.fmt(&mut f).unwrap();
+        assert_eq!(f.get_content(), "<!-- some comment -->");
+
+        let comment = Comment::from(MultiLineComment::from(vec![
+            "some comment",
+            "on multiple lines",
+        ]));
+        let mut f = HtmlFormatter::new(
+            HtmlConfig::build()
+                .comment(
+                    HtmlCommentConfig::build().include(true).finish().unwrap(),
+                )
+                .finish()
+                .unwrap(),
+        );
+        comment.fmt(&mut f).unwrap();
+        assert_eq!(
+            f.get_content(),
+            "<!--\nsome comment\non multiple lines\n-->"
+        );
     }
 
     #[test]
     fn line_comment_should_output_html_comment_if_flagged() {
-        // Test with config on and off for comment output
-        todo!();
+        let comment = LineComment::from("some comment");
+
+        // By default, no comment will be output
+        let mut f = HtmlFormatter::default();
+        comment.fmt(&mut f).unwrap();
+        assert_eq!(f.get_content(), "");
+
+        // If configured to output comments, should use HTML syntax
+        let mut f = HtmlFormatter::new(
+            HtmlConfig::build()
+                .comment(
+                    HtmlCommentConfig::build().include(true).finish().unwrap(),
+                )
+                .finish()
+                .unwrap(),
+        );
+        comment.fmt(&mut f).unwrap();
+        assert_eq!(f.get_content(), "<!-- some comment -->");
     }
 
     #[test]
     fn multi_line_comment_should_output_html_comment_if_flagged() {
-        // Test with config on and off for comment output
-        todo!();
+        let comment =
+            MultiLineComment::from(vec!["some comment", "on multiple lines"]);
+
+        // By default, no comment will be output
+        let mut f = HtmlFormatter::default();
+        comment.fmt(&mut f).unwrap();
+        assert_eq!(f.get_content(), "");
+
+        // If configured to output comments, should use HTML syntax
+        let mut f = HtmlFormatter::new(
+            HtmlConfig::build()
+                .comment(
+                    HtmlCommentConfig::build().include(true).finish().unwrap(),
+                )
+                .finish()
+                .unwrap(),
+        );
+        comment.fmt(&mut f).unwrap();
+        assert_eq!(
+            f.get_content(),
+            "<!--\nsome comment\non multiple lines\n-->"
+        );
     }
 }
