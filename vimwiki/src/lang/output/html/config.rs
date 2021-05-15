@@ -2,32 +2,87 @@ use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use std::path::{Component, Path, PathBuf};
 
+/// Represents configuration properties for HTML writing that are separate from
+/// the running state during HTML conversion
+#[derive(Builder, Clone, Debug, Default, Serialize, Deserialize)]
+#[builder(pattern = "owned", build_fn(name = "finish"), setter(into))]
+pub struct HtmlConfig {
+    /// Page config is a runtime-only config and is not saved/loaded
+    #[builder(default)]
+    #[serde(skip)]
+    pub page: HtmlPageConfig,
+
+    #[builder(default)]
+    #[serde(default)]
+    pub list: HtmlListConfig,
+    #[builder(default)]
+    #[serde(default)]
+    pub text: HtmlTextConfig,
+    #[builder(default)]
+    #[serde(default)]
+    pub header: HtmlHeaderConfig,
+    #[builder(default)]
+    #[serde(default)]
+    pub code: HtmlCodeConfig,
+    #[builder(default)]
+    #[serde(default)]
+    pub comment: HtmlCommentConfig,
+    #[builder(default)]
+    #[serde(default)]
+    pub template: HtmlTemplateConfig,
+}
+
+impl HtmlConfig {
+    #[inline]
+    pub fn build() -> HtmlConfigBuilder {
+        HtmlConfigBuilder::default()
+    }
+}
+
 /// Represents a configuration specifically geared towards converting to an
 /// HTML page (not element) based on wiki properties
 #[derive(Builder, Clone, Debug, Default)]
 #[builder(pattern = "owned", build_fn(name = "finish"), setter(into))]
-pub struct HtmlWikiPageConfig {
+pub struct HtmlPageConfig {
+    /// Root of the wiki containing the page
     #[builder(default, setter(strip_option))]
     pub wiki_root: Option<PathBuf>,
-    pub page: PathBuf,
+
+    /// Path to the page's file, if it exists
+    pub path: PathBuf,
+
+    /// Name of css file to use for stylings of page
     #[builder(default, setter(strip_option))]
     pub css_name: Option<String>,
+
+    /// If true, indicates output is for multiple wikis where each wiki is
+    /// a subroot of the main site (e.g. /my-wiki-1/)
+    #[builder(default)]
+    pub multi_wiki: bool,
 }
 
-impl HtmlWikiPageConfig {
+impl HtmlPageConfig {
     #[inline]
-    pub fn build() -> HtmlWikiPageConfigBuilder {
-        HtmlWikiPageConfigBuilder::default()
+    pub fn build() -> HtmlPageConfigBuilder {
+        HtmlPageConfigBuilder::default()
     }
 
+    /// Returns true if config is for one of many wikis
     #[inline]
-    pub fn get_wiki_root_path(&self) -> Option<&Path> {
+    pub fn is_multi_wiki(&self) -> bool {
+        self.multi_wiki
+    }
+
+    /// Returns raw file path to root wiki directory
+    #[inline]
+    pub fn get_root_path(&self) -> Option<&Path> {
         self.wiki_root.as_deref()
     }
 
+    /// Returns raw file path to wiki page
     #[inline]
-    pub fn get_page_path(&self) -> &Path {
-        self.page.as_path()
+    pub fn get_path(&self) -> &Path {
+        self.path.as_path()
     }
 
     /// Returns the relative path of the page to the wiki root if the page is
@@ -44,13 +99,13 @@ impl HtmlWikiPageConfig {
     ///     page: PathBuf::from("/some/wiki/dir/to/a/file.wiki"),
     ///     css_name: None,
     /// };
-    /// let path = config.get_page_relative_path_to_root().unwrap();
+    /// let path = config.get_path_to_root().unwrap();
     /// assert_eq!(path, PathBuf::from("../.."));
     /// ```
-    pub fn get_page_relative_path_to_root(&self) -> Option<PathBuf> {
+    pub fn get_path_to_root(&self) -> Option<PathBuf> {
         // Remove the directory from the file path as well as remove the file
         // from the path itself
-        self.get_page_path_within_root()
+        self.get_path_within_root()
             .and_then(|p| p.parent())
             .map(|path| {
                 // Now, we convert each component to a .. to signify that we have
@@ -77,16 +132,17 @@ impl HtmlWikiPageConfig {
     ///     page: PathBuf::from("/some/wiki/dir/to/a/file.wiki"),
     ///     css_name: None,
     /// };
-    /// let path = config.get_page_path_within_root().unwrap();
+    /// let path = config.get_path_within_root().unwrap();
     /// assert_eq!(path, Path::new("to/a/file.wiki"));
     /// ```
-    pub fn get_page_path_within_root(&self) -> Option<&Path> {
-        let root = self.get_wiki_root_path();
-        let page = self.get_page_path();
+    pub fn get_path_within_root(&self) -> Option<&Path> {
+        let root = self.get_root_path();
+        let page = self.get_path();
 
         root.and_then(|r| page.strip_prefix(r).ok())
     }
 
+    /// Get name of css file to use, or the default css style
     #[inline]
     pub fn get_css_name_or_default(&self) -> &str {
         self.css_name
@@ -97,38 +153,6 @@ impl HtmlWikiPageConfig {
     #[inline]
     pub const fn default_css_name() -> &'static str {
         "style.css"
-    }
-}
-
-/// Represents configuration properties for HTML writing that are separate from
-/// the running state during HTML conversion
-#[derive(Builder, Clone, Debug, Default, Serialize, Deserialize)]
-#[builder(pattern = "owned", build_fn(name = "finish"), setter(into))]
-pub struct HtmlConfig {
-    #[builder(default)]
-    #[serde(default)]
-    pub list: HtmlListConfig,
-    #[builder(default)]
-    #[serde(default)]
-    pub text: HtmlTextConfig,
-    #[builder(default)]
-    #[serde(default)]
-    pub header: HtmlHeaderConfig,
-    #[builder(default)]
-    #[serde(default)]
-    pub code: HtmlCodeConfig,
-    #[builder(default)]
-    #[serde(default)]
-    pub comment: HtmlCommentConfig,
-    #[builder(default)]
-    #[serde(default)]
-    pub template: HtmlTemplateConfig,
-}
-
-impl HtmlConfig {
-    #[inline]
-    pub fn build() -> HtmlConfigBuilder {
-        HtmlConfigBuilder::default()
     }
 }
 

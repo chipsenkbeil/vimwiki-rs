@@ -1041,9 +1041,24 @@ impl<'a> Output for DiaryLink<'a> {
     /// <a href="diary/2021-03-05.html">description</a>
     /// ```
     fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
-        // TODO: Need some sort of base wiki path for us to provide the
-        //       diary link; add our end_path_str to the end of the base path
-        let end_path_str = format!("diary/{}.html", self.date.to_string());
+        // Get path from page to root of wiki
+        let base_path = f
+            .config()
+            .page
+            .get_path_to_root()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
+
+        let end_path_str = format!(
+            "{}diary/{}.html",
+            if base_path.is_empty() {
+                String::new()
+            } else {
+                format!("{}/", base_path)
+            },
+            self.date.to_string()
+        );
         write_link(f, end_path_str, None, self.description.as_ref())
     }
 }
@@ -1086,12 +1101,18 @@ impl<'a> Output for ExternalFileLink<'a> {
     /// <a href="dirurl/index.html">descr</a>
     /// ```
     fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
-        // TODO: Need to construct relative path based on file/dir relative
-        //       to the wiki containing it
-        let path = if self.path.is_dir() {
-            self.path.as_ref().join("index.html")
+        // Get base path relative to page
+        let base_path = f
+            .config()
+            .page
+            .get_path_to_root()
+            .unwrap_or_default()
+            .join(self.path.as_ref());
+
+        let path = if base_path.is_dir() {
+            base_path.join("index.html")
         } else {
-            self.path.to_path_buf()
+            base_path
         };
         write_link(f, path, None, self.description.as_ref())
     }
@@ -1666,7 +1687,14 @@ mod tests {
 
     #[test]
     fn raw_link_should_output_a_tag() {
-        todo!();
+        let link = RawLink::try_from("https://example.com").unwrap();
+        let mut f = HtmlFormatter::default();
+        link.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            r#"<a href="https://example.com/">https://example.com/</a>"#
+        );
     }
 
     #[test]
@@ -1683,12 +1711,40 @@ mod tests {
 
     #[test]
     fn external_file_link_should_support_text_description() {
-        todo!();
+        let link = ExternalFileLink::new(
+            ExternalFileLinkScheme::Local,
+            Cow::from(Path::new("/local/file")),
+            Some(Description::from("some description")),
+        );
+        let mut f = HtmlFormatter::default();
+        link.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            r#"<a href="/local/file">some description</a>"#
+        );
     }
 
     #[test]
     fn external_file_link_should_support_transclusion_link_description() {
-        todo!();
+        let link = ExternalFileLink::new(
+            ExternalFileLinkScheme::Local,
+            Cow::from(Path::new("/local/file")),
+            Some(Description::TransclusionLink(Box::new(
+                TransclusionLink::new(
+                    URI::try_from("https://example.com/img.jpg").unwrap(),
+                    Some(Description::from("some description")),
+                    HashMap::new(),
+                ),
+            ))),
+        );
+        let mut f = HtmlFormatter::default();
+        link.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            r#"<a href="/local/file"><img src="https://example.com/img.jpg" alt="some description" /></a>"#
+        );
     }
 
     #[test]
