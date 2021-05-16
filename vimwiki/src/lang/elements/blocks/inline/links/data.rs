@@ -1,6 +1,7 @@
 use super::{Anchor, Description};
 use crate::StrictEq;
 use derive_more::Constructor;
+use percent_encoding::{percent_decode, percent_encode, AsciiSet, CONTROLS};
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
@@ -74,6 +75,32 @@ impl LinkData<'_> {
 }
 
 impl<'a> LinkData<'a> {
+    /// Allocates a new string with specific URI characters encoded
+    pub fn encode_uri<U: AsRef<[u8]>>(uri: U) -> String {
+        /// https://url.spec.whatwg.org/#fragment-percent-encode-set
+        ///
+        /// Pound sign (#) is not part of that, but we encode anyway because
+        /// vimwiki supports #stacked#anchor#tags
+        const FRAGMENT: &AsciiSet = &CONTROLS
+            .add(b' ')
+            .add(b'"')
+            .add(b'<')
+            .add(b'>')
+            .add(b'`')
+            .add(b'#');
+
+        // NOTE: We encode our string, but need to repair the first #
+        //       which signals the fragment
+        percent_encode(uri.as_ref(), FRAGMENT)
+            .to_string()
+            .replacen("%23", "#", 1)
+    }
+
+    /// Allocates a new string with percent-encoded characters decoded
+    pub fn decode_uri<U: AsRef<[u8]>>(uri: U) -> String {
+        percent_decode(uri.as_ref()).decode_utf8_lossy().to_string()
+    }
+
     /// Returns reference to uri of the link
     pub fn uri_ref(&self) -> &URIReference<'a> {
         &self.uri_ref
@@ -108,18 +135,31 @@ impl<'a> LinkData<'a> {
 
     /// Whether or not the link is representing an anchor to the current page
     pub fn is_local_anchor(&self) -> bool {
-        self.uri_ref.path().segments().is_empty() && self.has_anchor()
+        self.uri_ref.scheme().is_none()
+            && self.uri_ref.authority().is_none()
+            && (self.uri_ref.path().segments().is_empty()
+                || self
+                    .uri_ref
+                    .path()
+                    .segments()
+                    .iter()
+                    .all(|s| s.as_str().is_empty()))
+            && self.uri_ref.query().is_none()
+            && self.has_anchor()
     }
 
     /// Checks if the link's path is to a directory without actually evaluating
     /// in the filesystem. Only checks if the path appears as that of a
     /// directory
     pub fn is_path_dir(&self) -> bool {
+        // NOTE: URI Reference breaks up segments by /, which means that if we
+        //       end with a / there is one final segment that is completely
+        //       empty
         self.uri_ref
             .path()
             .segments()
             .last()
-            .map_or(false, |s| s.as_str().ends_with('/'))
+            .map_or(false, |s| s.as_str().is_empty())
     }
 
     /// Whether or not the associated URI is local to the current system
@@ -168,8 +208,11 @@ impl<'a> LinkData<'a> {
 
     /// Produces an `Anchor` referencing the fragment portion of the link
     pub fn to_anchor(&self) -> Option<Anchor<'_>> {
+        // NOTE: URI does not find multiple # as valid, so we transform the
+        //       extra # into %23 encoded characters, which we will split
+        //       for our anchor
         self.fragment_str()
-            .map(|s| s.split('#').collect::<Anchor>())
+            .map(|s| s.split("%23").collect::<Anchor>())
     }
 
     /// Returns reference to the scheme of the link's uri if it exists
@@ -269,56 +312,84 @@ mod tests {
 
     #[test]
     fn try_from_str_should_succeed_for_empty_str() {
-        todo!();
+        let data =
+            LinkData::try_from("").expect("Failed to parse str as link data");
+        assert_eq!(data.uri_ref().path(), "");
     }
 
     #[test]
     fn try_from_str_should_succeed_for_anchor_only() {
-        todo!();
+        let data = LinkData::try_from("#some-anchor")
+            .expect("Failed to parse str as link data");
+        assert_eq!(data.uri_ref().path(), "#some-anchor");
     }
 
     #[test]
     fn try_from_str_should_succeed_for_relative_path() {
-        todo!();
+        let data = LinkData::try_from("some/path")
+            .expect("Failed to parse str as link data");
+        assert_eq!(data.uri_ref().path(), "some/path");
     }
 
     #[test]
     fn try_from_str_should_succeed_for_absolute_path() {
-        todo!();
+        let data = LinkData::try_from("/some/path")
+            .expect("Failed to parse str as link data");
+        assert_eq!(data.uri_ref().path(), "/some/path");
     }
 
     #[test]
     fn try_from_str_should_succeed_for_network_path() {
-        todo!();
+        let data = LinkData::try_from("//network/path")
+            .expect("Failed to parse str as link data");
+        assert_eq!(
+            data.uri_ref().host().map(ToString::to_string),
+            Some("network".to_string())
+        );
+        assert_eq!(data.uri_ref().path(), "/path");
     }
 
     #[test]
-    fn anchor_should_return_anchor_that_wraps_fragment_pieces() {
-        todo!();
+    fn to_anchor_should_return_anchor_that_wraps_fragment_pieces() {
+        let data = LinkData::try_from("https://example.com#some-fragment")
+            .expect("Failed to parse str as link data");
+        assert_eq!(data.to_anchor(), Some(Anchor::from("some-fragment")));
     }
 
     #[test]
     fn to_path_buf_should_return_a_new_path_buf_based_on_uri_path() {
-        todo!();
+        let data = LinkData::try_from(
+            "https://example.com/path/to/page.html#some-fragment",
+        )
+        .expect("Failed to parse str as link data");
+        assert_eq!(data.to_path_buf().to_str(), Some("/path/to/page.html"));
     }
 
     #[test]
     fn is_local_anchor_should_return_true_if_link_only_has_anchor() {
-        todo!();
+        let data = LinkData::try_from("#some-fragment")
+            .expect("Failed to parse str as link data");
+        assert_eq!(data.is_local_anchor(), true);
     }
 
     #[test]
     fn is_local_anchor_should_return_false_if_has_non_anchor_path() {
-        todo!();
+        let data = LinkData::try_from("path#some-fragment")
+            .expect("Failed to parse str as link data");
+        assert_eq!(data.is_local_anchor(), false);
     }
 
     #[test]
     fn is_path_dir_should_return_true_if_link_is_to_directory() {
-        todo!();
+        let data = LinkData::try_from("some/directory/")
+            .expect("Failed to parse str as link data");
+        assert_eq!(data.is_path_dir(), true);
     }
 
     #[test]
-    fn is_path_idr_should_return_false_if_link_is_not_to_directory() {
-        todo!();
+    fn is_path_dir_should_return_false_if_link_is_not_to_directory() {
+        let data = LinkData::try_from("some/file")
+            .expect("Failed to parse str as link data");
+        assert_eq!(data.is_path_dir(), false);
     }
 }

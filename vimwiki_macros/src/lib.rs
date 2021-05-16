@@ -84,7 +84,9 @@ macro_rules! impl_macro {
 /// beginning of each line.
 ///
 /// The format versions perform variable substitution in the same way that
-/// format!, println!, and write! can inject content.
+/// format!, println!, and write! can inject content. Note that formatting
+/// with {} currently does not support lists and definition lists as the order
+/// cannot be guaranteed. Instead, use named or numbered injection instead.
 macro_rules! impl_macro_vimwiki {
     ($suffix:ident, $type:ty) => {
         paste! {

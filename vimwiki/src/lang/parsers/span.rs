@@ -166,6 +166,23 @@ impl<'a> Span<'a> {
         unsafe { std::str::from_utf8_unchecked(self.as_remaining()) }
     }
 
+    /// Consumes the span and maps its remaining input using the provided function,
+    /// returning the mapped input
+    pub fn map_remaining_into<F: FnOnce(&'a [u8]) -> R, R>(self, f: F) -> R {
+        f(&self.inner[self.start..self.end])
+    }
+
+    /// Consumes the span and maps its remaining input as a str using the
+    /// provided function, returning the mapped input
+    pub fn map_remaining_unsafe_str_into<F: FnOnce(&'a str) -> R, R>(
+        self,
+        f: F,
+    ) -> R {
+        f(unsafe {
+            std::str::from_utf8_unchecked(&self.inner[self.start..self.end])
+        })
+    }
+
     /// Represents the total number of bytes remaining from the input
     pub fn remaining_len(&self) -> usize {
         if self.start <= self.end {
@@ -371,18 +388,14 @@ impl<'a> From<Span<'a>> for Cow<'a, [u8]> {
 impl<'a> From<Span<'a>> for Cow<'a, str> {
     /// Converts into remaining bytes as str by allocating a new string
     fn from(span: Span<'a>) -> Cow<'a, str> {
-        Cow::from(unsafe {
-            std::str::from_utf8_unchecked(&span.inner[span.start..span.end])
-        })
+        span.map_remaining_unsafe_str_into(Cow::from)
     }
 }
 
 impl<'a> From<Span<'a>> for Cow<'a, Path> {
     /// Converts into remaining bytes as path by allocating a new path
     fn from(span: Span<'a>) -> Cow<'a, Path> {
-        Cow::from(Path::new(unsafe {
-            std::str::from_utf8_unchecked(&span.inner[span.start..span.end])
-        }))
+        Cow::from(span.map_remaining_unsafe_str_into(Path::new))
     }
 }
 
@@ -390,7 +403,7 @@ impl<'a> TryFrom<Span<'a>> for uriparse::URIReference<'a> {
     type Error = uriparse::URIReferenceError;
 
     fn try_from(span: Span<'a>) -> Result<Self, Self::Error> {
-        uriparse::URIReference::try_from(&span.inner[span.start..span.end])
+        span.map_remaining_into(uriparse::URIReference::try_from)
     }
 }
 
@@ -398,7 +411,7 @@ impl<'a> TryFrom<Span<'a>> for uriparse::URI<'a> {
     type Error = uriparse::URIError;
 
     fn try_from(span: Span<'a>) -> Result<Self, Self::Error> {
-        uriparse::URI::try_from(&span.inner[span.start..span.end])
+        span.map_remaining_into(uriparse::URI::try_from)
     }
 }
 

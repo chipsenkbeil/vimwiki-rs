@@ -9,7 +9,7 @@ use nom::{
     multi::many1,
     sequence::pair,
 };
-use std::{borrow::Cow, convert::TryFrom, path::Path};
+use std::{borrow::Cow, convert::TryFrom};
 use uriparse::URIReference;
 
 /// Parser that wraps a span in a deeper depth
@@ -56,12 +56,6 @@ pub fn cow_str<'a>(input: Span<'a>) -> IResult<Cow<'a, str>> {
     Ok((input, input.into()))
 }
 
-/// Parser that transforms the input to that of `Cow<'a, Path>`
-/// where the lifetime is bound to the resulting `Span<'a>`
-pub fn cow_path<'a>(input: Span<'a>) -> IResult<Cow<'a, Path>> {
-    Ok((input, input.into()))
-}
-
 /// Parser for a general purpose URI Reference. Will consume until whitespace
 /// is encountered as unescaped whitespace is not part of a URI.
 ///
@@ -94,7 +88,6 @@ pub fn uri_ref<'a>(input: Span<'a>) -> IResult<URIReference<'a>> {
 mod tests {
     use super::*;
     use nom::bytes::complete::tag;
-    use std::path::PathBuf;
 
     #[test]
     fn locate_should_return_parser_result_with_consumed_input_location() {
@@ -131,62 +124,58 @@ mod tests {
     }
 
     #[test]
-    fn cow_path_should_return_input_as_cow_path() {
-        let input = Span::from("abc");
-        let (input, result) = cow_path(input).unwrap();
-        assert_eq!(input, "abc");
-        assert_eq!(result, Cow::from(PathBuf::from("abc")));
-    }
-
-    #[test]
-    fn uri_should_fail_if_input_empty() {
+    fn uri_ref_should_fail_if_input_empty() {
         let input = Span::from("");
         assert!(uri_ref(input).is_err());
     }
 
     #[test]
-    fn uri_should_fail_if_no_scheme_and_not_www_or_absolute_path() {
+    fn uri_ref_should_succeed_even_if_no_scheme_or_subdomain_as_long_as_url() {
         let input = Span::from("example.com");
-        assert!(uri_ref(input).is_err());
+        let (input, u) = uri_ref(input).expect("Failed to parse uri ref");
+        assert!(input.is_empty());
+        assert_eq!(u.scheme(), None);
+        assert_eq!(u.host(), None);
+        assert_eq!(u.path(), "example.com");
     }
 
     #[test]
-    #[ignore]
-    fn uri_should_succeed_if_starts_with_www_and_will_add_https_as_scheme() {
+    fn uri_ref_should_succeed_even_if_no_scheme_as_long_as_url() {
         let input = Span::from("www.example.com");
-        let (input, u) = uri_ref(input).expect("Failed to parse uri");
+        let (input, u) = uri_ref(input).expect("Failed to parse uri ref");
         assert!(input.is_empty());
-        assert_eq!(u.scheme().unwrap(), "https");
-        assert_eq!(u.host().unwrap().to_string(), "www.example.com");
+        assert_eq!(u.scheme(), None);
+        assert_eq!(u.host(), None);
+        assert_eq!(u.path(), "www.example.com");
     }
 
     #[test]
-    #[ignore]
-    fn uri_should_succeed_if_starts_with_network_path() {
+    fn uri_ref_should_succeed_if_starts_with_network_path() {
         let input = Span::from("//some/network/path");
-        let (input, u) = uri_ref(input).expect("Failed to parse uri");
+        let (input, u) = uri_ref(input).expect("Failed to parse uri ref");
         assert!(input.is_empty());
-        assert_eq!(u.scheme().unwrap(), "file");
-        assert_eq!(u.path(), "/some/network/path");
+        assert_eq!(u.scheme(), None);
+        assert_eq!(u.host().map(ToString::to_string), Some("some".to_string()));
+        assert_eq!(u.path(), "/network/path");
     }
 
     #[test]
-    fn uri_should_succeed_if_starts_with_scheme() {
+    fn uri_ref_should_succeed_if_starts_with_scheme() {
         let input = Span::from("https://github.com/vimwiki/vimwiki.git");
-        let (input, u) = uri_ref(input).expect("Failed to parse uri");
+        let (input, u) = uri_ref(input).expect("Failed to parse uri ref");
         assert!(input.is_empty());
         assert_eq!(u.scheme().unwrap(), "https");
         assert_eq!(u.host().unwrap().to_string(), "github.com");
         assert_eq!(u.path(), "/vimwiki/vimwiki.git");
 
         let input = Span::from("mailto:habamax@gmail.com");
-        let (input, u) = uri_ref(input).expect("Failed to parse uri");
+        let (input, u) = uri_ref(input).expect("Failed to parse uri ref");
         assert!(input.is_empty());
         assert_eq!(u.scheme().unwrap(), "mailto");
         assert_eq!(u.path(), "habamax@gmail.com");
 
         let input = Span::from("ftp://vim.org");
-        let (input, u) = uri_ref(input).expect("Failed to parse uri");
+        let (input, u) = uri_ref(input).expect("Failed to parse uri ref");
         assert!(input.is_empty());
         assert_eq!(u.scheme().unwrap(), "ftp");
         assert_eq!(u.host().unwrap().to_string(), "vim.org");

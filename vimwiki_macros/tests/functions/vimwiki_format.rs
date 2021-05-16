@@ -92,12 +92,16 @@ fn vimwiki_multi_line_comment() {
 
 #[test]
 fn vimwiki_definition_list() {
+    // NOTE: Currently, lists and definition lists don't maintain the order
+    //       of list elements when having code generated, which means that we
+    //       cannot use {} reliably and instead need to use explicit indexes
+    //       or names
     let x = vimwiki_definition_list_format!(
         r#"
-            term:: {} definition
-            term2 {}::
+            term:: {0} definition
+            term2 {1}::
             :: def 2
-            :: def {} 3
+            :: def {2} 3
         "#,
         "first",
         "second",
@@ -174,7 +178,7 @@ fn vimwiki_link() {
         x.into_inner(),
         Link::new_indexed_interwiki_link(
             1,
-            URIReference::try_from("cool%20link").unwrap().into_owned(),
+            URIReference::try_from("link").unwrap().into_owned(),
             Description::from("cool"),
         ),
     );
@@ -185,7 +189,7 @@ fn vimwiki_link() {
         x.into_inner(),
         Link::new_named_interwiki_link(
             "MyWiki",
-            URIReference::try_from("cool%20link").unwrap().into_owned(),
+            URIReference::try_from("link").unwrap().into_owned(),
             Description::from("cool"),
         ),
     );
@@ -197,6 +201,7 @@ fn vimwiki_link() {
         Link::new_diary_link(
             NaiveDate::from_ymd(2012, 3, 5),
             Description::from("cool"),
+            None,
         )
     );
 
@@ -215,13 +220,18 @@ fn vimwiki_link() {
 
 #[test]
 fn vimwiki_list() {
+    // NOTE: Currently, lists and definition lists don't maintain the order
+    //       of list elements when having code generated, which means that we
+    //       cannot use {} reliably and instead need to use explicit indexes
+    //       or names
     let x = vimwiki_list_format!(
         r"
-            - some {} list item
+            - some {0} list item
             - some other list item
-                1. sub list item
+                1. sub {1} list item
         ",
         "cool",
+        "ice",
     );
     assert_eq!(
         x.into_inner(),
@@ -262,7 +272,7 @@ fn vimwiki_list() {
                                 ListItemContent::InlineContent(
                                     InlineElementContainer::new(vec![
                                         Located::from(InlineElement::Text(
-                                            Text::from("sub list item")
+                                            Text::from("sub ice list item")
                                         ))
                                     ])
                                 )

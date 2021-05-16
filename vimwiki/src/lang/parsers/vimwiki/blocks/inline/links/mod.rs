@@ -1,5 +1,5 @@
 use crate::lang::{
-    elements::{Description, Link, LinkData, Located},
+    elements::{Anchor, Description, Link, LinkData, Located},
     parsers::{
         utils::{
             context, cow_str, take_line_until, take_line_until1,
@@ -11,11 +11,10 @@ use crate::lang::{
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    combinator::{map, map_parser, opt, rest},
+    combinator::{map, map_opt, map_parser, opt, rest},
     multi::separated_list1,
     sequence::{delimited, separated_pair},
 };
-use percent_encoding::{percent_encode, AsciiSet, CONTROLS};
 use std::{borrow::Cow, collections::HashMap, convert::TryFrom};
 use uriparse::URIReference;
 
@@ -94,18 +93,15 @@ fn link_data<'a>(input: Span<'a>) -> IResult<LinkData<'a>> {
 ///
 /// Can either be a text description OR an embeded {{...}} transclusion link
 fn link_uri_ref<'a>(input: Span<'a>) -> IResult<URIReference<'a>> {
-    /// https://url.spec.whatwg.org/#fragment-percent-encode-set
-    const FRAGMENT: &AsciiSet =
-        &CONTROLS.add(b' ').add(b'"').add(b'<').add(b'>').add(b'`');
-
     let (input, uri_span) =
         take_line_until_one_of_three1("|", "]]", "}}")(input)?;
 
     match URIReference::try_from(uri_span) {
         Ok(uri_ref) => Ok((input, uri_ref)),
         Err(_) => {
-            let encoded_uri_str =
-                percent_encode(uri_span.as_remaining(), FRAGMENT).to_string();
+            // NOTE: We encode our string, but need to repair the first #
+            //       which signals the fragment
+            let encoded_uri_str = LinkData::encode_uri(uri_span.as_remaining());
             let uri_ref = URIReference::try_from(encoded_uri_str.as_str())
                 .map_err(|x| {
                     use nom::error::FromExternalError;
@@ -121,12 +117,19 @@ fn link_uri_ref<'a>(input: Span<'a>) -> IResult<URIReference<'a>> {
     }
 }
 
-/// Extracts the description-portion of a link
+/// Extracts the description-portion of a link (can be empty). Assumes that
+/// input is in the form of |description[|...] where the input starts with |
+/// and content will be treated as description until the next |.
 ///
 /// Can either be a text description OR an embeded {{...}} transclusion link
 fn link_description<'a>(input: Span<'a>) -> IResult<Description<'a>> {
+    // First, take the starting |
+    let (input, _) = tag("|")(input)?;
+
+    // Second, continue taking characters until we encounter the next | or
+    // we reach the end of the link
     map_parser(
-        take_line_until_one_of_three1("|", "]]", "}}"),
+        take_line_until("|"),
         alt((
             map(transclusion::transclusion_link, |l| {
                 Description::from(l.into_inner().into_data())
@@ -136,28 +139,35 @@ fn link_description<'a>(input: Span<'a>) -> IResult<Description<'a>> {
     )(input)
 }
 
+fn link_anchor<'a>(input: Span<'a>) -> IResult<Anchor<'a>> {
+    map_opt(take_line_until("|"), |s: Span| {
+        s.map_remaining_unsafe_str_into(Anchor::from_uri_fragment)
+    })(input)
+}
+
 /// Parser for link property pairs separated by | in the form of
 ///
-/// key1="value1"|key2="value2"|...
+/// |key1="value1"|key2="value2"|...
 fn link_properties<'a>(
     input: Span<'a>,
 ) -> IResult<HashMap<Cow<'a, str>, Cow<'a, str>>> {
+    // First, take the starting |
+    let (input, _) = tag("|")(input)?;
+
+    // Second, continue taking key="value" pairs until we reach the end of the link
     map(
         separated_list1(
             tag("|"),
-            map_parser(
-                take_line_until_one_of_three1("|", "]]", "}}"),
-                separated_pair(
-                    map_parser(take_line_until1("="), cow_str),
-                    tag("="),
-                    map_parser(
-                        delimited(tag("\""), take_line_until("\""), tag("\"")),
-                        cow_str,
-                    ),
+            separated_pair(
+                map_parser(take_line_until1("="), cow_str),
+                tag("="),
+                map_parser(
+                    delimited(tag("\""), take_line_until("\""), tag("\"")),
+                    cow_str,
                 ),
             ),
         ),
-        |mut pairs| pairs.drain(..).collect(),
+        |pairs| pairs.into_iter().collect(),
     )(input)
 }
 

@@ -1,10 +1,10 @@
-use super::link_description;
+use super::{link_anchor, link_description};
 use crate::lang::{
     elements::{Link, Located},
     parsers::{
         utils::{
             capture, context, locate, not_contains, surround_in_line1,
-            take_line_until1,
+            take_line_until_one_of_two1,
         },
         IResult, Span,
     },
@@ -13,7 +13,6 @@ use chrono::NaiveDate;
 use nom::{
     bytes::complete::tag,
     combinator::{map_parser, map_res, opt},
-    sequence::preceded,
 };
 
 pub fn diary_link(input: Span) -> IResult<Located<Link>> {
@@ -22,19 +21,25 @@ pub fn diary_link(input: Span) -> IResult<Located<Link>> {
         let (input, _) = tag("diary:")(input)?;
 
         // After the specialized start, a valid date must follow before the
-        // end of a link or the start of a description
-        let (input, date) = map_res(take_line_until1("|"), |span| {
-            NaiveDate::parse_from_str(
-                span.as_unsafe_remaining_str(),
-                "%Y-%m-%d",
-            )
-        })(input)?;
+        // end of a link, start of anchor, or start of a description
+        let (input, date) =
+            map_res(take_line_until_one_of_two1("|", "#"), |span| {
+                NaiveDate::parse_from_str(
+                    span.as_unsafe_remaining_str(),
+                    "%Y-%m-%d",
+                )
+            })(input)?;
+
+        // Check for an optional anchor that we will need to parse
+        let (input, maybe_anchor) = opt(link_anchor)(input)?;
 
         // Finally, check if there is a description (preceding with |)
-        let (input, maybe_description) =
-            opt(preceded(tag("|"), link_description))(input)?;
+        let (input, maybe_description) = opt(link_description)(input)?;
 
-        Ok((input, Link::new_diary_link(date, maybe_description)))
+        Ok((
+            input,
+            Link::new_diary_link(date, maybe_description, maybe_anchor),
+        ))
     }
 
     context(

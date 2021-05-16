@@ -93,7 +93,7 @@ mod tests {
         let (input, link) = indexed_interwiki_link(input).unwrap();
         assert!(input.is_empty(), "Did not consume link");
         assert_eq!(link.index(), Some(1), "Wrong index detected");
-        assert_eq!(link.data().uri_ref().path(), "This is a link");
+        assert_eq!(link.data().uri_ref().path(), "This%20is%20a%20link");
         assert_eq!(link.description(), None);
         assert_eq!(link.to_anchor(), None);
     }
@@ -106,7 +106,10 @@ mod tests {
         let (input, link) = indexed_interwiki_link(input).unwrap();
         assert!(input.is_empty(), "Did not consume link");
         assert_eq!(link.index(), Some(1), "Wrong index detected");
-        assert_eq!(link.data().uri_ref().path(), "This is a link source");
+        assert_eq!(
+            link.data().uri_ref().path(),
+            "This%20is%20a%20link%20source"
+        );
         assert_eq!(
             link.description(),
             Some(&Description::from("Description of the link"))
@@ -120,7 +123,10 @@ mod tests {
         let (input, link) = indexed_interwiki_link(input).unwrap();
         assert!(input.is_empty(), "Did not consume link");
         assert_eq!(link.index(), Some(1), "Wrong index detected");
-        assert_eq!(link.data().uri_ref().path(), "This is a link source");
+        assert_eq!(
+            link.data().uri_ref().path(),
+            "This%20is%20a%20link%20source"
+        );
         assert_eq!(link.description(), None);
         assert_eq!(link.to_anchor(), Some(Anchor::from("anchor")));
     }
@@ -133,7 +139,10 @@ mod tests {
         let (input, link) = indexed_interwiki_link(input).unwrap();
         assert!(input.is_empty(), "Did not consume link");
         assert_eq!(link.index(), Some(1), "Wrong index detected");
-        assert_eq!(link.data().uri_ref().path(), "This is a link source");
+        assert_eq!(
+            link.data().uri_ref().path(),
+            "This%20is%20a%20link%20source"
+        );
         assert_eq!(
             link.description(),
             Some(&Description::from("Description of the link"))
@@ -147,7 +156,7 @@ mod tests {
         let (input, link) = named_interwiki_link(input).unwrap();
         assert!(input.is_empty(), "Did not consume link");
         assert_eq!(link.name(), Some("My Name"), "Wrong name detected");
-        assert_eq!(link.data().uri_ref().path(), "This is a link");
+        assert_eq!(link.data().uri_ref().path(), "This%20is%20a%20link");
         assert_eq!(link.description(), None);
         assert_eq!(link.to_anchor(), None);
     }
@@ -159,7 +168,7 @@ mod tests {
         let (input, link) = named_interwiki_link(input).unwrap();
         assert!(input.is_empty(), "Did not consume link");
         assert_eq!(link.name(), Some("My Name"), "Wrong name detected");
-        assert_eq!(link.data().uri_ref().path(), "This is a link");
+        assert_eq!(link.data().uri_ref().path(), "This%20is%20a%20link");
         assert_eq!(
             link.description(),
             Some(&Description::from("Description of the link"))
@@ -173,7 +182,7 @@ mod tests {
         let (input, link) = named_interwiki_link(input).unwrap();
         assert!(input.is_empty(), "Did not consume link");
         assert_eq!(link.name(), Some("My Name"), "Wrong name detected");
-        assert_eq!(link.data().uri_ref().path(), "This is a link");
+        assert_eq!(link.data().uri_ref().path(), "This%20is%20a%20link");
         assert_eq!(link.description(), None);
         assert_eq!(link.to_anchor(), Some(Anchor::from("anchor")));
     }
@@ -186,7 +195,7 @@ mod tests {
         let (input, link) = named_interwiki_link(input).unwrap();
         assert!(input.is_empty(), "Did not consume link");
         assert_eq!(link.name(), Some("My Name"), "Wrong name detected");
-        assert_eq!(link.data().uri_ref().path(), "This is a link");
+        assert_eq!(link.data().uri_ref().path(), "This%20is%20a%20link");
         assert_eq!(
             link.description(),
             Some(&Description::from("Description of the link"))

@@ -94,11 +94,25 @@ impl<'a> Link<'a> {
     }
 
     /// Creates a new diary link
-    pub fn new_diary_link<D: Into<Option<Description<'a>>>>(
+    pub fn new_diary_link<
+        D: Into<Option<Description<'a>>>,
+        A: Into<Option<Anchor<'a>>>,
+    >(
         date: NaiveDate,
         description: D,
+        anchor: A,
     ) -> Self {
-        let empty_uri_ref = URIReference::try_from("").unwrap();
+        // NOTE: Based on provided anchor, we produce a URI-compatible anchor
+        let empty_uri_ref = URIReference::try_from(
+            anchor
+                .into()
+                .as_ref()
+                .map_or_else(String::new, Anchor::to_encoded_uri_fragment)
+                .as_str(),
+        )
+        .unwrap()
+        .into_owned();
+
         Self::Diary {
             date,
             data: LinkData::new(empty_uri_ref, description.into(), None),

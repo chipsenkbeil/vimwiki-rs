@@ -186,7 +186,7 @@ fn vimwiki_link() {
     let x = vimwiki_link!("[[diary:2012-03-05]]");
     assert_eq!(
         x.into_inner(),
-        Link::new_diary_link(NaiveDate::from_ymd(2012, 3, 5), None)
+        Link::new_diary_link(NaiveDate::from_ymd(2012, 3, 5), None, None)
     );
 
     // File Link

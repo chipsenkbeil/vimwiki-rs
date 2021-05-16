@@ -380,7 +380,7 @@ mod tests {
             defs[0],
             &InlineElementContainer::new(vec![Located::from(
                 InlineElement::from(Link::new_wiki_link(
-                    URIReference::try_from("def 1").unwrap(),
+                    URIReference::try_from("def%201").unwrap(),
                     None
                 ))
             )])

@@ -52,6 +52,21 @@ impl Anchor<'_> {
     }
 }
 
+impl<'a> Anchor<'a> {
+    /// Produces an encoded URI fragment in the form of #my%23fragment
+    /// if the anchor has any elements, otherwise yields an empty string
+    pub fn to_encoded_uri_fragment(&self) -> String {
+        use std::fmt::Write;
+        let mut fragment = String::new();
+        if !self.is_empty() {
+            write!(&mut fragment, "#{}", self.join("%23")).expect(
+                "Anchor encoded_uri_fragment returned error unexpectedly",
+            );
+        }
+        fragment
+    }
+}
+
 impl<'a> fmt::Display for Anchor<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.is_empty() {
@@ -59,6 +74,22 @@ impl<'a> fmt::Display for Anchor<'a> {
         } else {
             write!(f, "#{}", self.join("#"))
         }
+    }
+}
+
+impl<'a> Anchor<'a> {
+    // NOTE: Cannot use FromStr due to conflicting lifetimes of impl and trait
+    //       method's input str
+    pub fn from_uri_fragment(s: &'a str) -> Option<Self> {
+        let mut it = s.split('#');
+
+        if let Some(piece) = it.next() {
+            if piece.is_empty() {
+                return Some(it.collect());
+            }
+        }
+
+        None
     }
 }
 
