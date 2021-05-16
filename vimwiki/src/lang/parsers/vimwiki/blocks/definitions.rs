@@ -115,9 +115,11 @@ mod tests {
     use super::*;
     use crate::lang::elements::{
         DecoratedText, DecoratedTextContent, InlineElement,
-        InlineElementContainer, Link, MathInline, Text, WikiLink,
+        InlineElementContainer, Link, MathInline, Text,
     };
     use indoc::indoc;
+    use std::convert::TryFrom;
+    use uriparse::URIReference;
 
     /// Checks defs match those of a provided list in ANY order
     fn check_text_defs(defs: Vec<&Definition>, expected: Vec<&str>) {
@@ -377,7 +379,10 @@ mod tests {
         assert_eq!(
             defs[0],
             &InlineElementContainer::new(vec![Located::from(
-                InlineElement::from(Link::from(WikiLink::from("def 1")))
+                InlineElement::from(Link::new_wiki_link(
+                    URIReference::try_from("def 1").unwrap(),
+                    None
+                ))
             )])
         );
         assert_eq!(

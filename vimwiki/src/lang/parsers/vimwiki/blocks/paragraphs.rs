@@ -79,10 +79,11 @@ mod tests {
     use super::*;
     use crate::lang::elements::{
         DecoratedText, DecoratedTextContent, InlineElement, Link, MathInline,
-        Text, WikiLink,
+        Text,
     };
     use indoc::indoc;
-    use std::path::PathBuf;
+    use std::convert::TryFrom;
+    use uriparse::URIReference;
 
     #[test]
     fn paragraph_should_fail_if_on_blank_line() {
@@ -112,9 +113,10 @@ mod tests {
                     )))
                 ])),
                 InlineElement::Text(Text::from(", ")),
-                InlineElement::Link(Link::from(WikiLink::from(PathBuf::from(
-                    "links"
-                )))),
+                InlineElement::Link(Link::new_wiki_link(
+                    URIReference::try_from("links").unwrap(),
+                    None
+                )),
                 InlineElement::Text(Text::from(", ")),
                 InlineElement::Math(MathInline::from("math")),
                 InlineElement::Text(Text::from(", and more")),
@@ -155,9 +157,10 @@ mod tests {
                 .map(|c| c.into_inner())
                 .collect::<Vec<InlineElement>>(),
             vec![
-                InlineElement::Link(Link::from(WikiLink::from(PathBuf::from(
-                    "links"
-                )))),
+                InlineElement::Link(Link::new_wiki_link(
+                    URIReference::try_from("links").unwrap(),
+                    None
+                )),
                 InlineElement::Text(Text::from(", ")),
                 InlineElement::Math(MathInline::from("math")),
                 InlineElement::Text(Text::from(", and more")),
@@ -199,9 +202,10 @@ mod tests {
                 .map(|c| c.into_inner())
                 .collect::<Vec<InlineElement>>(),
             vec![
-                InlineElement::Link(Link::from(WikiLink::from(PathBuf::from(
-                    "links"
-                )))),
+                InlineElement::Link(Link::new_wiki_link(
+                    URIReference::try_from("links").unwrap(),
+                    None
+                )),
                 InlineElement::Text(Text::from(", ")),
                 InlineElement::Math(MathInline::from("math")),
                 InlineElement::Text(Text::from(", and more")),
@@ -248,9 +252,10 @@ mod tests {
                 .map(|c| c.into_inner())
                 .collect::<Vec<InlineElement>>(),
             vec![
-                InlineElement::Link(Link::from(WikiLink::from(PathBuf::from(
-                    "links"
-                )))),
+                InlineElement::Link(Link::new_wiki_link(
+                    URIReference::try_from("links").unwrap(),
+                    None
+                )),
                 InlineElement::Text(Text::from(", ")),
                 InlineElement::Math(MathInline::from("math")),
                 InlineElement::Text(Text::from(", and more")),

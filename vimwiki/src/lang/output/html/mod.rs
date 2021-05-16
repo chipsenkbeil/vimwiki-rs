@@ -12,7 +12,7 @@ use crate::lang::{
     output::{Output, OutputError, OutputResult},
 };
 use lazy_static::lazy_static;
-use std::{fmt::Write, path::Path};
+use std::fmt::Write;
 use syntect::{
     easy::HighlightLines,
     highlighting::ThemeSet,
@@ -904,135 +904,50 @@ impl<'a> Output for Link<'a> {
     type Formatter = HtmlFormatter;
 
     /// Writes a link in HTML
-    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
-        match self {
-            Self::Wiki(x) => x.fmt(f)?,
-            Self::InterWiki(x) => x.fmt(f)?,
-            Self::Diary(x) => x.fmt(f)?,
-            Self::Raw(x) => x.fmt(f)?,
-            Self::ExternalFile(x) => x.fmt(f)?,
-            Self::Transclusion(x) => x.fmt(f)?,
-        }
-
-        Ok(())
-    }
-}
-
-impl<'a> Output for WikiLink<'a> {
-    type Formatter = HtmlFormatter;
-
-    /// Writes a wiki link in HTML
     ///
-    /// ### Plain link
+    /// ### Wiki/Interwiki Link
     ///
-    /// For `[[url]]` in vimwiki:
+    /// 1. Plain link
     ///
-    /// ```html
-    /// <a href="url.html">url</a>
-    /// ```
+    ///    For `[[url]]` in vimwiki:
     ///
-    /// ### Link with description
+    ///    ```html
+    ///    <a href="url.html">url</a>
+    ///    ```
     ///
-    /// For `[[url|descr]]` in vimwiki:
+    /// 2. Link with description
     ///
-    /// ```html
-    /// <a href="url.html">descr</a>
-    /// ```
+    ///    For `[[url|descr]]` in vimwiki:
     ///
-    /// ### Link with embedded image
+    ///    ```html
+    ///    <a href="url.html">descr</a>
+    ///    ```
     ///
-    /// For `[[url|{{...}}]]` in vimwiki:
+    /// 3. Link with embedded image
     ///
-    /// ```html
-    /// <a href="url.html"> ... </a>
-    /// ```
+    ///    For `[[url|{{...}}]]` in vimwiki:
     ///
+    ///    ```html
+    ///    <a href="url.html"> ... </a>
+    ///    ```
     ///
-    /// ### Link with anchors
+    /// 4. Link with anchors
     ///
-    /// For `[[url#a1#a2]]` in vimwiki:
+    ///    For `[[url#a1#a2]]` in vimwiki:
     ///
-    /// ```html
-    /// <a href="url.html#a1-a2">url#a1#a2</a>
-    /// ```
+    ///    ```html
+    ///    <a href="url.html#a1-a2">url#a1#a2</a>
+    ///    ```
     ///
-    /// ### Only anchors
+    /// 5. Only anchors
     ///
-    /// For `[[#a1#a2]]` in vimwiki:
+    ///    For `[[#a1#a2]]` in vimwiki:
     ///
-    /// ```html
-    /// <a href="#a1-a2">#a1#a2</a>
-    /// ```
-    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
-        write_link(
-            f,
-            self.path.as_ref(),
-            self.anchor.as_ref(),
-            self.description.as_ref(),
-        )
-    }
-}
-
-impl<'a> Output for InterWikiLink<'a> {
-    type Formatter = HtmlFormatter;
-
-    /// Writes an interwiki link in HTML
-    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
-        match self {
-            Self::Indexed(x) => x.fmt(f)?,
-            Self::Named(x) => x.fmt(f)?,
-        }
-
-        Ok(())
-    }
-}
-
-impl<'a> Output for IndexedInterWikiLink<'a> {
-    type Formatter = HtmlFormatter;
-
-    /// Writes an indexed interwiki link in HTML
-    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
-        // TODO: Need to do link resolution as this should
-        //
-        // 1. Look up the wiki with the given index (return error if fails to resolve)
-        // 2. Grab the path to the wiki
-        // 3. Convert path to a relative link in the form of
-        //    ../{other wiki}/page.html
-        write_link(
-            f,
-            self.link.path.as_ref(),
-            self.link.anchor.as_ref(),
-            self.link.description.as_ref(),
-        )
-    }
-}
-
-impl<'a> Output for NamedInterWikiLink<'a> {
-    type Formatter = HtmlFormatter;
-
-    /// Writes an named interwiki link in HTML
-    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
-        // TODO: Need to do link resolution as this should
-        //
-        // 1. Look up the wiki with the given name (return error if fails to resolve)
-        // 2. Grab the path to the wiki
-        // 3. Convert path to a relative link in the form of
-        //    ../{other wiki}/page.html
-        write_link(
-            f,
-            self.link.path.as_ref(),
-            self.link.anchor.as_ref(),
-            self.link.description.as_ref(),
-        )
-    }
-}
-
-impl<'a> Output for DiaryLink<'a> {
-    type Formatter = HtmlFormatter;
-
-    /// Writes an diary link in HTML
+    ///    ```html
+    ///    <a href="#a1-a2">#a1#a2</a>
+    ///    ```
     ///
-    /// ### Example
+    /// ### Diary Link
     ///
     /// For `[[diary:2021-03-05]]` and `[[diary:2021-03-05|description]]`:
     ///
@@ -1040,50 +955,14 @@ impl<'a> Output for DiaryLink<'a> {
     /// <a href="diary/2021-03-05.html">diary:2021-03-05</a>
     /// <a href="diary/2021-03-05.html">description</a>
     /// ```
-    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
-        // Get path from page to root of wiki
-        let base_path = f
-            .config()
-            .page
-            .get_path_to_root()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .to_string();
-
-        let end_path_str = format!(
-            "{}diary/{}.html",
-            if base_path.is_empty() {
-                String::new()
-            } else {
-                format!("{}/", base_path)
-            },
-            self.date.to_string()
-        );
-        write_link(f, end_path_str, None, self.description.as_ref())
-    }
-}
-
-impl<'a> Output for RawLink<'a> {
-    type Formatter = HtmlFormatter;
-
-    /// Writes a raw link in HTML
     ///
-    /// ### Example
+    /// ### Raw Link
     ///
     /// For `https://example.com`:
     ///
     /// ```html
     /// <a href="https://example.com">https://example.com</a>
     /// ```
-    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
-        write_link(f, self.uri.to_string(), None, None)
-    }
-}
-
-impl<'a> Output for ExternalFileLink<'a> {
-    type Formatter = HtmlFormatter;
-
-    /// Writes an external file link in HTML
     ///
     /// ### Link to file
     ///
@@ -1100,30 +979,8 @@ impl<'a> Output for ExternalFileLink<'a> {
     /// ```html
     /// <a href="dirurl/index.html">descr</a>
     /// ```
-    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
-        // Get base path relative to page
-        let base_path = f
-            .config()
-            .page
-            .get_path_to_root()
-            .unwrap_or_default()
-            .join(self.path.as_ref());
-
-        let path = if base_path.is_dir() {
-            base_path.join("index.html")
-        } else {
-            base_path
-        };
-        write_link(f, path, None, self.description.as_ref())
-    }
-}
-
-impl<'a> Output for TransclusionLink<'a> {
-    type Formatter = HtmlFormatter;
-
-    /// Writes a transclusion link in HTML
     ///
-    /// ### Images
+    /// ### Transclusion Link
     ///
     /// For `{{path/to/img.png}}`, `{{path/to/img.png|descr}}`, and
     /// `{{path/to/img.png|descr|style="A"}}`:
@@ -1134,18 +991,93 @@ impl<'a> Output for TransclusionLink<'a> {
     /// <img src="path/to/img.png" alt="descr" style="A" />
     /// ```
     fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
-        write!(f, "<img src=\"{}\"", self.uri)?;
-        if let Some(description) = self.description.as_ref() {
-            write!(
-                f,
-                " alt=\"{}\"",
-                escape::escape_html(&description.to_string())
-            )?;
+        // Produces a link tag of <a href=".." ...>link/description</a>
+        // based on the link data and a given base url representing the root
+        // of the wiki if needed
+        fn write_link(
+            f: &mut HtmlFormatter,
+            data: &LinkData<'_>,
+            use_img_tag: bool,
+        ) -> OutputResult {
+            let path = data.to_path_buf();
+            let anchor = data.to_anchor();
+
+            // Build url#a1-a2
+            let mut src = path.to_string_lossy().to_string();
+            if let Some(anchor) = anchor.as_ref() {
+                write!(&mut src, "#{}", anchor.join("-"))?;
+            }
+
+            // Build descr or url#a1#a2 or embed an image
+            let mut text = String::new();
+            if let Some(description) = data.description() {
+                match description {
+                    Description::Text(x) => write!(&mut text, "{}", x)?,
+                    Description::TransclusionLink(data) => {
+                        write_link(f, data, true)?
+                    }
+                }
+            } else {
+                write!(&mut text, "{}", path.to_string_lossy())?;
+
+                if let Some(anchor) = anchor {
+                    for element in anchor.iter() {
+                        write!(&mut text, "{}", element)?;
+                    }
+                }
+            }
+
+            if !use_img_tag {
+                write!(f, r#"<a href="{}">{}</a>"#, src, text)?;
+            } else {
+                write!(f, "<img src=\"{}\"", src)?;
+                if let Some(description) = data.description() {
+                    write!(
+                        f,
+                        " alt=\"{}\"",
+                        escape::escape_html(&description.to_string())
+                    )?;
+                }
+                if let Some(properties) = data.properties() {
+                    for (k, v) in properties.iter() {
+                        write!(f, " {}=\"{}\"", k, escape::escape_html(v))?;
+                    }
+                }
+                write!(f, " />")?;
+            }
+            Ok(())
         }
-        for (k, v) in self.properties.iter() {
-            write!(f, " {}=\"{}\"", k, escape::escape_html(v))?;
+
+        match self {
+            // TODO: Need to alter link data if is a directory path to include
+            //       an index.html
+            //
+            //       e.g. /my-wiki/path/to/index.html
+            Self::Wiki { data } => write_link(f, data, false)?,
+
+            // TODO: Need to alter link data to have a uri with a
+            //       path to the page of the other wiki
+            //
+            //       e.g. /my-other-wiki/diary/{date}.html
+            Self::IndexedInterWiki { index, data } => {
+                write_link(f, data, false)?
+            }
+
+            // TODO: Need to alter link data to have a uri with a
+            //       path to the page of the other wiki
+            //
+            //       e.g. /my-other-wiki/diary/{date}.html
+            Self::NamedInterWiki { name, data } => write_link(f, data, false)?,
+
+            // TODO: Need to alter link data to have a uri with a
+            //       path to the diary page of the current wiki
+            //
+            //       e.g. /my-wiki/diary/{date}.html
+            Self::Diary { date, data } => write_link(f, data, false)?,
+            Self::Raw { data } => write_link(f, data, false)?,
+            Self::Transclusion { data } => write_link(f, data, true)?,
         }
-        write!(f, " />")?;
+
         Ok(())
     }
 }
@@ -1288,48 +1220,11 @@ fn build_complete_id(
     Ok(complete_id)
 }
 
-fn write_link(
-    f: &mut HtmlFormatter,
-    path: impl AsRef<Path>,
-    maybe_anchor: Option<&Anchor>,
-    maybe_description: Option<&Description>,
-) -> OutputResult {
-    // Build url#a1-a2
-    let mut src = path.as_ref().to_string_lossy().to_string();
-    if let Some(anchor) = maybe_anchor {
-        write!(&mut src, "#{}", anchor.elements.join("-"))?;
-    }
-
-    // Build descr or url#a1#a2 or embed an image
-    let mut text = String::new();
-    if let Some(description) = maybe_description {
-        match description {
-            Description::Text(x) => write!(&mut text, "{}", x)?,
-            Description::TransclusionLink(x) => {
-                let mut f2 = HtmlFormatter::new(f.config().clone());
-                x.fmt(&mut f2)?;
-                write!(&mut text, "{}", f2.get_content())?;
-            }
-        }
-    } else {
-        write!(&mut text, "{}", path.as_ref().to_string_lossy())?;
-
-        if let Some(anchor) = maybe_anchor {
-            for element in anchor.elements.iter() {
-                write!(&mut text, "{}", element)?;
-            }
-        }
-    }
-
-    write!(f, r#"<a href="{}">{}</a>"#, src, text)?;
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::{borrow::Cow, collections::HashMap, convert::TryFrom};
-    use uriparse::URI;
+    use uriparse::URIReference;
 
     #[test]
     fn page_should_output_tags_based_on_block_elements() {
@@ -1687,7 +1582,9 @@ mod tests {
 
     #[test]
     fn raw_link_should_output_a_tag() {
-        let link = RawLink::try_from("https://example.com").unwrap();
+        let link = Link::new_raw_link(
+            URIReference::try_from("https://example.com").unwrap(),
+        );
         let mut f = HtmlFormatter::default();
         link.fmt(&mut f).unwrap();
 
@@ -1698,61 +1595,11 @@ mod tests {
     }
 
     #[test]
-    fn external_file_link_should_output_a_tag() {
-        // TODO: Need to validate that external_file portion is appended to base wiki
-        //       path
-        todo!();
-    }
-
-    #[test]
-    fn external_file_link_should_include_index_in_link_if_is_directory() {
-        todo!();
-    }
-
-    #[test]
-    fn external_file_link_should_support_text_description() {
-        let link = ExternalFileLink::new(
-            ExternalFileLinkScheme::Local,
-            Cow::from(Path::new("/local/file")),
-            Some(Description::from("some description")),
-        );
-        let mut f = HtmlFormatter::default();
-        link.fmt(&mut f).unwrap();
-
-        assert_eq!(
-            f.get_content(),
-            r#"<a href="/local/file">some description</a>"#
-        );
-    }
-
-    #[test]
-    fn external_file_link_should_support_transclusion_link_description() {
-        let link = ExternalFileLink::new(
-            ExternalFileLinkScheme::Local,
-            Cow::from(Path::new("/local/file")),
-            Some(Description::TransclusionLink(Box::new(
-                TransclusionLink::new(
-                    URI::try_from("https://example.com/img.jpg").unwrap(),
-                    Some(Description::from("some description")),
-                    HashMap::new(),
-                ),
-            ))),
-        );
-        let mut f = HtmlFormatter::default();
-        link.fmt(&mut f).unwrap();
-
-        assert_eq!(
-            f.get_content(),
-            r#"<a href="/local/file"><img src="https://example.com/img.jpg" alt="some description" /></a>"#
-        );
-    }
-
-    #[test]
     fn transclusion_link_should_output_img_tag() {
-        let link = TransclusionLink::new(
-            URI::try_from("https://example.com/img.jpg").unwrap(),
+        let link = Link::new_transclusion_link(
+            URIReference::try_from("https://example.com/img.jpg").unwrap(),
             None,
-            HashMap::new(),
+            None,
         );
         let mut f = HtmlFormatter::default();
         link.fmt(&mut f).unwrap();
@@ -1765,10 +1612,10 @@ mod tests {
 
     #[test]
     fn transclusion_link_should_use_description_as_alt_text() {
-        let link = TransclusionLink::new(
-            URI::try_from("https://example.com/img.jpg").unwrap(),
+        let link = Link::new_transclusion_link(
+            URIReference::try_from("https://example.com/img.jpg").unwrap(),
             Some(Description::from("some description")),
-            HashMap::new(),
+            None,
         );
         let mut f = HtmlFormatter::default();
         link.fmt(&mut f).unwrap();
@@ -1785,8 +1632,8 @@ mod tests {
         properties.insert(Cow::from("key1"), Cow::from("value1"));
         properties.insert(Cow::from("key2"), Cow::from("value2"));
 
-        let link = TransclusionLink::new(
-            URI::try_from("https://example.com/img.jpg").unwrap(),
+        let link = Link::new_transclusion_link(
+            URIReference::try_from("https://example.com/img.jpg").unwrap(),
             Some(Description::from("some description")),
             properties,
         );
@@ -1807,8 +1654,9 @@ mod tests {
         let mut properties: HashMap<Cow<str>, Cow<str>> = HashMap::new();
         properties.insert(Cow::from("key1"), Cow::from("<test>value1</test>"));
 
-        let link = TransclusionLink::new(
-            URI::try_from("https://example.com/img.jpg?a=b&c=d").unwrap(),
+        let link = Link::new_transclusion_link(
+            URIReference::try_from("https://example.com/img.jpg?a=b&c=d")
+                .unwrap(),
             Some(Description::from("<test>some description</test>")),
             properties,
         );

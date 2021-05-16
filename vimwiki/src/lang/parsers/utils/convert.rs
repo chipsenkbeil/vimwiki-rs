@@ -4,14 +4,13 @@ use crate::lang::{
     parsers::{Captured, IResult, Span},
 };
 use nom::{
-    bytes::complete::{tag, take_while},
     character::complete::anychar,
     combinator::{map_res, not, recognize},
     multi::many1,
-    sequence::{pair, terminated},
+    sequence::pair,
 };
 use std::{borrow::Cow, convert::TryFrom, path::Path};
-use uriparse::URI;
+use uriparse::URIReference;
 
 /// Parser that wraps a span in a deeper depth
 pub fn deeper<'a, T>(
@@ -63,7 +62,8 @@ pub fn cow_path<'a>(input: Span<'a>) -> IResult<Cow<'a, Path>> {
     Ok((input, input.into()))
 }
 
-/// Parser for a general purpose URI.
+/// Parser for a general purpose URI Reference. Will consume until whitespace
+/// is encountered as unescaped whitespace is not part of a URI.
 ///
 /// ### Regular cases
 ///
@@ -78,30 +78,14 @@ pub fn cow_path<'a>(input: Span<'a>) -> IResult<Cow<'a, Path>> {
 ///
 /// 1. www (www.example.com) -> (https://www.example.com)
 /// 2. // (//some/abs/path) -> (file:/some/abs/path)
-pub fn uri<'a>(input: Span<'a>) -> IResult<URI<'a>> {
+pub fn uri_ref<'a>(input: Span<'a>) -> IResult<URIReference<'a>> {
     // TODO: Support special cases, which involves allocating a new string
     //       or providing some alternative structure to a URI
     context(
-        "Normal URI",
+        "Normal URI Reference",
         map_res(
-            recognize(pair(
-                uri_scheme,
-                many1(pair(not(single_multispace), anychar)),
-            )),
-            URI::try_from,
-        ),
-    )(input)
-}
-
-fn uri_scheme<'a>(input: Span<'a>) -> IResult<Span<'a>> {
-    context(
-        "URI Scheme",
-        terminated(
-            take_while(|b: u8| {
-                let c = char::from(b);
-                c.is_alphanumeric() || c == '+' || c == '.' || c == '-'
-            }),
-            tag(":"),
+            recognize(many1(pair(not(single_multispace), anychar))),
+            URIReference::try_from,
         ),
     )(input)
 }
@@ -109,6 +93,7 @@ fn uri_scheme<'a>(input: Span<'a>) -> IResult<Span<'a>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use nom::bytes::complete::tag;
     use std::path::PathBuf;
 
     #[test]
@@ -156,55 +141,54 @@ mod tests {
     #[test]
     fn uri_should_fail_if_input_empty() {
         let input = Span::from("");
-        assert!(uri(input).is_err());
+        assert!(uri_ref(input).is_err());
     }
 
     #[test]
     fn uri_should_fail_if_no_scheme_and_not_www_or_absolute_path() {
         let input = Span::from("example.com");
-        assert!(uri(input).is_err());
+        assert!(uri_ref(input).is_err());
     }
 
     #[test]
     #[ignore]
     fn uri_should_succeed_if_starts_with_www_and_will_add_https_as_scheme() {
         let input = Span::from("www.example.com");
-        let (input, u) = uri(input).expect("Failed to parse uri");
+        let (input, u) = uri_ref(input).expect("Failed to parse uri");
         assert!(input.is_empty());
-        assert_eq!(u.scheme(), "https");
+        assert_eq!(u.scheme().unwrap(), "https");
         assert_eq!(u.host().unwrap().to_string(), "www.example.com");
     }
 
     #[test]
     #[ignore]
-    fn uri_should_succeed_if_starts_with_absolute_path_and_will_add_file_as_scheme(
-    ) {
-        let input = Span::from("//some/absolute/path");
-        let (input, u) = uri(input).expect("Failed to parse uri");
+    fn uri_should_succeed_if_starts_with_network_path() {
+        let input = Span::from("//some/network/path");
+        let (input, u) = uri_ref(input).expect("Failed to parse uri");
         assert!(input.is_empty());
-        assert_eq!(u.scheme(), "file");
-        assert_eq!(u.path(), "/some/absolute/path");
+        assert_eq!(u.scheme().unwrap(), "file");
+        assert_eq!(u.path(), "/some/network/path");
     }
 
     #[test]
     fn uri_should_succeed_if_starts_with_scheme() {
         let input = Span::from("https://github.com/vimwiki/vimwiki.git");
-        let (input, u) = uri(input).expect("Failed to parse uri");
+        let (input, u) = uri_ref(input).expect("Failed to parse uri");
         assert!(input.is_empty());
-        assert_eq!(u.scheme(), "https");
+        assert_eq!(u.scheme().unwrap(), "https");
         assert_eq!(u.host().unwrap().to_string(), "github.com");
         assert_eq!(u.path(), "/vimwiki/vimwiki.git");
 
         let input = Span::from("mailto:habamax@gmail.com");
-        let (input, u) = uri(input).expect("Failed to parse uri");
+        let (input, u) = uri_ref(input).expect("Failed to parse uri");
         assert!(input.is_empty());
-        assert_eq!(u.scheme(), "mailto");
+        assert_eq!(u.scheme().unwrap(), "mailto");
         assert_eq!(u.path(), "habamax@gmail.com");
 
         let input = Span::from("ftp://vim.org");
-        let (input, u) = uri(input).expect("Failed to parse uri");
+        let (input, u) = uri_ref(input).expect("Failed to parse uri");
         assert!(input.is_empty());
-        assert_eq!(u.scheme(), "ftp");
+        assert_eq!(u.scheme().unwrap(), "ftp");
         assert_eq!(u.host().unwrap().to_string(), "vim.org");
     }
 }

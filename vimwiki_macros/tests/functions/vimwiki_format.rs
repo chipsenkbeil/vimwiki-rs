@@ -1,5 +1,8 @@
-use std::{borrow::Cow, path::PathBuf};
-use vimwiki::{elements::*, vendor::chrono::NaiveDate};
+use std::{borrow::Cow, convert::TryFrom};
+use vimwiki::{
+    vendor::{chrono::NaiveDate, uriparse::URIReference},
+    *,
+};
 use vimwiki_macros::*;
 
 #[test]
@@ -8,10 +11,12 @@ fn vimwiki_page() {
     assert_eq!(
         x,
         Page::new(vec![Located::from(BlockElement::Paragraph(
-            Paragraph::new(InlineElementContainer::new(vec![Located::from(
-                InlineElement::Text(Text::from("some cool text"))
-            )]))
-        ))],)
+            Paragraph::new(vec![InlineElementContainer::new(vec![
+                Located::from(InlineElement::Text(Text::from(
+                    "some cool text"
+                )))
+            ])])
+        ))])
     );
 }
 
@@ -20,11 +25,11 @@ fn vimwiki_block_element() {
     let x = vimwiki_block_element_format!("some {} text", "cool");
     assert_eq!(
         x.into_inner(),
-        BlockElement::Paragraph(Paragraph::new(InlineElementContainer::new(
-            vec![Located::from(InlineElement::Text(Text::from(
-                "some cool text"
-            )))]
-        )))
+        BlockElement::Paragraph(Paragraph::new(vec![
+            InlineElementContainer::new(vec![Located::from(
+                InlineElement::Text(Text::from("some cool text"))
+            )])
+        ]))
     );
 }
 
@@ -153,55 +158,58 @@ fn vimwiki_header() {
 
 #[test]
 fn vimwiki_link() {
-    let x = vimwiki_link_format!("[[{} link]]", "cool");
+    // Wiki link (NOTE: Cannot inject into uri, only description)
+    let x = vimwiki_link_format!("[[link|{}]]", "cool");
     assert_eq!(
         x.into_inner(),
-        Link::Wiki(WikiLink::from(PathBuf::from("cool link")))
+        Link::new_wiki_link(
+            URIReference::try_from("link").unwrap().into_owned(),
+            Description::from("cool"),
+        ),
     );
-}
 
-#[test]
-fn vimwiki_diary_link() {
-    let x = vimwiki_diary_link_format!("[[diary:2012-03-05|{}]]", "cool");
+    // Indexed Interwiki Link (NOTE: Cannot inject into uri, only description)
+    let x = vimwiki_link_format!("[[wiki1:link|{}]]", "cool");
     assert_eq!(
         x.into_inner(),
-        DiaryLink::new(
-            NaiveDate::from_ymd(2012, 3, 5),
-            Some(Description::from("cool")),
-            None
-        )
-    );
-}
-
-#[test]
-fn vimwiki_external_file_link() {
-    let x =
-        vimwiki_external_file_link_format!("[[file:path/to/{}/file]]", "cool");
-    assert_eq!(
-        x.into_inner(),
-        ExternalFileLink::new(
-            ExternalFileLinkScheme::File,
-            Cow::from(PathBuf::from("path/to/cool/file")),
-            None
-        )
-    )
-}
-
-#[test]
-fn vimwiki_wiki_link() {
-    let x = vimwiki_wiki_link_format!("[[{} link]]", "cool");
-    assert_eq!(x.into_inner(), WikiLink::from(PathBuf::from("cool link")));
-}
-
-#[test]
-fn vimwiki_inter_wiki_link() {
-    let x = vimwiki_inter_wiki_link_format!("[[wiki1:{} link]]", "cool");
-    assert_eq!(
-        x.into_inner(),
-        InterWikiLink::Indexed(IndexedInterWikiLink::new(
+        Link::new_indexed_interwiki_link(
             1,
-            WikiLink::from(PathBuf::from("cool link"))
-        ))
+            URIReference::try_from("cool%20link").unwrap().into_owned(),
+            Description::from("cool"),
+        ),
+    );
+
+    // Named Interwiki Link (NOTE: Cannot inject into uri, only description)
+    let x = vimwiki_link_format!("[[wn.MyWiki:link|{}]]", "cool");
+    assert_eq!(
+        x.into_inner(),
+        Link::new_named_interwiki_link(
+            "MyWiki",
+            URIReference::try_from("cool%20link").unwrap().into_owned(),
+            Description::from("cool"),
+        ),
+    );
+
+    // Diary link (NOTE: Cannot inject into date, only description)
+    let x = vimwiki_link_format!("[[diary:2012-03-05|{}]]", "cool");
+    assert_eq!(
+        x.into_inner(),
+        Link::new_diary_link(
+            NaiveDate::from_ymd(2012, 3, 5),
+            Description::from("cool"),
+        )
+    );
+
+    // File link (NOTE: Cannot inject into uri, only description)
+    let x = vimwiki_link_format!("[[file:path/to/file|{}]]", "cool");
+    assert_eq!(
+        x.into_inner(),
+        Link::new_wiki_link(
+            URIReference::try_from("file:path/to/file")
+                .unwrap()
+                .into_owned(),
+            Description::from("cool"),
+        )
     );
 }
 
@@ -324,9 +332,9 @@ fn vimwiki_paragraph() {
     let x = vimwiki_paragraph_format!("some {} text", "cool");
     assert_eq!(
         x.into_inner(),
-        Paragraph::new(InlineElementContainer::new(vec![Located::from(
+        Paragraph::new(vec![InlineElementContainer::new(vec![Located::from(
             InlineElement::Text(Text::from("some cool text"))
-        )]))
+        )])])
     );
 }
 
@@ -376,13 +384,14 @@ fn vimwiki_table() {
     assert_eq!(
         x.into_inner(),
         Table::new(
-            vec![Located::from(Row::Content {
-                cells: vec![Located::from(Cell::Content(
-                    InlineElementContainer::new(vec![Located::from(
-                        InlineElement::Text(Text::from("cool cell"))
-                    )])
-                ))],
-            })],
+            vec![(
+                CellPos::new(0, 0),
+                Located::from(Cell::Content(InlineElementContainer::new(
+                    vec![Located::from(InlineElement::Text(Text::from(
+                        "cool cell"
+                    )))]
+                )))
+            )],
             false
         )
     );

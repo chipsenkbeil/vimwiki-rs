@@ -1,7 +1,7 @@
-use std::{borrow::Cow, convert::TryFrom, path::PathBuf};
+use std::{borrow::Cow, convert::TryFrom};
 use vimwiki::{
-    elements::*,
-    vendor::{chrono::NaiveDate, uriparse::URI},
+    vendor::{chrono::NaiveDate, uriparse::URIReference},
+    *,
 };
 use vimwiki_macros::*;
 
@@ -11,9 +11,9 @@ fn vimwiki_page() {
     assert_eq!(
         x,
         Page::new(vec![Located::from(BlockElement::Paragraph(
-            Paragraph::new(InlineElementContainer::new(vec![Located::from(
-                InlineElement::Text(Text::from("some text"))
-            )]))
+            Paragraph::new(vec![InlineElementContainer::new(vec![
+                Located::from(InlineElement::Text(Text::from("some text")))
+            ])])
         ))],)
     );
 }
@@ -23,9 +23,11 @@ fn vimwiki_block_element() {
     let x = vimwiki_block_element!("some text");
     assert_eq!(
         x.into_inner(),
-        BlockElement::Paragraph(Paragraph::new(InlineElementContainer::new(
-            vec![Located::from(InlineElement::Text(Text::from("some text")))]
-        )))
+        BlockElement::Paragraph(Paragraph::new(vec![
+            InlineElementContainer::new(vec![Located::from(
+                InlineElement::Text(Text::from("some text"))
+            )])
+        ]))
     );
 }
 
@@ -148,74 +150,79 @@ fn vimwiki_header() {
 
 #[test]
 fn vimwiki_link() {
+    // Wiki Link
     let x = vimwiki_link!("[[link]]");
     assert_eq!(
         x.into_inner(),
-        Link::Wiki(WikiLink::from(PathBuf::from("link")))
-    );
-}
-
-#[test]
-fn vimwiki_diary_link() {
-    let x = vimwiki_diary_link!("[[diary:2012-03-05]]");
-    assert_eq!(
-        x.into_inner(),
-        DiaryLink::from(NaiveDate::from_ymd(2012, 3, 5))
-    );
-}
-
-#[test]
-fn vimwiki_external_file_link() {
-    let x = vimwiki_external_file_link!("[[file:path/to/file]]");
-    assert_eq!(
-        x.into_inner(),
-        ExternalFileLink::new(
-            ExternalFileLinkScheme::File,
-            Cow::from(PathBuf::from("path/to/file")),
+        Link::new_wiki_link(
+            URIReference::try_from("link").unwrap().into_owned(),
             None
-        )
-    )
-}
+        ),
+    );
 
-#[test]
-fn vimwiki_raw_link() {
-    let x = vimwiki_raw_link!("https://example.com");
+    // Indexed Interwiki Link
+    let x = vimwiki_link!("[[wiki1:link]]");
     assert_eq!(
         x.into_inner(),
-        RawLink::new(
-            URI::try_from("https://example.com").unwrap().into_owned()
+        Link::new_indexed_interwiki_link(
+            1,
+            URIReference::try_from("link").unwrap().into_owned(),
+            None
+        ),
+    );
+
+    // Named Interwiki Link
+    let x = vimwiki_link!("[[wn.MyWiki:link]]");
+    assert_eq!(
+        x.into_inner(),
+        Link::new_named_interwiki_link(
+            "MyWiki",
+            URIReference::try_from("link").unwrap().into_owned(),
+            None
+        ),
+    );
+
+    // Diary Link
+    let x = vimwiki_link!("[[diary:2012-03-05]]");
+    assert_eq!(
+        x.into_inner(),
+        Link::new_diary_link(NaiveDate::from_ymd(2012, 3, 5), None)
+    );
+
+    // File Link
+    let x = vimwiki_link!("[[file:path/to/file]]");
+    assert_eq!(
+        x.into_inner(),
+        Link::new_wiki_link(
+            URIReference::try_from("file:path/to/file")
+                .unwrap()
+                .into_owned(),
+            None,
         )
     );
-}
 
-#[test]
-fn vimwiki_transclusion_link() {
-    let x = vimwiki_transclusion_link!("{{https://example.com/img.jpg}}");
+    // Raw Link
+    let x = vimwiki_link!("https://example.com");
     assert_eq!(
         x.into_inner(),
-        TransclusionLink::from(
-            URI::try_from("https://example.com/img.jpg")
+        Link::new_raw_link(
+            URIReference::try_from("https://example.com")
                 .unwrap()
                 .into_owned()
         )
     );
-}
 
-#[test]
-fn vimwiki_wiki_link() {
-    let x = vimwiki_wiki_link!("[[link]]");
-    assert_eq!(x.into_inner(), WikiLink::from(PathBuf::from("link")));
-}
-
-#[test]
-fn vimwiki_inter_wiki_link() {
-    let x = vimwiki_inter_wiki_link!("[[wiki1:link]]");
+    // Transclusion Link
+    let x = vimwiki_link!("{{https://example.com/img.jpg}}");
     assert_eq!(
         x.into_inner(),
-        InterWikiLink::Indexed(IndexedInterWikiLink::new(
-            1,
-            WikiLink::from(PathBuf::from("link"))
-        ))
+        Link::new_transclusion_link(
+            URIReference::try_from("https://example.com/img.jpg")
+                .unwrap()
+                .into_owned(),
+            None,
+            None,
+        ),
     );
 }
 
@@ -361,9 +368,9 @@ fn vimwiki_paragraph() {
     let x = vimwiki_paragraph!("some text");
     assert_eq!(
         x.into_inner(),
-        Paragraph::new(InlineElementContainer::new(vec![Located::from(
+        Paragraph::new(vec![InlineElementContainer::new(vec![Located::from(
             InlineElement::Text(Text::from("some text"))
-        )]))
+        )])])
     );
 }
 
@@ -432,13 +439,14 @@ fn vimwiki_table() {
     assert_eq!(
         x.into_inner(),
         Table::new(
-            vec![Located::from(Row::Content {
-                cells: vec![Located::from(Cell::Content(
-                    InlineElementContainer::new(vec![Located::from(
-                        InlineElement::Text(Text::from("cell"))
-                    )])
-                ))],
-            })],
+            vec![(
+                CellPos::new(0, 0),
+                Located::from(Cell::Content(InlineElementContainer::new(
+                    vec![Located::from(InlineElement::Text(Text::from(
+                        "cell"
+                    )))]
+                )))
+            )],
             false
         )
     );

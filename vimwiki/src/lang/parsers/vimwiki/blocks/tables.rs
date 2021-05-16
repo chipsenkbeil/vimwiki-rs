@@ -126,9 +126,8 @@ fn cell_span_above(input: Span) -> IResult<CellSpan> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lang::elements::{InlineElement, Link, Text, WikiLink};
+    use crate::lang::elements::{InlineElement, Text};
     use indoc::indoc;
-    use std::path::PathBuf;
 
     fn check_cell_text_value(cell: &Cell, value: &str) {
         check_cell_value(cell, |c| {
@@ -425,19 +424,14 @@ mod tests {
 
     #[test]
     fn table_should_support_inline_content_in_cells() {
-        let input = Span::from("|[[some link]]|");
+        let input = Span::from("|some text|");
         let (input, t) = table(input).unwrap();
         assert!(input.is_empty(), "Did not consume table");
         assert!(!t.is_centered(), "Table unexpectedly centered");
 
         let cell = t.get_cell(0, 0).unwrap().as_inner();
         check_cell_value(cell, |c| {
-            assert_eq!(
-                c,
-                &InlineElement::Link(Link::from(WikiLink::from(
-                    PathBuf::from("some link")
-                )))
-            );
+            assert_eq!(c, &InlineElement::Text(Text::from("some text")));
         });
     }
 }

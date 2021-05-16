@@ -26,6 +26,7 @@ lazy_static = "1.4"
 memchr = "2.3.3"
 nom = "6.1.2"
 numerals = "0.1.4"
+percent-encoding = "2.1.0"
 serde = { version = "1.0.115", features = ["derive"] }
 uriparse = { version = "0.6.3", features = ["serde"] }
 

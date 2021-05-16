@@ -196,7 +196,9 @@ pub fn keyword(input: Span) -> IResult<Located<Keyword>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lang::elements::{Link, WikiLink};
+    use crate::lang::elements::Link;
+    use std::convert::TryFrom;
+    use uriparse::URIReference;
 
     #[test]
     fn text_should_fail_if_input_empty() {
@@ -373,9 +375,10 @@ mod tests {
         assert_eq!(
             dt.into_inner(),
             DecoratedText::Bold(vec![Located::from(
-                DecoratedTextContent::from(Link::Wiki(WikiLink::from(
-                    "some link"
-                )))
+                DecoratedTextContent::from(Link::new_wiki_link(
+                    URIReference::try_from("some%20link").unwrap(),
+                    None
+                ))
             )])
         );
     }

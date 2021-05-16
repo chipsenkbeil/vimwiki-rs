@@ -55,10 +55,12 @@ impl Table<'_> {
 }
 
 impl<'a> Table<'a> {
-    pub fn new(
-        cells: HashMap<CellPos, Located<Cell<'a>>>,
+    pub fn new<I: IntoIterator<Item = (CellPos, Located<Cell<'a>>)>>(
+        cells: I,
         centered: bool,
     ) -> Self {
+        let cells: HashMap<CellPos, Located<Cell>> =
+            cells.into_iter().collect();
         let (max_row, max_col) = cells.keys().fold((0, 0), |acc, pos| {
             (
                 std::cmp::max(acc.0, pos.row + 1),

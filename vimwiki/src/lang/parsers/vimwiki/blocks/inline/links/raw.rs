@@ -1,23 +1,28 @@
 use crate::lang::{
-    elements::{Located, RawLink},
+    elements::{Link, Located},
     parsers::{
-        utils::{capture, context, locate, uri},
+        utils::{capture, context, locate, uri_ref},
         IResult, Span,
     },
 };
 use nom::combinator::verify;
 
-#[inline]
-pub fn raw_link(input: Span) -> IResult<Located<RawLink>> {
-    fn inner(input: Span) -> IResult<RawLink> {
+pub fn raw_link(input: Span) -> IResult<Located<Link>> {
+    fn inner(input: Span) -> IResult<Link> {
         // This will match any URI, but we only want to allow a certain set
         // to ensure that we don't mistake some text preceding a tag
-        let (input, uri) = verify(uri, |uri| {
-            vec!["http", "https", "ftp", "file", "local", "mailto"]
-                .contains(&uri.scheme().as_str())
+        //
+        // NOTE: We don't use link_uri_ref because we don't want to auto-escape
+        //       spaces or other characters. For raw links, that is up to the
+        //       user to do so
+        let (input, uri_ref) = verify(uri_ref, |uri_ref| {
+            uri_ref.scheme().map_or(false, |scheme| {
+                ["http", "https", "ftp", "file", "local", "mailto"]
+                    .contains(&scheme.as_str())
+            })
         })(input)?;
 
-        Ok((input, RawLink::from(uri)))
+        Ok((input, Link::new_raw_link(uri_ref)))
     }
 
     context("Raw Link", locate(capture(inner)))(input)
@@ -35,8 +40,11 @@ mod tests {
         // Link should be consumed
         assert!(input.is_empty());
 
-        assert_eq!(link.uri.scheme(), "http");
-        assert_eq!(link.uri.host().unwrap().to_string(), "example.com");
+        assert_eq!(link.scheme().unwrap(), "http");
+        assert_eq!(
+            link.data().uri_ref().host().unwrap().to_string(),
+            "example.com"
+        );
     }
 
     #[test]
@@ -47,8 +55,11 @@ mod tests {
         // Link should be consumed
         assert!(input.is_empty());
 
-        assert_eq!(link.uri.scheme(), "https");
-        assert_eq!(link.uri.host().unwrap().to_string(), "example.com");
+        assert_eq!(link.scheme().unwrap(), "https");
+        assert_eq!(
+            link.data().uri_ref().host().unwrap().to_string(),
+            "example.com"
+        );
     }
 
     #[test]
@@ -60,8 +71,11 @@ mod tests {
         // Link should be consumed
         assert!(input.is_empty());
 
-        assert_eq!(link.uri.scheme(), "https");
-        assert_eq!(link.uri.host().unwrap().to_string(), "www.example.com");
+        assert_eq!(link.scheme().unwrap(), "https");
+        assert_eq!(
+            link.data().uri_ref().host().unwrap().to_string(),
+            "www.example.com"
+        );
     }
 
     #[test]
@@ -72,8 +86,11 @@ mod tests {
         // Link should be consumed
         assert!(input.is_empty());
 
-        assert_eq!(link.uri.scheme(), "ftp");
-        assert_eq!(link.uri.host().unwrap().to_string(), "example.com");
+        assert_eq!(link.scheme().unwrap(), "ftp");
+        assert_eq!(
+            link.data().uri_ref().host().unwrap().to_string(),
+            "example.com"
+        );
     }
 
     #[test]
@@ -84,8 +101,8 @@ mod tests {
         // Link should be consumed
         assert!(input.is_empty());
 
-        assert_eq!(link.uri.scheme(), "file");
-        assert_eq!(link.uri.path(), "/some/path");
+        assert_eq!(link.scheme().unwrap(), "file");
+        assert_eq!(link.data().uri_ref().path(), "/some/path");
     }
 
     #[test]
@@ -96,8 +113,8 @@ mod tests {
         // Link should be consumed
         assert!(input.is_empty());
 
-        assert_eq!(link.uri.scheme(), "local");
-        assert_eq!(link.uri.path(), "/some/path");
+        assert_eq!(link.scheme().unwrap(), "local");
+        assert_eq!(link.data().uri_ref().path(), "/some/path");
     }
 
     #[test]
@@ -108,7 +125,7 @@ mod tests {
         // Link should be consumed
         assert!(input.is_empty());
 
-        assert_eq!(link.uri.scheme(), "mailto");
-        assert_eq!(link.uri.path(), "person@example.com");
+        assert_eq!(link.scheme().unwrap(), "mailto");
+        assert_eq!(link.data().uri_ref().path(), "person@example.com");
     }
 }

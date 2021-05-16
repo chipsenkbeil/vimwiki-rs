@@ -1,5 +1,6 @@
 use super::fixtures::VimwikiFile;
-use vimwiki::*;
+use std::convert::TryFrom;
+use vimwiki::{vendor::uriparse::URIReference, *};
 
 #[test]
 fn test() {
@@ -119,9 +120,7 @@ fn test() {
                         Region::new_at_depth(112, 6, 1),
                     ),
                     Located::new(
-                        InlineElement::from(Link::from(WikiLink::from(
-                            "links",
-                        ))),
+                        InlineElement::from(Link::new_wiki_link(URIReference::try_from("links").unwrap(), None)),
                         Region::new_at_depth(118, 9, 1),
                     ),
                     Located::new(

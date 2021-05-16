@@ -386,6 +386,14 @@ impl<'a> From<Span<'a>> for Cow<'a, Path> {
     }
 }
 
+impl<'a> TryFrom<Span<'a>> for uriparse::URIReference<'a> {
+    type Error = uriparse::URIReferenceError;
+
+    fn try_from(span: Span<'a>) -> Result<Self, Self::Error> {
+        uriparse::URIReference::try_from(&span.inner[span.start..span.end])
+    }
+}
+
 impl<'a> TryFrom<Span<'a>> for uriparse::URI<'a> {
     type Error = uriparse::URIError;
 
