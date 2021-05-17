@@ -35,8 +35,8 @@ impl<T: Output<Formatter = HtmlFormatter>> ToHtmlPage for T {
         let title = formatter.take_title().unwrap_or_else(|| {
             formatter
                 .config()
-                .page
-                .get_path()
+                .runtime
+                .get_active_page_path()
                 .file_stem()
                 .map(|x| x.to_string_lossy().to_string())
                 .unwrap_or_else(String::new)
@@ -68,7 +68,6 @@ impl<T: Output<Formatter = HtmlFormatter>> ToHtmlPage for T {
                 "%root_path%",
                 &formatter
                     .config()
-                    .page
                     .get_path_to_root()
                     .filter(|path| !path.as_os_str().is_empty())
                     .map(|path| format!("{}/", path.to_string_lossy()))
@@ -78,12 +77,17 @@ impl<T: Output<Formatter = HtmlFormatter>> ToHtmlPage for T {
                 "%wiki_path%",
                 &formatter
                     .config()
-                    .page
                     .get_path_within_root()
-                    .map(|path| format!("{}", path.to_string_lossy()))
-                    .unwrap_or_else(String::new),
+                    .to_string_lossy()
+                    .to_string(),
             )
-            .replace("%css%", formatter.config().page.get_css_name_or_default())
+            .replace(
+                "%css%",
+                formatter
+                    .config()
+                    .to_active_wiki_config()
+                    .get_css_name_or_default(),
+            )
             .replace("%encoding%", "utf-8")
             .replace("%content%", formatter.get_content());
 
@@ -94,7 +98,9 @@ impl<T: Output<Formatter = HtmlFormatter>> ToHtmlPage for T {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{HtmlPageConfig, HtmlTemplateConfig, OutputResult};
+    use crate::{
+        HtmlRuntimeConfig, HtmlTemplateConfig, HtmlWikiConfig, OutputResult,
+    };
     use chrono::NaiveDate;
     use std::path::PathBuf;
 
@@ -131,7 +137,10 @@ mod tests {
     fn to_html_page_should_not_replace_placeholders_in_content() {
         let output = TestOutput(_text("some %title% content"));
         let template = HtmlTemplateConfig::from_text("<html>%content%</html>");
-        let config = HtmlConfig::build().template(template).finish().unwrap();
+        let config = HtmlConfig {
+            template,
+            ..Default::default()
+        };
 
         let result = output.to_html_page(config).unwrap();
         assert_eq!(result, "<html>some %title% content</html>");
@@ -144,7 +153,10 @@ mod tests {
             Ok(())
         });
         let template = HtmlTemplateConfig::from_text("<html>%title%</html>");
-        let config = HtmlConfig::build().template(template).finish().unwrap();
+        let config = HtmlConfig {
+            template,
+            ..Default::default()
+        };
 
         let result = output.to_html_page(config).unwrap();
         assert_eq!(result, "<html>some title</html>");
@@ -155,16 +167,14 @@ mod tests {
     ) {
         let output = TestOutput(_text(""));
         let template = HtmlTemplateConfig::from_text("<html>%title%</html>");
-        let config = HtmlConfig::build()
-            .template(template)
-            .page(
-                HtmlPageConfig::build()
-                    .path("some/page.wiki")
-                    .finish()
-                    .unwrap(),
-            )
-            .finish()
-            .unwrap();
+        let config = HtmlConfig {
+            template,
+            runtime: HtmlRuntimeConfig {
+                page: PathBuf::from("some/page.wiki"),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
 
         let result = output.to_html_page(config).unwrap();
         assert_eq!(result, "<html>page</html>");
@@ -177,7 +187,10 @@ mod tests {
             Ok(())
         });
         let template = HtmlTemplateConfig::from_text("<html>%date%</html>");
-        let config = HtmlConfig::build().template(template).finish().unwrap();
+        let config = HtmlConfig {
+            template,
+            ..Default::default()
+        };
 
         let result = output.to_html_page(config).unwrap();
         assert_eq!(result, "<html>2003-11-27</html>");
@@ -188,7 +201,10 @@ mod tests {
     ) {
         let output = TestOutput(_text(""));
         let template = HtmlTemplateConfig::from_text("<html>%date%</html>");
-        let config = HtmlConfig::build().template(template).finish().unwrap();
+        let config = HtmlConfig {
+            template,
+            ..Default::default()
+        };
 
         let result = output.to_html_page(config).unwrap();
         assert_eq!(
@@ -205,59 +221,53 @@ mod tests {
             HtmlTemplateConfig::from_text("<html>%root_path%</html>");
 
         // When the file is nested in some subdirectory of the wiki
-        let config = HtmlConfig::build()
-            .template(template.clone())
-            .page(
-                HtmlPageConfig::build()
-                    .wiki_root(["some", "path"].iter().collect::<PathBuf>())
-                    .path(
-                        ["some", "path", "to", "a", "file.wiki"]
-                            .iter()
-                            .collect::<PathBuf>(),
-                    )
-                    .finish()
-                    .unwrap(),
-            )
-            .finish()
-            .unwrap();
+        let config = HtmlConfig {
+            template: template.clone(),
+            wikis: vec![HtmlWikiConfig {
+                path: ["some", "path"].iter().collect(),
+                ..Default::default()
+            }],
+            runtime: HtmlRuntimeConfig {
+                wiki_index: Some(0),
+                page: ["some", "path", "to", "a", "file.wiki"].iter().collect(),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
         let result = output.to_html_page(config).unwrap();
         assert_eq!(result, "<html>../../</html>");
 
         // When the file is one directory deep
-        let config = HtmlConfig::build()
-            .template(template.clone())
-            .page(
-                HtmlPageConfig::build()
-                    .wiki_root(["some", "path"].iter().collect::<PathBuf>())
-                    .path(
-                        ["some", "path", "to", "file.wiki"]
-                            .iter()
-                            .collect::<PathBuf>(),
-                    )
-                    .finish()
-                    .unwrap(),
-            )
-            .finish()
-            .unwrap();
+        let config = HtmlConfig {
+            template: template.clone(),
+            wikis: vec![HtmlWikiConfig {
+                path: ["some", "path"].iter().collect(),
+                ..Default::default()
+            }],
+            runtime: HtmlRuntimeConfig {
+                wiki_index: Some(0),
+                page: ["some", "path", "to", "file.wiki"].iter().collect(),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
         let result = output.to_html_page(config).unwrap();
         assert_eq!(result, "<html>../</html>");
 
         // When the file is at the root of the wiki
-        let config = HtmlConfig::build()
-            .template(template)
-            .page(
-                HtmlPageConfig::build()
-                    .wiki_root(["some", "path"].iter().collect::<PathBuf>())
-                    .path(
-                        ["some", "path", "file.wiki"]
-                            .iter()
-                            .collect::<PathBuf>(),
-                    )
-                    .finish()
-                    .unwrap(),
-            )
-            .finish()
-            .unwrap();
+        let config = HtmlConfig {
+            template: template.clone(),
+            wikis: vec![HtmlWikiConfig {
+                path: ["some", "path"].iter().collect(),
+                ..Default::default()
+            }],
+            runtime: HtmlRuntimeConfig {
+                wiki_index: Some(0),
+                page: ["some", "path", "file.wiki"].iter().collect(),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
         let result = output.to_html_page(config).unwrap();
         assert_eq!(result, "<html></html>");
     }
@@ -267,21 +277,19 @@ mod tests {
         let output = TestOutput(_text(""));
         let template =
             HtmlTemplateConfig::from_text("<html>%wiki_path%</html>");
-        let config = HtmlConfig::build()
-            .template(template)
-            .page(
-                HtmlPageConfig::build()
-                    .wiki_root(["some", "path"].iter().collect::<PathBuf>())
-                    .path(
-                        ["some", "path", "to", "a", "file.wiki"]
-                            .iter()
-                            .collect::<PathBuf>(),
-                    )
-                    .finish()
-                    .unwrap(),
-            )
-            .finish()
-            .unwrap();
+        let config = HtmlConfig {
+            template,
+            wikis: vec![HtmlWikiConfig {
+                path: ["some", "path"].iter().collect(),
+                ..Default::default()
+            }],
+            runtime: HtmlRuntimeConfig {
+                wiki_index: Some(0),
+                page: ["some", "path", "to", "a", "file.wiki"].iter().collect(),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
 
         let result = output.to_html_page(config).unwrap();
         assert_eq!(result, "<html>to/a/file.wiki</html>");
@@ -291,17 +299,18 @@ mod tests {
     fn to_html_page_should_replace_css_placeholder_with_provided_css_name() {
         let output = TestOutput(_text(""));
         let template = HtmlTemplateConfig::from_text("<html>%css%</html>");
-        let config = HtmlConfig::build()
-            .template(template)
-            .page(
-                HtmlPageConfig::build()
-                    .path("")
-                    .css_name("css_file")
-                    .finish()
-                    .unwrap(),
-            )
-            .finish()
-            .unwrap();
+        let config = HtmlConfig {
+            template,
+            wikis: vec![HtmlWikiConfig {
+                css_name: Some("css_file".to_string()),
+                ..Default::default()
+            }],
+            runtime: HtmlRuntimeConfig {
+                wiki_index: Some(0),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
 
         let result = output.to_html_page(config).unwrap();
         assert_eq!(result, "<html>css_file</html>");
@@ -312,12 +321,15 @@ mod tests {
     ) {
         let output = TestOutput(_text(""));
         let template = HtmlTemplateConfig::from_text("<html>%css%</html>");
-        let config = HtmlConfig::build().template(template).finish().unwrap();
+        let config = HtmlConfig {
+            template,
+            ..Default::default()
+        };
 
         let result = output.to_html_page(config).unwrap();
         assert_eq!(
             result,
-            format!("<html>{}</html>", HtmlPageConfig::default_css_name())
+            format!("<html>{}</html>", HtmlWikiConfig::default_css_name())
         );
     }
 
@@ -325,7 +337,10 @@ mod tests {
     fn to_html_page_should_replace_encoding_placeholder_with_utf8() {
         let output = TestOutput(_text(""));
         let template = HtmlTemplateConfig::from_text("<html>%encoding%</html>");
-        let config = HtmlConfig::build().template(template).finish().unwrap();
+        let config = HtmlConfig {
+            template,
+            ..Default::default()
+        };
 
         let result = output.to_html_page(config).unwrap();
         assert_eq!(result, "<html>utf-8</html>");
@@ -335,7 +350,10 @@ mod tests {
     fn to_html_page_should_replace_content_placeholder_with_output_results() {
         let output = TestOutput(_text("some output content"));
         let template = HtmlTemplateConfig::from_text("<html>%content%</html>");
-        let config = HtmlConfig::build().template(template).finish().unwrap();
+        let config = HtmlConfig {
+            template,
+            ..Default::default()
+        };
 
         let result = output.to_html_page(config).unwrap();
         assert_eq!(result, "<html>some output content</html>");

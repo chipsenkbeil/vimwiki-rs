@@ -12,7 +12,7 @@ license = "MIT OR Apache-2.0"
 
 [features]
 default = []
-html = ["derive_builder", "dirs", "syntect", "voca_rs"]
+html = ["dirs", "syntect", "voca_rs"]
 timekeeper = []
 
 [[bench]]
@@ -31,9 +31,6 @@ serde = { version = "1.0.115", features = ["derive"] }
 uriparse = { version = "0.6.3", features = ["serde"] }
 
 ### HTML-only features ###
-
-# For easy building of HTML config structs
-derive_builder = { version = "0.10.2", optional = true }
 
 # For acquiring the home directory
 dirs = { version = "3.0.2", optional = true }

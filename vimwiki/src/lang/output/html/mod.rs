@@ -1750,14 +1750,13 @@ mod tests {
     #[test]
     fn comment_should_output_tag_based_on_inner_element() {
         let comment = Comment::from(LineComment::from("some comment"));
-        let mut f = HtmlFormatter::new(
-            HtmlConfig::build()
-                .comment(
-                    HtmlCommentConfig::build().include(true).finish().unwrap(),
-                )
-                .finish()
-                .unwrap(),
-        );
+        let mut f = HtmlFormatter::new(HtmlConfig {
+            comment: HtmlCommentConfig {
+                include: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
         comment.fmt(&mut f).unwrap();
         assert_eq!(f.get_content(), "<!-- some comment -->");
 
@@ -1765,14 +1764,13 @@ mod tests {
             "some comment",
             "on multiple lines",
         ]));
-        let mut f = HtmlFormatter::new(
-            HtmlConfig::build()
-                .comment(
-                    HtmlCommentConfig::build().include(true).finish().unwrap(),
-                )
-                .finish()
-                .unwrap(),
-        );
+        let mut f = HtmlFormatter::new(HtmlConfig {
+            comment: HtmlCommentConfig {
+                include: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
         comment.fmt(&mut f).unwrap();
         assert_eq!(
             f.get_content(),
@@ -1790,14 +1788,13 @@ mod tests {
         assert_eq!(f.get_content(), "");
 
         // If configured to output comments, should use HTML syntax
-        let mut f = HtmlFormatter::new(
-            HtmlConfig::build()
-                .comment(
-                    HtmlCommentConfig::build().include(true).finish().unwrap(),
-                )
-                .finish()
-                .unwrap(),
-        );
+        let mut f = HtmlFormatter::new(HtmlConfig {
+            comment: HtmlCommentConfig {
+                include: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
         comment.fmt(&mut f).unwrap();
         assert_eq!(f.get_content(), "<!-- some comment -->");
     }
@@ -1813,14 +1810,13 @@ mod tests {
         assert_eq!(f.get_content(), "");
 
         // If configured to output comments, should use HTML syntax
-        let mut f = HtmlFormatter::new(
-            HtmlConfig::build()
-                .comment(
-                    HtmlCommentConfig::build().include(true).finish().unwrap(),
-                )
-                .finish()
-                .unwrap(),
-        );
+        let mut f = HtmlFormatter::new(HtmlConfig {
+            comment: HtmlCommentConfig {
+                include: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
         comment.fmt(&mut f).unwrap();
         assert_eq!(
             f.get_content(),
