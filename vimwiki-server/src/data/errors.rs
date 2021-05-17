@@ -17,6 +17,14 @@ impl GraphqlDatabaseError {
             Err(x) => Ok(x),
         }
     }
+
+    /// Produces a builder variant of the database error that wraps the provided
+    /// error instance
+    pub fn custom_builder_error<I: Into<Box<dyn std::error::Error>>>(
+        e: I,
+    ) -> Self {
+        Self::Builder(e.into())
+    }
 }
 
 impl std::error::Error for GraphqlDatabaseError {}

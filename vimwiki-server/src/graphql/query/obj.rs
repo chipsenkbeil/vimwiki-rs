@@ -1077,32 +1077,6 @@ impl ObjQuery {
             .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
 
-    /// Queries for instances of ExternalFileLink that match the filter, or return all
-    /// instances if no filter provided
-    async fn external_file_links(
-        &self,
-        filter: Option<GqlExternalFileLinkFilter>,
-    ) -> async_graphql::Result<Vec<ExternalFileLink>> {
-        let query: entity::Query = match filter {
-            Some(x) => x.into(),
-            None => ExternalFileLink::query().into(),
-        };
-
-        gql_db()?
-            .find_all_typed::<ExternalFileLink>(query)
-            .map_err(|x| async_graphql::Error::new(x.to_string()))
-    }
-
-    /// Queries for a single instance of ExternalFileLink by its id
-    async fn external_file_link(
-        &self,
-        id: Id,
-    ) -> async_graphql::Result<Option<ExternalFileLink>> {
-        gql_db()?
-            .get_typed::<ExternalFileLink>(id)
-            .map_err(|x| async_graphql::Error::new(x.to_string()))
-    }
-
     /// Queries for instances of TransclusionLink that match the filter, or return all
     /// instances if no filter provided
     async fn transclusion_links(

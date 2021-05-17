@@ -16,7 +16,7 @@ pub struct IndexedInterWikiLink {
     region: Region,
 
     /// The index of the wiki this link is associated with
-    index: i32,
+    index: u32,
 
     /// Whether or not the link connects to a directory
     is_dir: bool,
@@ -55,7 +55,7 @@ impl fmt::Display for IndexedInterWikiLink {
 }
 
 impl<'a> FromVimwikiElement<'a> for IndexedInterWikiLink {
-    type Element = Located<v::IndexedInterWikiLink<'a>>;
+    type Element = Located<v::Link<'a>>;
 
     fn from_vimwiki_element(
         page_id: Id,
@@ -63,17 +63,22 @@ impl<'a> FromVimwikiElement<'a> for IndexedInterWikiLink {
         element: Self::Element,
     ) -> Result<Self, GraphqlDatabaseError> {
         let region = Region::from(element.region());
-        let element = element.into_inner();
+        let link = element.into_inner();
 
         GraphqlDatabaseError::wrap(
             Self::build()
                 .region(region)
-                .index(element.index as i32)
-                .is_dir(element.link.is_path_dir())
-                .is_local_anchor(element.link.is_local_anchor())
-                .path(element.link.path.to_string_lossy().to_string())
-                .description(element.link.description.map(Description::from))
-                .anchor(element.link.anchor.map(Anchor::from))
+                .index(link.index().ok_or_else(|| {
+                    GraphqlDatabaseError::custom_builder_error(format!(
+                        "Link missing index: {:?}",
+                        link
+                    ))
+                })?)
+                .is_dir(link.data().is_path_dir())
+                .is_local_anchor(link.data().is_local_anchor())
+                .path(link.data().to_path_buf().to_string_lossy().to_string())
+                .anchor(link.to_anchor().map(Anchor::from))
+                .description(link.into_description().map(Description::from))
                 .page(page_id)
                 .parent(parent_id)
                 .finish_and_commit(),
@@ -129,7 +134,7 @@ impl fmt::Display for NamedInterWikiLink {
 }
 
 impl<'a> FromVimwikiElement<'a> for NamedInterWikiLink {
-    type Element = Located<v::NamedInterWikiLink<'a>>;
+    type Element = Located<v::Link<'a>>;
 
     fn from_vimwiki_element(
         page_id: Id,
@@ -137,17 +142,24 @@ impl<'a> FromVimwikiElement<'a> for NamedInterWikiLink {
         element: Self::Element,
     ) -> Result<Self, GraphqlDatabaseError> {
         let region = Region::from(element.region());
-        let element = element.into_inner();
+        let link = element.into_inner();
 
         GraphqlDatabaseError::wrap(
             Self::build()
                 .region(region)
-                .name(element.name.to_string())
-                .is_dir(element.link.is_path_dir())
-                .is_local_anchor(element.link.is_local_anchor())
-                .path(element.link.path.to_string_lossy().to_string())
-                .description(element.link.description.map(Description::from))
-                .anchor(element.link.anchor.map(Anchor::from))
+                .name(link.name().map(ToString::to_string).ok_or_else(
+                    || {
+                        GraphqlDatabaseError::custom_builder_error(format!(
+                            "Link missing name: {:?}",
+                            link
+                        ))
+                    },
+                )?)
+                .is_dir(link.data().is_path_dir())
+                .is_local_anchor(link.data().is_local_anchor())
+                .path(link.data().to_path_buf().to_string_lossy().to_string())
+                .anchor(link.to_anchor().map(Anchor::from))
+                .description(link.into_description().map(Description::from))
                 .page(page_id)
                 .parent(parent_id)
                 .finish_and_commit(),
@@ -164,26 +176,19 @@ mod tests {
     #[test]
     fn indexed_interwiki_link_should_fully_populate_from_vimwiki_element() {
         global::with_db(InmemoryDatabase::default(), || {
-            let element = vimwiki_inter_wiki_link!(
+            let link = vimwiki_link!(
                 r#"[[wiki1:Link Path#one#two|Some description]]"#
             );
-            let region = Region::from(element.region());
-            let element = {
-                let region = element.region();
-                match element.into_inner() {
-                    v::InterWikiLink::Indexed(x) => Located::new(x, region),
-                    x => panic!("Got wrong link: {:?}", x),
-                }
-            };
+            let region = Region::from(link.region());
             let ent = IndexedInterWikiLink::from_vimwiki_element(
                 999,
                 Some(123),
-                element,
+                link,
             )
             .expect("Failed to convert from element");
 
             assert_eq!(ent.region(), &region);
-            assert_eq!(ent.path(), "Link Path");
+            assert_eq!(ent.path(), "Link%20Path");
             assert_eq!(
                 ent.description(),
                 &Some(Description::Text(String::from("Some description")))
@@ -197,26 +202,16 @@ mod tests {
     #[test]
     fn named_interwiki_link_should_fully_populate_from_vimwiki_element() {
         global::with_db(InmemoryDatabase::default(), || {
-            let element = vimwiki_inter_wiki_link!(
+            let link = vimwiki_link!(
                 r#"[[wn.Some Name:Link Path#one#two|Some description]]"#
             );
-            let region = Region::from(element.region());
-            let element = {
-                let region = element.region();
-                match element.into_inner() {
-                    v::InterWikiLink::Named(x) => Located::new(x, region),
-                    x => panic!("Got wrong link: {:?}", x),
-                }
-            };
-            let ent = NamedInterWikiLink::from_vimwiki_element(
-                999,
-                Some(123),
-                element,
-            )
-            .expect("Failed to convert from element");
+            let region = Region::from(link.region());
+            let ent =
+                NamedInterWikiLink::from_vimwiki_element(999, Some(123), link)
+                    .expect("Failed to convert from element");
 
             assert_eq!(ent.region(), &region);
-            assert_eq!(ent.path(), "Link Path");
+            assert_eq!(ent.path(), "Link%20Path");
             assert_eq!(
                 ent.description(),
                 &Some(Description::Text(String::from("Some description")))

@@ -51,7 +51,7 @@ impl fmt::Display for WikiLink {
 }
 
 impl<'a> FromVimwikiElement<'a> for WikiLink {
-    type Element = Located<v::WikiLink<'a>>;
+    type Element = Located<v::Link<'a>>;
 
     fn from_vimwiki_element(
         page_id: Id,
@@ -59,15 +59,15 @@ impl<'a> FromVimwikiElement<'a> for WikiLink {
         element: Self::Element,
     ) -> Result<Self, GraphqlDatabaseError> {
         let region = Region::from(element.region());
-        let element = element.into_inner();
+        let link = element.into_inner();
         GraphqlDatabaseError::wrap(
             Self::build()
                 .region(region)
-                .is_dir(element.is_path_dir())
-                .is_local_anchor(element.is_local_anchor())
-                .path(element.path.to_string_lossy().to_string())
-                .description(element.description.map(Description::from))
-                .anchor(element.anchor.map(Anchor::from))
+                .is_dir(link.data().is_path_dir())
+                .is_local_anchor(link.data().is_local_anchor())
+                .path(link.data().to_path_buf().to_string_lossy().to_string())
+                .anchor(link.to_anchor().map(Anchor::from))
+                .description(link.into_description().map(Description::from))
                 .page(page_id)
                 .parent(parent_id)
                 .finish_and_commit(),
@@ -84,14 +84,14 @@ mod tests {
     #[test]
     fn should_fully_populate_from_vimwiki_element() {
         global::with_db(InmemoryDatabase::default(), || {
-            let element =
-                vimwiki_wiki_link!(r#"[[some path#one#two|Some description]]"#);
-            let region = Region::from(element.region());
-            let ent = WikiLink::from_vimwiki_element(999, Some(123), element)
+            let link =
+                vimwiki_link!(r#"[[some path#one#two|Some description]]"#);
+            let region = Region::from(link.region());
+            let ent = WikiLink::from_vimwiki_element(999, Some(123), link)
                 .expect("Failed to convert from element");
 
             assert_eq!(ent.region(), &region);
-            assert_eq!(ent.path(), "some path");
+            assert_eq!(ent.path(), "some%20path");
             assert_eq!(
                 ent.description(),
                 &Some(Description::Text(String::from("Some description")))

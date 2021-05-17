@@ -13,6 +13,13 @@ use std::{
 };
 use uriparse::{Fragment, Scheme, URIReference, URIReferenceError};
 
+/// Represents the parts associated with link data
+pub type LinkDataParts<'a> = (
+    URIReference<'a>,
+    Option<Description<'a>>,
+    Option<HashMap<Cow<'a, str>, Cow<'a, str>>>,
+);
+
 /// Represents data for a link to some content, described through a combination
 /// of a URI reference and some arbitrary description
 #[derive(Constructor, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -131,6 +138,11 @@ impl<'a> LinkData<'a> {
         self,
     ) -> Option<HashMap<Cow<'a, str>, Cow<'a, str>>> {
         self.properties
+    }
+
+    /// Consumes link data and returns parts of data individually
+    pub fn into_parts(self) -> LinkDataParts<'a> {
+        (self.uri_ref, self.description, self.properties)
     }
 
     /// Whether or not the link is representing an anchor to the current page

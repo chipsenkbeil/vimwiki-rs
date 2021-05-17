@@ -45,7 +45,7 @@ impl fmt::Display for DiaryLink {
 }
 
 impl<'a> FromVimwikiElement<'a> for DiaryLink {
-    type Element = Located<v::DiaryLink<'a>>;
+    type Element = Located<v::Link<'a>>;
 
     fn from_vimwiki_element(
         page_id: Id,
@@ -58,9 +58,14 @@ impl<'a> FromVimwikiElement<'a> for DiaryLink {
         GraphqlDatabaseError::wrap(
             Self::build()
                 .region(region)
-                .date(Date::from(element.date))
-                .description(element.description.map(Description::from))
-                .anchor(element.anchor.map(Anchor::from))
+                .date(element.date().map(Date::from).ok_or_else(|| {
+                    GraphqlDatabaseError::custom_builder_error(format!(
+                        "Link missing date: {:?}",
+                        element
+                    ))
+                })?)
+                .anchor(element.to_anchor().map(Anchor::from))
+                .description(element.into_description().map(Description::from))
                 .page(page_id)
                 .parent(parent_id)
                 .finish_and_commit(),
@@ -77,7 +82,7 @@ mod tests {
     #[test]
     fn should_fully_populate_from_vimwiki_element() {
         global::with_db(InmemoryDatabase::default(), || {
-            let element = vimwiki_diary_link!(
+            let element = vimwiki_link!(
                 r#"[[diary:2021-04-03#one#two|Some description]]"#
             );
             let region = Region::from(element.region());
