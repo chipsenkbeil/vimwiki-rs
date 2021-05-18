@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::path::{Component, Path, PathBuf};
+use uriparse::{URIReference, URIReferenceError};
 
 /// Represents configuration properties for HTML writing that are separate from
 /// the running state during HTML conversion
@@ -49,78 +50,121 @@ impl HtmlConfig {
         !self.wikis.is_empty()
     }
 
-    /// Returns the relative path of the page to the wiki root if the page is
-    /// found within the wiki root
+    /// Returns the relative path of the actively-processed page to the root
+    /// of its wiki
     ///
     /// ### Examples
     ///
     /// ```rust
-    /// use vimwiki::HtmlWikiPageConfig;
-    /// use std::path::PathBuf;
-    ///
-    /// let config = HtmlWikiPageConfig {
-    ///     wiki_root: Some(PathBuf::from("/some/wiki/dir")),
-    ///     page: PathBuf::from("/some/wiki/dir/to/a/file.wiki"),
-    ///     css_name: None,
-    /// };
-    /// let path = config.get_path_to_root().unwrap();
-    /// assert_eq!(path, PathBuf::from("../.."));
-    /// ```
-    pub fn get_path_to_root(&self) -> Option<PathBuf> {
-        // Remove the directory from the file path as well as remove the file
-        // from the path itself
-        self.get_path_within_root().parent().map(|path| {
-            // Now, we convert each component to a .. to signify that we have
-            // to go back up
-            let mut rel_path = PathBuf::new();
-            for _ in path.components() {
-                rel_path.push(Component::ParentDir);
-            }
-            rel_path
-        })
-    }
-
-    /// Returns the relative path of the page to the wiki root if a wiki root
-    /// exists and the page is found within it
-    ///
-    /// ### Examples
-    ///
-    /// ```rust
-    /// use vimwiki::HtmlWikiPageConfig;
+    /// use vimwiki::{HtmlConfig, HtmlWikiConfig, HtmlRuntimeConfig};
     /// use std::path::{PathBuf, Path};
     ///
-    /// let config = HtmlWikiPageConfig {
-    ///     wiki_root: Some(PathBuf::from("/some/wiki/dir")),
-    ///     page: PathBuf::from("/some/wiki/dir/to/a/file.wiki"),
-    ///     css_name: None,
+    /// // When the active page does has a wiki associated with it, the path
+    /// // of the page is traversed upwards until the wiki root is reached and
+    /// // is reflected as a relative series of ..
+    /// let config = HtmlConfig {
+    ///     wikis: vec![
+    ///         HtmlWikiConfig {
+    ///             path: PathBuf::from("some/wiki"),
+    ///             ..Default::default()
+    ///         },
+    ///     ],
+    ///     runtime: HtmlRuntimeConfig {
+    ///         wiki_index: Some(0),
+    ///         page: PathBuf::from("some/wiki/path/to/file.wiki")
+    ///         ..Default::default()
+    ///     },
+    ///     ..Default::default()
     /// };
-    /// let path = config.get_path_within_root().unwrap();
-    /// assert_eq!(path, Path::new("to/a/file.wiki"));
+    /// let path = config.to_active_page_path_to_wiki_root();
+    /// assert_eq!(path, PathBuf::from("../.."));
     /// ```
-    pub fn get_path_within_root(&self) -> &Path {
-        let wiki = self.to_active_wiki_config();
-        let root = wiki.get_root_path();
-        let page = self.runtime.get_active_page_path();
+    ///
+    /// ```rust
+    /// use vimwiki::{HtmlConfig, HtmlWikiConfig, HtmlRuntimeConfig};
+    /// use std::path::{PathBuf, Path};
+    ///
+    /// // When the active page does not have a wiki associated with it, a
+    /// // temporary wiki is used where the page is at the root of the wiki
+    /// let config = HtmlConfig {
+    ///     runtime: HtmlRuntimeConfig {
+    ///         page: PathBuf::from("some/wiki/path/to/file.wiki")
+    ///         ..Default::default()
+    ///     },
+    ///     ..Default::default()
+    /// };
+    /// let path = config.to_active_page_path_to_wiki_root();
+    /// assert_eq!(path, PathBuf::new());
+    /// ```
+    pub fn to_active_page_path_to_wiki_root(&self) -> PathBuf {
+        // Remove the directory from the file path as well as remove the file
+        // from the path itself
+        self.as_active_page_path_within_wiki()
+            .parent()
+            .map(|path| {
+                // Now, we convert each component to a .. to signify that we have
+                // to go back up
+                let mut rel_path = PathBuf::new();
+                for _ in path.components() {
+                    rel_path.push(Component::ParentDir);
+                }
+                rel_path
+            })
+            .unwrap_or_else(PathBuf::new)
+    }
 
+    /// Returns the path of the actively-processed page relative to the wiki
+    /// containing it
+    ///
+    /// ### Examples
+    ///
+    /// ```rust
+    /// use vimwiki::{HtmlConfig, HtmlWikiConfig, HtmlRuntimeConfig};
+    /// use std::path::{PathBuf, Path};
+    ///
+    /// let config = HtmlConfig {
+    ///     wikis: vec![
+    ///         HtmlWikiConfig {
+    ///             path: PathBuf::from("some/wiki"),
+    ///             ..Default::default()
+    ///         },
+    ///     ],
+    ///     runtime: HtmlRuntimeConfig {
+    ///         page: PathBuf::from("some/wiki/path/to/file.wiki")
+    ///         ..Default::default()
+    ///     },
+    ///     ..Default::default()
+    /// };
+    /// let path = config.as_active_page_path_within_wiki();
+    /// assert_eq!(path, Path::new("path/to/file.wiki"));
+    /// ```
+    pub fn as_active_page_path_within_wiki(&self) -> &Path {
         // NOTE: This should always succeed as the root found will always have
         //       a path that can be stripped from the page's path
-        page.strip_prefix(root)
+        self.active_page()
+            .strip_prefix(self.to_current_wiki().get_root_path())
             .expect("Impossible: matched wiki does not contain page")
     }
 
-    pub fn to_active_wiki_config(&self) -> HtmlWikiConfig {
-        self.get_wiki_config_containing_active_page()
+    /// Produces a wiki config containing the active page either by finding it
+    /// in the wiki list or producing a new config representing a temporary
+    /// wiki
+    pub fn to_current_wiki(&self) -> HtmlWikiConfig {
+        self.find_active_wiki()
             .cloned()
-            .unwrap_or_else(|| self.runtime.active_page_to_wiki_config())
+            .unwrap_or_else(|| self.runtime.to_tmp_wiki())
+    }
+
+    /// Returns the path to the page referenced in the runtime
+    pub fn active_page(&self) -> &Path {
+        self.runtime.active_page()
     }
 
     /// Returns a reference to the config of the wiki containing the page that
     /// is actively being processed, or None if no wiki contains the page
-    pub fn get_wiki_config_containing_active_page(
-        &self,
-    ) -> Option<&HtmlWikiConfig> {
+    pub fn find_active_wiki(&self) -> Option<&HtmlWikiConfig> {
         self.runtime
-            .get_wiki_index_for_active_page()
+            .active_wiki_index()
             .and_then(|idx| self.find_wiki_by_index(idx))
     }
 
@@ -156,21 +200,21 @@ pub struct HtmlRuntimeConfig {
 
 impl HtmlRuntimeConfig {
     /// Returns index of wiki that contains the page being processed
-    pub fn get_wiki_index_for_active_page(&self) -> Option<usize> {
+    pub fn active_wiki_index(&self) -> Option<usize> {
         self.wiki_index
     }
 
     /// Returns raw file path to current wiki page being processed
-    pub fn get_active_page_path(&self) -> &Path {
+    pub fn active_page(&self) -> &Path {
         self.page.as_path()
     }
 
-    /// Produces a wiki config that treats the page being processed as the
-    /// only file within it (for standalone wiki files)
-    pub fn active_page_to_wiki_config(&self) -> HtmlWikiConfig {
+    /// Produces a temporary wiki config that treats the page being processed
+    /// as the only file within it (for standalone wiki files)
+    pub fn to_tmp_wiki(&self) -> HtmlWikiConfig {
         HtmlWikiConfig {
             path: self
-                .get_active_page_path()
+                .active_page()
                 .parent()
                 .map(Path::to_path_buf)
                 .unwrap_or_default(),
@@ -193,6 +237,7 @@ pub struct HtmlWikiConfig {
     pub name: Option<String>,
 
     /// Name of css file to use for styling of pages within the wiki
+    #[serde(default = "HtmlWikiConfig::default_name")]
     pub css_name: Option<String>,
 }
 
@@ -201,10 +246,12 @@ impl Default for HtmlWikiConfig {
         Self {
             path: Self::default_path(),
             name: Self::default_name(),
-            css_name: None,
+            css_name: Self::default_css_name(),
         }
     }
 }
+
+pub const DEFAULT_WIKI_CSS_NAME: &str = "style.css";
 
 impl HtmlWikiConfig {
     /// Returns raw file path to root wiki directory
@@ -213,12 +260,40 @@ impl HtmlWikiConfig {
         self.path.as_path()
     }
 
+    /// Returns URI Reference representing path to wiki in HTML doc in scenarios
+    /// where there is more than one wiki
+    ///
+    /// e.g. `{path = '~/vimwiki'}` becomes `vimwiki` and
+    ///      `{path = '~/vimwiki', name = 'my_wiki'}` becomes `my_wiki` and
+    ///      `{path = '~/vimwiki', name = 'my wiki'}` becomes `my_wiki`
+    pub fn to_uri_ref(
+        &self,
+    ) -> Result<URIReference<'static>, URIReferenceError> {
+        use std::convert::TryFrom;
+        Ok(URIReference::try_from(self.get_name_or_default().as_str())?
+            .into_owned())
+    }
+
+    /// Use name as base, otherwise default to directory name, otherwise default
+    /// to vimwiki as final fallback
+    ///
+    /// Replace all spaces with _ for the resulting name
+    pub fn get_name_or_default(&self) -> String {
+        self.name
+            .clone()
+            .or_else(|| {
+                self.path
+                    .file_name()
+                    .map(|x| x.to_string_lossy().to_string())
+            })
+            .unwrap_or_else(|| String::from("vimwiki"))
+            .replace(" ", "_")
+    }
+
     /// Get name of css file to use, or the default css style
     #[inline]
     pub fn get_css_name_or_default(&self) -> &str {
-        self.css_name
-            .as_deref()
-            .unwrap_or_else(|| Self::default_css_name())
+        self.css_name.as_deref().unwrap_or(DEFAULT_WIKI_CSS_NAME)
     }
 
     #[inline]
@@ -232,8 +307,8 @@ impl HtmlWikiConfig {
     }
 
     #[inline]
-    pub const fn default_css_name() -> &'static str {
-        "style.css"
+    pub const fn default_css_name() -> Option<String> {
+        None
     }
 }
 

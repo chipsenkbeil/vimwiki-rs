@@ -36,7 +36,7 @@ impl<T: Output<Formatter = HtmlFormatter>> ToHtmlPage for T {
             formatter
                 .config()
                 .runtime
-                .get_active_page_path()
+                .active_page()
                 .file_stem()
                 .map(|x| x.to_string_lossy().to_string())
                 .unwrap_or_else(String::new)
@@ -66,18 +66,22 @@ impl<T: Output<Formatter = HtmlFormatter>> ToHtmlPage for T {
             .replace("%date%", &date.to_string())
             .replace(
                 "%root_path%",
-                &formatter
-                    .config()
-                    .get_path_to_root()
-                    .filter(|path| !path.as_os_str().is_empty())
-                    .map(|path| format!("{}/", path.to_string_lossy()))
-                    .unwrap_or_else(String::new),
+                {
+                    let path =
+                        formatter.config().to_active_page_path_to_wiki_root();
+                    if path.as_os_str().is_empty() {
+                        String::new()
+                    } else {
+                        format!("{}/", path.to_string_lossy())
+                    }
+                }
+                .as_str(),
             )
             .replace(
                 "%wiki_path%",
                 &formatter
                     .config()
-                    .get_path_within_root()
+                    .as_active_page_path_within_wiki()
                     .to_string_lossy()
                     .to_string(),
             )
@@ -85,7 +89,7 @@ impl<T: Output<Formatter = HtmlFormatter>> ToHtmlPage for T {
                 "%css%",
                 formatter
                     .config()
-                    .to_active_wiki_config()
+                    .to_current_wiki()
                     .get_css_name_or_default(),
             )
             .replace("%encoding%", "utf-8")
@@ -100,6 +104,7 @@ mod tests {
     use super::*;
     use crate::{
         HtmlRuntimeConfig, HtmlTemplateConfig, HtmlWikiConfig, OutputResult,
+        DEFAULT_WIKI_CSS_NAME,
     };
     use chrono::NaiveDate;
     use std::path::PathBuf;
@@ -256,7 +261,7 @@ mod tests {
 
         // When the file is at the root of the wiki
         let config = HtmlConfig {
-            template: template.clone(),
+            template,
             wikis: vec![HtmlWikiConfig {
                 path: ["some", "path"].iter().collect(),
                 ..Default::default()
@@ -327,10 +332,7 @@ mod tests {
         };
 
         let result = output.to_html_page(config).unwrap();
-        assert_eq!(
-            result,
-            format!("<html>{}</html>", HtmlWikiConfig::default_css_name())
-        );
+        assert_eq!(result, format!("<html>{}</html>", DEFAULT_WIKI_CSS_NAME));
     }
 
     #[test]

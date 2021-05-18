@@ -3,6 +3,7 @@ members = [
     "vimwiki",
     "vimwiki_macros",
     "vimwiki-server",
+    "vimwiki-wasm",
 ]
 
 [profile.release]

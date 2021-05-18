@@ -25,6 +25,12 @@ pub enum OutputError {
         source: syntect::LoadingError,
     },
 
+    #[cfg(feature = "html")]
+    InterwikiLinkMappingFailed {
+        #[error(source)]
+        source: uriparse::URIReferenceError,
+    },
+
     ThemeMissing(#[error(not(source))] String),
 
     TemplateNotLoaded {

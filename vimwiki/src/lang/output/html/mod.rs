@@ -1049,31 +1049,71 @@ impl<'a> Output for Link<'a> {
         }
 
         match self {
-            // TODO: Need to alter link data if is a directory path to include
-            //       an index.html
-            //
-            //       e.g. /my-wiki/path/to/index.html
-            Self::Wiki { data } => write_link(f, data, false)?,
+            Self::Wiki { data } => {
+                let mut data = data.to_borrowed();
 
-            // TODO: Need to alter link data to have a uri with a
-            //       path to the page of the other wiki
-            //
-            //       e.g. /my-other-wiki/diary/{date}.html
-            Self::IndexedInterWiki { index, data } => {
-                write_link(f, data, false)?
+                // If URI is a directory, we want to modify it to have an
+                // actual index.html file (e.g. /my-wiki/path/to/index.html)
+                if data.is_path_dir() {
+                    data.mut_uri_ref().map_path(|path| {
+                        path.push("index.html");
+                        path
+                    });
+
+                // Otherwise, we want to modify the URI to have a .html
+                // extension if it's referencing a file
+                } else {
+                    data.make_html_uri_ref();
+                }
+
+                write_link(f, &data, false)?
             }
 
             // TODO: Need to alter link data to have a uri with a
             //       path to the page of the other wiki
             //
             //       e.g. /my-other-wiki/diary/{date}.html
-            Self::NamedInterWiki { name, data } => write_link(f, data, false)?,
+            Self::IndexedInterWiki { index, data } => {
+                let mut data = data.to_borrowed();
+
+                let maybe_wiki_config =
+                    f.config().find_wiki_by_index(*index as usize);
+
+                // If we found a matching wiki, we want to transform the
+                // path and will assume that this means multi-wiki so we can
+                // get the wiki's subpath to prepend to our link's path
+                if let Some(wiki) = maybe_wiki_config {
+                    let base_uri_ref = wiki.to_uri_ref().map_err(|source| {
+                        OutputError::InterwikiLinkMappingFailed { source }
+                    })?;
+                    // TODO: Get relative url back up to wiki from current
+                    //       active page and use that as the base uri to
+                    //       prepend to the actual link, which we also want
+                    //       to append .html or handle as a directory
+                }
+
+                write_link(f, &data, false)?
+            }
+
+            // TODO: Need to alter link data to have a uri with a
+            //       path to the page of the other wiki
+            //
+            //       e.g. /my-other-wiki/diary/{date}.html
+            Self::NamedInterWiki { name, data } => {
+                let maybe_wiki_config = f.config().find_wiki_by_name(name);
+                write_link(f, data, false)?
+            }
 
             // TODO: Need to alter link data to have a uri with a
             //       path to the diary page of the current wiki
             //
             //       e.g. /my-wiki/diary/{date}.html
-            Self::Diary { date, data } => write_link(f, data, false)?,
+            Self::Diary { date, data } => {
+                let maybe_wiki_config = f.config().find_active_wiki();
+                let mut data = data.to_borrowed();
+                data.mut_uri_ref().map_path(|path| {});
+                write_link(f, &data, false)?
+            }
             Self::Raw { data } => write_link(f, data, false)?,
             Self::Transclusion { data } => write_link(f, data, true)?,
         }

@@ -1,0 +1,18 @@
+[package]
+name = "vimwiki-wasm"
+description = "Wasm binding for vimwiki library"
+categories = ["parser-implementations", "template-engine"]
+version = "0.1.0-alpha.6"
+authors = ["Chip Senkbeil <chip@senkbeil.org>"]
+edition = "2018"
+homepage = "https://github.com/chipsenkbeil/vimwiki-rs"
+repository = "https://github.com/chipsenkbeil/vimwiki-rs"
+readme = "README.md"
+license = "MIT OR Apache-2.0"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wasm-bindgen = { version = "0.2.74", features = ["serde-serialize"] }
+vimwiki = { version = "0.1.0-alpha.6", path = "../vimwiki" }
