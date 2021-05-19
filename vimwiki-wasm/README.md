@@ -4,29 +4,42 @@ Provides wasm bindings for vimwiki library.
 
 ## Usage
 
-Add this to your `Cargo.toml`:
-
-```toml
-[dependencies]
-vimwiki-server = "0.1.0-alpha.5"
-```
+TODO - publish npm package and provide guidance
 
 ## Examples
 
-Embedding and running the server from your own binary:
+```html
+<!-- Note the usage of `type=module` here as this is an ES6 module -->
+<script type="module">
+    import init, { parse_vimwiki_str } from './vimwiki_wasm.js';
 
-```typescript
-use v::{Program, Config};
+    async function run() {
+        // If building as web, need to do this
+        await init();
 
-#[tokio::main]
-async fn main() {
-    // Load configuration for the server from the CLI arguments
-    let config = Config::load();
+        // Parse some vimwiki into an object
+        const obj = parse_vimwiki_str("= my header =");
 
-    // Start the server program
-    Program::run(config).await.expect("Server failed unexpectedly");
-}
+        // Entire object can be converted to JavaScript object
+        console.log("vimwiki obj", obj.to_js());
+
+        // Object can be converted into HTML to be injected into DOM
+        const html_str = obj.to_html_str();
+
+        // Load some random dom element and add the vimwiki HTML output as
+        // the first node within its children
+        document.getElementById("some-element").insertAdjacentHTML("afterbegin", html_str);
+    }
+
+    run();
+</script>
 ```
+
+## Building from source
+
+Compiling without webpack bundler:
+
+`wasm-pack build --target web`
 
 ## License
 
