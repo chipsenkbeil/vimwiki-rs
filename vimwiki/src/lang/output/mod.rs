@@ -31,6 +31,12 @@ pub enum OutputError {
         source: uriparse::URIReferenceError,
     },
 
+    #[cfg(feature = "html")]
+    LinkPathConstructionFailed {
+        #[error(source)]
+        source: uriparse::PathError,
+    },
+
     ThemeMissing(#[error(not(source))] String),
 
     TemplateNotLoaded {

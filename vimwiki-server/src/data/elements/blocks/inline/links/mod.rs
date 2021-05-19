@@ -65,7 +65,6 @@ impl<'a> FromVimwikiElement<'a> for Link {
         parent_id: Option<Id>,
         element: Self::Element,
     ) -> Result<Self, GraphqlDatabaseError> {
-        let region = element.region();
         Ok(match element.as_inner() {
             v::Link::Wiki { .. } => Self::Wiki(WikiLink::from_vimwiki_element(
                 page_id, parent_id, element,

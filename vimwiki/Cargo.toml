@@ -36,7 +36,8 @@ uriparse = { version = "0.6.3", features = ["serde"] }
 dirs = { version = "3.0.2", optional = true }
 
 # For server-side rendering of code blocks in HTML
-syntect = { version = "4.5.0", optional = true }
+# NOTE: Using default-fancy so we can compile via webassembly elsewhere
+syntect = { version = "4.5.0", optional = true, default-features = false, features = ["default-fancy"] }
 
 # For safe HTML escaping
 voca_rs = { version = "1.13.0", optional = true }
@@ -63,4 +64,4 @@ features = [
 [dev-dependencies]
 criterion = "0.3.3"
 indoc = "1.0.2"
-vimwiki_macros = { version = "0.1.0-alpha.6", path = "../vimwiki_macros" }
+vimwiki_macros = { version = "=0.1.0-alpha.6", path = "../vimwiki_macros" }

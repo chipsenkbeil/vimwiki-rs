@@ -1,4 +1,4 @@
-use vimwiki::{BlockElement, Language, Page, ParseError};
+use vimwiki::{BlockElement, Language, Page, ParseError, ToHtmlString};
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -8,6 +8,12 @@ pub struct Output(Page<'static>);
 impl Output {
     pub fn to_js(&self) -> JsValue {
         JsValue::from_serde(&self.0).unwrap()
+    }
+
+    pub fn to_html_str(&self) -> Result<String, JsValue> {
+        self.0
+            .to_html_string(Default::default())
+            .map_err(|x| x.to_string().into())
     }
 
     pub fn find_all_header_regions(&self) -> Vec<JsValue> {

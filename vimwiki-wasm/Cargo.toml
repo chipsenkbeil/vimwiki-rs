@@ -15,4 +15,4 @@ crate-type = ["cdylib"]
 
 [dependencies]
 wasm-bindgen = { version = "0.2.74", features = ["serde-serialize"] }
-vimwiki = { version = "0.1.0-alpha.6", path = "../vimwiki" }
+vimwiki = { version = "=0.1.0-alpha.6", path = "../vimwiki", features = ["html"] }

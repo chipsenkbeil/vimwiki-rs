@@ -1055,7 +1055,7 @@ impl<'a> Output for Link<'a> {
                 // If URI is a directory, we want to modify it to have an
                 // actual index.html file (e.g. /my-wiki/path/to/index.html)
                 if data.is_path_dir() {
-                    data.mut_uri_ref().map_path(|path| {
+                    data.mut_uri_ref().map_path(|mut path| {
                         path.push("index.html");
                         path
                     });
@@ -1109,9 +1109,26 @@ impl<'a> Output for Link<'a> {
             //
             //       e.g. /my-wiki/diary/{date}.html
             Self::Diary { date, data } => {
-                let maybe_wiki_config = f.config().find_active_wiki();
+                let date_page_string = format!("{}.html", date);
+
+                // Diary URI path is empty, so we're going to replace it with
+                // an actual path by using our wiki root relative to the
+                // current file, adding the diary section, and then the date
+                let (_, _, mut path, _, _) = f
+                    .config()
+                    .to_current_wiki()
+                    .to_uri_ref()
+                    .map_err(OutputError::from)?
+                    .into_parts();
+
+                // TODO: Support configuring diary relative path
+                path.push("diary").map_err(OutputError::from)?;
+                path.push(date_page_string.as_str())
+                    .map_err(OutputError::from)?;
+
                 let mut data = data.to_borrowed();
-                data.mut_uri_ref().map_path(|path| {});
+
+                data.mut_uri_ref().map_path(move |_| path);
                 write_link(f, &data, false)?
             }
             Self::Raw { data } => write_link(f, data, false)?,
