@@ -1,6 +1,6 @@
 # vimwiki-rs: Rust libraries and tooling for vimwiki
 
-![CI](https://github.com/chipsenkbeil/vimwiki-rs/workflows/CI/badge.svg)
+[![CI](https://github.com/chipsenkbeil/vimwiki-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/chipsenkbeil/vimwiki-rs/actions/workflows/ci.yml)
 
 Welcome to the primary repository for all things Rust + vimwiki! This
 repository houses several Rust crates alongside binaries like `vimwiki-server`
