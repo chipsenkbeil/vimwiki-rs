@@ -1,0 +1,12 @@
+[workspace]
+members = [
+    "vimwiki",
+    "vimwiki_macros",
+    "vimwiki-server",
+    "vimwiki-wasm",
+]
+
+[profile.release]
+opt-level = 'z'
+lto = true
+codegen-units = 1
