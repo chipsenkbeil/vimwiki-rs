@@ -1076,21 +1076,17 @@ impl<'a> Output for Link<'a> {
             Self::IndexedInterWiki { index, data } => {
                 let mut data = data.to_borrowed();
 
-                let maybe_wiki_config =
-                    f.config().find_wiki_by_index(*index as usize);
+                let wiki_config = f
+                    .config()
+                    .find_wiki_by_index(*index as usize)
+                    .ok_or(OutputError::MissingWikiAtIndex(*index as usize))?;
 
-                // If we found a matching wiki, we want to transform the
-                // path and will assume that this means multi-wiki so we can
-                // get the wiki's subpath to prepend to our link's path
-                if let Some(wiki) = maybe_wiki_config {
-                    let base_uri_ref = wiki.to_uri_ref().map_err(|source| {
-                        OutputError::InterwikiLinkMappingFailed { source }
-                    })?;
-                    // TODO: Get relative url back up to wiki from current
-                    //       active page and use that as the base uri to
-                    //       prepend to the actual link, which we also want
-                    //       to append .html or handle as a directory
-                }
+                let base_uri_ref =
+                    wiki_config.to_uri_ref().map_err(OutputError::from)?;
+                // TODO: Get relative url back up to wiki from current
+                //       active page and use that as the base uri to
+                //       prepend to the actual link, which we also want
+                //       to append .html or handle as a directory
 
                 write_link(f, &data, false)?
             }
@@ -1100,7 +1096,12 @@ impl<'a> Output for Link<'a> {
             //
             //       e.g. /my-other-wiki/diary/{date}.html
             Self::NamedInterWiki { name, data } => {
-                let maybe_wiki_config = f.config().find_wiki_by_name(name);
+                let wiki_config = f
+                    .config()
+                    .find_wiki_by_name(name.as_ref())
+                    .ok_or_else(move || {
+                    OutputError::MissingWikiWithName(name.to_string())
+                })?;
                 write_link(f, data, false)?
             }
 
@@ -1121,7 +1122,7 @@ impl<'a> Output for Link<'a> {
                 // Add diary path, which should be relative to the wiki
                 for c in wiki.diary_rel_path.components() {
                     path.push(c.as_os_str().to_str().ok_or(
-                        OutputError::LinkPathConstructionFailed {
+                        OutputError::FailedToModifyUriPath {
                             source: uriparse::PathError::InvalidCharacter,
                         },
                     )?)

@@ -54,7 +54,7 @@ impl<T: Output<Formatter = HtmlFormatter>> ToHtmlPage for T {
             .map(|p| formatter.config().template.dir.join(p))
             .map(std::fs::read_to_string)
             .transpose()
-            .map_err(OutputError::from)?
+            .map_err(|source| OutputError::TemplateNotLoaded { source })?
             .unwrap_or_else(|| formatter.config().template.text.to_string());
 
         // Fill in template variables
