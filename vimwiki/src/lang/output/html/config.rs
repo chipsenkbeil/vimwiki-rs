@@ -239,6 +239,10 @@ pub struct HtmlWikiConfig {
     /// Name of css file to use for styling of pages within the wiki
     #[serde(default = "HtmlWikiConfig::default_name")]
     pub css_name: Option<String>,
+
+    /// Path for diary directory relative to this wiki's path
+    #[serde(default = "HtmlWikiConfig::default_diary_rel_path")]
+    pub diary_rel_path: PathBuf,
 }
 
 impl Default for HtmlWikiConfig {
@@ -247,6 +251,7 @@ impl Default for HtmlWikiConfig {
             path: Self::default_path(),
             name: Self::default_name(),
             css_name: Self::default_css_name(),
+            diary_rel_path: Self::default_diary_rel_path(),
         }
     }
 }
@@ -309,6 +314,11 @@ impl HtmlWikiConfig {
     #[inline]
     pub const fn default_css_name() -> Option<String> {
         None
+    }
+
+    #[inline]
+    pub fn default_diary_rel_path() -> PathBuf {
+        PathBuf::from("diary")
     }
 }
 

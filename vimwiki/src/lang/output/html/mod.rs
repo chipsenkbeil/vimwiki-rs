@@ -1056,7 +1056,7 @@ impl<'a> Output for Link<'a> {
                 // actual index.html file (e.g. /my-wiki/path/to/index.html)
                 if data.is_path_dir() {
                     data.mut_uri_ref().map_path(|mut path| {
-                        path.push("index.html");
+                        path.push("index.html").map_err(OutputError::from);
                         path
                     });
 
@@ -1110,19 +1110,23 @@ impl<'a> Output for Link<'a> {
             //       e.g. /my-wiki/diary/{date}.html
             Self::Diary { date, data } => {
                 let date_page_string = format!("{}.html", date);
+                let wiki = f.config().to_current_wiki();
 
                 // Diary URI path is empty, so we're going to replace it with
                 // an actual path by using our wiki root relative to the
                 // current file, adding the diary section, and then the date
-                let (_, _, mut path, _, _) = f
-                    .config()
-                    .to_current_wiki()
-                    .to_uri_ref()
-                    .map_err(OutputError::from)?
-                    .into_parts();
+                let (_, _, mut path, _, _) =
+                    wiki.to_uri_ref().map_err(OutputError::from)?.into_parts();
 
-                // TODO: Support configuring diary relative path
-                path.push("diary").map_err(OutputError::from)?;
+                // Add diary path, which should be relative to the wiki
+                for c in wiki.diary_rel_path.components() {
+                    path.push(c.as_os_str().to_str().ok_or(
+                        OutputError::LinkPathConstructionFailed {
+                            source: uriparse::PathError::InvalidCharacter,
+                        },
+                    )?)
+                    .map_err(OutputError::from)?;
+                }
                 path.push(date_page_string.as_str())
                     .map_err(OutputError::from)?;
 
