@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
-use std::path::{Component, Path, PathBuf};
-use uriparse::{URIReference, URIReferenceError};
+use std::{
+    convert::TryFrom,
+    path::{Component, Path, PathBuf},
+};
+use uriparse::{RelativeReference, RelativeReferenceError, URI};
 
 /// Represents configuration properties for HTML writing that are separate from
 /// the running state during HTML conversion
@@ -25,6 +28,10 @@ pub struct HtmlConfig {
     /// Configuration settings that apply specifically to text
     #[serde(default)]
     pub text: HtmlTextConfig,
+
+    /// Configuration settings that apply specifically to links
+    #[serde(default)]
+    pub link: HtmlLinkConfig,
 
     /// Configuration settings that apply specifically to headers
     #[serde(default)]
@@ -97,19 +104,8 @@ impl HtmlConfig {
     /// assert_eq!(path, PathBuf::new());
     /// ```
     pub fn to_active_page_path_to_wiki_root(&self) -> PathBuf {
-        // Remove the directory from the file path as well as remove the file
-        // from the path itself
-        self.as_active_page_path_within_wiki()
-            .parent()
-            .map(|path| {
-                // Now, we convert each component to a .. to signify that we have
-                // to go back up
-                let mut rel_path = PathBuf::new();
-                for _ in path.components() {
-                    rel_path.push(Component::ParentDir);
-                }
-                rel_path
-            })
+        self.find_active_wiki()
+            .and_then(|wiki| wiki.path_to_root(self.active_page()))
             .unwrap_or_else(PathBuf::new)
     }
 
@@ -141,8 +137,8 @@ impl HtmlConfig {
     pub fn as_active_page_path_within_wiki(&self) -> &Path {
         // NOTE: This should always succeed as the root found will always have
         //       a path that can be stripped from the page's path
-        self.active_page()
-            .strip_prefix(self.to_current_wiki().get_root_path())
+        self.to_current_wiki()
+            .path_within(self.active_page())
             .expect("Impossible: matched wiki does not contain page")
     }
 
@@ -237,8 +233,8 @@ pub struct HtmlWikiConfig {
     pub name: Option<String>,
 
     /// Name of css file to use for styling of pages within the wiki
-    #[serde(default = "HtmlWikiConfig::default_name")]
-    pub css_name: Option<String>,
+    #[serde(default = "HtmlWikiConfig::default_css_name")]
+    pub css_name: String,
 
     /// Path for diary directory relative to this wiki's path
     #[serde(default = "HtmlWikiConfig::default_diary_rel_path")]
@@ -256,13 +252,43 @@ impl Default for HtmlWikiConfig {
     }
 }
 
-pub const DEFAULT_WIKI_CSS_NAME: &str = "style.css";
-
 impl HtmlWikiConfig {
     /// Returns raw file path to root wiki directory
     #[inline]
     pub fn get_root_path(&self) -> &Path {
         self.path.as_path()
+    }
+
+    /// Given an input path, will return a relative path from the input path
+    /// to get back to the root of the wiki in the form of `../..`, or None
+    /// if the input path does not fall within the wiki
+    pub fn path_to_root<P: AsRef<Path>>(&self, path: P) -> Option<PathBuf> {
+        self.path_within(path.as_ref()).and_then(|path| {
+            // Determine how many hops back we need to make, with a path
+            // like path/to/file.wiki yielding 2 to get back to root
+            // of the wiki
+            let hops_back = path.components().count();
+
+            // Our actual total hops is 1 less than what is calculated as the
+            // above includes the file itself. We only want to process if we
+            // have at least one hop otherwise the above indicates there are
+            // no path components
+            if hops_back > 0 {
+                let mut rel_path = PathBuf::new();
+                for _ in 0..(hops_back - 1) {
+                    rel_path.push(Component::ParentDir);
+                }
+                Some(rel_path)
+            } else {
+                None
+            }
+        })
+    }
+
+    /// Given an input path, will return the path relative to the wiki's root,
+    /// or None if the path does not fall within the wiki
+    pub fn path_within<'a>(&self, path: &'a Path) -> Option<&'a Path> {
+        path.strip_prefix(self.get_root_path()).ok()
     }
 
     /// Returns URI Reference representing path to wiki in HTML doc in scenarios
@@ -271,12 +297,13 @@ impl HtmlWikiConfig {
     /// e.g. `{path = '~/vimwiki'}` becomes `vimwiki` and
     ///      `{path = '~/vimwiki', name = 'my_wiki'}` becomes `my_wiki` and
     ///      `{path = '~/vimwiki', name = 'my wiki'}` becomes `my_wiki`
-    pub fn to_uri_ref(
+    pub fn to_relative_reference(
         &self,
-    ) -> Result<URIReference<'static>, URIReferenceError> {
-        use std::convert::TryFrom;
-        Ok(URIReference::try_from(self.get_name_or_default().as_str())?
-            .into_owned())
+    ) -> Result<RelativeReference<'static>, RelativeReferenceError> {
+        Ok(
+            RelativeReference::try_from(self.get_name_or_default().as_str())?
+                .into_owned(),
+        )
     }
 
     /// Use name as base, otherwise default to directory name, otherwise default
@@ -295,12 +322,6 @@ impl HtmlWikiConfig {
             .replace(" ", "_")
     }
 
-    /// Get name of css file to use, or the default css style
-    #[inline]
-    pub fn get_css_name_or_default(&self) -> &str {
-        self.css_name.as_deref().unwrap_or(DEFAULT_WIKI_CSS_NAME)
-    }
-
     #[inline]
     pub fn default_path() -> PathBuf {
         PathBuf::new()
@@ -312,8 +333,8 @@ impl HtmlWikiConfig {
     }
 
     #[inline]
-    pub const fn default_css_name() -> Option<String> {
-        None
+    pub fn default_css_name() -> String {
+        String::from("style.css")
     }
 
     #[inline]
@@ -369,6 +390,41 @@ impl HtmlTextConfig {
     #[inline]
     pub fn default_ignore_newline() -> bool {
         true
+    }
+}
+
+/// Represents configuration options related to links
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct HtmlLinkConfig {
+    /// Represents the base uri used when forming absolute links
+    #[serde(default = "HtmlLinkConfig::default_base_uri")]
+    pub base_uri: URI<'static>,
+
+    /// If true, all relative links (path/to/file.html or even /wiki/path/to/file.html)
+    /// will be canonicalized using the base_uri, otherwise they are kept as
+    /// they are provided
+    #[serde(default = "HtmlLinkConfig::default_canonicalize")]
+    pub canonicalize: bool,
+}
+
+impl Default for HtmlLinkConfig {
+    fn default() -> Self {
+        Self {
+            base_uri: Self::default_base_uri(),
+            canonicalize: Self::default_canonicalize(),
+        }
+    }
+}
+
+impl HtmlLinkConfig {
+    #[inline]
+    pub fn default_base_uri() -> URI<'static> {
+        URI::try_from("https://localhost").unwrap().into_owned()
+    }
+
+    #[inline]
+    pub fn default_canonicalize() -> bool {
+        false
     }
 }
 

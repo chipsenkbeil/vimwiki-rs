@@ -5,7 +5,7 @@ mod html;
 pub use html::*;
 
 use derive_more::{Display, Error};
-use uriparse::{PathError, URIReferenceError};
+use uriparse::{PathError, RelativeReferenceError, URIReferenceError};
 
 /// Represents the ability to convert some data into some other output form
 pub trait Output {
@@ -29,6 +29,11 @@ pub enum OutputError {
     FailedToConstructUri {
         #[error(source)]
         source: URIReferenceError,
+    },
+
+    FailedToConstructRelativeReference {
+        #[error(source)]
+        source: RelativeReferenceError,
     },
 
     FailedToModifyUriPath {
@@ -56,6 +61,12 @@ pub enum OutputError {
 impl From<URIReferenceError> for OutputError {
     fn from(source: URIReferenceError) -> Self {
         Self::FailedToConstructUri { source }
+    }
+}
+
+impl From<RelativeReferenceError> for OutputError {
+    fn from(source: RelativeReferenceError) -> Self {
+        Self::FailedToConstructRelativeReference { source }
     }
 }
 

@@ -87,10 +87,7 @@ impl<T: Output<Formatter = HtmlFormatter>> ToHtmlPage for T {
             )
             .replace(
                 "%css%",
-                formatter
-                    .config()
-                    .to_current_wiki()
-                    .get_css_name_or_default(),
+                formatter.config().to_current_wiki().css_name.as_str(),
             )
             .replace("%encoding%", "utf-8")
             .replace("%content%", formatter.get_content());
@@ -104,7 +101,6 @@ mod tests {
     use super::*;
     use crate::{
         HtmlRuntimeConfig, HtmlTemplateConfig, HtmlWikiConfig, OutputResult,
-        DEFAULT_WIKI_CSS_NAME,
     };
     use chrono::NaiveDate;
     use std::path::PathBuf;
@@ -307,7 +303,7 @@ mod tests {
         let config = HtmlConfig {
             template,
             wikis: vec![HtmlWikiConfig {
-                css_name: Some("css_file".to_string()),
+                css_name: "css_file".to_string(),
                 ..Default::default()
             }],
             runtime: HtmlRuntimeConfig {
@@ -332,7 +328,10 @@ mod tests {
         };
 
         let result = output.to_html_page(config).unwrap();
-        assert_eq!(result, format!("<html>{}</html>", DEFAULT_WIKI_CSS_NAME));
+        assert_eq!(
+            result,
+            format!("<html>{}</html>", HtmlWikiConfig::default_css_name())
+        );
     }
 
     #[test]

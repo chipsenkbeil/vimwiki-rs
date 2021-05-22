@@ -7,6 +7,8 @@ pub use formatter::HtmlFormatter;
 mod convert;
 pub use convert::ToHtmlString;
 
+mod utils;
+
 use crate::lang::{
     elements::*,
     output::{Output, OutputError, OutputResult},
@@ -1073,16 +1075,23 @@ impl<'a> Output for Link<'a> {
             //       path to the page of the other wiki
             //
             //       e.g. /my-other-wiki/diary/{date}.html
+            //       or /diary/{date}.html if only a singular wiki
             Self::IndexedInterWiki { index, data } => {
                 let mut data = data.to_borrowed();
+
+                // Get relative path up to current wiki root, then add an
+                // extra .. to go up outside
+                let path_to_local_root =
+                    f.config().to_active_page_path_to_wiki_root();
 
                 let wiki_config = f
                     .config()
                     .find_wiki_by_index(*index as usize)
                     .ok_or(OutputError::MissingWikiAtIndex(*index as usize))?;
 
-                let base_uri_ref =
-                    wiki_config.to_uri_ref().map_err(OutputError::from)?;
+                let base_uri_ref = wiki_config
+                    .to_relative_reference()
+                    .map_err(OutputError::from)?;
                 // TODO: Get relative url back up to wiki from current
                 //       active page and use that as the base uri to
                 //       prepend to the actual link, which we also want
@@ -1116,8 +1125,10 @@ impl<'a> Output for Link<'a> {
                 // Diary URI path is empty, so we're going to replace it with
                 // an actual path by using our wiki root relative to the
                 // current file, adding the diary section, and then the date
-                let (_, _, mut path, _, _) =
-                    wiki.to_uri_ref().map_err(OutputError::from)?.into_parts();
+                let (_, mut path, _, _) = wiki
+                    .to_relative_reference()
+                    .map_err(OutputError::from)?
+                    .into_parts();
 
                 // Add diary path, which should be relative to the wiki
                 for c in wiki.diary_rel_path.components() {
