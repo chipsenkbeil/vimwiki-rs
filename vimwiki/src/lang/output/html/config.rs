@@ -396,34 +396,45 @@ impl HtmlTextConfig {
 /// Represents configuration options related to links
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct HtmlLinkConfig {
-    /// Represents the base uri used when forming absolute links
-    #[serde(default = "HtmlLinkConfig::default_base_uri")]
-    pub base_uri: URI<'static>,
+    /// Represents the base url used when forming absolute links
+    #[serde(default = "HtmlLinkConfig::default_base_url")]
+    pub base_url: URI<'static>,
 
     /// If true, all relative links (path/to/file.html or even /wiki/path/to/file.html)
-    /// will be canonicalized using the base_uri, otherwise they are kept as
+    /// will be canonicalized using the base_url, otherwise they are kept as
     /// they are provided
     #[serde(default = "HtmlLinkConfig::default_canonicalize")]
     pub canonicalize: bool,
+
+    /// If true, wiki pages are generated as "ugly URLs" such as `example.com/urls.html`
+    /// instead of the pretty form of `example.com/urls/`
+    #[serde(default = "HtmlLinkConfig::default_use_ugly_urls")]
+    pub use_ugly_urls: bool,
 }
 
 impl Default for HtmlLinkConfig {
     fn default() -> Self {
         Self {
-            base_uri: Self::default_base_uri(),
+            base_url: Self::default_base_url(),
             canonicalize: Self::default_canonicalize(),
+            use_ugly_urls: Self::default_use_ugly_urls(),
         }
     }
 }
 
 impl HtmlLinkConfig {
     #[inline]
-    pub fn default_base_uri() -> URI<'static> {
+    pub fn default_base_url() -> URI<'static> {
         URI::try_from("https://localhost").unwrap().into_owned()
     }
 
     #[inline]
-    pub fn default_canonicalize() -> bool {
+    pub const fn default_canonicalize() -> bool {
+        false
+    }
+
+    #[inline]
+    pub const fn default_use_ugly_urls() -> bool {
         false
     }
 }

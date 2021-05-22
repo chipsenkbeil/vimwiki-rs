@@ -1,4 +1,4 @@
-use super::HtmlWikiConfig;
+use super::{HtmlLinkConfig, HtmlWikiConfig};
 use crate::Link;
 use std::{
     convert::TryFrom,
@@ -12,49 +12,75 @@ use uriparse::{
 /// based on the file containing the link, the destination wiki, and the
 /// outgoing link
 pub fn resolve_link(
+    config: &HtmlLinkConfig,
     src: &Path,
     target: &Link<'_>,
     target_wiki: &HtmlWikiConfig,
 ) -> Result<URIReference<'static>, URIReferenceError> {
-    // If we have a scheme, use it directly after normalizing the uri
-    // TODO: Handle file: and local: specially
-    if target_uri_ref.has_scheme() {
-        target_uri_ref.normalize();
-        return Ok(target_uri_ref.into_owned());
+    let mut target_uri_ref = target.data().uri_ref().clone().into_owned();
+
+    // If we are given a URI that has a scheme, we want to just use it as is
+    // TODO: We might need to handle special schemes like file: and local:
+    if target.data().uri_ref().has_scheme() {
+        return Ok(target_uri_ref);
     }
 
-    // If the src & target are in different wikis, we need to do the following:
-    //
-    // 1. Find our way up from the src path to the root of the entire site
-    // 2. Enter into the target wiki
-    // 3. Apply the target relative reference as the end of the link
-    let mut uri_ref = if let Some(wiki_path) = target_wiki_path {
-        let mut segments = Vec::new();
-        target_uri_ref
+    if_dir_make_index_html(&mut target_uri_ref);
 
-    // Otherwise, if both the src and target paths are within the same wiki,
-    // we just use the provided uri reference (relative reference) as is
-    } else {
-        target_uri_ref
-    };
+    Ok(target_uri_ref)
+}
 
+/// Resolves a diary link, which always points to a diary entry within the
+/// current wiki
+fn resolve_diary_link(
+    config: &HtmlLinkConfig,
+    src: &Path,
+    target: &Link<'_>,
+    target_wiki: &HtmlWikiConfig,
+) -> Result<URIReference<'static>, OutputError> {
+    let date_page_string = format!("{}.html", date);
+    let wiki = f.config().to_current_wiki();
+
+    // Diary URI path is empty, so we're going to replace it with
+    // an actual path by using our wiki root relative to the
+    // current file, adding the diary section, and then the date
+    let (_, mut path, _, _) = wiki
+        .to_relative_reference()
+        .map_err(OutputError::from)?
+        .into_parts();
+
+    // Add diary path, which should be relative to the wiki
+    for c in wiki.diary_rel_path.components() {
+        path.push(c.as_os_str().to_str().ok_or(
+            OutputError::FailedToModifyUriPath {
+                source: uriparse::PathError::InvalidCharacter,
+            },
+        )?)
+        .map_err(OutputError::from)?;
+    }
+    path.push(date_page_string.as_str())
+        .map_err(OutputError::from)?;
+}
+
+/// Makes a URI reference that is a directory into an html link
+/// by adding index.html or equivalent
+fn if_dir_make_index_html(uri_ref: &mut URIReference<'_>) {
     // Lastly, if target is a directory, we need to add index.html
-    if is_directory_uri(&target_uri_ref) {
+    if is_directory_uri(uri_ref) {
         // NOTE: We know that target is a directory if it ends in /
         //       Additionally, because of that, there is a dangling segment
         //       in the uri ref path that is an empty string, which we
         //       will replace with index.html
-        uri_ref.map_path(|path| {
+        uri_ref.map_path(|mut path| {
             // TODO: Support an option to configure what index.html might be
             *path.segments_mut().last_mut().unwrap() =
                 Segment::try_from("index.html").unwrap();
             path
         });
     }
-
-    Ok(uri_ref)
 }
 
+/// Checks if a URI reference represents a directory
 fn is_directory_uri(uri_ref: &URIReference<'_>) -> bool {
     // NOTE: URI Reference breaks up segments by /, which means that if we
     //       end with a / there is one final segment that is completely
