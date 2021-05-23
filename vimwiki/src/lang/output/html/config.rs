@@ -1,3 +1,4 @@
+use super::utils::deserialize_absolute_path;
 use serde::{Deserialize, Serialize};
 use std::{
     convert::TryFrom,
@@ -223,9 +224,19 @@ impl HtmlRuntimeConfig {
 /// a vimwiki wiki instance
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct HtmlWikiConfig {
-    /// Path to the wiki on the local machine
-    #[serde(default = "HtmlWikiConfig::default_path")]
+    /// Path to the wiki on the local machine (must be absolute path)
+    #[serde(
+        default = "HtmlWikiConfig::default_path",
+        deserialize_with = "deserialize_absolute_path"
+    )]
     pub path: PathBuf,
+
+    /// Path to the html output of the wiki on the local machine (must be absolute path)
+    #[serde(
+        default = "HtmlWikiConfig::default_path_html",
+        deserialize_with = "deserialize_absolute_path"
+    )]
+    pub path_html: PathBuf,
 
     /// Optional name to associate with the wiki for named links and other
     /// use cases
@@ -245,6 +256,7 @@ impl Default for HtmlWikiConfig {
     fn default() -> Self {
         Self {
             path: Self::default_path(),
+            path_html: Self::default_path_html(),
             name: Self::default_name(),
             css_name: Self::default_css_name(),
             diary_rel_path: Self::default_diary_rel_path(),
@@ -325,6 +337,15 @@ impl HtmlWikiConfig {
     #[inline]
     pub fn default_path() -> PathBuf {
         PathBuf::new()
+    }
+
+    #[inline]
+    pub fn default_path_html() -> PathBuf {
+        // NOTE: For wasm, home directory will always return None, but we don't
+        //       expect the default value to be used in wasm
+        dirs::home_dir()
+            .unwrap_or_else(PathBuf::new)
+            .join("vimwiki")
     }
 
     #[inline]

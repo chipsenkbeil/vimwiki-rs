@@ -1,5 +1,6 @@
 use super::{HtmlLinkConfig, HtmlWikiConfig};
 use crate::Link;
+use serde::{de, Deserialize};
 use std::{
     convert::TryFrom,
     path::{Component, Path, PathBuf},
@@ -7,6 +8,24 @@ use std::{
 use uriparse::{
     Path as UriPath, Scheme, Segment, URIReference, URIReferenceError,
 };
+
+/// For use with serde's deserialize_with when deseriaizing to a path that
+/// we also want to validate is an absolute path
+pub fn deserialize_absolute_path<'de, D>(d: D) -> Result<PathBuf, D::Error>
+where
+    D: de::Deserializer<'de>,
+{
+    let value = PathBuf::deserialize(d)?;
+
+    if !value.is_absolute() {
+        return Err(de::Error::invalid_value(
+            de::Unexpected::Str(value.to_string_lossy().as_ref()),
+            &"path must be absolute",
+        ));
+    }
+
+    Ok(value)
+}
 
 /// Performs link resolution to figure out the resulting URI or relative path
 /// based on the file containing the link, the destination wiki, and the
@@ -30,37 +49,37 @@ pub fn resolve_link(
     Ok(target_uri_ref)
 }
 
-/// Resolves a diary link, which always points to a diary entry within the
-/// current wiki
-fn resolve_diary_link(
-    config: &HtmlLinkConfig,
-    src: &Path,
-    target: &Link<'_>,
-    target_wiki: &HtmlWikiConfig,
-) -> Result<URIReference<'static>, OutputError> {
-    let date_page_string = format!("{}.html", date);
-    let wiki = f.config().to_current_wiki();
+// /// Resolves a diary link, which always points to a diary entry within the
+// /// current wiki
+// fn resolve_diary_link(
+//     config: &HtmlLinkConfig,
+//     src: &Path,
+//     target: &Link<'_>,
+//     target_wiki: &HtmlWikiConfig,
+// ) -> Result<URIReference<'static>, OutputError> {
+//     let date_page_string = format!("{}.html", date);
+//     let wiki = f.config().to_current_wiki();
 
-    // Diary URI path is empty, so we're going to replace it with
-    // an actual path by using our wiki root relative to the
-    // current file, adding the diary section, and then the date
-    let (_, mut path, _, _) = wiki
-        .to_relative_reference()
-        .map_err(OutputError::from)?
-        .into_parts();
+//     // Diary URI path is empty, so we're going to replace it with
+//     // an actual path by using our wiki root relative to the
+//     // current file, adding the diary section, and then the date
+//     let (_, mut path, _, _) = wiki
+//         .to_relative_reference()
+//         .map_err(OutputError::from)?
+//         .into_parts();
 
-    // Add diary path, which should be relative to the wiki
-    for c in wiki.diary_rel_path.components() {
-        path.push(c.as_os_str().to_str().ok_or(
-            OutputError::FailedToModifyUriPath {
-                source: uriparse::PathError::InvalidCharacter,
-            },
-        )?)
-        .map_err(OutputError::from)?;
-    }
-    path.push(date_page_string.as_str())
-        .map_err(OutputError::from)?;
-}
+//     // Add diary path, which should be relative to the wiki
+//     for c in wiki.diary_rel_path.components() {
+//         path.push(c.as_os_str().to_str().ok_or(
+//             OutputError::FailedToModifyUriPath {
+//                 source: uriparse::PathError::InvalidCharacter,
+//             },
+//         )?)
+//         .map_err(OutputError::from)?;
+//     }
+//     path.push(date_page_string.as_str())
+//         .map_err(OutputError::from)?;
+// }
 
 /// Makes a URI reference that is a directory into an html link
 /// by adding index.html or equivalent
