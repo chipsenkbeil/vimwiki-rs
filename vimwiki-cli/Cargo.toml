@@ -10,6 +10,10 @@ repository = "https://github.com/chipsenkbeil/vimwiki-rs"
 readme = "README.md"
 license = "MIT OR Apache-2.0"
 
+[[bin]]
+name = "vimwiki"
+path = "src/main.rs"
+
 [dependencies]
 structopt = "0.3.21"
 vimwiki = { version = "=0.1.0-alpha.6", path = "../vimwiki", features = ["html"] }
