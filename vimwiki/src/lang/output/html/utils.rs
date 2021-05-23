@@ -17,6 +17,27 @@ where
 {
     let value = PathBuf::deserialize(d)?;
 
+    // Expand any shell content like ~ or $HOME
+    let value = PathBuf::from(
+        shellexpand::full(&value.to_string_lossy())
+            .map_err(|x| {
+                de::Error::invalid_value(
+                    de::Unexpected::Str(value.to_string_lossy().as_ref()),
+                    &x.to_string().as_str(),
+                )
+            })?
+            .to_string(),
+    );
+
+    // Attempt to resolve all symlinks and other quirks
+    let value = value.canonicalize().map_err(|x| {
+        de::Error::invalid_value(
+            de::Unexpected::Str(value.to_string_lossy().as_ref()),
+            &x.to_string().as_str(),
+        )
+    })?;
+
+    // Verify that the path given is actually absolute
     if !value.is_absolute() {
         return Err(de::Error::invalid_value(
             de::Unexpected::Str(value.to_string_lossy().as_ref()),
