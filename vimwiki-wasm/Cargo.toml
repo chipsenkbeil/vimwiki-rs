@@ -10,6 +10,9 @@ repository = "https://github.com/chipsenkbeil/vimwiki-rs"
 readme = "README.md"
 license = "MIT OR Apache-2.0"
 
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
+
 [lib]
 crate-type = ["cdylib"]
 
