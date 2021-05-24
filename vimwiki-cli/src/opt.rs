@@ -1,7 +1,9 @@
 use std::path::PathBuf;
 use structopt::StructOpt;
 
+/// Tooling to convert and manipulation vimwiki files and wikis
 #[derive(Debug, StructOpt)]
+#[structopt(name = "vimwiki")]
 pub struct Opt {
     #[structopt(flatten)]
     pub common: CommonOpt,
@@ -10,7 +12,6 @@ pub struct Opt {
     pub subcommand: Subcommand,
 }
 
-/// Common options available across all subcommands
 #[derive(Debug, StructOpt)]
 pub struct CommonOpt {
     /// Verbose mode (-v, -vv, -vvv, etc.)
@@ -24,15 +25,6 @@ pub struct CommonOpt {
     /// Timestamp for logging (sec, ms, ns, none)
     #[structopt(long)]
     pub log_timestamp: Option<stderrlog::Timestamp>,
-
-    /// Path to config file for output (otherwise uses default settings)
-    #[structopt(long)]
-    pub config: Option<PathBuf>,
-
-    /// Extensions of files to parse when loading from wikis or arbitrary
-    /// directories
-    #[structopt(long, default_value = "wiki")]
-    pub ext: Vec<String>,
 }
 
 #[derive(Debug, StructOpt)]
@@ -48,6 +40,15 @@ pub struct ConvertSubcommand {
     /// can use `{}` as a filler for the file name such as `{}.html`
     #[structopt(short, long, parse(from_os_str))]
     pub output: Option<PathBuf>,
+
+    /// Path to config file for output (otherwise uses default settings)
+    #[structopt(long)]
+    pub config: Option<PathBuf>,
+
+    /// Extensions of files to parse when loading from wikis or arbitrary
+    /// directories
+    #[structopt(long = "ext", default_value = "wiki")]
+    pub extensions: Vec<String>,
 
     /// If provided, will fail immediately when encountering an error instead
     /// of continuing

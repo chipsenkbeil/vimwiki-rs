@@ -8,12 +8,12 @@ use std::{
 use vimwiki::*;
 use walkdir::WalkDir;
 
-pub fn convert(cmd: ConvertSubcommand, opt: CommonOpt) {
+pub fn convert(cmd: ConvertSubcommand, _opt: CommonOpt) {
     let html_config = handle_result(
         FailType::new("Unable to load html config", cmd.fail_fast, || {
             HtmlConfig::default()
         }),
-        load_html_config(opt.config.as_deref()),
+        load_html_config(cmd.config.as_deref()),
     );
 
     // If specified, we load all wikis and process them
@@ -29,7 +29,7 @@ pub fn convert(cmd: ConvertSubcommand, opt: CommonOpt) {
                     html_config.clone(),
                     wiki.path.as_path(),
                     cmd.output.as_deref(),
-                    &opt.ext,
+                    &cmd.extensions,
                 ),
             );
         }
@@ -45,7 +45,7 @@ pub fn convert(cmd: ConvertSubcommand, opt: CommonOpt) {
                 html_config.clone(),
                 path.as_path(),
                 cmd.output.as_deref(),
-                &opt.ext,
+                &cmd.extensions,
             ),
         );
     }
