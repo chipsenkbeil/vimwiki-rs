@@ -219,6 +219,13 @@ fn load_html_config<'a, I: Into<Option<&'a Path>>>(
 /// a structured html wiki config
 fn load_vimwiki_list() -> std::io::Result<Vec<HtmlWikiConfig>> {
     trace!("load_vimwiki_list()");
-    let vimwiki_list_json = VimVar::get_global("vimwiki_list")?;
-    serde_json::from_value(vimwiki_list_json).map_err(Into::into)
+
+    let vimwiki_list_json = VimVar::get_global("vimwiki_list", false)?;
+    trace!("g:vimwiki_list == {:?}", vimwiki_list_json);
+
+    if let Some(json) = vimwiki_list_json {
+        serde_json::from_value(json).map_err(Into::into)
+    } else {
+        Ok(Vec::new())
+    }
 }
