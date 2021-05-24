@@ -426,7 +426,7 @@ impl HtmlTextConfig {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct HtmlLinkConfig {
     /// Represents the base url used when forming absolute links
-    #[serde(default = "HtmlLinkConfig::default_base_url")]
+    #[serde(default = "HtmlLinkConfig::default_base_url", with = "uri")]
     pub base_url: URI<'static>,
 
     /// If true, all relative links (path/to/file.html or even /wiki/path/to/file.html)
@@ -439,6 +439,38 @@ pub struct HtmlLinkConfig {
     /// instead of the pretty form of `example.com/urls/`
     #[serde(default = "HtmlLinkConfig::default_use_ugly_urls")]
     pub use_ugly_urls: bool,
+}
+
+/// Module that provides serialize/deserialize of URI to a string type
+mod uri {
+    use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+    use std::convert::TryFrom;
+    use uriparse::URI;
+
+    pub fn serialize<S>(
+        data: &URI<'_>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        String::serialize(&data.to_string(), serializer)
+    }
+
+    pub fn deserialize<'de, D>(
+        deserializer: D,
+    ) -> Result<URI<'static>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        URI::try_from(s.as_str()).map(URI::into_owned).map_err(|x| {
+            de::Error::invalid_value(
+                de::Unexpected::Str(&s),
+                &x.to_string().as_str(),
+            )
+        })
+    }
 }
 
 impl Default for HtmlLinkConfig {
