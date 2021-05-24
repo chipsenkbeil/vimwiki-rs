@@ -181,6 +181,14 @@ impl HtmlConfig {
             .iter()
             .find(|wiki| wiki.name.as_deref() == Some(name))
     }
+
+    /// Transforms the runtime of the config
+    pub fn map_runtime<F: FnOnce(HtmlRuntimeConfig) -> HtmlRuntimeConfig>(
+        &mut self,
+        f: F,
+    ) {
+        self.runtime = f(self.runtime.clone());
+    }
 }
 
 /// Represents a configuration that provides runtime-only configuration settings

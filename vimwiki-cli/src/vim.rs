@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use serde_json::Value;
 use std::{
     io,

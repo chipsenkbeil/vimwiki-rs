@@ -5,7 +5,7 @@ mod formatter;
 pub use formatter::HtmlFormatter;
 
 mod convert;
-pub use convert::ToHtmlString;
+pub use convert::{ToHtmlPage, ToHtmlString};
 
 mod utils;
 

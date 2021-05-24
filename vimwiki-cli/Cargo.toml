@@ -15,8 +15,12 @@ name = "vimwiki"
 path = "src/main.rs"
 
 [dependencies]
+log = "0.4.14"
 serde_json = "1.0.64"
+stderrlog = "0.5.1"
 structopt = "0.3.21"
 toml = "0.5.8"
+walkdir = "2.3.2"
+
 vimwiki = { version = "=0.1.0-alpha.6", path = "../vimwiki", features = ["html"] }
 vimwiki_macros = { version = "=0.1.0-alpha.6", path = "../vimwiki_macros" }
