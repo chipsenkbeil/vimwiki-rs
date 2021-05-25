@@ -1,4 +1,4 @@
-use super::utils::deserialize_absolute_path;
+use super::utils::{deserialize_absolute_path, make_path_relative};
 use serde::{Deserialize, Serialize};
 use std::{
     convert::TryFrom,
@@ -16,6 +16,10 @@ pub struct HtmlConfig {
     /// [RUNTIME ONLY] Runtime-only config that is not saved/loaded!
     #[serde(skip)]
     pub runtime: HtmlRuntimeConfig,
+
+    /// Configuration settings that are applied generally
+    #[serde(default)]
+    pub general: HtmlGeneralConfig,
 
     /// Maps to vimwiki's wiki config and order matters for use in indexed
     /// wiki links
@@ -182,6 +186,25 @@ impl HtmlConfig {
             .find(|wiki| wiki.name.as_deref() == Some(name))
     }
 
+    /// Finds the wiki that contains the file at the specified path; if more
+    /// than one wiki would match, then the wiki at the deepest level will be
+    /// returned (e.g. /my/wiki over /my)
+    ///
+    /// Provided path must be absolute & canonicalized in order for matching
+    /// wiki to be identified
+    pub fn find_wiki_by_path<P: AsRef<Path>>(
+        &self,
+        path: P,
+    ) -> Option<&HtmlWikiConfig> {
+        // NOTE: We can use components().count() because all wikis should have
+        //       absolute, canonicalized paths so no concerns about .. or .
+        //       misleading the counts
+        self.wikis
+            .iter()
+            .filter(|wiki| path.as_ref().starts_with(wiki.path.as_path()))
+            .max_by_key(|wiki| wiki.path.components().count())
+    }
+
     /// Transforms the runtime of the config
     pub fn map_runtime<F: FnOnce(HtmlRuntimeConfig) -> HtmlRuntimeConfig>(
         &mut self,
@@ -225,6 +248,39 @@ impl HtmlRuntimeConfig {
                 .unwrap_or_default(),
             ..Default::default()
         }
+    }
+}
+
+/// Represents a configuration representing various properties associated with
+/// the overall HTML process
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct HtmlGeneralConfig {
+    /// Path to the html output for all wikis on the local machine (must be absolute path)
+    ///
+    /// Can be overridden by supplying `path_html` at the individual wiki level
+    #[serde(
+        default = "HtmlGeneralConfig::default_path_html",
+        deserialize_with = "deserialize_absolute_path"
+    )]
+    pub path_html: PathBuf,
+}
+
+impl Default for HtmlGeneralConfig {
+    fn default() -> Self {
+        Self {
+            path_html: Self::default_path_html(),
+        }
+    }
+}
+
+impl HtmlGeneralConfig {
+    #[inline]
+    pub fn default_path_html() -> PathBuf {
+        // NOTE: For wasm, home directory will always return None, but we don't
+        //       expect the default value to be used in wasm
+        dirs::home_dir()
+            .unwrap_or_else(PathBuf::new)
+            .join("vimwiki_html")
     }
 }
 
@@ -342,11 +398,52 @@ impl HtmlWikiConfig {
             .replace(" ", "_")
     }
 
+    /// Produce an absolute path to the html output destination for the given
+    /// input file, replacing the extension of the input path with the provided
+    /// extension.
+    ///
+    /// Determining the true input path and output path will be handled in a
+    /// few different ways:
+    ///
+    /// ### Figuring out the input path
+    ///
+    /// 1. The input path is relative and is thereby appended to the wiki's
+    ///    absolute path to identify the full input path of the file
+    /// 2. The input path is absolute and starts with the wiki's path, meaning
+    ///    that the absolute input path will be stripped to find the relative
+    ///    input path
+    /// 3. The input path is absolute and does not start with the wiki's path,
+    ///    meaning that we treat the absolute path as relative to the root of
+    ///    the wiki's path and thereby follow step 1 above
+    ///
+    pub fn make_output_path(&self, input: &Path, ext: &str) -> PathBuf {
+        // First, make an absolute path by either using the input if it is
+        // absolute and contained in the wiki or treating the input path as
+        // relative to the wiki's root path
+        let input =
+            if input.is_relative() || !input.starts_with(self.path.as_path()) {
+                self.path.join(make_path_relative(input))
+            } else {
+                input.to_path_buf()
+            };
+
+        // Second, figure out the relative path of the input
+        let input = input
+            .strip_prefix(self.path.as_path())
+            .expect("Impossible: file should always be within wiki");
+
+        // Third, take the relative path of the input and append it to the base
+        // html output path of the wiki, replacing the extension with html
+        self.path_html.join(input).with_extension(ext)
+    }
+
     #[inline]
     pub fn default_path() -> PathBuf {
         PathBuf::new()
     }
 
+    // TODO: Make this optional and instead using general's path_html as the
+    //       default if this is not provided !!!
     #[inline]
     pub fn default_path_html() -> PathBuf {
         // NOTE: For wasm, home directory will always return None, but we don't

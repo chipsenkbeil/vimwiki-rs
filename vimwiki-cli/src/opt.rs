@@ -37,18 +37,17 @@ pub enum Subcommand {
 /// Convert vimwiki into something else
 #[derive(Debug, StructOpt)]
 pub struct ConvertSubcommand {
-    /// Write output to FILE instead of stdout; if processing multiple files,
-    /// can use `{}` as a filler for the file name such as `{}.html`
-    #[structopt(short, long, parse(from_os_str))]
-    pub output: Option<PathBuf>,
+    /// Write output to stdout instead of file system
+    #[structopt(long)]
+    pub stdout: bool,
 
     /// Path to config file for output (otherwise uses default settings)
-    #[structopt(long)]
+    #[structopt(short, long)]
     pub config: Option<PathBuf>,
 
     /// Extensions of files to parse when loading from wikis or arbitrary
     /// directories
-    #[structopt(long = "ext", default_value = "wiki")]
+    #[structopt(short, long = "ext", default_value = "wiki")]
     pub extensions: Vec<String>,
 
     /// If provided, will fail immediately when encountering an error instead
@@ -57,7 +56,7 @@ pub struct ConvertSubcommand {
     pub fail_fast: bool,
 
     /// If provided, will attempt to load all wikis and generate output
-    #[structopt(long)]
+    #[structopt(short, long)]
     pub all: bool,
 
     /// Files (or directories) to process

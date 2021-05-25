@@ -7,20 +7,22 @@ pub use formatter::HtmlFormatter;
 mod convert;
 pub use convert::{ToHtmlPage, ToHtmlString};
 
-mod utils;
+mod error;
+pub use error::{HtmlOutputError, HtmlOutputResult};
 
-use crate::lang::{
-    elements::*,
-    output::{Output, OutputError, OutputResult},
-};
+mod utils;
+pub use utils::LinkResolutionError;
+
+use crate::lang::{elements::*, output::Output};
 use lazy_static::lazy_static;
-use std::fmt::Write;
+use std::{borrow::Cow, collections::HashMap, fmt::Write};
 use syntect::{
     easy::HighlightLines,
     highlighting::ThemeSet,
     html::{self, IncludeBackground},
     parsing::SyntaxSet,
 };
+use uriparse::URIReference;
 use voca_rs::escape;
 
 lazy_static! {
@@ -34,8 +36,9 @@ lazy_static! {
 
 impl<'a> Output for Page<'a> {
     type Formatter = HtmlFormatter;
+    type Error = HtmlOutputError;
 
-    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
         for element in self.elements.iter() {
             element.fmt(f)?;
         }
@@ -46,8 +49,9 @@ impl<'a> Output for Page<'a> {
 
 impl<'a> Output for BlockElement<'a> {
     type Formatter = HtmlFormatter;
+    type Error = HtmlOutputError;
 
-    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
         match self {
             Self::Blockquote(x) => x.fmt(f),
             Self::DefinitionList(x) => x.fmt(f),
@@ -65,6 +69,7 @@ impl<'a> Output for BlockElement<'a> {
 
 impl<'a> Output for Blockquote<'a> {
     type Formatter = HtmlFormatter;
+    type Error = HtmlOutputError;
 
     /// Writes a blockquote in HTML
     ///
@@ -76,7 +81,7 @@ impl<'a> Output for Blockquote<'a> {
     ///     <p>Second line in blockquote</p>
     /// </blockquote>
     /// ```
-    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
         // TODO: Blockquote output is handled differently if it comes from
         //       indented blockquote versus arrow/chevron (>)
         //
@@ -95,6 +100,7 @@ impl<'a> Output for Blockquote<'a> {
 
 impl<'a> Output for DefinitionList<'a> {
     type Formatter = HtmlFormatter;
+    type Error = HtmlOutputError;
 
     /// Writes a definition list in HTML
     ///
@@ -110,7 +116,7 @@ impl<'a> Output for DefinitionList<'a> {
     ///     <dd>Another definition</dd>
     /// </dl>
     /// ```
-    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
         writeln!(f, "<dl>")?;
         for (term, defs) in self.iter() {
             // Write our term in the form <dt>{term}</dt>
@@ -132,22 +138,24 @@ impl<'a> Output for DefinitionList<'a> {
 
 impl<'a> Output for DefinitionListValue<'a> {
     type Formatter = HtmlFormatter;
+    type Error = HtmlOutputError;
 
     /// Writes a definition list value in HTML
-    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
         self.as_inner().fmt(f)
     }
 }
 
 impl Output for Divider {
     type Formatter = HtmlFormatter;
+    type Error = HtmlOutputError;
 
     /// Writes a divider in HTML
     ///
     /// ```html
     /// <hr />
     /// ```
-    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
         writeln!(f, "<hr />")?;
         Ok(())
     }
@@ -155,6 +163,7 @@ impl Output for Divider {
 
 impl<'a> Output for Header<'a> {
     type Formatter = HtmlFormatter;
+    type Error = HtmlOutputError;
 
     /// Writes a header in HTML
     ///
@@ -179,7 +188,7 @@ impl<'a> Output for Header<'a> {
     ///     </h3>
     /// </div>
     /// ```
-    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
         let header_id = escape::escape_html(&self.content.to_string());
         f.insert_header_text(self.level, header_id.clone());
 
@@ -216,6 +225,7 @@ impl<'a> Output for Header<'a> {
 
 impl<'a> Output for List<'a> {
     type Formatter = HtmlFormatter;
+    type Error = HtmlOutputError;
 
     /// Writes a list in HTML
     ///
@@ -236,7 +246,7 @@ impl<'a> Output for List<'a> {
     ///     <li>...</li>
     /// </ol>
     /// ```
-    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
         // TODO: This should be used for list items... how?
         let _ignore_newlines = f.config().list.ignore_newline;
 
@@ -266,6 +276,7 @@ impl<'a> Output for List<'a> {
 
 impl<'a> Output for ListItem<'a> {
     type Formatter = HtmlFormatter;
+    type Error = HtmlOutputError;
 
     /// Writes a list item in HTML
     ///
@@ -300,7 +311,7 @@ impl<'a> Output for ListItem<'a> {
     /// ```html
     /// <li class="rejected">...</li>
     /// ```
-    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
         // TODO: This should be used for list items... how?
         let _ignore_newlines = f.config().list.ignore_newline;
 
@@ -338,9 +349,10 @@ impl<'a> Output for ListItem<'a> {
 
 impl<'a> Output for ListItemContents<'a> {
     type Formatter = HtmlFormatter;
+    type Error = HtmlOutputError;
 
     /// Writes a list item's contents in HTML
-    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
         for content in self.contents.iter() {
             content.fmt(f)?;
         }
@@ -351,9 +363,10 @@ impl<'a> Output for ListItemContents<'a> {
 
 impl<'a> Output for ListItemContent<'a> {
     type Formatter = HtmlFormatter;
+    type Error = HtmlOutputError;
 
     /// Writes one piece of content within a list item in HTML
-    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
         match self {
             Self::List(x) => x.fmt(f)?,
             Self::InlineContent(x) => x.fmt(f)?,
@@ -365,6 +378,7 @@ impl<'a> Output for ListItemContent<'a> {
 
 impl<'a> Output for MathBlock<'a> {
     type Formatter = HtmlFormatter;
+    type Error = HtmlOutputError;
 
     /// Writes a math block in HTML
     ///
@@ -382,7 +396,7 @@ impl<'a> Output for MathBlock<'a> {
     /// some math enclosed in block notation
     /// \end{environment}
     /// ```
-    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
         if let Some(env) = self.environment.as_deref() {
             writeln!(f, r"\begin{{{}}}", env)?;
             for line in self.lines.iter() {
@@ -407,6 +421,7 @@ impl<'a> Output for MathBlock<'a> {
 
 impl<'a> Output for Placeholder<'a> {
     type Formatter = HtmlFormatter;
+    type Error = HtmlOutputError;
 
     /// Writes placeholders in HTML
     ///
@@ -414,7 +429,7 @@ impl<'a> Output for Placeholder<'a> {
     /// settings in the formatter with specific details such as a title, date,
     /// or alternative template to use
     /// ```
-    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
         match self {
             Self::Title(x) => f.set_title(x),
             Self::Date(x) => f.set_date(x),
@@ -428,6 +443,7 @@ impl<'a> Output for Placeholder<'a> {
 
 impl<'a> Output for PreformattedText<'a> {
     type Formatter = HtmlFormatter;
+    type Error = HtmlOutputError;
 
     /// Writes a preformatted text block in HTML
     ///
@@ -468,7 +484,7 @@ impl<'a> Output for PreformattedText<'a> {
     ///     ...
     /// </pre>
     /// ```
-    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
         // If we are told to perform a server-side render of styles, we
         // build out the <pre> tag and then inject a variety of <span> wrapping
         // individual text elements with associated stylings
@@ -482,7 +498,7 @@ impl<'a> Output for PreformattedText<'a> {
                 .as_ref()
                 .map(SyntaxSet::load_from_folder)
                 .transpose()
-                .map_err(OutputError::from)?;
+                .map_err(HtmlOutputError::from)?;
             let ss = custom_ss.as_ref().unwrap_or(&DEFAULT_SYNTAX_SET);
 
             // Load and use the theme set from the specified directory if
@@ -494,7 +510,7 @@ impl<'a> Output for PreformattedText<'a> {
                 .as_ref()
                 .map(ThemeSet::load_from_folder)
                 .transpose()
-                .map_err(OutputError::from)?;
+                .map_err(HtmlOutputError::from)?;
             let ts = custom_ts.as_ref().unwrap_or(&DEFAULT_THEME_SET);
 
             // Get syntax using language specifier, otherwise use plain text
@@ -508,7 +524,9 @@ impl<'a> Output for PreformattedText<'a> {
             // Load the specified theme, reporting an error if missing
             let theme =
                 ts.themes.get(&f.config().code.theme).ok_or_else(|| {
-                    OutputError::ThemeMissing(f.config().code.theme.to_string())
+                    HtmlOutputError::ThemeMissing(
+                        f.config().code.theme.to_string(),
+                    )
                 })?;
             let mut h = HighlightLines::new(syntax, theme);
 
@@ -572,6 +590,7 @@ impl<'a> Output for PreformattedText<'a> {
 
 impl<'a> Output for Paragraph<'a> {
     type Formatter = HtmlFormatter;
+    type Error = HtmlOutputError;
 
     /// Writes a paragraph in HTML
     ///
@@ -591,7 +610,7 @@ impl<'a> Output for Paragraph<'a> {
     /// ```html
     /// <p>Some paragraph text<br />on multiple lines</p>
     /// ```
-    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
         let ignore_newlines = f.config().text.ignore_newline;
 
         write!(f, "<p>")?;
@@ -616,6 +635,7 @@ impl<'a> Output for Paragraph<'a> {
 
 impl<'a> Output for Table<'a> {
     type Formatter = HtmlFormatter;
+    type Error = HtmlOutputError;
 
     /// Writes a table in HTML
     ///
@@ -686,7 +706,7 @@ impl<'a> Output for Table<'a> {
     /// </table>
     /// ```
     ///
-    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
         if self.is_centered() {
             writeln!(f, "<table class\"center\">")?;
         } else {
@@ -757,9 +777,10 @@ impl<'a> Output for Table<'a> {
 
 impl<'a> Output for InlineElementContainer<'a> {
     type Formatter = HtmlFormatter;
+    type Error = HtmlOutputError;
 
     /// Writes a collection of inline elements in HTML
-    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
         for element in self.elements.iter() {
             element.fmt(f)?;
         }
@@ -770,9 +791,10 @@ impl<'a> Output for InlineElementContainer<'a> {
 
 impl<'a> Output for InlineElement<'a> {
     type Formatter = HtmlFormatter;
+    type Error = HtmlOutputError;
 
     /// Writes an inline element in HTML
-    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
         match self {
             Self::Text(x) => x.fmt(f),
             Self::DecoratedText(x) => x.fmt(f),
@@ -788,9 +810,10 @@ impl<'a> Output for InlineElement<'a> {
 
 impl<'a> Output for Text<'a> {
     type Formatter = HtmlFormatter;
+    type Error = HtmlOutputError;
 
     /// Writes text in HTML, escaping any HTML-specific characters
-    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
         write!(f, "{}", escape::escape_html(&self.0))?;
         Ok(())
     }
@@ -798,9 +821,10 @@ impl<'a> Output for Text<'a> {
 
 impl<'a> Output for DecoratedText<'a> {
     type Formatter = HtmlFormatter;
+    type Error = HtmlOutputError;
 
     /// Writes decorated text in HTML
-    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
         // First, we figure out the type of decoration to apply with bold
         // having the most unique situation as it can also act as an anchor
         match self {
@@ -867,9 +891,10 @@ impl<'a> Output for DecoratedText<'a> {
 
 impl<'a> Output for DecoratedTextContent<'a> {
     type Formatter = HtmlFormatter;
+    type Error = HtmlOutputError;
 
     /// Writes decorated text content in HTML
-    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
         match self {
             Self::Text(x) => x.fmt(f),
             Self::DecoratedText(x) => x.fmt(f),
@@ -881,12 +906,13 @@ impl<'a> Output for DecoratedTextContent<'a> {
 
 impl Output for Keyword {
     type Formatter = HtmlFormatter;
+    type Error = HtmlOutputError;
 
     /// Writes keyword in HTML
     ///
     /// Unable to be implemented via Output trait as generic associated types
     /// would be required.
-    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
         // For all keywords other than todo, they are treated as plain output
         // for HTML. For todo, it is wrapped in a span with a todo class
         match self {
@@ -904,6 +930,7 @@ impl Output for Keyword {
 
 impl<'a> Output for Link<'a> {
     type Formatter = HtmlFormatter;
+    type Error = HtmlOutputError;
 
     /// Writes a link in HTML
     ///
@@ -992,171 +1019,87 @@ impl<'a> Output for Link<'a> {
     /// <img src="path/to/img.png" alt="descr" />
     /// <img src="path/to/img.png" alt="descr" style="A" />
     /// ```
-    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
         // Produces a link tag of <a href=".." ...>link/description</a>
         // based on the link data and a given base url representing the root
         // of the wiki if needed
         fn write_link(
             f: &mut HtmlFormatter,
-            data: &LinkData<'_>,
+            href: &URIReference<'_>,
+            description: Option<&Description>,
+            properties: Option<&HashMap<Cow<'_, str>, Cow<'_, str>>>,
             use_img_tag: bool,
-        ) -> OutputResult {
-            let path = data.to_path_buf();
-            let anchor = data.to_anchor();
+        ) -> HtmlOutputResult {
+            if use_img_tag {
+                write!(f, "<img src=\"{}\"", href)?;
 
-            // Build url#a1-a2
-            let mut src = path.to_string_lossy().to_string();
-            if let Some(anchor) = anchor.as_ref() {
-                write!(&mut src, "#{}", anchor.join("-"))?;
-            }
-
-            // Build descr or url#a1#a2 or embed an image
-            let mut text = String::new();
-            if let Some(description) = data.description() {
-                match description {
-                    Description::Text(x) => write!(&mut text, "{}", x)?,
-                    Description::TransclusionLink(data) => {
-                        write_link(f, data, true)?
-                    }
-                }
-            } else {
-                write!(&mut text, "{}", path.to_string_lossy())?;
-
-                if let Some(anchor) = anchor {
-                    for element in anchor.iter() {
-                        write!(&mut text, "{}", element)?;
-                    }
-                }
-            }
-
-            if !use_img_tag {
-                write!(f, r#"<a href="{}">{}</a>"#, src, text)?;
-            } else {
-                write!(f, "<img src=\"{}\"", src)?;
-                if let Some(description) = data.description() {
+                if let Some(desc) = description {
                     write!(
                         f,
                         " alt=\"{}\"",
-                        escape::escape_html(&description.to_string())
+                        escape::escape_html(desc.to_string().as_str())
                     )?;
                 }
-                if let Some(properties) = data.properties() {
+
+                if let Some(properties) = properties {
                     for (k, v) in properties.iter() {
                         write!(f, " {}=\"{}\"", k, escape::escape_html(v))?;
                     }
                 }
+
                 write!(f, " />")?;
+            } else {
+                write!(f, "<a href=\"{}\"", href)?;
+
+                if let Some(properties) = properties {
+                    for (k, v) in properties.iter() {
+                        write!(f, " {}=\"{}\"", k, escape::escape_html(v))?;
+                    }
+                }
+
+                write!(f, ">")?;
+
+                match description {
+                    Some(Description::Text(x)) => {
+                        write!(f, "{}", escape::escape_html(x))?
+                    }
+                    Some(Description::TransclusionLink(data)) => write_link(
+                        f,
+                        &data.to_html_uri_ref(),
+                        data.description(),
+                        data.properties(),
+                        true,
+                    )?,
+                    None => write!(f, "{}", href)?,
+                }
+
+                write!(f, "</a>")?;
             }
+
             Ok(())
         }
 
-        match self {
-            Self::Wiki { data } => {
-                let mut data = data.to_borrowed();
+        let uri_ref = utils::resolve_link(
+            f.config(),
+            &f.config().to_current_wiki(),
+            f.config().as_active_page_path_within_wiki(),
+            &self,
+        )
+        .map_err(HtmlOutputError::from)?;
 
-                // If URI is a directory, we want to modify it to have an
-                // actual index.html file (e.g. /my-wiki/path/to/index.html)
-                if data.is_path_dir() {
-                    data.mut_uri_ref().map_path(|mut path| {
-                        path.push("index.html").map_err(OutputError::from);
-                        path
-                    });
-
-                // Otherwise, we want to modify the URI to have a .html
-                // extension if it's referencing a file
-                } else {
-                    data.make_html_uri_ref();
-                }
-
-                write_link(f, &data, false)?
-            }
-
-            // TODO: Need to alter link data to have a uri with a
-            //       path to the page of the other wiki
-            //
-            //       e.g. /my-other-wiki/diary/{date}.html
-            //       or /diary/{date}.html if only a singular wiki
-            Self::IndexedInterWiki { index, data } => {
-                let mut data = data.to_borrowed();
-
-                // Get relative path up to current wiki root, then add an
-                // extra .. to go up outside
-                let path_to_local_root =
-                    f.config().to_active_page_path_to_wiki_root();
-
-                let wiki_config = f
-                    .config()
-                    .find_wiki_by_index(*index as usize)
-                    .ok_or(OutputError::MissingWikiAtIndex(*index as usize))?;
-
-                let base_uri_ref = wiki_config
-                    .to_relative_reference()
-                    .map_err(OutputError::from)?;
-                // TODO: Get relative url back up to wiki from current
-                //       active page and use that as the base uri to
-                //       prepend to the actual link, which we also want
-                //       to append .html or handle as a directory
-
-                write_link(f, &data, false)?
-            }
-
-            // TODO: Need to alter link data to have a uri with a
-            //       path to the page of the other wiki
-            //
-            //       e.g. /my-other-wiki/diary/{date}.html
-            Self::NamedInterWiki { name, data } => {
-                let wiki_config = f
-                    .config()
-                    .find_wiki_by_name(name.as_ref())
-                    .ok_or_else(move || {
-                    OutputError::MissingWikiWithName(name.to_string())
-                })?;
-                write_link(f, data, false)?
-            }
-
-            // TODO: Need to alter link data to have a uri with a
-            //       path to the diary page of the current wiki
-            //
-            //       e.g. /my-wiki/diary/{date}.html
-            Self::Diary { date, data } => {
-                let date_page_string = format!("{}.html", date);
-                let wiki = f.config().to_current_wiki();
-
-                // Diary URI path is empty, so we're going to replace it with
-                // an actual path by using our wiki root relative to the
-                // current file, adding the diary section, and then the date
-                let (_, mut path, _, _) = wiki
-                    .to_relative_reference()
-                    .map_err(OutputError::from)?
-                    .into_parts();
-
-                // Add diary path, which should be relative to the wiki
-                for c in wiki.diary_rel_path.components() {
-                    path.push(c.as_os_str().to_str().ok_or(
-                        OutputError::FailedToModifyUriPath {
-                            source: uriparse::PathError::InvalidCharacter,
-                        },
-                    )?)
-                    .map_err(OutputError::from)?;
-                }
-                path.push(date_page_string.as_str())
-                    .map_err(OutputError::from)?;
-
-                let mut data = data.to_borrowed();
-
-                data.mut_uri_ref().map_path(move |_| path);
-                write_link(f, &data, false)?
-            }
-            Self::Raw { data } => write_link(f, data, false)?,
-            Self::Transclusion { data } => write_link(f, data, true)?,
-        }
-
-        Ok(())
+        write_link(
+            f,
+            &uri_ref,
+            Some(self.to_description_or_default()).as_ref(),
+            self.properties(),
+            matches!(self, Self::Transclusion { .. }),
+        )
     }
 }
 
 impl<'a> Output for Tags<'a> {
     type Formatter = HtmlFormatter;
+    type Error = HtmlOutputError;
 
     /// Writes tags in HTML
     ///
@@ -1168,7 +1111,7 @@ impl<'a> Output for Tags<'a> {
     /// ```html
     /// <span id="Header 1-tag1"></span><span class="tag" id="tag1">tag1</span>
     /// ```
-    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
         for tag in self.iter() {
             let id = escape::escape_html(tag.as_str());
             let complete_id = build_complete_id(
@@ -1186,6 +1129,7 @@ impl<'a> Output for Tags<'a> {
 
 impl<'a> Output for CodeInline<'a> {
     type Formatter = HtmlFormatter;
+    type Error = HtmlOutputError;
 
     /// Writes inline code in HTML
     ///
@@ -1194,7 +1138,7 @@ impl<'a> Output for CodeInline<'a> {
     /// ```html
     /// <code>some code</code>
     /// ```
-    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
         write!(f, "<code>{}</code>", escape::escape_html(&self.code))?;
         Ok(())
     }
@@ -1202,6 +1146,7 @@ impl<'a> Output for CodeInline<'a> {
 
 impl<'a> Output for MathInline<'a> {
     type Formatter = HtmlFormatter;
+    type Error = HtmlOutputError;
 
     /// Writes inline math in HTML
     ///
@@ -1210,7 +1155,7 @@ impl<'a> Output for MathInline<'a> {
     /// ```html
     /// \(some math\)
     /// ```
-    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
         write!(f, r"\({}\)", escape::escape_html(&self.formula))?;
         Ok(())
     }
@@ -1218,9 +1163,10 @@ impl<'a> Output for MathInline<'a> {
 
 impl<'a> Output for Comment<'a> {
     type Formatter = HtmlFormatter;
+    type Error = HtmlOutputError;
 
     /// Writes a comment in HTML
-    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
         match self {
             Self::Line(x) => x.fmt(f),
             Self::MultiLine(x) => x.fmt(f),
@@ -1230,6 +1176,7 @@ impl<'a> Output for Comment<'a> {
 
 impl<'a> Output for LineComment<'a> {
     type Formatter = HtmlFormatter;
+    type Error = HtmlOutputError;
 
     /// Writes a line comment in HTML
     ///
@@ -1240,7 +1187,7 @@ impl<'a> Output for LineComment<'a> {
     /// ```html
     /// <!-- {line} -->
     /// ```
-    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
         if f.config().comment.include {
             write!(f, "<!-- {} -->", self.as_str())?;
         }
@@ -1250,6 +1197,7 @@ impl<'a> Output for LineComment<'a> {
 
 impl<'a> Output for MultiLineComment<'a> {
     type Formatter = HtmlFormatter;
+    type Error = HtmlOutputError;
 
     /// Writes a multiline comment in HTML
     ///
@@ -1265,7 +1213,7 @@ impl<'a> Output for MultiLineComment<'a> {
     /// {lineN}
     /// -->
     /// ```
-    fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
         if f.config().comment.include {
             writeln!(f, "<!--")?;
             for line in self.as_lines() {
@@ -1281,7 +1229,7 @@ fn build_complete_id(
     f: &mut HtmlFormatter,
     max_level: usize,
     id: &str,
-) -> Result<String, OutputError> {
+) -> Result<String, HtmlOutputError> {
     let mut complete_id = String::new();
     for i in 1..max_level {
         if let Some(id) = f.get_header_text(i) {

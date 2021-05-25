@@ -1,17 +1,21 @@
-use super::{HtmlConfig, HtmlFormatter, Output, OutputError};
+use super::{HtmlConfig, HtmlFormatter, HtmlOutputError, Output};
 use chrono::Local;
 
 pub trait ToHtmlString {
     /// Converts to individual HTML dom string
-    fn to_html_string(&self, config: HtmlConfig)
-        -> Result<String, OutputError>;
-}
-
-impl<T: Output<Formatter = HtmlFormatter>> ToHtmlString for T {
     fn to_html_string(
         &self,
         config: HtmlConfig,
-    ) -> Result<String, OutputError> {
+    ) -> Result<String, HtmlOutputError>;
+}
+
+impl<T: Output<Formatter = HtmlFormatter, Error = HtmlOutputError>> ToHtmlString
+    for T
+{
+    fn to_html_string(
+        &self,
+        config: HtmlConfig,
+    ) -> Result<String, HtmlOutputError> {
         let mut formatter = HtmlFormatter::new(config);
         self.fmt(&mut formatter)?;
         Ok(formatter.into_content())
@@ -20,11 +24,19 @@ impl<T: Output<Formatter = HtmlFormatter>> ToHtmlString for T {
 
 pub trait ToHtmlPage {
     /// Converts to an HTML page string
-    fn to_html_page(&self, config: HtmlConfig) -> Result<String, OutputError>;
+    fn to_html_page(
+        &self,
+        config: HtmlConfig,
+    ) -> Result<String, HtmlOutputError>;
 }
 
-impl<T: Output<Formatter = HtmlFormatter>> ToHtmlPage for T {
-    fn to_html_page(&self, config: HtmlConfig) -> Result<String, OutputError> {
+impl<T: Output<Formatter = HtmlFormatter, Error = HtmlOutputError>> ToHtmlPage
+    for T
+{
+    fn to_html_page(
+        &self,
+        config: HtmlConfig,
+    ) -> Result<String, HtmlOutputError> {
         // Build an HTML formatter using the provided config and funnel our
         // output through it
         let mut formatter = HtmlFormatter::new(config);
@@ -54,7 +66,7 @@ impl<T: Output<Formatter = HtmlFormatter>> ToHtmlPage for T {
             .map(|p| formatter.config().template.dir.join(p))
             .map(std::fs::read_to_string)
             .transpose()
-            .map_err(|source| OutputError::TemplateNotLoaded { source })?
+            .map_err(|source| HtmlOutputError::TemplateNotLoaded { source })?
             .unwrap_or_else(|| formatter.config().template.text.to_string());
 
         // Fill in template variables
@@ -100,16 +112,17 @@ impl<T: Output<Formatter = HtmlFormatter>> ToHtmlPage for T {
 mod tests {
     use super::*;
     use crate::{
-        HtmlRuntimeConfig, HtmlTemplateConfig, HtmlWikiConfig, OutputResult,
+        HtmlOutputResult, HtmlRuntimeConfig, HtmlTemplateConfig, HtmlWikiConfig,
     };
     use chrono::NaiveDate;
     use std::path::PathBuf;
 
-    struct TestOutput<F: Fn(&mut HtmlFormatter) -> OutputResult>(F);
-    impl<F: Fn(&mut HtmlFormatter) -> OutputResult> Output for TestOutput<F> {
+    struct TestOutput<F: Fn(&mut HtmlFormatter) -> HtmlOutputResult>(F);
+    impl<F: Fn(&mut HtmlFormatter) -> HtmlOutputResult> Output for TestOutput<F> {
         type Formatter = HtmlFormatter;
+        type Error = HtmlOutputError;
 
-        fn fmt(&self, f: &mut Self::Formatter) -> OutputResult {
+        fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
             self.0(f)?;
             Ok(())
         }
@@ -117,7 +130,7 @@ mod tests {
 
     fn _text(
         text: impl Into<String>,
-    ) -> impl Fn(&mut HtmlFormatter) -> OutputResult {
+    ) -> impl Fn(&mut HtmlFormatter) -> HtmlOutputResult {
         let text = text.into();
         move |f: &mut HtmlFormatter| {
             use std::fmt::Write;

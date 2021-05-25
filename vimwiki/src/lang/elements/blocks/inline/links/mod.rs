@@ -1,6 +1,7 @@
 use crate::StrictEq;
 use chrono::NaiveDate;
 use derive_more::Display;
+use percent_encoding::percent_decode;
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, collections::HashMap, convert::TryFrom};
 use uriparse::{Scheme, URIReference};
@@ -177,6 +178,25 @@ impl<'a> Link<'a> {
     /// Consumes link and returns the description associated with link
     pub fn into_description(self) -> Option<Description<'a>> {
         self.into_data().into_description()
+    }
+
+    /// Produces a description based on the link, either using the description
+    /// associated with the link or falling back to the link's URI
+    pub fn to_description_or_default(&self) -> Description<'a> {
+        if let Some(desc) = self.description() {
+            desc.clone()
+        } else if matches!(self, Link::Raw { .. }) {
+            // If a raw link, just return as is
+            Description::from(self.data().uri_ref().to_string())
+        } else {
+            // If not a raw link, we want to make sure to clean up %20 and
+            // other percent encoded pieces
+            Description::from(
+                percent_decode(self.data().uri_ref().to_string().as_bytes())
+                    .decode_utf8_lossy()
+                    .to_string(),
+            )
+        }
     }
 
     /// Returns reference to the properties associated with link

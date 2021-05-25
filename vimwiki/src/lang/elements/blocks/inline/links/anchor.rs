@@ -3,7 +3,8 @@ use derive_more::{
     Constructor, Deref, DerefMut, From, Index, IndexMut, Into, IntoIterator,
 };
 use serde::{Deserialize, Serialize};
-use std::{borrow::Cow, fmt};
+use std::{borrow::Cow, convert::TryFrom, fmt};
+use uriparse::{Fragment, FragmentError};
 
 /// Represents an anchor
 #[derive(
@@ -114,6 +115,15 @@ impl From<String> for Anchor<'static> {
 impl<'a> From<&'a str> for Anchor<'a> {
     fn from(s: &'a str) -> Self {
         Self::new(vec![Cow::from(s)])
+    }
+}
+
+impl<'a> TryFrom<Anchor<'a>> for Fragment<'static> {
+    type Error = FragmentError;
+
+    /// Consumes an anchor, producing a newly-allocated fragment
+    fn try_from(anchor: Anchor<'a>) -> Result<Self, Self::Error> {
+        Fragment::try_from(anchor.join("-").as_str()).map(Fragment::into_owned)
     }
 }
 

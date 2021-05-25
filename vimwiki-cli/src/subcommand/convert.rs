@@ -1,10 +1,6 @@
 use crate::{utils, CommonOpt, ConvertSubcommand};
 use log::*;
-use std::{
-    ffi::OsStr,
-    io,
-    path::{Path, PathBuf},
-};
+use std::{ffi::OsStr, io, path::Path};
 use vimwiki::*;
 use walkdir::WalkDir;
 
@@ -28,7 +24,7 @@ pub fn convert(cmd: ConvertSubcommand, _opt: CommonOpt) -> io::Result<()> {
                 process_path(
                     html_config.clone(),
                     wiki.path.as_path(),
-                    cmd.output.as_deref(),
+                    cmd.stdout,
                     &cmd.extensions,
                 ),
             );
@@ -44,7 +40,7 @@ pub fn convert(cmd: ConvertSubcommand, _opt: CommonOpt) -> io::Result<()> {
             process_path(
                 html_config.clone(),
                 path.as_path(),
-                cmd.output.as_deref(),
+                cmd.stdout,
                 &cmd.extensions,
             ),
         );
@@ -85,13 +81,13 @@ fn handle_result<T, F: FnOnce() -> T, E: std::error::Error>(
 fn process_path(
     html_config: HtmlConfig,
     input_path: &Path,
-    output_path: Option<&Path>,
+    stdout: bool,
     exts: &[String],
 ) -> io::Result<()> {
     trace!(
-        "process_path(_, {:?}, {:?}, {:?})",
+        "process_path(_, input_path = {:?}, stdout = {}, exts = {:?})",
         input_path,
-        output_path,
+        stdout,
         exts
     );
     // Walk through all entries in directory (or singular file), processing
@@ -132,17 +128,7 @@ fn process_path(
             rt
         });
 
-        // TODO: output_path will currently produce a flat file structure for
-        //       vimwiki files, even with {}.html
-        //
-        //       Instead, we need to do a couple of things:
-        //       1. Augment output_path by calculating a relative path from the
-        //          input_path and the entry.path() to see how far in from the
-        //          input_path the entry is
-        //       2. Take the relative path from #1 and join it to the output_path
-        //          to produce the actual file path
-        //       3. Replace the extension in the output path with html
-        process_file(html_config, page_path.as_path(), output_path)?;
+        process_file(html_config, page_path.as_path(), stdout)?;
     }
 
     Ok(())
@@ -151,9 +137,21 @@ fn process_path(
 fn process_file(
     html_config: HtmlConfig,
     input_path: &Path,
-    output_path: Option<&Path>,
+    stdout: bool,
 ) -> io::Result<()> {
-    trace!("process_file(_, {:?}, {:?})", input_path, output_path);
+    trace!(
+        "process_file(_, input_path = {:?}, stdout = {})",
+        input_path,
+        stdout
+    );
+
+    // Go ahead and figure out the necessary wiki if we need it so that we
+    // don't need to clone our entire config later
+    let maybe_wiki = if !stdout {
+        html_config.find_wiki_by_path(input_path).cloned()
+    } else {
+        None
+    };
 
     let text = std::fs::read_to_string(input_path)?;
     trace!("{:?} :: text loaded!", input_path);
@@ -170,30 +168,21 @@ fn process_file(
     })?;
     trace!("{:?} :: html generated!", input_path);
 
-    // If we are given an output path to use, then process it as destination
-    if let Some(out_path) = output_path {
-        let out_path_str = out_path.to_string_lossy();
-        let path = if out_path_str.contains("{}") {
-            let name = input_path
-                .file_stem()
-                .ok_or_else(|| {
-                    io::Error::new(
-                        io::ErrorKind::Other,
-                        "Input is not a file with a name that can be used for {}"
-                    )
-                })?
-                .to_string_lossy();
-            PathBuf::from(out_path_str.replace("{}", name.as_ref()))
-        } else {
-            out_path.to_path_buf()
-        };
+    // If told to print to stdout, do so
+    if stdout {
+        println!("{}", html);
+
+    // Otherwise, we generate files based on resolved output paths
+    } else {
+        let path = maybe_wiki
+            .unwrap_or_default()
+            .make_output_path(input_path, "html");
 
         debug!("Writing to {:?}", path);
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
         std::fs::write(path, html)?;
-
-    // Otherwise, output to stdout by default
-    } else {
-        println!("{}", html);
     }
 
     Ok(())
@@ -203,7 +192,7 @@ fn load_html_config<'a, I: Into<Option<&'a Path>>>(
     path: I,
 ) -> io::Result<HtmlConfig> {
     let maybe_path = path.into();
-    trace!("load_html_config({:?})", maybe_path);
+    trace!("load_html_config(path = {:?})", maybe_path);
 
     let mut html_config: HtmlConfig = if let Some(path) = maybe_path {
         let config_string = std::fs::read_to_string(path)?;
