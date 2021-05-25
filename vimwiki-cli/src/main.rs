@@ -6,6 +6,8 @@ use opt::*;
 mod vim;
 use vim::*;
 
+mod utils;
+
 use structopt::StructOpt;
 
 fn main() {
@@ -15,7 +17,9 @@ fn main() {
     match opt.subcommand {
         Subcommand::Convert(cmd) => subcommand::convert(cmd, opt.common),
         Subcommand::Serve(cmd) => subcommand::serve(cmd, opt.common),
+        Subcommand::Print(cmd) => subcommand::print(cmd, opt.common),
     }
+    .expect("Command failed unexpectedly");
 }
 
 fn init_logging(opt: &CommonOpt) {

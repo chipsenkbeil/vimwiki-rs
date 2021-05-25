@@ -1,4 +1,4 @@
-use crate::{CommonOpt, ConvertSubcommand, VimVar};
+use crate::{utils, CommonOpt, ConvertSubcommand};
 use log::*;
 use std::{
     ffi::OsStr,
@@ -8,7 +8,7 @@ use std::{
 use vimwiki::*;
 use walkdir::WalkDir;
 
-pub fn convert(cmd: ConvertSubcommand, _opt: CommonOpt) {
+pub fn convert(cmd: ConvertSubcommand, _opt: CommonOpt) -> io::Result<()> {
     let html_config = handle_result(
         FailType::new("Unable to load html config", cmd.fail_fast, || {
             HtmlConfig::default()
@@ -49,6 +49,8 @@ pub fn convert(cmd: ConvertSubcommand, _opt: CommonOpt) {
             ),
         );
     }
+
+    Ok(())
 }
 
 enum FailType<'a, T, F: FnOnce() -> T> {
@@ -130,6 +132,16 @@ fn process_path(
             rt
         });
 
+        // TODO: output_path will currently produce a flat file structure for
+        //       vimwiki files, even with {}.html
+        //
+        //       Instead, we need to do a couple of things:
+        //       1. Augment output_path by calculating a relative path from the
+        //          input_path and the entry.path() to see how far in from the
+        //          input_path the entry is
+        //       2. Take the relative path from #1 and join it to the output_path
+        //          to produce the actual file path
+        //       3. Replace the extension in the output path with html
         process_file(html_config, page_path.as_path(), output_path)?;
     }
 
@@ -204,7 +216,7 @@ fn load_html_config<'a, I: Into<Option<&'a Path>>>(
     if html_config.wikis.is_empty() {
         // We attempt to load and parse our wiki content now, and if it fails
         // then we report over stderr and continue
-        match load_vimwiki_list() {
+        match utils::load_vimwiki_list() {
             Ok(wikis) => html_config.wikis = wikis,
             Err(x) => {
                 error!("Failed to load vimwiki_list from vim/neovim: {}", x)
@@ -213,19 +225,4 @@ fn load_html_config<'a, I: Into<Option<&'a Path>>>(
     }
 
     Ok(html_config)
-}
-
-/// Loads g:vimwiki_list from vim/neovim and then attempts to convert it into
-/// a structured html wiki config
-fn load_vimwiki_list() -> std::io::Result<Vec<HtmlWikiConfig>> {
-    trace!("load_vimwiki_list()");
-
-    let vimwiki_list_json = VimVar::get_global("vimwiki_list", false)?;
-    trace!("g:vimwiki_list == {:?}", vimwiki_list_json);
-
-    if let Some(json) = vimwiki_list_json {
-        serde_json::from_value(json).map_err(Into::into)
-    } else {
-        Ok(Vec::new())
-    }
 }

@@ -353,7 +353,7 @@ impl HtmlWikiConfig {
         //       expect the default value to be used in wasm
         dirs::home_dir()
             .unwrap_or_else(PathBuf::new)
-            .join("vimwiki")
+            .join("vimwiki_html")
     }
 
     #[inline]
