@@ -1,4 +1,4 @@
-use crate::{utils, CommonOpt, ConvertSubcommand};
+use crate::{css, utils, CommonOpt, ConvertSubcommand};
 use log::*;
 use std::{ffi::OsStr, io, path::Path};
 use vimwiki::*;
@@ -19,6 +19,7 @@ pub fn convert(cmd: ConvertSubcommand, _opt: CommonOpt) -> io::Result<()> {
                 "Failed to process wiki at {}",
                 wiki.path.to_string_lossy()
             );
+
             handle_result(
                 FailType::new(msg.as_str(), cmd.fail_fast, || ()),
                 process_path(
@@ -28,6 +29,14 @@ pub fn convert(cmd: ConvertSubcommand, _opt: CommonOpt) -> io::Result<()> {
                     &cmd.extensions,
                 ),
             );
+
+            // If writing to a file, we want to make sure there is a css
+            // file generated if necessary
+            if !cmd.stdout && cmd.include_vimwiki_css {
+                let css_path = wiki.path_html.join("style.css");
+                debug!("Writing css to {:?}", css_path);
+                std::fs::write(css_path, css::DEFAULT_STYLES_FILE)?;
+            }
         }
     }
 
@@ -44,6 +53,15 @@ pub fn convert(cmd: ConvertSubcommand, _opt: CommonOpt) -> io::Result<()> {
                 &cmd.extensions,
             ),
         );
+
+        // If writing to a file, we want to make sure there is a css
+        // file generated if necessary
+        if !cmd.stdout && cmd.include_vimwiki_css {
+            let wiki = html_config.runtime.to_tmp_wiki();
+            let css_path = wiki.path_html.join("style.css");
+            debug!("Writing css to {:?}", css_path);
+            std::fs::write(css_path, css::DEFAULT_STYLES_FILE)?;
+        }
     }
 
     Ok(())
@@ -107,19 +125,8 @@ fn process_path(
         let page_path = entry.path().to_path_buf();
 
         // Figure out which wiki this page belongs to, if any
-        // TODO: Do we need to worry about wikis nested in other wikis?
         let wiki_index =
-            html_config
-                .wikis
-                .iter()
-                .enumerate()
-                .find_map(|(idx, wiki)| {
-                    if page_path.starts_with(wiki.path.as_path()) {
-                        Some(idx)
-                    } else {
-                        None
-                    }
-                });
+            html_config.find_wiki_index_by_path(page_path.as_path());
         debug!("{:?}: Wiki {:?}", page_path, wiki_index);
 
         html_config.map_runtime(|mut rt| {

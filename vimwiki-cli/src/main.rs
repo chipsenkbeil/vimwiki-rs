@@ -1,12 +1,11 @@
-mod subcommand;
-
+mod css;
 mod opt;
-use opt::*;
-
-mod vim;
-use vim::*;
-
+mod subcommand;
 mod utils;
+mod vim;
+
+use opt::*;
+use vim::*;
 
 use structopt::StructOpt;
 

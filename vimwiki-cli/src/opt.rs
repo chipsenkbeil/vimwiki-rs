@@ -41,6 +41,11 @@ pub struct ConvertSubcommand {
     #[structopt(long)]
     pub stdout: bool,
 
+    /// If provided, will include vimwiki's styles.css file at the root of
+    /// the output directory
+    #[structopt(long)]
+    pub include_vimwiki_css: bool,
+
     /// Path to config file for output (otherwise uses default settings)
     #[structopt(short, long)]
     pub config: Option<PathBuf>,
@@ -70,6 +75,28 @@ pub struct ServeSubcommand {
     /// Web port to listen on to serve requests
     #[structopt(short, long, default_value = "8080")]
     pub port: usize,
+
+    /// If provided, will include vimwiki's styles.css file at the root of
+    /// the output directory
+    #[structopt(long)]
+    pub include_styles_css: bool,
+
+    /// Path to config file for output (otherwise uses default settings)
+    #[structopt(short, long)]
+    pub config: Option<PathBuf>,
+
+    /// Extensions of files to parse when loading from wikis or arbitrary
+    /// directories
+    #[structopt(short, long = "ext", default_value = "wiki")]
+    pub extensions: Vec<String>,
+
+    /// If provided, will attempt to load all wikis and generate output
+    #[structopt(short, long)]
+    pub all: bool,
+
+    /// Files (or directories) to process
+    #[structopt(name = "FILE", parse(from_os_str))]
+    pub files: Vec<PathBuf>,
 }
 
 /// Print out information that is available

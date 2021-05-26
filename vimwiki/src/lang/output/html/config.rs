@@ -1,10 +1,33 @@
 use super::utils::{deserialize_absolute_path, make_path_relative};
+use derive_more::{AsMut, AsRef, Deref, DerefMut};
 use serde::{Deserialize, Serialize};
 use std::{
     convert::TryFrom,
     path::{Component, Path, PathBuf},
 };
 use uriparse::URI;
+
+/// Represents some data with an associated index
+#[derive(Copy, Clone, Debug, PartialEq, Eq, AsRef, AsMut, Deref, DerefMut)]
+pub struct Indexed<T> {
+    index: usize,
+
+    #[as_ref]
+    #[as_mut]
+    #[deref]
+    #[deref_mut]
+    inner: T,
+}
+
+impl<T> Indexed<T> {
+    pub fn index(&self) -> usize {
+        self.index
+    }
+
+    pub fn into_inner(self) -> T {
+        self.inner
+    }
+}
 
 /// Represents configuration properties for HTML writing that are separate from
 /// the running state during HTML conversion
@@ -170,16 +193,51 @@ impl HtmlConfig {
         self.wikis.get(idx)
     }
 
+    /// Finds the index of the first wiki config with an assigned name that
+    /// matches the given name
+    pub fn find_wiki_index_by_name<S: AsRef<str>>(
+        &self,
+        name: S,
+    ) -> Option<usize> {
+        let name = name.as_ref();
+        self.wikis.iter().enumerate().find_map(|(idx, wiki)| {
+            if wiki.name.as_deref() == Some(name) {
+                Some(idx)
+            } else {
+                None
+            }
+        })
+    }
+
     /// Finds the first wiki config with an assigned name that matches the
     /// given name
     pub fn find_wiki_by_name<S: AsRef<str>>(
         &self,
         name: S,
     ) -> Option<&HtmlWikiConfig> {
-        let name = name.as_ref();
+        self.find_wiki_index_by_name(name)
+            .and_then(|idx| self.find_wiki_by_index(idx))
+    }
+
+    /// Finds the index of the wiki that contains the file at the specified
+    /// path; if more than one wiki would match, then the wiki at the deepest
+    /// level will be returned (e.g. /my/wiki over /my)
+    ///
+    /// Provided path must be absolute & canonicalized in order for matching
+    /// wiki to be identified
+    pub fn find_wiki_index_by_path<P: AsRef<Path>>(
+        &self,
+        path: P,
+    ) -> Option<usize> {
+        // NOTE: We can use components().count() because all wikis should have
+        //       absolute, canonicalized paths so no concerns about .. or .
+        //       misleading the counts
         self.wikis
             .iter()
-            .find(|wiki| wiki.name.as_deref() == Some(name))
+            .enumerate()
+            .filter(|(_, wiki)| path.as_ref().starts_with(wiki.path.as_path()))
+            .max_by_key(|(_, wiki)| wiki.path.components().count())
+            .map(|(idx, _)| idx)
     }
 
     /// Finds the wiki that contains the file at the specified path; if more
@@ -192,13 +250,8 @@ impl HtmlConfig {
         &self,
         path: P,
     ) -> Option<&HtmlWikiConfig> {
-        // NOTE: We can use components().count() because all wikis should have
-        //       absolute, canonicalized paths so no concerns about .. or .
-        //       misleading the counts
-        self.wikis
-            .iter()
-            .filter(|wiki| path.as_ref().starts_with(wiki.path.as_path()))
-            .max_by_key(|wiki| wiki.path.components().count())
+        self.find_wiki_index_by_path(path)
+            .and_then(|idx| self.find_wiki_by_index(idx))
     }
 
     /// Transforms the runtime of the config
