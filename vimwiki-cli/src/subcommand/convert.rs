@@ -12,9 +12,20 @@ pub fn convert(cmd: ConvertSubcommand, _opt: CommonOpt) -> io::Result<()> {
         load_html_config(cmd.config.as_deref()),
     );
 
-    // If specified, we load all wikis and process them
-    if cmd.all {
-        for wiki in html_config.wikis.iter() {
+    // Filter for wikis to process, defaulting to every wiki unless given a
+    // filter of wikis to include
+    let filter = |(idx, wiki): &(usize, &HtmlWikiConfig)| {
+        cmd.include.is_empty()
+            || cmd
+                .include
+                .iter()
+                .any(|f| f.matches_either(*idx, wiki.name.as_deref()))
+    };
+
+    // Process all wikis that match the given filters if we aren't given
+    // specific files/wikis to convert
+    if cmd.files.is_empty() {
+        for (_, wiki) in html_config.wikis.iter().enumerate().filter(filter) {
             let msg = format!(
                 "Failed to process wiki at {}",
                 wiki.path.to_string_lossy()

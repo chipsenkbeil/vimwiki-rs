@@ -55,14 +55,15 @@ pub struct ConvertSubcommand {
     #[structopt(short, long = "ext", default_value = "wiki")]
     pub extensions: Vec<String>,
 
+    /// Specifies specific wikis to include by index or name; if none are
+    /// provided, then all available wikis are converted
+    #[structopt(short, long)]
+    pub include: Vec<IndexOrName>,
+
     /// If provided, will fail immediately when encountering an error instead
     /// of continuing
     #[structopt(long)]
     pub fail_fast: bool,
-
-    /// If provided, will attempt to load all wikis and generate output
-    #[structopt(short, long)]
-    pub all: bool,
 
     /// Files (or directories) to process
     #[structopt(name = "FILE", parse(from_os_str))]
@@ -90,9 +91,10 @@ pub struct ServeSubcommand {
     #[structopt(short, long = "ext", default_value = "wiki")]
     pub extensions: Vec<String>,
 
-    /// If provided, will attempt to load all wikis and generate output
+    /// Specifies specific wikis to include by index or name; if none are
+    /// provided, then all available wikis are converted
     #[structopt(short, long)]
-    pub all: bool,
+    pub include: Vec<IndexOrName>,
 
     /// Files (or directories) to process
     #[structopt(name = "FILE", parse(from_os_str))]
@@ -139,6 +141,17 @@ pub enum PrintType {
 pub enum IndexOrName {
     Index(usize),
     Name(String),
+}
+
+impl IndexOrName {
+    /// Returns true if the index matches either the index or name provided
+    pub fn matches_either<'a, N: Into<Option<&'a str>>>(
+        &self,
+        index: usize,
+        name: N,
+    ) -> bool {
+        self == &index || name.into().map_or(false, |name| self == name)
+    }
 }
 
 impl PartialEq<usize> for IndexOrName {
