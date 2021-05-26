@@ -26,7 +26,7 @@ fn init_logging(opt: &CommonOpt) {
         .module(module_path!())
         .quiet(opt.quiet)
         .verbosity(opt.verbose)
-        .timestamp(opt.log_timestamp.unwrap_or(stderrlog::Timestamp::Off))
+        .timestamp(opt.timestamp.unwrap_or(stderrlog::Timestamp::Off))
         .init()
         .unwrap();
 }

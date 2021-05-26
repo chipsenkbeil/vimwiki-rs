@@ -1,5 +1,5 @@
 /// Default css styles provided by vimwiki
-pub static DEFAULT_STYLES_FILE: &str = r#"
+pub static DEFAULT_STYLE_FILE: &str = r#"
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;;
   margin: 2em 4em 2em 4em;

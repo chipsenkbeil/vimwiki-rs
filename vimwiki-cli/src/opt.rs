@@ -23,8 +23,8 @@ pub struct CommonOpt {
     pub quiet: bool,
 
     /// Timestamp for logging (sec, ms, ns, none)
-    #[structopt(long)]
-    pub log_timestamp: Option<stderrlog::Timestamp>,
+    #[structopt(short, long)]
+    pub timestamp: Option<stderrlog::Timestamp>,
 }
 
 #[derive(Debug, StructOpt)]
@@ -41,8 +41,8 @@ pub struct ConvertSubcommand {
     #[structopt(long)]
     pub stdout: bool,
 
-    /// If provided, will include vimwiki's styles.css file at the root of
-    /// the output directory
+    /// If provided, will include vimwiki's style.css file at the root of
+    /// the wiki's output directory
     #[structopt(long)]
     pub include_vimwiki_css: bool,
 

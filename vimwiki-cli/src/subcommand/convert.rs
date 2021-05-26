@@ -35,7 +35,7 @@ pub fn convert(cmd: ConvertSubcommand, _opt: CommonOpt) -> io::Result<()> {
             if !cmd.stdout && cmd.include_vimwiki_css {
                 let css_path = wiki.path_html.join("style.css");
                 debug!("Writing css to {:?}", css_path);
-                std::fs::write(css_path, css::DEFAULT_STYLES_FILE)?;
+                std::fs::write(css_path, css::DEFAULT_STYLE_FILE)?;
             }
         }
     }
@@ -60,7 +60,7 @@ pub fn convert(cmd: ConvertSubcommand, _opt: CommonOpt) -> io::Result<()> {
             let wiki = html_config.runtime.to_tmp_wiki();
             let css_path = wiki.path_html.join("style.css");
             debug!("Writing css to {:?}", css_path);
-            std::fs::write(css_path, css::DEFAULT_STYLES_FILE)?;
+            std::fs::write(css_path, css::DEFAULT_STYLE_FILE)?;
         }
     }
 
