@@ -4,7 +4,7 @@ use std::{
     convert::TryFrom,
     path::{Component, Path, PathBuf},
 };
-use uriparse::{RelativeReference, RelativeReferenceError, URI};
+use uriparse::URI;
 
 /// Represents configuration properties for HTML writing that are separate from
 /// the running state during HTML conversion
@@ -56,12 +56,6 @@ pub struct HtmlConfig {
 }
 
 impl HtmlConfig {
-    /// Returns true if config is for one of many wikis
-    #[inline]
-    pub fn is_multi_wiki(&self) -> bool {
-        !self.wikis.is_empty()
-    }
-
     /// Returns the relative path of the actively-processed page to the root
     /// of its wiki
     ///
@@ -158,14 +152,16 @@ impl HtmlConfig {
 
     /// Returns the path to the page referenced in the runtime
     pub fn active_page(&self) -> &Path {
-        self.runtime.active_page()
+        self.runtime.page.as_path()
     }
 
     /// Returns a reference to the config of the wiki containing the page that
     /// is actively being processed, or None if no wiki contains the page
     pub fn find_active_wiki(&self) -> Option<&HtmlWikiConfig> {
         self.runtime
-            .active_wiki_index()
+            .wiki_index
+            .as_ref()
+            .copied()
             .and_then(|idx| self.find_wiki_by_index(idx))
     }
 
@@ -227,22 +223,12 @@ pub struct HtmlRuntimeConfig {
 }
 
 impl HtmlRuntimeConfig {
-    /// Returns index of wiki that contains the page being processed
-    pub fn active_wiki_index(&self) -> Option<usize> {
-        self.wiki_index
-    }
-
-    /// Returns raw file path to current wiki page being processed
-    pub fn active_page(&self) -> &Path {
-        self.page.as_path()
-    }
-
     /// Produces a temporary wiki config that treats the page being processed
     /// as the only file within it (for standalone wiki files)
     pub fn to_tmp_wiki(&self) -> HtmlWikiConfig {
         HtmlWikiConfig {
             path: self
-                .active_page()
+                .page
                 .parent()
                 .map(Path::to_path_buf)
                 .unwrap_or_default(),
@@ -365,37 +351,6 @@ impl HtmlWikiConfig {
     /// or None if the path does not fall within the wiki
     pub fn path_within<'a>(&self, path: &'a Path) -> Option<&'a Path> {
         path.strip_prefix(self.get_root_path()).ok()
-    }
-
-    /// Returns URI Reference representing path to wiki in HTML doc in scenarios
-    /// where there is more than one wiki
-    ///
-    /// e.g. `{path = '~/vimwiki'}` becomes `vimwiki` and
-    ///      `{path = '~/vimwiki', name = 'my_wiki'}` becomes `my_wiki` and
-    ///      `{path = '~/vimwiki', name = 'my wiki'}` becomes `my_wiki`
-    pub fn to_relative_reference(
-        &self,
-    ) -> Result<RelativeReference<'static>, RelativeReferenceError> {
-        Ok(
-            RelativeReference::try_from(self.get_name_or_default().as_str())?
-                .into_owned(),
-        )
-    }
-
-    /// Use name as base, otherwise default to directory name, otherwise default
-    /// to vimwiki as final fallback
-    ///
-    /// Replace all spaces with _ for the resulting name
-    pub fn get_name_or_default(&self) -> String {
-        self.name
-            .clone()
-            .or_else(|| {
-                self.path
-                    .file_name()
-                    .map(|x| x.to_string_lossy().to_string())
-            })
-            .unwrap_or_else(|| String::from("vimwiki"))
-            .replace(" ", "_")
     }
 
     /// Produce an absolute path to the html output destination for the given

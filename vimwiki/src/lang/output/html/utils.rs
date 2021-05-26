@@ -108,11 +108,24 @@ pub(crate) fn resolve_link(
                     path.push("index");
                 }
 
-                // Take the path of the target from the uri reference and make it
-                // a relative path as it will always be added to the path of the
-                // specified wiki
-                let target_out = src_wiki
-                    .make_output_path(make_path_relative(path).as_path(), ext);
+                // Build our output path
+                //
+                // 1. If absolute (starts with /), then we want to place the
+                //    path relative to the root of the current wiki
+                // 2. If relative, then we want to place the path relative to
+                //    the current file's directory
+                let target_out = if data.uri_ref().path().is_absolute() {
+                    src_wiki.make_output_path(path.as_path(), ext)
+                } else {
+                    src_wiki.make_output_path(
+                        src.parent()
+                            .map(Path::to_path_buf)
+                            .unwrap_or_default()
+                            .join(path.as_path())
+                            .as_path(),
+                        ext,
+                    )
+                };
 
                 let mut uri_ref = make_relative_link(src_out, target_out)
                     .map(URIReference::from)
@@ -146,10 +159,8 @@ pub(crate) fn resolve_link(
             // Take the path of the target from the uri reference and make it
             // a relative path as it will always be added to the path of the
             // specified wiki
-            let target_out = wiki.make_output_path(
-                make_path_relative(data.to_path_buf()).as_path(),
-                ext,
-            );
+            let target_out =
+                wiki.make_output_path(data.to_path_buf().as_path(), ext);
 
             let mut uri_ref = make_relative_link(src_out, target_out)
                 .map(URIReference::from)
@@ -181,10 +192,8 @@ pub(crate) fn resolve_link(
             // Take the path of the target from the uri reference and make it
             // a relative path as it will always be added to the path of the
             // specified wiki
-            let target_out = wiki.make_output_path(
-                make_path_relative(data.to_path_buf()).as_path(),
-                ext,
-            );
+            let target_out =
+                wiki.make_output_path(data.to_path_buf().as_path(), ext);
 
             let mut uri_ref = make_relative_link(src_out, target_out)
                 .map(URIReference::from)
@@ -227,13 +236,24 @@ pub(crate) fn resolve_link(
                 let ext =
                     path.extension().and_then(OsStr::to_str).unwrap_or("");
 
-                // Take the path of the target from the uri reference and make it
-                // a relative path as it will always be added to the path of the
-                // specified wiki
-                let target_out = src_wiki.make_output_path(
-                    make_path_relative(path.as_path()).as_path(),
-                    ext,
-                );
+                // Build our output path
+                //
+                // 1. If absolute (starts with /), then we want to place the
+                //    path relative to the root of the current wiki
+                // 2. If relative, then we want to place the path relative to
+                //    the current file's directory
+                let target_out = if data.uri_ref().path().is_absolute() {
+                    src_wiki.make_output_path(path.as_path(), ext)
+                } else {
+                    src_wiki.make_output_path(
+                        src.parent()
+                            .map(Path::to_path_buf)
+                            .unwrap_or_default()
+                            .join(path.as_path())
+                            .as_path(),
+                        ext,
+                    )
+                };
 
                 make_relative_link(src_out, target_out)
                     .map(URIReference::from)

@@ -47,7 +47,6 @@ impl<T: Output<Formatter = HtmlFormatter, Error = HtmlOutputError>> ToHtmlPage
         let title = formatter.take_title().unwrap_or_else(|| {
             formatter
                 .config()
-                .runtime
                 .active_page()
                 .file_stem()
                 .map(|x| x.to_string_lossy().to_string())

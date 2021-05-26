@@ -1090,7 +1090,7 @@ impl<'a> Output for Link<'a> {
         write_link(
             f,
             &uri_ref,
-            Some(self.to_description_or_default()).as_ref(),
+            self.to_description_or_fallback().as_ref(),
             self.properties(),
             matches!(self, Self::Transclusion { .. }),
         )
@@ -1629,6 +1629,33 @@ mod tests {
             f.get_content(),
             r#"<img src="https://example.com/img.jpg" />"#
         );
+    }
+
+    #[test]
+    fn transclusion_link_should_support_local_uris() {
+        let link = Link::new_transclusion_link(
+            URIReference::try_from("img/pic.png").unwrap(),
+            None,
+            None,
+        );
+
+        // Use a formatter that has an active page so we can verify that
+        // local uris are properly handled
+        let mut f = HtmlFormatter::new(HtmlConfig {
+            wikis: vec![HtmlWikiConfig {
+                path: ["~", "wiki", "path"].iter().collect(),
+                path_html: ["~", "html", "path"].iter().collect(),
+                ..Default::default()
+            }],
+            runtime: HtmlRuntimeConfig {
+                wiki_index: Some(0),
+                page: ["~", "wiki", "path", "to", "page.wiki"].iter().collect(),
+            },
+            ..Default::default()
+        });
+        link.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), r#"<img src="img/pic.png" />"#);
     }
 
     #[test]
