@@ -11,7 +11,7 @@ use std::{
     hash::{Hash, Hasher},
     path::PathBuf,
 };
-use uriparse::{Fragment, Scheme, Segment, URIReference, URIReferenceError};
+use uriparse::{Fragment, Scheme, URIReference, URIReferenceError};
 
 /// Represents the parts associated with link data
 pub type LinkDataParts<'a> = (
@@ -121,59 +121,6 @@ impl<'a> LinkData<'a> {
     /// Consumes link and returns its uri
     pub fn into_uri_ref(self) -> URIReference<'a> {
         self.uri_ref
-    }
-
-    /// Returns reference to uri of the link with HTML extension appended
-    ///
-    /// ### Examples
-    ///
-    /// ```
-    /// use vimwiki::LinkData;
-    /// use std::convert::TryFrom;
-    ///
-    /// // If there is no .html extension
-    /// let data = LinkData::try_from("some/file").unwrap();
-    /// let uri_ref = data.to_html_uri_ref();
-    /// assert_eq!(uri_ref.path(), "some/file.html");
-    ///
-    /// // If there already is a .html extension
-    /// let data = LinkData::try_from("some/file.html").unwrap();
-    /// let uri_ref = data.to_html_uri_ref();
-    /// assert_eq!(uri_ref.path(), "some/file.html");
-    /// ```
-    pub fn to_html_uri_ref(&self) -> URIReference<'_> {
-        let mut uri_ref = uri_ref_to_borrowed(&self.uri_ref);
-        uri_ref.normalize();
-
-        let has_segments = !uri_ref.path().segments().is_empty();
-
-        // If the URI ref has a path, we want to check if we should append
-        // .html to the end of it
-        if has_segments {
-            uri_ref.map_path(|mut path| {
-                if let Some(seg) = path.segments_mut().last_mut() {
-                    // If the end of the URI path is not . or .. and does not
-                    // end in .html, we add .html to the end
-                    if !seg.is_dot_segment() && !seg.as_str().ends_with(".html")
-                    {
-                        *seg = Segment::try_from(
-                            format!("{}.html", seg.as_str()).as_str(),
-                        )
-                        .unwrap()
-                        .into_owned();
-                    }
-                }
-                path
-            });
-        }
-
-        uri_ref
-    }
-
-    /// Modifies data's URI reference to be an HTML link
-    pub fn make_html_uri_ref(&mut self) {
-        let uri_ref = self.to_html_uri_ref().into_owned();
-        self.uri_ref = uri_ref;
     }
 
     /// Returns reference to the description of the link

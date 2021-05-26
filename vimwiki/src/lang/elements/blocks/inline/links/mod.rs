@@ -191,6 +191,12 @@ impl<'a> Link<'a> {
             // If a raw link or transclusion, we don't want to infer a
             // description if one is not there
             None
+        } else if let Link::Diary { date, .. } = self {
+            // Diary links have no uri but instead use a date
+            Some(Description::from(format!(
+                "diary:{}",
+                date.format("%Y-%m-%d")
+            )))
         } else {
             // If not a raw link, we want to make sure to clean up %20 and
             // other percent encoded pieces

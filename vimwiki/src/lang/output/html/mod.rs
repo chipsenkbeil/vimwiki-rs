@@ -1063,13 +1063,16 @@ impl<'a> Output for Link<'a> {
                     Some(Description::Text(x)) => {
                         write!(f, "{}", escape::escape_html(x))?
                     }
-                    Some(Description::TransclusionLink(data)) => write_link(
-                        f,
-                        &data.to_html_uri_ref(),
-                        data.description(),
-                        data.properties(),
-                        true,
-                    )?,
+
+                    // TODO: Figure out more optimal way to perform nested
+                    //       transclusion that needs to resolve the link
+                    //       within it
+                    Some(Description::TransclusionLink(data)) => {
+                        Link::Transclusion {
+                            data: *data.clone(),
+                        }
+                        .fmt(f)?
+                    }
                     None => write!(f, "{}", href)?,
                 }
 
@@ -1244,8 +1247,65 @@ fn build_complete_id(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::{borrow::Cow, collections::HashMap, convert::TryFrom};
+    use chrono::NaiveDate;
+    use std::{
+        borrow::Cow, collections::HashMap, convert::TryFrom, path::Path,
+    };
     use uriparse::URIReference;
+
+    /// Produces an html config with a singular wiki for some test page
+    /// provided
+    fn test_html_config<P1: AsRef<Path>, P2: AsRef<Path>>(
+        wiki: P1,
+        page: P2,
+    ) -> HtmlConfig {
+        let wiki = wiki.as_ref().to_string_lossy();
+        let page = page.as_ref().to_string_lossy();
+        let sep = std::path::MAIN_SEPARATOR.to_string();
+        HtmlConfig {
+            wikis: vec![HtmlWikiConfig {
+                path: [sep.as_str(), "wiki", wiki.as_ref()].iter().collect(),
+                path_html: [sep.as_str(), "html", wiki.as_ref()]
+                    .iter()
+                    .collect(),
+                ..Default::default()
+            }],
+            runtime: HtmlRuntimeConfig {
+                wiki_index: Some(0),
+                page: [sep.as_str(), "wiki", wiki.as_ref(), page.as_ref()]
+                    .iter()
+                    .collect(),
+            },
+            ..Default::default()
+        }
+    }
+
+    /// Adds a wiki to the config for interwiki testing
+    fn add_wiki<P: AsRef<Path>>(c: &mut HtmlConfig, wiki: P) {
+        let wiki = wiki.as_ref().to_string_lossy();
+        let sep = std::path::MAIN_SEPARATOR.to_string();
+        c.wikis.push(HtmlWikiConfig {
+            path: [sep.as_str(), "wiki", wiki.as_ref()].iter().collect(),
+            path_html: [sep.as_str(), "html", wiki.as_ref()].iter().collect(),
+            ..Default::default()
+        });
+    }
+
+    /// Adds a wiki to the config for interwiki testing
+    fn add_wiki_with_name<P: AsRef<Path>, N: AsRef<str>>(
+        c: &mut HtmlConfig,
+        wiki: P,
+        name: N,
+    ) {
+        let wiki = wiki.as_ref().to_string_lossy();
+        let sep = std::path::MAIN_SEPARATOR.to_string();
+        c.wikis.push(HtmlWikiConfig {
+            path: [sep.as_str(), "wiki", wiki.as_ref()].iter().collect(),
+            path_html: [sep.as_str(), "html", wiki.as_ref()].iter().collect(),
+            name: Some(name.as_ref().to_string()),
+            ..Default::default()
+        });
+    }
 
     #[test]
     fn page_should_output_tags_based_on_block_elements() {
@@ -1502,103 +1562,295 @@ mod tests {
 
     #[test]
     fn keyword_should_output_span_with_class_for_todo() {
-        todo!();
+        let keyword = Keyword::Todo;
+
+        let mut f = HtmlFormatter::default();
+        keyword.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), r#"<span class="todo">TODO</span>"#);
     }
 
     #[test]
     fn keyword_should_output_self_in_all_caps() {
-        todo!();
-    }
+        let keyword = Keyword::Done;
 
-    #[test]
-    fn link_should_output_tag_based_on_inner_element() {
-        // Test each type!
-        todo!();
+        let mut f = HtmlFormatter::default();
+        keyword.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "DONE");
     }
 
     #[test]
     fn wiki_link_should_output_a_tag() {
-        todo!();
+        let link = Link::new_wiki_link(
+            URIReference::try_from("some/page").unwrap(),
+            None,
+        );
+        let mut f = HtmlFormatter::new(test_html_config("wiki", "test.wiki"));
+        link.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            r#"<a href="some/page.html">some/page</a>"#
+        );
     }
 
     #[test]
     fn wiki_link_should_support_anchors() {
-        todo!();
+        let link = Link::new_wiki_link(
+            URIReference::try_from("some/page#some-anchor").unwrap(),
+            None,
+        );
+        let mut f = HtmlFormatter::new(test_html_config("wiki", "test.wiki"));
+        link.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            r#"<a href="some/page.html#some-anchor">some/page#some-anchor</a>"#
+        );
     }
 
     #[test]
     fn wiki_link_should_support_text_description() {
-        todo!();
+        let link = Link::new_wiki_link(
+            URIReference::try_from("some/page").unwrap(),
+            Description::from("some description"),
+        );
+        let mut f = HtmlFormatter::new(test_html_config("wiki", "test.wiki"));
+        link.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            r#"<a href="some/page.html">some description</a>"#
+        );
     }
 
     #[test]
     fn wiki_link_should_support_transclusion_link_description() {
-        todo!();
-    }
+        let link = Link::new_wiki_link(
+            URIReference::try_from("some/page").unwrap(),
+            Description::try_from_uri_ref_str("some/img.png").unwrap(),
+        );
+        let mut f = HtmlFormatter::new(test_html_config("wiki", "test.wiki"));
+        link.fmt(&mut f).unwrap();
 
-    #[test]
-    fn inter_wiki_link_should_output_tag_based_on_inner_element() {
-        // Test each type!
-        todo!();
+        assert_eq!(
+            f.get_content(),
+            r#"<a href="some/page.html"><img src="some/img.png" /></a>"#
+        );
     }
 
     #[test]
     fn indexed_inter_wiki_link_should_output_a_tag() {
-        // TODO: Need to validate link resolution for another wiki
-        todo!();
+        let link = Link::new_indexed_interwiki_link(
+            1,
+            URIReference::try_from("some/page").unwrap(),
+            None,
+        );
+
+        // Make a config with two wikis so we can refer to the other one
+        let mut c = test_html_config("wiki", "test.wiki");
+        add_wiki(&mut c, "wiki2");
+
+        let mut f = HtmlFormatter::new(c);
+        link.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            r#"<a href="../wiki2/some/page.html">some/page</a>"#
+        );
     }
 
     #[test]
     fn indexed_inter_wiki_link_should_support_anchors() {
-        todo!();
+        let link = Link::new_indexed_interwiki_link(
+            1,
+            URIReference::try_from("some/page#some-anchor").unwrap(),
+            None,
+        );
+
+        // Make a config with two wikis so we can refer to the other one
+        let mut c = test_html_config("wiki", "test.wiki");
+        add_wiki(&mut c, "wiki2");
+
+        let mut f = HtmlFormatter::new(c);
+        link.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            r#"<a href="../wiki2/some/page.html#some-anchor">some/page#some-anchor</a>"#
+        );
     }
 
     #[test]
     fn indexed_inter_wiki_link_should_support_text_description() {
-        todo!();
+        let link = Link::new_indexed_interwiki_link(
+            1,
+            URIReference::try_from("some/page").unwrap(),
+            Description::from("some description"),
+        );
+
+        // Make a config with two wikis so we can refer to the other one
+        let mut c = test_html_config("wiki", "test.wiki");
+        add_wiki(&mut c, "wiki2");
+
+        let mut f = HtmlFormatter::new(c);
+        link.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            r#"<a href="../wiki2/some/page.html">some description</a>"#
+        );
     }
 
     #[test]
     fn indexed_inter_wiki_link_should_support_transclusion_link_description() {
-        todo!();
+        let link = Link::new_indexed_interwiki_link(
+            1,
+            URIReference::try_from("some/page").unwrap(),
+            Description::try_from_uri_ref_str("some/img.png").unwrap(),
+        );
+
+        // Make a config with two wikis so we can refer to the other one
+        let mut c = test_html_config("wiki", "test.wiki");
+        add_wiki(&mut c, "wiki2");
+
+        let mut f = HtmlFormatter::new(c);
+        link.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            r#"<a href="../wiki2/some/page.html"><img src="some/img.png" /></a>"#
+        );
     }
 
     #[test]
     fn named_inter_wiki_link_should_output_a_tag() {
-        // TODO: Need to validate link resolution for another wiki
-        todo!();
+        let link = Link::new_named_interwiki_link(
+            "my-wiki",
+            URIReference::try_from("some/page").unwrap(),
+            None,
+        );
+
+        // Make a config with two wikis so we can refer to the other one
+        let mut c = test_html_config("wiki", "test.wiki");
+        add_wiki_with_name(&mut c, "wiki2", "my-wiki");
+
+        let mut f = HtmlFormatter::new(c);
+        link.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            r#"<a href="../wiki2/some/page.html">some/page</a>"#
+        );
     }
 
     #[test]
     fn named_inter_wiki_link_should_support_anchors() {
-        todo!();
+        let link = Link::new_named_interwiki_link(
+            "my-wiki",
+            URIReference::try_from("some/page#some-anchor").unwrap(),
+            None,
+        );
+
+        // Make a config with two wikis so we can refer to the other one
+        let mut c = test_html_config("wiki", "test.wiki");
+        add_wiki_with_name(&mut c, "wiki2", "my-wiki");
+
+        let mut f = HtmlFormatter::new(c);
+        link.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            r#"<a href="../wiki2/some/page.html#some-anchor">some/page#some-anchor</a>"#
+        );
     }
 
     #[test]
     fn named_inter_wiki_link_should_support_text_description() {
-        todo!();
+        let link = Link::new_named_interwiki_link(
+            "my-wiki",
+            URIReference::try_from("some/page").unwrap(),
+            Description::from("some description"),
+        );
+
+        // Make a config with two wikis so we can refer to the other one
+        let mut c = test_html_config("wiki", "test.wiki");
+        add_wiki_with_name(&mut c, "wiki2", "my-wiki");
+
+        let mut f = HtmlFormatter::new(c);
+        link.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            r#"<a href="../wiki2/some/page.html">some description</a>"#
+        );
     }
 
     #[test]
     fn named_inter_wiki_link_should_support_transclusion_link_description() {
-        todo!();
+        let link = Link::new_named_interwiki_link(
+            "my-wiki",
+            URIReference::try_from("some/page").unwrap(),
+            Description::try_from_uri_ref_str("some/img.png").unwrap(),
+        );
+
+        // Make a config with two wikis so we can refer to the other one
+        let mut c = test_html_config("wiki", "test.wiki");
+        add_wiki_with_name(&mut c, "wiki2", "my-wiki");
+
+        let mut f = HtmlFormatter::new(c);
+        link.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            r#"<a href="../wiki2/some/page.html"><img src="some/img.png" /></a>"#
+        );
     }
 
     #[test]
     fn diary_link_should_output_a_tag() {
-        // TODO: Need to validate that diary portion is appended to base wiki
-        //       path
-        todo!();
+        let link =
+            Link::new_diary_link(NaiveDate::from_ymd(2021, 5, 27), None, None);
+        let mut f = HtmlFormatter::new(test_html_config("wiki", "test.wiki"));
+        link.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            r#"<a href="diary/2021-05-27.html">diary:2021-05-27</a>"#
+        );
     }
 
     #[test]
     fn diary_link_should_support_text_description() {
-        todo!();
+        let link = Link::new_diary_link(
+            NaiveDate::from_ymd(2021, 5, 27),
+            Description::from("some description"),
+            None,
+        );
+        let mut f = HtmlFormatter::new(test_html_config("wiki", "test.wiki"));
+        link.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            r#"<a href="diary/2021-05-27.html">some description</a>"#
+        );
     }
 
     #[test]
     fn diary_link_should_support_transclusion_link_description() {
-        todo!();
+        let link = Link::new_diary_link(
+            NaiveDate::from_ymd(2021, 5, 27),
+            Description::try_from_uri_ref_str("some/img.png").unwrap(),
+            None,
+        );
+        let mut f = HtmlFormatter::new(test_html_config("wiki", "test.wiki"));
+        link.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            r#"<a href="diary/2021-05-27.html"><img src="some/img.png" /></a>"#
+        );
     }
 
     #[test]
@@ -1606,6 +1858,7 @@ mod tests {
         let link = Link::new_raw_link(
             URIReference::try_from("https://example.com").unwrap(),
         );
+
         let mut f = HtmlFormatter::default();
         link.fmt(&mut f).unwrap();
 
@@ -1622,6 +1875,7 @@ mod tests {
             None,
             None,
         );
+
         let mut f = HtmlFormatter::default();
         link.fmt(&mut f).unwrap();
 
@@ -1639,20 +1893,7 @@ mod tests {
             None,
         );
 
-        // Use a formatter that has an active page so we can verify that
-        // local uris are properly handled
-        let mut f = HtmlFormatter::new(HtmlConfig {
-            wikis: vec![HtmlWikiConfig {
-                path: ["~", "wiki", "path"].iter().collect(),
-                path_html: ["~", "html", "path"].iter().collect(),
-                ..Default::default()
-            }],
-            runtime: HtmlRuntimeConfig {
-                wiki_index: Some(0),
-                page: ["~", "wiki", "path", "to", "page.wiki"].iter().collect(),
-            },
-            ..Default::default()
-        });
+        let mut f = HtmlFormatter::new(test_html_config("wiki", "test.wiki"));
         link.fmt(&mut f).unwrap();
 
         assert_eq!(f.get_content(), r#"<img src="img/pic.png" />"#);
@@ -1665,6 +1906,7 @@ mod tests {
             Some(Description::from("some description")),
             None,
         );
+
         let mut f = HtmlFormatter::default();
         link.fmt(&mut f).unwrap();
 
@@ -1685,6 +1927,7 @@ mod tests {
             Some(Description::from("some description")),
             properties,
         );
+
         let mut f = HtmlFormatter::default();
         link.fmt(&mut f).unwrap();
 
@@ -1708,6 +1951,7 @@ mod tests {
             Some(Description::from("<test>some description</test>")),
             properties,
         );
+
         let mut f = HtmlFormatter::default();
         link.fmt(&mut f).unwrap();
 
@@ -1799,10 +2043,7 @@ mod tests {
     fn comment_should_output_tag_based_on_inner_element() {
         let comment = Comment::from(LineComment::from("some comment"));
         let mut f = HtmlFormatter::new(HtmlConfig {
-            comment: HtmlCommentConfig {
-                include: true,
-                ..Default::default()
-            },
+            comment: HtmlCommentConfig { include: true },
             ..Default::default()
         });
         comment.fmt(&mut f).unwrap();
@@ -1813,10 +2054,7 @@ mod tests {
             "on multiple lines",
         ]));
         let mut f = HtmlFormatter::new(HtmlConfig {
-            comment: HtmlCommentConfig {
-                include: true,
-                ..Default::default()
-            },
+            comment: HtmlCommentConfig { include: true },
             ..Default::default()
         });
         comment.fmt(&mut f).unwrap();
@@ -1837,10 +2075,7 @@ mod tests {
 
         // If configured to output comments, should use HTML syntax
         let mut f = HtmlFormatter::new(HtmlConfig {
-            comment: HtmlCommentConfig {
-                include: true,
-                ..Default::default()
-            },
+            comment: HtmlCommentConfig { include: true },
             ..Default::default()
         });
         comment.fmt(&mut f).unwrap();
@@ -1859,10 +2094,7 @@ mod tests {
 
         // If configured to output comments, should use HTML syntax
         let mut f = HtmlFormatter::new(HtmlConfig {
-            comment: HtmlCommentConfig {
-                include: true,
-                ..Default::default()
-            },
+            comment: HtmlCommentConfig { include: true },
             ..Default::default()
         });
         comment.fmt(&mut f).unwrap();

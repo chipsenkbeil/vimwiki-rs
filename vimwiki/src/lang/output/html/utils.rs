@@ -224,7 +224,6 @@ pub(crate) fn resolve_link(
             uri_ref
         }
         Link::Raw { data } => data.uri_ref().clone(),
-
         Link::Transclusion { data } => {
             // If target is a local link, then we need to process it the same
             // as any wiki link

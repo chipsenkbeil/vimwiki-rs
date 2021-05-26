@@ -2,8 +2,8 @@ use super::LinkData;
 use crate::StrictEq;
 use derive_more::{Display, From, TryInto};
 use serde::{Deserialize, Serialize};
-use std::borrow::Cow;
-use uriparse::URIReference;
+use std::{borrow::Cow, convert::TryFrom};
+use uriparse::{URIReference, URIReferenceError};
 
 /// Represents a description for a link
 #[derive(
@@ -29,6 +29,14 @@ impl<'a> Description<'a> {
             Self::TransclusionLink(x) => Some(x.into_uri_ref()),
             _ => None,
         }
+    }
+
+    pub fn try_from_uri_ref_str(
+        s: &'a str,
+    ) -> Result<Description<'a>, URIReferenceError> {
+        Ok(Description::TransclusionLink(Box::new(LinkData::try_from(
+            s,
+        )?)))
     }
 }
 
