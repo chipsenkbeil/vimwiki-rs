@@ -50,6 +50,16 @@ pub struct ConvertSubcommand {
     #[structopt(short, long)]
     pub config: Option<PathBuf>,
 
+    /// If specified, will attempt to merge wikis loaded from vim/neovim
+    /// with wikis defined via a config file if accessible. Wikis from
+    /// vim/neovim will be first such that their indexes align with those
+    /// defined in vimscript with the config file wikis being added after
+    ///
+    /// If not specified, then vim/neovim wikis are only loaded if there
+    /// is no config file or the config file has no wikis defined
+    #[structopt(short, long)]
+    pub merge: bool,
+
     /// Extensions of files to parse when loading from wikis or arbitrary
     /// directories
     #[structopt(short, long = "ext", default_value = "wiki")]
@@ -85,6 +95,16 @@ pub struct ServeSubcommand {
     /// Path to config file for output (otherwise uses default settings)
     #[structopt(short, long)]
     pub config: Option<PathBuf>,
+
+    /// If specified, will attempt to merge wikis loaded from vim/neovim
+    /// with wikis defined via a config file if accessible. Wikis from
+    /// vim/neovim will be first such that their indexes align with those
+    /// defined in vimscript with the config file wikis being added after
+    ///
+    /// If not specified, then vim/neovim wikis are only loaded if there
+    /// is no config file or the config file has no wikis defined
+    #[structopt(short, long)]
+    pub merge: bool,
 
     /// Extensions of files to parse when loading from wikis or arbitrary
     /// directories

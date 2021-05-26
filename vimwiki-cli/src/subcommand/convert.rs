@@ -9,7 +9,7 @@ pub fn convert(cmd: ConvertSubcommand, _opt: CommonOpt) -> io::Result<()> {
         FailType::new("Unable to load html config", cmd.fail_fast, || {
             HtmlConfig::default()
         }),
-        load_html_config(cmd.config.as_deref()),
+        utils::load_html_config(cmd.config.as_deref(), cmd.merge),
     );
 
     // Filter for wikis to process, defaulting to every wiki unless given a
@@ -53,6 +53,18 @@ pub fn convert(cmd: ConvertSubcommand, _opt: CommonOpt) -> io::Result<()> {
 
     // Additionally, we process any directories & files provided adhoc
     for path in cmd.files {
+        // Need to make sure the path is legit
+        let path = if let Ok(path) = path.canonicalize() {
+            path
+        } else {
+            error!("Failed to canonicalize path: {:?}", path);
+            if cmd.fail_fast {
+                panic!();
+            } else {
+                continue;
+            }
+        };
+
         let msg =
             format!("Failed to process dir/file at {}", path.to_string_lossy());
         handle_result(
@@ -99,7 +111,10 @@ fn handle_result<T, F: FnOnce() -> T, E: std::error::Error>(
 ) -> T {
     match (ft, x) {
         (_, Ok(x)) => x,
-        (FailType::Fast(msg), Err(x)) => panic!("{}: {}", msg, x),
+        (FailType::Fast(msg), Err(x)) => {
+            error!("{}: {}", msg, x);
+            panic!()
+        }
         (FailType::Continue(msg, make_data), Err(x)) => {
             error!("{}: {}", msg, x);
             make_data()
@@ -108,7 +123,7 @@ fn handle_result<T, F: FnOnce() -> T, E: std::error::Error>(
 }
 
 fn process_path(
-    html_config: HtmlConfig,
+    mut html_config: HtmlConfig,
     input_path: &Path,
     stdout: bool,
     exts: &[String],
@@ -119,6 +134,25 @@ fn process_path(
         stdout,
         exts
     );
+
+    // See if we have a wiki that already contains this path and, if not, we
+    // want to inject a temporary wiki whose path matches the input if a
+    // directory or matches a file's parent directory
+    if html_config.find_wiki_index_by_path(input_path).is_none() {
+        debug!("Creating temporary wiki for {:?}", input_path);
+        if input_path.is_dir() {
+            html_config.wikis.push(HtmlWikiConfig {
+                path: input_path.to_path_buf(),
+                ..Default::default()
+            })
+        } else if let Some(parent) = input_path.parent() {
+            html_config.wikis.push(HtmlWikiConfig {
+                path: parent.to_path_buf(),
+                ..Default::default()
+            })
+        }
+    }
+
     // Walk through all entries in directory (or singular file), processing
     // each file as it is encountered that has a valid file extension
     for entry in WalkDir::new(input_path)
@@ -135,7 +169,7 @@ fn process_path(
         let mut html_config = html_config.clone();
         let page_path = entry.path().to_path_buf();
 
-        // Figure out which wiki this page belongs to, if any
+        // Figure out which wiki this page belongs to (if any)
         let wiki_index =
             html_config.find_wiki_index_by_path(page_path.as_path());
         debug!("{:?}: Wiki {:?}", page_path, wiki_index);
@@ -204,32 +238,4 @@ fn process_file(
     }
 
     Ok(())
-}
-
-fn load_html_config<'a, I: Into<Option<&'a Path>>>(
-    path: I,
-) -> io::Result<HtmlConfig> {
-    let maybe_path = path.into();
-    trace!("load_html_config(path = {:?})", maybe_path);
-
-    let mut html_config: HtmlConfig = if let Some(path) = maybe_path {
-        let config_string = std::fs::read_to_string(path)?;
-        toml::from_str(config_string.as_str())?
-    } else {
-        HtmlConfig::default()
-    };
-
-    // If html config has no wikis, attempt to load wikis from vim
-    if html_config.wikis.is_empty() {
-        // We attempt to load and parse our wiki content now, and if it fails
-        // then we report over stderr and continue
-        match utils::load_vimwiki_list() {
-            Ok(wikis) => html_config.wikis = wikis,
-            Err(x) => {
-                error!("Failed to load vimwiki_list from vim/neovim: {}", x)
-            }
-        }
-    }
-
-    Ok(html_config)
 }
