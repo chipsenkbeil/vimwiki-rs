@@ -853,35 +853,35 @@ impl<'a> Output for DecoratedText<'a> {
                 for content in contents {
                     content.fmt(f)?;
                 }
-                writeln!(f, "</strong>")?;
+                write!(f, "</strong>")?;
             }
             Self::Italic(contents) => {
                 write!(f, "<em>")?;
                 for content in contents {
                     content.fmt(f)?;
                 }
-                writeln!(f, "</em>")?;
+                write!(f, "</em>")?;
             }
             Self::Strikeout(contents) => {
                 write!(f, "<del>")?;
                 for content in contents {
                     content.fmt(f)?;
                 }
-                writeln!(f, "</del>")?;
+                write!(f, "</del>")?;
             }
             Self::Superscript(contents) => {
                 write!(f, "<sup><small>")?;
                 for content in contents {
                     content.fmt(f)?;
                 }
-                writeln!(f, "</small></sup>")?;
+                write!(f, "</small></sup>")?;
             }
             Self::Subscript(contents) => {
                 write!(f, "<sub><small>")?;
                 for content in contents {
                     content.fmt(f)?;
                 }
-                writeln!(f, "</small></sub>")?;
+                write!(f, "</small></sub>")?;
             }
         }
 
@@ -1313,12 +1313,6 @@ mod tests {
     }
 
     #[test]
-    fn block_element_should_output_tag_based_on_inner_element() {
-        // Test each type!
-        todo!();
-    }
-
-    #[test]
     fn blockquote_with_arrows_should_output_blockquote_tag_with_paragraph_for_each_group_of_lines(
     ) {
         todo!();
@@ -1496,17 +1490,6 @@ mod tests {
     }
 
     #[test]
-    fn inline_element_container_should_output_inner_elements() {
-        todo!();
-    }
-
-    #[test]
-    fn inline_element_should_output_tag_based_on_inner_element() {
-        // Test each type!
-        todo!();
-    }
-
-    #[test]
     fn text_should_output_inner_str() {
         let text = Text::from("some text");
         let mut f = HtmlFormatter::default();
@@ -1526,38 +1509,103 @@ mod tests {
 
     #[test]
     fn decorated_text_should_output_strong_tag_for_bold_text() {
-        todo!();
+        let decorated_text = DecoratedText::Bold(vec![Located::from(
+            DecoratedTextContent::Text(Text::from("some text")),
+        )]);
+        let mut f = HtmlFormatter::default();
+        decorated_text.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            [
+                r#"<span id="some text"></span>"#,
+                r#"<strong>some text</strong>"#,
+            ]
+            .join(""),
+        );
     }
 
     #[test]
-    fn decorated_text_should_escape_id_for_bold_text() {
-        todo!();
+    fn decorated_text_should_leverage_previous_headers_in_anchor_id() {
+        let decorated_text = DecoratedText::Bold(vec![Located::from(
+            DecoratedTextContent::Text(Text::from("some text")),
+        )]);
+        let mut f = HtmlFormatter::default();
+        f.insert_header_text(1, "one");
+        f.insert_header_text(2, "two");
+        f.insert_header_text(3, "three");
+        decorated_text.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            [
+                r#"<span id="one-two-three-some text"></span>"#,
+                r#"<strong>some text</strong>"#,
+            ]
+            .join(""),
+        );
+    }
+
+    #[test]
+    fn decorated_text_should_escape_id_and_text_for_bold_text() {
+        let decorated_text = DecoratedText::Bold(vec![Located::from(
+            DecoratedTextContent::Text(Text::from("some <test> text")),
+        )]);
+        let mut f = HtmlFormatter::default();
+        decorated_text.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            [
+                r#"<span id="some &lt;test&gt; text"></span>"#,
+                r#"<strong>some &lt;test&gt; text</strong>"#,
+            ]
+            .join(""),
+        );
     }
 
     #[test]
     fn decorated_text_should_output_em_tag_for_italic_text() {
-        todo!();
+        let decorated_text = DecoratedText::Italic(vec![Located::from(
+            DecoratedTextContent::Text(Text::from("some text")),
+        )]);
+        let mut f = HtmlFormatter::default();
+        decorated_text.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), r#"<em>some text</em>"#);
     }
 
     #[test]
     fn decorated_text_should_output_del_tag_for_strikeout_text() {
-        todo!();
+        let decorated_text = DecoratedText::Strikeout(vec![Located::from(
+            DecoratedTextContent::Text(Text::from("some text")),
+        )]);
+        let mut f = HtmlFormatter::default();
+        decorated_text.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), r#"<del>some text</del>"#);
     }
 
     #[test]
     fn decorated_text_should_output_sup_tag_for_superscript_text() {
-        todo!();
+        let decorated_text = DecoratedText::Superscript(vec![Located::from(
+            DecoratedTextContent::Text(Text::from("some text")),
+        )]);
+        let mut f = HtmlFormatter::default();
+        decorated_text.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), r#"<sup><small>some text</small></sup>"#);
     }
 
     #[test]
     fn decorated_text_should_output_sub_tag_for_subscript_text() {
-        todo!();
-    }
+        let decorated_text = DecoratedText::Subscript(vec![Located::from(
+            DecoratedTextContent::Text(Text::from("some text")),
+        )]);
+        let mut f = HtmlFormatter::default();
+        decorated_text.fmt(&mut f).unwrap();
 
-    #[test]
-    fn decorated_text_content_should_output_tag_based_on_inner_element() {
-        // Test each type!
-        todo!();
+        assert_eq!(f.get_content(), r#"<sub><small>some text</small></sub>"#);
     }
 
     #[test]
