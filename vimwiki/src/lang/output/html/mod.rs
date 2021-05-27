@@ -611,18 +611,18 @@ impl<'a> Output for Paragraph<'a> {
     /// <p>Some paragraph text<br />on multiple lines</p>
     /// ```
     fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
-        let ignore_newlines = f.config().text.ignore_newline;
+        let ignore_newlines = f.config().paragraph.ignore_newline;
 
         write!(f, "<p>")?;
 
-        for line in self.lines.iter() {
+        for (idx, line) in self.lines.iter().enumerate() {
             for element in line.elements.iter() {
                 element.fmt(f)?;
             }
 
             // If we are not ignoring newlines, then at the end of each line
-            // we want to introduce a hard break
-            if !ignore_newlines {
+            // we want to introduce a hard break (except the last line)
+            if !ignore_newlines && idx < self.lines.len() - 1 {
                 write!(f, "<br />")?;
             }
         }
@@ -1451,12 +1451,31 @@ mod tests {
 
     #[test]
     fn paragraph_should_output_p_tag() {
-        todo!();
+        let paragraph = Paragraph::new(vec![
+            InlineElementContainer::from(Located::from("some text")),
+            InlineElementContainer::from(Located::from("and more text")),
+        ]);
+        let mut f = HtmlFormatter::default();
+        paragraph.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "<p>some textand more text</p>\n");
     }
 
     #[test]
     fn paragraph_should_support_linebreaks_if_configured() {
-        todo!();
+        let paragraph = Paragraph::new(vec![
+            InlineElementContainer::from(Located::from("some text")),
+            InlineElementContainer::from(Located::from("and more text")),
+        ]);
+        let mut f = HtmlFormatter::new(HtmlConfig {
+            paragraph: HtmlParagraphConfig {
+                ignore_newline: false,
+            },
+            ..Default::default()
+        });
+        paragraph.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "<p>some text<br />and more text</p>\n");
     }
 
     #[test]

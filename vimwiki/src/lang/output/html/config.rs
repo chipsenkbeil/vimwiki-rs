@@ -53,9 +53,9 @@ pub struct HtmlConfig {
     #[serde(default)]
     pub list: HtmlListConfig,
 
-    /// Configuration settings that apply specifically to text
+    /// Configuration settings that apply specifically to paragraphs
     #[serde(default)]
-    pub text: HtmlTextConfig,
+    pub paragraph: HtmlParagraphConfig,
 
     /// Configuration settings that apply specifically to links
     #[serde(default)]
@@ -502,17 +502,17 @@ impl HtmlListConfig {
     }
 }
 
-/// Represents configuration options related to text
+/// Represents configuration options related to paragraphs
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct HtmlTextConfig {
+pub struct HtmlParagraphConfig {
     /// If true, newlines are ignored when producing paragraphs, otherwise the
     /// line breaks are respected and <br /> is added for each line break in
     /// a paragraph
-    #[serde(default = "HtmlTextConfig::default_ignore_newline")]
+    #[serde(default = "HtmlParagraphConfig::default_ignore_newline")]
     pub ignore_newline: bool,
 }
 
-impl Default for HtmlTextConfig {
+impl Default for HtmlParagraphConfig {
     fn default() -> Self {
         Self {
             ignore_newline: Self::default_ignore_newline(),
@@ -520,7 +520,7 @@ impl Default for HtmlTextConfig {
     }
 }
 
-impl HtmlTextConfig {
+impl HtmlParagraphConfig {
     #[inline]
     pub fn default_ignore_newline() -> bool {
         true
