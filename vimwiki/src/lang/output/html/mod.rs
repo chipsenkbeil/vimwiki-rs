@@ -629,14 +629,20 @@ impl<'a> Output for Paragraph<'a> {
         write!(f, "<p>")?;
 
         for (idx, line) in self.lines.iter().enumerate() {
+            let is_last_line = idx < self.lines.len() - 1;
+
             for element in line.elements.iter() {
                 element.fmt(f)?;
             }
 
             // If we are not ignoring newlines, then at the end of each line
             // we want to introduce a hard break (except the last line)
-            if !ignore_newlines && idx < self.lines.len() - 1 {
+            if is_last_line && !ignore_newlines {
                 write!(f, "<br />")?;
+            // Otherwise, we want to add a space inbetween the lines of the
+            // paragraph if it isn't the last one
+            } else if is_last_line {
+                write!(f, " ")?;
             }
         }
 
@@ -1941,7 +1947,7 @@ mod tests {
         let mut f = HtmlFormatter::default();
         paragraph.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "<p>some textand more text</p>\n");
+        assert_eq!(f.get_content(), "<p>some text and more text</p>\n");
     }
 
     #[test]
