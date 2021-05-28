@@ -187,8 +187,8 @@ impl_from_language!(
 
 // Preformatted Text
 impl_from_language!(
-    Located<PreformattedText<'a>>,
-    vimwiki::blocks::preformatted::preformatted_text
+    Located<CodeBlock<'a>>,
+    vimwiki::blocks::code::code_block
 );
 
 // Tables
@@ -345,9 +345,9 @@ mod tests {
         }
 
         #[test]
-        fn parse_to_located_preformatted_text() {
+        fn parse_to_located_code_block() {
             let input = Language::from_vimwiki_str("{{{\nsome code\n}}}");
-            let _result: Located<PreformattedText> =
+            let _result: Located<CodeBlock> =
                 input.parse().expect("Failed to parse");
         }
 

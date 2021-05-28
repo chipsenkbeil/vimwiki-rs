@@ -369,8 +369,8 @@ fn vimwiki_placeholder() {
 }
 
 #[test]
-fn vimwiki_preformatted_text() {
-    let x = vimwiki_preformatted_text_format!(
+fn vimwiki_code_block() {
+    let x = vimwiki_code_block_format!(
         r#"
         {{{
         some {} code
@@ -380,7 +380,7 @@ fn vimwiki_preformatted_text() {
     );
     assert_eq!(
         x.into_inner(),
-        PreformattedText::new(
+        CodeBlock::new(
             None,
             Default::default(),
             vec![Cow::from("some cool code")]

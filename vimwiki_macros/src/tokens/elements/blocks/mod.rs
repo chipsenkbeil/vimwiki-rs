@@ -4,6 +4,7 @@ use quote::quote;
 use vimwiki::{BlockElement, InlineBlockElement};
 
 pub mod blockquotes;
+pub mod code;
 pub mod definitions;
 pub mod dividers;
 pub mod headers;
@@ -12,7 +13,6 @@ pub mod lists;
 pub mod math;
 pub mod paragraphs;
 pub mod placeholders;
-pub mod preformatted;
 pub mod tables;
 
 impl_tokenize!(tokenize_block_element, BlockElement<'a>, 'a);
@@ -54,9 +54,9 @@ fn tokenize_block_element(
             let t = do_tokenize!(ctx, &x);
             quote! { #root::BlockElement::Placeholder(#t) }
         }
-        BlockElement::PreformattedText(x) => {
+        BlockElement::CodeBlock(x) => {
             let t = do_tokenize!(ctx, &x);
-            quote! { #root::BlockElement::PreformattedText(#t) }
+            quote! { #root::BlockElement::CodeBlock(#t) }
         }
         BlockElement::Table(x) => {
             let t = do_tokenize!(ctx, &x);

@@ -61,7 +61,7 @@ impl<'a> Output for BlockElement<'a> {
             Self::Math(x) => x.fmt(f),
             Self::Paragraph(x) => x.fmt(f),
             Self::Placeholder(x) => x.fmt(f),
-            Self::PreformattedText(x) => x.fmt(f),
+            Self::CodeBlock(x) => x.fmt(f),
             Self::Table(x) => x.fmt(f),
         }
     }
@@ -441,11 +441,11 @@ impl<'a> Output for Placeholder<'a> {
     }
 }
 
-impl<'a> Output for PreformattedText<'a> {
+impl<'a> Output for CodeBlock<'a> {
     type Formatter = HtmlFormatter;
     type Error = HtmlOutputError;
 
-    /// Writes a preformatted text block in HTML
+    /// Writes a code block block in HTML
     ///
     /// ### Client-side
     ///
@@ -1432,30 +1432,30 @@ mod tests {
     }
 
     #[test]
-    fn preformatted_text_should_output_pre_code_tags_for_clientside_render() {
+    fn code_block_should_output_pre_code_tags_for_clientside_render() {
         todo!();
     }
 
     #[test]
-    fn preformatted_text_should_support_serverside_render() {
+    fn code_block_should_support_serverside_render() {
         todo!();
     }
 
     #[test]
-    fn preformatted_text_should_support_serverside_render_with_no_language() {
+    fn code_block_should_support_serverside_render_with_no_language() {
         todo!("Defaults to plain text");
     }
 
     #[test]
     #[ignore]
-    fn preformatted_text_should_support_serverside_render_with_custom_syntax_dir(
+    fn code_block_should_support_serverside_render_with_custom_syntax_dir(
     ) {
         todo!();
     }
 
     #[test]
     #[ignore]
-    fn preformatted_text_should_support_serverside_render_with_custom_theme_dir(
+    fn code_block_should_support_serverside_render_with_custom_theme_dir(
     ) {
         todo!();
     }

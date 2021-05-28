@@ -9,7 +9,7 @@ use vimwiki::{self as v, Located};
 
 #[simple_ent]
 #[derive(EntFilter)]
-pub struct PreformattedText {
+pub struct CodeBlock {
     #[ent(field(graphql(filter_untyped)))]
     region: Region,
 
@@ -21,25 +21,25 @@ pub struct PreformattedText {
     #[ent(field(graphql(filter_untyped)))]
     metadata: HashMap<String, String>,
 
-    /// Page containing the preformatted text
+    /// Page containing the code block
     #[ent(edge)]
     page: Page,
 
-    /// Parent element to this preformatted text
+    /// Parent element to this code block
     #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
 }
 
-/// Represents a single document block of preformatted text (aka code block)
+/// Represents a single document block of code block (aka code block)
 #[async_graphql::Object]
-impl PreformattedText {
-    /// The segment of the document this preformatted text covers
+impl CodeBlock {
+    /// The segment of the document this code block covers
     #[graphql(name = "region")]
     async fn gql_region(&self) -> &Region {
         self.region()
     }
 
-    /// The lines of content contained within this preformatted text
+    /// The lines of content contained within this code block
     #[graphql(name = "lines")]
     async fn gql_lines(&self) -> &[String] {
         self.lines()
@@ -51,7 +51,7 @@ impl PreformattedText {
         self.lines().join(" ")
     }
 
-    /// The language associated with this preformatted text
+    /// The language associated with this code block
     #[graphql(name = "language")]
     async fn gql_language(&self) -> Option<String> {
         self.language()
@@ -70,20 +70,20 @@ impl PreformattedText {
         self.metadata().get(&key)
     }
 
-    /// All metadata associated with the preformatted text
+    /// All metadata associated with the code block
     #[graphql(name = "metadata")]
     async fn gql_metadata(&self) -> &HashMap<String, String> {
         self.metadata()
     }
 
-    /// The page containing this preformatted text
+    /// The page containing this code block
     #[graphql(name = "page")]
     async fn gql_page(&self) -> async_graphql::Result<Page> {
         self.load_page()
             .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
 
-    /// The parent element containing this preformatted text
+    /// The parent element containing this code block
     #[graphql(name = "parent")]
     async fn gql_parent(&self) -> async_graphql::Result<Option<Element>> {
         self.load_parent()
@@ -91,8 +91,8 @@ impl PreformattedText {
     }
 }
 
-impl<'a> FromVimwikiElement<'a> for PreformattedText {
-    type Element = Located<v::PreformattedText<'a>>;
+impl<'a> FromVimwikiElement<'a> for CodeBlock {
+    type Element = Located<v::CodeBlock<'a>>;
 
     fn from_vimwiki_element(
         page_id: Id,
@@ -137,16 +137,15 @@ mod tests {
     #[test]
     fn should_fully_populate_from_vimwiki_element() {
         global::with_db(InmemoryDatabase::default(), || {
-            let element = vimwiki_preformatted_text! {r#"
+            let element = vimwiki_code_block! {r#"
                 {{{c++ prop="text"
                 First line of text
                 Second line of text
                 }}}
             "#};
             let region = Region::from(element.region());
-            let ent =
-                PreformattedText::from_vimwiki_element(999, Some(123), element)
-                    .expect("Failed to convert from element");
+            let ent = CodeBlock::from_vimwiki_element(999, Some(123), element)
+                .expect("Failed to convert from element");
 
             assert_eq!(
                 ent.lines(),

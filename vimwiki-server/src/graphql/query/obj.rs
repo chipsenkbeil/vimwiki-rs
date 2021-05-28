@@ -673,29 +673,29 @@ impl ObjQuery {
             .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
 
-    /// Queries for instances of PreformattedText that match the filter, or return all
+    /// Queries for instances of CodeBlock that match the filter, or return all
     /// instances if no filter provided
-    async fn preformatted_texts(
+    async fn code_blocks(
         &self,
-        filter: Option<GqlPreformattedTextFilter>,
-    ) -> async_graphql::Result<Vec<PreformattedText>> {
+        filter: Option<GqlCodeBlockFilter>,
+    ) -> async_graphql::Result<Vec<CodeBlock>> {
         let query: entity::Query = match filter {
             Some(x) => x.into(),
-            None => PreformattedText::query().into(),
+            None => CodeBlock::query().into(),
         };
 
         gql_db()?
-            .find_all_typed::<PreformattedText>(query)
+            .find_all_typed::<CodeBlock>(query)
             .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
 
-    /// Queries for a single instance of PreformattedText by its id
-    async fn preformatted_text(
+    /// Queries for a single instance of CodeBlock by its id
+    async fn code_block(
         &self,
         id: Id,
-    ) -> async_graphql::Result<Option<PreformattedText>> {
+    ) -> async_graphql::Result<Option<CodeBlock>> {
         gql_db()?
-            .get_typed::<PreformattedText>(id)
+            .get_typed::<CodeBlock>(id)
             .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
 

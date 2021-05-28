@@ -2,7 +2,7 @@ use super::{
     blockquotes::blockquote, definitions::definition_list, dividers::divider,
     headers::header, inline::inline_element_container, lists::list,
     math::math_block, placeholders::placeholder,
-    preformatted::preformatted_text, tables::table,
+    code::code_block, tables::table,
 };
 use crate::lang::{
     elements::{InlineElementContainer, Located, Paragraph},
@@ -65,7 +65,7 @@ fn continue_paragraph(input: Span) -> IResult<()> {
     let (input, _) = not(definition_list)(input)?;
     let (input, _) = not(list)(input)?;
     let (input, _) = not(table)(input)?;
-    let (input, _) = not(preformatted_text)(input)?;
+    let (input, _) = not(code_block)(input)?;
     let (input, _) = not(math_block)(input)?;
     let (input, _) = not(blank_line)(input)?;
     let (input, _) = not(blockquote)(input)?;

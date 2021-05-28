@@ -96,8 +96,8 @@ fn test() {
         vimwiki_header!("== inline code ==").into(),
         vimwiki_paragraph!(r#"Here is some `inline code`."#).into(),
         vimwiki_paragraph!(r#"Just two backticks: ``"#).into(),
-        vimwiki_header!("== preformatted text ==").into(),
-        vimwiki_preformatted_text_raw! {r#"
+        vimwiki_header!("== code block ==").into(),
+        vimwiki_code_block_raw! {r#"
 {{{
   Tyger! Tyger! burning bright
    In the forests of the night,
@@ -110,23 +110,23 @@ fn test() {
 }}}
         "#}
         .into(),
-        vimwiki_header!("=== preformatted text with attributes ===").into(),
-        vimwiki_preformatted_text_raw! {r#"
+        vimwiki_header!("=== code block with attributes ===").into(),
+        vimwiki_code_block_raw! {r#"
  {{{class="python" style="color:blue"
  for i in range(1, 5):
      print(i)
  }}}
         "#}
         .into(),
-        vimwiki_header!("=== preformatted text with nested syntax ===").into(),
-        vimwiki_preformatted_text! {r#"
+        vimwiki_header!("=== code block with nested syntax ===").into(),
+        vimwiki_code_block! {r#"
             {{{sql
             SELECT * FROM table
             }}}
         "#}
         .into(),
-        vimwiki_header!("=== empty preformatted text ===").into(),
-        vimwiki_preformatted_text! {r#"
+        vimwiki_header!("=== empty code block ===").into(),
+        vimwiki_code_block! {r#"
             {{{
             }}}
         "#}
@@ -182,7 +182,7 @@ fn test() {
     //  {{$
     //  a^2 + b^2 = c^2
     //  }}$
-    //   and some preformatted and tables belonging to item 1 as well
+    //   and some code and tables belonging to item 1 as well
     // {{{
     // I'm part of item 1.
     // }}}

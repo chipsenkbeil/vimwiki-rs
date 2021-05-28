@@ -5,6 +5,7 @@ use crate::lang::{
 use nom::{branch::alt, combinator::map};
 
 pub mod blockquotes;
+pub mod code;
 pub mod definitions;
 pub mod dividers;
 pub mod headers;
@@ -13,7 +14,6 @@ pub mod lists;
 pub mod math;
 pub mod paragraphs;
 pub mod placeholders;
-pub mod preformatted;
 pub mod tables;
 
 /// Parses a block element
@@ -25,9 +25,7 @@ pub fn block_element(input: Span) -> IResult<Located<BlockElement>> {
             map(definitions::definition_list, |c| c.map(BlockElement::from)),
             map(lists::list, |c| c.map(BlockElement::from)),
             map(tables::table, |c| c.map(BlockElement::from)),
-            map(preformatted::preformatted_text, |c| {
-                c.map(BlockElement::from)
-            }),
+            map(code::code_block, |c| c.map(BlockElement::from)),
             map(math::math_block, |c| c.map(BlockElement::from)),
             map(blockquotes::blockquote, |c| c.map(BlockElement::from)),
             map(dividers::divider, |c| c.map(BlockElement::from)),

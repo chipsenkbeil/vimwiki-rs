@@ -250,7 +250,7 @@ element_impl_from!(List<'a>, BlockElement);
 element_impl_from!(MathBlock<'a>, BlockElement);
 element_impl_from!(Paragraph<'a>, BlockElement);
 element_impl_from!(Placeholder<'a>, BlockElement);
-element_impl_from!(PreformattedText<'a>, BlockElement);
+element_impl_from!(CodeBlock<'a>, BlockElement);
 element_impl_from!(Table<'a>, BlockElement);
 
 element_impl_from!(Text<'a>, InlineElement);
