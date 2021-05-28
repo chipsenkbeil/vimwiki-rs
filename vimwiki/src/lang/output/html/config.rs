@@ -100,7 +100,7 @@ impl HtmlConfig {
     ///     ],
     ///     runtime: HtmlRuntimeConfig {
     ///         wiki_index: Some(0),
-    ///         page: PathBuf::from("some/wiki/path/to/file.wiki")
+    ///         page: PathBuf::from("some/wiki/path/to/file.wiki"),
     ///         ..Default::default()
     ///     },
     ///     ..Default::default()
@@ -117,7 +117,7 @@ impl HtmlConfig {
     /// // temporary wiki is used where the page is at the root of the wiki
     /// let config = HtmlConfig {
     ///     runtime: HtmlRuntimeConfig {
-    ///         page: PathBuf::from("some/wiki/path/to/file.wiki")
+    ///         page: PathBuf::from("some/wiki/path/to/file.wiki"),
     ///         ..Default::default()
     ///     },
     ///     ..Default::default()
@@ -148,7 +148,8 @@ impl HtmlConfig {
     ///         },
     ///     ],
     ///     runtime: HtmlRuntimeConfig {
-    ///         page: PathBuf::from("some/wiki/path/to/file.wiki")
+    ///         wiki_index: Some(0),
+    ///         page: PathBuf::from("some/wiki/path/to/file.wiki"),
     ///         ..Default::default()
     ///     },
     ///     ..Default::default()
