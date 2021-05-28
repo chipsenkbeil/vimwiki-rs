@@ -186,10 +186,7 @@ impl_from_language!(
 );
 
 // Preformatted Text
-impl_from_language!(
-    Located<CodeBlock<'a>>,
-    vimwiki::blocks::code::code_block
-);
+impl_from_language!(Located<CodeBlock<'a>>, vimwiki::blocks::code::code_block);
 
 // Tables
 impl_from_language!(Located<Table<'a>>, vimwiki::blocks::tables::table);

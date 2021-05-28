@@ -410,11 +410,7 @@ fn vimwiki_code_block() {
     "#};
     assert_eq!(
         x.into_inner(),
-        CodeBlock::new(
-            None,
-            Default::default(),
-            vec![Cow::from("some code")]
-        )
+        CodeBlock::new(None, Default::default(), vec![Cow::from("some code")])
     );
 }
 

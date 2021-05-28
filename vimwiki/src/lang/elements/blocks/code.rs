@@ -28,13 +28,12 @@ impl CodeBlock<'_> {
         use self::Cow::*;
 
         CodeBlock {
-            lang: match self.lang.as_ref() {
-                Some(x) => Some(Cow::Borrowed(match x {
+            lang: self.lang.as_ref().map(|x| {
+                Cow::Borrowed(match x {
                     Borrowed(x) => *x,
                     Owned(x) => x.as_str(),
-                })),
-                _ => None,
-            },
+                })
+            }),
             metadata: self
                 .metadata
                 .iter()

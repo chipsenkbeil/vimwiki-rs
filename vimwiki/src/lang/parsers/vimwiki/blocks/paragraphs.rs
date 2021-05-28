@@ -1,8 +1,7 @@
 use super::{
-    blockquotes::blockquote, definitions::definition_list, dividers::divider,
-    headers::header, inline::inline_element_container, lists::list,
-    math::math_block, placeholders::placeholder,
-    code::code_block, tables::table,
+    blockquotes::blockquote, code::code_block, definitions::definition_list,
+    dividers::divider, headers::header, inline::inline_element_container,
+    lists::list, math::math_block, placeholders::placeholder, tables::table,
 };
 use crate::lang::{
     elements::{InlineElementContainer, Located, Paragraph},

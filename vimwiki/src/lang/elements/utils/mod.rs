@@ -130,10 +130,7 @@ impl<T> Located<Option<T>> {
     /// ```
     pub fn transpose(self) -> Option<Located<T>> {
         let region = self.region();
-        match self.into_inner() {
-            Some(inner) => Some(Located::new(inner, region)),
-            _ => None,
-        }
+        self.into_inner().map(|inner| Located::new(inner, region))
     }
 }
 
