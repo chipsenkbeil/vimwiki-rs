@@ -1418,17 +1418,29 @@ mod tests {
 
     #[test]
     fn placeholder_should_set_title_if_specified() {
-        todo!();
+        let placeholder = Placeholder::title_from_str("test title");
+        let mut f = HtmlFormatter::default();
+        placeholder.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_title(), Some("test title"));
     }
 
     #[test]
     fn placeholder_should_set_date_if_specified() {
-        todo!();
+        let placeholder = Placeholder::Date(NaiveDate::from_ymd(2021, 4, 27));
+        let mut f = HtmlFormatter::default();
+        placeholder.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_date(), Some(&NaiveDate::from_ymd(2021, 4, 27)));
     }
 
     #[test]
     fn placeholder_should_set_template_if_specified() {
-        todo!();
+        let placeholder = Placeholder::template_from_str("template file");
+        let mut f = HtmlFormatter::default();
+        placeholder.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_template(), Some(Path::new("template file")));
     }
 
     #[test]
