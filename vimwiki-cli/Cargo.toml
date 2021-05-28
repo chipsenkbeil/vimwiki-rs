@@ -2,7 +2,7 @@
 name = "vimwiki-cli"
 description = "Comand-line interface for vimwiki operations"
 categories = ["command-line-utilities"]
-version = "0.1.0-alpha.6"
+version = "0.1.0"
 authors = ["Chip Senkbeil <chip@senkbeil.org>"]
 edition = "2018"
 homepage = "https://github.com/chipsenkbeil/vimwiki-rs"
@@ -23,5 +23,5 @@ structopt = "0.3.21"
 toml = "0.5.8"
 walkdir = "2.3.2"
 
-vimwiki = { version = "=0.1.0-alpha.6", path = "../vimwiki", features = ["html"] }
-vimwiki_macros = { version = "=0.1.0-alpha.6", path = "../vimwiki_macros" }
+vimwiki = { version = "=0.1.0", path = "../vimwiki", features = ["html"] }
+vimwiki_macros = { version = "=0.1.0", path = "../vimwiki_macros" }
