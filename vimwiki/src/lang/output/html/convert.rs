@@ -243,7 +243,6 @@ mod tests {
             runtime: HtmlRuntimeConfig {
                 wiki_index: Some(0),
                 page: ["some", "path", "to", "a", "file.wiki"].iter().collect(),
-                ..Default::default()
             },
             ..Default::default()
         };
@@ -260,7 +259,6 @@ mod tests {
             runtime: HtmlRuntimeConfig {
                 wiki_index: Some(0),
                 page: ["some", "path", "to", "file.wiki"].iter().collect(),
-                ..Default::default()
             },
             ..Default::default()
         };
@@ -277,7 +275,6 @@ mod tests {
             runtime: HtmlRuntimeConfig {
                 wiki_index: Some(0),
                 page: ["some", "path", "file.wiki"].iter().collect(),
-                ..Default::default()
             },
             ..Default::default()
         };
@@ -299,7 +296,6 @@ mod tests {
             runtime: HtmlRuntimeConfig {
                 wiki_index: Some(0),
                 page: ["some", "path", "to", "a", "file.wiki"].iter().collect(),
-                ..Default::default()
             },
             ..Default::default()
         };
