@@ -515,7 +515,7 @@ impl<'a> Output for CodeBlock<'a> {
 
             // Get syntax using language specifier, otherwise use plain text
             let syntax = if let Some(lang) = self.lang.as_ref() {
-                ss.find_syntax_by_name(lang)
+                ss.find_syntax_by_token(lang)
                     .unwrap_or_else(|| ss.find_syntax_plain_text())
             } else {
                 ss.find_syntax_plain_text()
@@ -1433,30 +1433,87 @@ mod tests {
 
     #[test]
     fn code_block_should_output_pre_code_tags_for_clientside_render() {
-        todo!();
+        let code = CodeBlock::from_lines(vec!["some lines", "of code"]);
+        let mut f = HtmlFormatter::default();
+        code.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            indoc! {"
+                <pre>
+                <code>
+                some lines
+                of code
+                </code>
+                </pre>
+            "}
+        );
     }
 
     #[test]
     fn code_block_should_support_serverside_render() {
-        todo!();
+        let code = CodeBlock::new(
+            Some(Cow::from("rust")),
+            HashMap::new(),
+            vec![Cow::from("fn my_func() -> String { String::new() }")],
+        );
+        let mut f = HtmlFormatter::new(HtmlConfig {
+            code: HtmlCodeConfig {
+                server_side: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+        code.fmt(&mut f).unwrap();
+
+        let expected = [
+            r#"<pre style="background-color:#ffffff;">"#,
+            "\n",
+            r#"<span style="font-weight:bold;color:#a71d5d;">fn </span>"#,
+            r#"<span style="font-weight:bold;color:#795da3;">my_func</span>"#,
+            r#"<span style="color:#323232;">() -&gt; String { </span>"#,
+            r#"<span style="color:#0086b3;">String</span>"#,
+            r#"<span style="color:#323232;">::new() }</span>"#,
+            "\n",
+            "</pre>\n",
+        ]
+        .join("");
+
+        assert_eq!(f.get_content(), expected);
     }
 
     #[test]
     fn code_block_should_support_serverside_render_with_no_language() {
-        todo!("Defaults to plain text");
+        let code = CodeBlock::from_lines(vec!["some lines", "of code"]);
+        let mut f = HtmlFormatter::new(HtmlConfig {
+            code: HtmlCodeConfig {
+                server_side: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+        code.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            indoc! {r#"
+                <pre style="background-color:#ffffff;">
+                <span style="color:#323232;">some lines</span>
+                <span style="color:#323232;">of code</span>
+                </pre>
+            "#}
+        );
     }
 
     #[test]
     #[ignore]
-    fn code_block_should_support_serverside_render_with_custom_syntax_dir(
-    ) {
+    fn code_block_should_support_serverside_render_with_custom_syntax_dir() {
         todo!();
     }
 
     #[test]
     #[ignore]
-    fn code_block_should_support_serverside_render_with_custom_theme_dir(
-    ) {
+    fn code_block_should_support_serverside_render_with_custom_theme_dir() {
         todo!();
     }
 

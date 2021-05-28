@@ -10,6 +10,19 @@ pub struct CodeBlock<'a> {
     pub lines: Vec<Cow<'a, str>>,
 }
 
+impl<'a> CodeBlock<'a> {
+    /// Constructs a code block with the provided lines using no language or metadata
+    pub fn from_lines<I: IntoIterator<Item = L>, L: Into<Cow<'a, str>>>(
+        iter: I,
+    ) -> Self {
+        Self {
+            lang: None,
+            metadata: HashMap::new(),
+            lines: iter.into_iter().map(Into::into).collect(),
+        }
+    }
+}
+
 impl CodeBlock<'_> {
     pub fn to_borrowed(&self) -> CodeBlock {
         use self::Cow::*;
