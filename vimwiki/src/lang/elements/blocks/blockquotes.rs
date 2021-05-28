@@ -15,6 +15,14 @@ impl<'a> Blockquote<'a> {
     pub fn lines(&self) -> &[Cow<'a, str>] {
         &self.lines
     }
+
+    /// Returns an iterator over slices of lines where each item is a slice
+    /// of lines representing a group of lines
+    pub fn line_groups(&self) -> impl Iterator<Item = &[Cow<'a, str>]> {
+        self.lines
+            .split(|line| line.is_empty())
+            .filter(|lines| !lines.is_empty())
+    }
 }
 
 impl Blockquote<'_> {

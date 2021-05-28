@@ -82,17 +82,33 @@ impl<'a> Output for Blockquote<'a> {
     /// </blockquote>
     /// ```
     fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
-        // TODO: Blockquote output is handled differently if it comes from
-        //       indented blockquote versus arrow/chevron (>)
-        //
-        // We don't have a way to determine this yet (needs to be added to
-        // blockquote data structure). It also isn't clear to me how this is
-        // done differently as the code I'm seeing in vimwiki plugin is for
-        // the arrow style, which is what we'll be doing for now
         writeln!(f, "<blockquote>")?;
-        for line in self.lines.iter() {
-            writeln!(f, "<p>{}</p>", escape::escape_html(line.trim()))?;
+
+        // If we have more than one group of lines, then we want a paragraph
+        // wrapping each group
+        if self.line_groups().count() > 1 {
+            for lines in self.line_groups() {
+                writeln!(
+                    f,
+                    "<p>{}</p>",
+                    escape::escape_html(
+                        lines
+                            .iter()
+                            .map(|line| line.trim())
+                            .collect::<Vec<&str>>()
+                            .join(" ")
+                            .as_str()
+                    )
+                )?;
+            }
+
+        // Otherwise, we want to just drop in the lines verbatim
+        } else {
+            for line in self.lines().iter() {
+                writeln!(f, "{}", escape::escape_html(&line))?;
+            }
         }
+
         writeln!(f, "</blockquote>")?;
         Ok(())
     }
@@ -1316,31 +1332,169 @@ mod tests {
     }
 
     #[test]
-    fn page_should_output_tags_based_on_block_elements() {
-        todo!();
-    }
-
-    #[test]
-    fn blockquote_with_arrows_should_output_blockquote_tag_with_paragraph_for_each_group_of_lines(
+    fn blockquote_with_multiple_line_groups_should_output_blockquote_tag_with_paragraph_for_each_group_of_lines(
     ) {
-        todo!();
+        let blockquote = Blockquote::new(vec![
+            Cow::from("line1"),
+            Cow::from("line2"),
+            Cow::from(""),
+            Cow::from("line3"),
+        ]);
+        let mut f = HtmlFormatter::default();
+        blockquote.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            indoc! {"
+                <blockquote>
+                <p>line1 line2</p>
+                <p>line3</p>
+                </blockquote>
+            "}
+        );
     }
 
     #[test]
-    fn blockquote_with_indent_should_output_blockquote_tag_with_no_paragraphs_inside(
+    fn blockquote_with_single_line_group_should_output_blockquote_tag_with_no_paragraph(
     ) {
-        todo!();
+        let blockquote = Blockquote::new(vec![
+            Cow::from("line1"),
+            Cow::from("line2"),
+            Cow::from("line3"),
+        ]);
+        let mut f = HtmlFormatter::default();
+        blockquote.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            indoc! {"
+                <blockquote>
+                line1
+                line2
+                line3
+                </blockquote>
+            "}
+        );
     }
 
     #[test]
-    fn blockquote_should_escape_html_in_each_line() {
-        todo!();
+    fn blockquote_should_escape_html_in_each_line_of_a_singular_line_group() {
+        let blockquote = Blockquote::new(vec![
+            Cow::from("<test1>"),
+            Cow::from("<test2>"),
+            Cow::from("<test3>"),
+        ]);
+        let mut f = HtmlFormatter::default();
+        blockquote.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            indoc! {"
+                <blockquote>
+                &lt;test1&gt;
+                &lt;test2&gt;
+                &lt;test3&gt;
+                </blockquote>
+            "}
+        );
+    }
+
+    #[test]
+    fn blockquote_should_escape_html_in_each_line_of_multiple_line_groups() {
+        let blockquote = Blockquote::new(vec![
+            Cow::from("<test1>"),
+            Cow::from("<test2>"),
+            Cow::from(""),
+            Cow::from("<test3>"),
+        ]);
+        let mut f = HtmlFormatter::default();
+        blockquote.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            indoc! {"
+                <blockquote>
+                <p>&lt;test1&gt; &lt;test2&gt;</p>
+                <p>&lt;test3&gt;</p>
+                </blockquote>
+            "}
+        );
     }
 
     #[test]
     fn definition_list_should_output_list_tag_with_term_and_definition_tags_together(
     ) {
-        todo!();
+        // Test no definitions
+        let list = DefinitionList::new(vec![(
+            Located::from(DefinitionListValue::new(
+                Located::from(Text::from("term1")).into(),
+            )),
+            Vec::new(),
+        )]);
+
+        let mut f = HtmlFormatter::default();
+        list.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            indoc! {"
+                <dl>
+                <dt>term1</dt>
+                </dl>
+            "}
+        );
+
+        // Test single definition
+        let list = DefinitionList::new(vec![(
+            Located::from(DefinitionListValue::new(
+                Located::from(Text::from("term1")).into(),
+            )),
+            vec![Located::from(DefinitionListValue::new(
+                Located::from(Text::from("def1")).into(),
+            ))],
+        )]);
+
+        let mut f = HtmlFormatter::default();
+        list.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            indoc! {"
+                <dl>
+                <dt>term1</dt>
+                <dd>def1</dd>
+                </dl>
+            "}
+        );
+
+        // Test multiple definitions
+        let list = DefinitionList::new(vec![(
+            Located::from(DefinitionListValue::new(
+                Located::from(Text::from("term1")).into(),
+            )),
+            vec![
+                Located::from(DefinitionListValue::new(
+                    Located::from(Text::from("def1")).into(),
+                )),
+                Located::from(DefinitionListValue::new(
+                    Located::from(Text::from("def2")).into(),
+                )),
+            ],
+        )]);
+
+        let mut f = HtmlFormatter::default();
+        list.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            indoc! {"
+                <dl>
+                <dt>term1</dt>
+                <dd>def1</dd>
+                <dd>def2</dd>
+                </dl>
+            "}
+        );
     }
 
     #[test]
