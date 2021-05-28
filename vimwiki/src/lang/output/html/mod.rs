@@ -189,17 +189,14 @@ impl<'a> Output for Header<'a> {
     /// </div>
     /// ```
     fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
-        let header_id = escape::escape_html(&self.content.to_string());
+        let raw_content = self.content.to_string();
+        let header_id = escape::escape_html(&raw_content);
         f.insert_header_text(self.level, header_id.clone());
 
-        let is_toc = header_id.trim() == f.config().header.table_of_contents;
+        let is_toc = raw_content.trim() == f.config().header.table_of_contents;
         if is_toc {
-            write!(f, r#"<div id="{}">"#, header_id)?;
-            write!(
-                f,
-                r#"<h{} id="{}" class="header">"#,
-                self.level, header_id
-            )?;
+            write!(f, r#"<div id="{}" class="toc">"#, header_id)?;
+            write!(f, r#"<h{} id="{}">"#, self.level, header_id)?;
             self.content.fmt(f)?;
             writeln!(f, "</h{}></div>", self.level)?;
         } else {
@@ -1358,52 +1355,277 @@ mod tests {
 
     #[test]
     fn header_should_output_div_h_and_a_tags() {
-        todo!();
+        let header = Header::new(
+            3,
+            InlineElementContainer::new(vec![Located::from(
+                InlineElement::from(Text::from("some header")),
+            )]),
+            false,
+        );
+
+        let mut f = HtmlFormatter::default();
+        header.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            [
+                "<div id=\"some header\">",
+                "<h3 id=\"some header\" class=\"header\">",
+                "<a href=\"#some header\">",
+                "some header",
+                "</a>",
+                "</h3>",
+                "</div>",
+                "\n",
+            ]
+            .join(""),
+        );
     }
 
     #[test]
     fn header_should_support_toc_variant() {
-        todo!();
+        let header = Header::new(
+            3,
+            InlineElementContainer::new(vec![Located::from(
+                InlineElement::from(Text::from(
+                    HtmlHeaderConfig::default_table_of_contents(),
+                )),
+            )]),
+            false,
+        );
+
+        let mut f = HtmlFormatter::default();
+
+        // Add some header ids prior to this one to verify that they aren't used
+        f.insert_header_text(1, "h1");
+        f.insert_header_text(2, "h2");
+
+        header.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            [
+                "<div id=\"Contents\" class=\"toc\">",
+                "<h3 id=\"Contents\">",
+                "Contents",
+                "</h3>",
+                "</div>",
+                "\n",
+            ]
+            .join(""),
+        );
     }
 
     #[test]
     fn header_should_escape_html_in_ids() {
-        todo!();
+        let header = Header::new(
+            3,
+            InlineElementContainer::new(vec![Located::from(
+                InlineElement::from(Text::from("<test>")),
+            )]),
+            false,
+        );
+
+        // Configure to use a different table of contents string
+        // that has characters that should be escaped
+        let mut f = HtmlFormatter::default();
+
+        // Add some header ids prior to this one to verify that they aren't used
+        f.insert_header_text(1, "h1");
+        f.insert_header_text(2, "h2");
+
+        header.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            [
+                "<div id=\"h1-h2-&lt;test&gt;\">",
+                "<h3 id=\"&lt;test&gt;\" class=\"header\">",
+                "<a href=\"#h1-h2-&lt;test&gt;\">",
+                "&lt;test&gt;",
+                "</a>",
+                "</h3>",
+                "</div>",
+                "\n",
+            ]
+            .join(""),
+        );
     }
 
     #[test]
     fn header_should_escape_html_in_ids_for_toc() {
-        todo!();
+        let header = Header::new(
+            3,
+            InlineElementContainer::new(vec![Located::from(
+                InlineElement::from(Text::from("<test>")),
+            )]),
+            false,
+        );
+
+        // Configure to use a different table of contents string
+        // that has characters that should be escaped
+        let mut f = HtmlFormatter::new(HtmlConfig {
+            header: HtmlHeaderConfig {
+                table_of_contents: String::from("<test>"),
+            },
+            ..Default::default()
+        });
+
+        // Add some header ids prior to this one to verify that they aren't used
+        f.insert_header_text(1, "h1");
+        f.insert_header_text(2, "h2");
+
+        header.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            [
+                "<div id=\"&lt;test&gt;\" class=\"toc\">",
+                "<h3 id=\"&lt;test&gt;\">",
+                "&lt;test&gt;",
+                "</h3>",
+                "</div>",
+                "\n",
+            ]
+            .join(""),
+        );
     }
 
     #[test]
     fn list_should_output_ordered_list_if_ordered_type() {
-        todo!();
+        let list = List::new(vec![Located::from(ListItem::new(
+            ListItemType::Ordered(OrderedListItemType::Number),
+            ListItemSuffix::None,
+            0,
+            ListItemContents::new(vec![Located::from(
+                ListItemContent::InlineContent(
+                    Located::from(Text::from("some list item")).into(),
+                ),
+            )]),
+            ListItemAttributes::default(),
+        ))]);
+        let mut f = HtmlFormatter::default();
+        list.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            indoc! {"
+                <ol>
+                <li>some list item</li>
+                </ol>
+            "}
+        );
     }
 
     #[test]
     fn list_should_output_unordered_list_if_unordered_type() {
-        todo!();
+        let list = List::new(vec![Located::from(ListItem::new(
+            ListItemType::Unordered(UnorderedListItemType::Hyphen),
+            ListItemSuffix::None,
+            0,
+            ListItemContents::new(vec![Located::from(
+                ListItemContent::InlineContent(
+                    Located::from(Text::from("some list item")).into(),
+                ),
+            )]),
+            ListItemAttributes::default(),
+        ))]);
+        let mut f = HtmlFormatter::default();
+        list.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            indoc! {"
+                <ul>
+                <li>some list item</li>
+                </ul>
+            "}
+        );
     }
 
     #[test]
     fn list_item_should_output_li_tag() {
-        todo!();
+        let item = ListItem::new(
+            ListItemType::Unordered(UnorderedListItemType::Hyphen),
+            ListItemSuffix::None,
+            0,
+            ListItemContents::new(vec![Located::from(
+                ListItemContent::InlineContent(
+                    Located::from(Text::from("some list item")).into(),
+                ),
+            )]),
+            ListItemAttributes::default(),
+        );
+        let mut f = HtmlFormatter::default();
+        item.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "<li>some list item</li>\n");
     }
 
     #[test]
     fn list_item_should_support_adding_class_based_on_todo_status() {
-        todo!();
-    }
+        let mut item = ListItem::new(
+            ListItemType::Unordered(UnorderedListItemType::Hyphen),
+            ListItemSuffix::None,
+            0,
+            ListItemContents::new(vec![Located::from(
+                ListItemContent::InlineContent(
+                    Located::from(Text::from("some list item")).into(),
+                ),
+            )]),
+            ListItemAttributes::default(),
+        );
 
-    #[test]
-    fn list_item_contents_should_output_individual_items() {
-        todo!();
-    }
+        let mut f = HtmlFormatter::default();
+        item.attributes.todo_status = Some(ListItemTodoStatus::Incomplete);
+        item.fmt(&mut f).unwrap();
+        assert_eq!(
+            f.get_content(),
+            "<li class=\"done0\">some list item</li>\n"
+        );
 
-    #[test]
-    fn list_item_content_should_output_tag_based_on_inner_content() {
-        todo!();
+        let mut f = HtmlFormatter::default();
+        item.attributes.todo_status =
+            Some(ListItemTodoStatus::PartiallyComplete1);
+        item.fmt(&mut f).unwrap();
+        assert_eq!(
+            f.get_content(),
+            "<li class=\"done1\">some list item</li>\n"
+        );
+
+        let mut f = HtmlFormatter::default();
+        item.attributes.todo_status =
+            Some(ListItemTodoStatus::PartiallyComplete2);
+        item.fmt(&mut f).unwrap();
+        assert_eq!(
+            f.get_content(),
+            "<li class=\"done2\">some list item</li>\n"
+        );
+
+        let mut f = HtmlFormatter::default();
+        item.attributes.todo_status =
+            Some(ListItemTodoStatus::PartiallyComplete3);
+        item.fmt(&mut f).unwrap();
+        assert_eq!(
+            f.get_content(),
+            "<li class=\"done3\">some list item</li>\n"
+        );
+
+        let mut f = HtmlFormatter::default();
+        item.attributes.todo_status = Some(ListItemTodoStatus::Complete);
+        item.fmt(&mut f).unwrap();
+        assert_eq!(
+            f.get_content(),
+            "<li class=\"done4\">some list item</li>\n"
+        );
+
+        let mut f = HtmlFormatter::default();
+        item.attributes.todo_status = Some(ListItemTodoStatus::Rejected);
+        item.fmt(&mut f).unwrap();
+        assert_eq!(
+            f.get_content(),
+            "<li class=\"rejected\">some list item</li>\n"
+        );
     }
 
     #[test]
