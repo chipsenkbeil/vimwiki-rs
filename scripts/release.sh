@@ -5,8 +5,8 @@
 # are temporarily removed using cargo-hack
 CRATES=(
   vimwiki
-  vimwiki-cli
   vimwiki_macros
+  vimwiki-cli
   vimwiki-server
   vimwiki-wasm
 )
