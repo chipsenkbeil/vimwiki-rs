@@ -451,6 +451,17 @@ pub mod iter {
                 idx: table.row_cnt(),
             }
         }
+
+        /// Returns true if the iterator has at least one row remaining that
+        /// contains a content cell
+        pub fn has_content(&self) -> bool {
+            let mut rows = Rows {
+                table: self.table,
+                idx: self.idx,
+            };
+
+            rows.any(|row| row.has_content())
+        }
     }
 
     impl<'a, 'b> Iterator for Rows<'a, 'b> {
@@ -487,6 +498,18 @@ pub mod iter {
                 idx: 0,
                 len: table.get_divider_row_index().unwrap_or_default(),
             }
+        }
+
+        /// Returns true if the iterator has at least one row remaining that
+        /// contains a content cell
+        pub fn has_content(&self) -> bool {
+            let mut rows = HeaderRows {
+                table: self.table,
+                idx: self.idx,
+                len: self.len,
+            };
+
+            rows.any(|row| row.has_content())
         }
     }
 
@@ -527,6 +550,17 @@ pub mod iter {
                 table,
                 idx: table.get_divider_row_index().unwrap_or_default(),
             }
+        }
+
+        /// Returns true if the iterator has at least one row remaining that
+        /// contains a content cell
+        pub fn has_content(&self) -> bool {
+            let mut rows = BodyRows {
+                table: self.table,
+                idx: self.idx,
+            };
+
+            rows.any(|row| row.has_content())
         }
     }
 
@@ -576,6 +610,17 @@ pub mod iter {
             let pos = CellPos::new(self.row, self.col);
             self.map(move |cell| (pos, cell))
         }
+
+        /// Returns true if the iterator has at least one content cell
+        pub fn has_content(&self) -> bool {
+            let mut row = Row {
+                table: self.table,
+                row: self.row,
+                col: self.col,
+            };
+
+            row.any(|cell| cell.is_content())
+        }
     }
 
     impl<'a, 'b> Iterator for Row<'a, 'b> {
@@ -617,6 +662,21 @@ pub mod iter {
             let pos = CellPos::new(self.row, self.col);
             self.map(move |cell| (pos, cell))
         }
+
+        /// Returns true if the iterator has at least one content cell
+        pub fn has_content(&self) -> bool {
+            Row::from(self).has_content()
+        }
+    }
+
+    impl<'a, 'b> From<&'a IntoRow<'b>> for Row<'a, 'b> {
+        fn from(it: &'a IntoRow<'b>) -> Self {
+            Self {
+                table: &it.table,
+                row: it.row,
+                col: it.col,
+            }
+        }
     }
 
     impl<'a> Iterator for IntoRow<'a> {
@@ -656,6 +716,17 @@ pub mod iter {
                 idx: table.col_cnt(),
             }
         }
+
+        /// Returns true if the iterator has at least one column remaining that
+        /// contains a content cell
+        pub fn has_content(&self) -> bool {
+            let mut columns = Columns {
+                table: self.table,
+                idx: self.idx,
+            };
+
+            columns.any(|column| column.has_content())
+        }
     }
 
     impl<'a, 'b> Iterator for Columns<'a, 'b> {
@@ -691,6 +762,17 @@ pub mod iter {
             let pos = CellPos::new(self.row, self.col);
             self.map(move |cell| (pos, cell))
         }
+
+        /// Returns true if the iterator has at least one content cell
+        pub fn has_content(&self) -> bool {
+            let mut column = Column {
+                table: self.table,
+                row: self.row,
+                col: self.col,
+            };
+
+            column.any(|cell| cell.is_content())
+        }
     }
 
     impl<'a, 'b> Iterator for Column<'a, 'b> {
@@ -723,6 +805,21 @@ pub mod iter {
         ) -> impl Iterator<Item = (CellPos, Located<Cell<'a>>)> {
             let pos = CellPos::new(self.row, self.col);
             self.map(move |cell| (pos, cell))
+        }
+
+        /// Returns true if the iterator has at least one content cell
+        pub fn has_content(&self) -> bool {
+            Column::from(self).has_content()
+        }
+    }
+
+    impl<'a, 'b> From<&'a IntoColumn<'b>> for Column<'a, 'b> {
+        fn from(it: &'a IntoColumn<'b>) -> Self {
+            Self {
+                table: &it.table,
+                row: it.row,
+                col: it.col,
+            }
         }
     }
 
@@ -764,6 +861,17 @@ pub mod iter {
         ) -> impl Iterator<Item = (CellPos, &'a Located<Cell<'b>>)> {
             let pos = CellPos::new(self.row, self.col);
             self.map(move |cell| (pos, cell))
+        }
+
+        /// Returns true if the iterator has at least one content cell
+        pub fn has_content(&self) -> bool {
+            let mut cells = Cells {
+                table: self.table,
+                row: self.row,
+                col: self.col,
+            };
+
+            cells.any(|cell| cell.is_content())
         }
     }
 
@@ -814,6 +922,21 @@ pub mod iter {
         ) -> impl Iterator<Item = (CellPos, Located<Cell<'a>>)> {
             let pos = CellPos::new(self.row, self.col);
             self.map(move |cell| (pos, cell))
+        }
+
+        /// Returns true if the iterator has at least one content cell
+        pub fn has_content(&self) -> bool {
+            Cells::from(self).has_content()
+        }
+    }
+
+    impl<'a, 'b> From<&'a IntoCells<'b>> for Cells<'a, 'b> {
+        fn from(it: &'a IntoCells<'b>) -> Self {
+            Self {
+                table: &it.table,
+                row: it.row,
+                col: it.col,
+            }
         }
     }
 

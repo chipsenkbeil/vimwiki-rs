@@ -708,7 +708,7 @@ impl<'a> Output for Table<'a> {
     ///
     fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
         if self.is_centered() {
-            writeln!(f, "<table class\"center\">")?;
+            writeln!(f, "<table class=\"center\">")?;
         } else {
             writeln!(f, "<table>")?;
         }
@@ -716,6 +716,11 @@ impl<'a> Output for Table<'a> {
         if self.has_header_rows() {
             writeln!(f, "<thead>")?;
             for row in self.header_rows() {
+                // Only produce a row if content exists
+                if !row.has_content() {
+                    continue;
+                }
+
                 writeln!(f, "<tr>")?;
                 for (pos, cell) in row.zip_with_position() {
                     if let Some(content) = cell.get_content() {
@@ -731,7 +736,7 @@ impl<'a> Output for Table<'a> {
                             write!(f, " colspan=\"{}\"", colspan)?;
                         }
 
-                        writeln!(f, ">")?;
+                        write!(f, ">")?;
                         content.fmt(f)?;
                         writeln!(f, "</th>")?;
                     }
@@ -744,6 +749,11 @@ impl<'a> Output for Table<'a> {
         if self.has_body_rows() {
             writeln!(f, "<tbody>")?;
             for row in self.body_rows() {
+                // Only produce a row if content exists
+                if !row.has_content() {
+                    continue;
+                }
+
                 writeln!(f, "<tr>")?;
                 for (pos, cell) in row.zip_with_position() {
                     if let Some(content) = cell.get_content() {
@@ -759,7 +769,7 @@ impl<'a> Output for Table<'a> {
                             write!(f, " colspan=\"{}\"", colspan)?;
                         }
 
-                        writeln!(f, ">")?;
+                        write!(f, ">")?;
                         content.fmt(f)?;
                         writeln!(f, "</td>")?;
                     }
@@ -1248,6 +1258,7 @@ fn build_complete_id(
 mod tests {
     use super::*;
     use chrono::NaiveDate;
+    use indoc::indoc;
     use std::{
         borrow::Cow, collections::HashMap, convert::TryFrom, path::Path,
     };
@@ -1480,32 +1491,204 @@ mod tests {
 
     #[test]
     fn table_should_output_table_and_other_relevant_tags_for_header_and_body() {
-        todo!();
+        let table = Table::new(
+            vec![
+                (
+                    CellPos { row: 0, col: 0 },
+                    Located::from(Cell::Content(
+                        Located::from(Text::from("some header")).into(),
+                    )),
+                ),
+                (
+                    CellPos { row: 1, col: 0 },
+                    Located::from(Cell::Align(ColumnAlign::default())),
+                ),
+                (
+                    CellPos { row: 2, col: 0 },
+                    Located::from(Cell::Content(
+                        Located::from(Text::from("some text")).into(),
+                    )),
+                ),
+            ],
+            false,
+        );
+        let mut f = HtmlFormatter::default();
+        table.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            indoc! {"
+                <table>
+                <thead>
+                <tr>
+                <th>some header</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                <td>some text</td>
+                </tr>
+                </tbody>
+                </table>
+            "},
+        );
     }
 
     #[test]
     fn table_should_support_rowspan_attr_on_header_cells() {
-        todo!();
+        let table = Table::new(
+            vec![
+                (
+                    CellPos { row: 0, col: 0 },
+                    Located::from(Cell::Content(
+                        Located::from(Text::from("some text")).into(),
+                    )),
+                ),
+                (
+                    CellPos { row: 1, col: 0 },
+                    Located::from(Cell::Span(CellSpan::FromAbove)),
+                ),
+                (
+                    CellPos { row: 2, col: 0 },
+                    Located::from(Cell::Align(ColumnAlign::default())),
+                ),
+            ],
+            false,
+        );
+        let mut f = HtmlFormatter::default();
+        table.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            indoc! {r#"
+                <table>
+                <thead>
+                <tr>
+                <th rowspan="2">some text</th>
+                </tr>
+                </thead>
+                </table>
+            "#},
+        );
     }
 
     #[test]
     fn table_should_support_colspan_attr_on_header_cells() {
-        todo!();
+        let table = Table::new(
+            vec![
+                (
+                    CellPos { row: 0, col: 0 },
+                    Located::from(Cell::Content(
+                        Located::from(Text::from("some text")).into(),
+                    )),
+                ),
+                (
+                    CellPos { row: 0, col: 1 },
+                    Located::from(Cell::Span(CellSpan::FromLeft)),
+                ),
+                (
+                    CellPos { row: 1, col: 0 },
+                    Located::from(Cell::Align(ColumnAlign::default())),
+                ),
+                (
+                    CellPos { row: 1, col: 1 },
+                    Located::from(Cell::Align(ColumnAlign::default())),
+                ),
+            ],
+            false,
+        );
+        let mut f = HtmlFormatter::default();
+        table.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            indoc! {r#"
+                <table>
+                <thead>
+                <tr>
+                <th colspan="2">some text</th>
+                </tr>
+                </thead>
+                </table>
+            "#},
+        );
     }
 
     #[test]
     fn table_should_support_rowspan_attr_on_body_cells() {
-        todo!();
+        let table = Table::new(
+            vec![
+                (
+                    CellPos { row: 0, col: 0 },
+                    Located::from(Cell::Content(
+                        Located::from(Text::from("some text")).into(),
+                    )),
+                ),
+                (
+                    CellPos { row: 1, col: 0 },
+                    Located::from(Cell::Span(CellSpan::FromAbove)),
+                ),
+            ],
+            false,
+        );
+        let mut f = HtmlFormatter::default();
+        table.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            indoc! {r#"
+                <table>
+                <tbody>
+                <tr>
+                <td rowspan="2">some text</td>
+                </tr>
+                </tbody>
+                </table>
+            "#},
+        );
     }
 
     #[test]
     fn table_should_support_colspan_attr_on_body_cells() {
-        todo!();
+        let table = Table::new(
+            vec![
+                (
+                    CellPos { row: 0, col: 0 },
+                    Located::from(Cell::Content(
+                        Located::from(Text::from("some text")).into(),
+                    )),
+                ),
+                (
+                    CellPos { row: 0, col: 1 },
+                    Located::from(Cell::Span(CellSpan::FromLeft)),
+                ),
+            ],
+            false,
+        );
+        let mut f = HtmlFormatter::default();
+        table.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            indoc! {r#"
+                <table>
+                <tbody>
+                <tr>
+                <td colspan="2">some text</td>
+                </tr>
+                </tbody>
+                </table>
+            "#},
+        );
     }
 
     #[test]
     fn table_should_support_being_centered() {
-        todo!();
+        let table = Table::new(Vec::new(), true);
+        let mut f = HtmlFormatter::default();
+        table.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "<table class=\"center\">\n</table>\n");
     }
 
     #[test]
