@@ -570,7 +570,7 @@ impl<'a> Output for CodeBlock<'a> {
         // Otherwise, we produce <pre> and <code class="{lang}"> for use with
         // frontend highlighters like highlight.js
         } else {
-            writeln!(f, "<pre>")?;
+            write!(f, "<pre>")?;
 
             // Build out our <code ...> tag
             {
@@ -586,14 +586,24 @@ impl<'a> Output for CodeBlock<'a> {
                     write!(f, r#" {}="{}""#, attr, value)?;
                 }
 
-                writeln!(f, ">")?;
+                // NOTE: We do NOT include a newline here because it results
+                //       in the output having a newline at the beginning of
+                //       the code block
+                write!(f, ">")?;
             }
 
-            for line in self.lines.iter() {
-                writeln!(f, "{}", escape::escape_html(&line))?;
+            for (idx, line) in self.lines.iter().enumerate() {
+                let is_last_line = idx == self.lines.len() - 1;
+                let line = escape::escape_html(&line);
+
+                if is_last_line {
+                    write!(f, "{}", line)?;
+                } else {
+                    writeln!(f, "{}", line)?;
+                }
             }
 
-            writeln!(f, "</code>")?;
+            write!(f, "</code>")?;
             writeln!(f, "</pre>")?;
         }
 
@@ -1861,12 +1871,8 @@ mod tests {
         assert_eq!(
             f.get_content(),
             indoc! {"
-                <pre>
-                <code>
-                some lines
-                of code
-                </code>
-                </pre>
+                <pre><code>some lines
+                of code</code></pre>
             "}
         );
     }
@@ -1880,11 +1886,7 @@ mod tests {
         assert_eq!(
             f.get_content(),
             indoc! {"
-                <pre>
-                <code>
-                &lt;test&gt;
-                </code>
-                </pre>
+                <pre><code>&lt;test&gt;</code></pre>
             "}
         );
     }
