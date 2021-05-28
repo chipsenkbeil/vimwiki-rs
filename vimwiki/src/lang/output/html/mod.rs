@@ -590,7 +590,7 @@ impl<'a> Output for CodeBlock<'a> {
             }
 
             for line in self.lines.iter() {
-                writeln!(f, "{}", line)?;
+                writeln!(f, "{}", escape::escape_html(&line))?;
             }
 
             writeln!(f, "</code>")?;
@@ -1865,6 +1865,24 @@ mod tests {
                 <code>
                 some lines
                 of code
+                </code>
+                </pre>
+            "}
+        );
+    }
+
+    #[test]
+    fn code_block_should_escape_output_clientside() {
+        let code = CodeBlock::from_lines(vec!["<test>"]);
+        let mut f = HtmlFormatter::default();
+        code.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            indoc! {"
+                <pre>
+                <code>
+                &lt;test&gt;
                 </code>
                 </pre>
             "}
