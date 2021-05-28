@@ -1,4 +1,5 @@
 pub mod elements;
+pub mod output;
 pub mod parsers;
 
 use derive_more::Display;
@@ -154,30 +155,6 @@ impl_from_language!(Located<Header<'a>>, vimwiki::blocks::headers::header);
 
 // Links
 impl_from_language!(Located<Link<'a>>, vimwiki::blocks::inline::links::link);
-impl_from_language!(
-    Located<DiaryLink<'a>>,
-    vimwiki::blocks::inline::links::diary::diary_link
-);
-impl_from_language!(
-    Located<ExternalFileLink<'a>>,
-    vimwiki::blocks::inline::links::external::external_file_link
-);
-impl_from_language!(
-    Located<RawLink<'a>>,
-    vimwiki::blocks::inline::links::raw::raw_link
-);
-impl_from_language!(
-    Located<TransclusionLink<'a>>,
-    vimwiki::blocks::inline::links::transclusion::transclusion_link
-);
-impl_from_language!(
-    Located<WikiLink<'a>>,
-    vimwiki::blocks::inline::links::wiki::wiki_link
-);
-impl_from_language!(
-    Located<InterWikiLink<'a>>,
-    vimwiki::blocks::inline::links::interwiki::inter_wiki_link
-);
 
 // Lists
 impl_from_language!(Located<List<'a>>, vimwiki::blocks::lists::list);
@@ -209,10 +186,7 @@ impl_from_language!(
 );
 
 // Preformatted Text
-impl_from_language!(
-    Located<PreformattedText<'a>>,
-    vimwiki::blocks::preformatted::preformatted_text
-);
+impl_from_language!(Located<CodeBlock<'a>>, vimwiki::blocks::code::code_block);
 
 // Tables
 impl_from_language!(Located<Table<'a>>, vimwiki::blocks::tables::table);
@@ -333,49 +307,6 @@ mod tests {
         }
 
         #[test]
-        fn parse_to_located_diary_link() {
-            let input = Language::from_vimwiki_str("[[diary:2012-03-05]]");
-            let _result: Located<DiaryLink> =
-                input.parse().expect("Failed to parse");
-        }
-
-        #[test]
-        fn parse_to_located_external_file_link() {
-            let input = Language::from_vimwiki_str("[[file:path/to/file]]");
-            let _result: Located<ExternalFileLink> =
-                input.parse().expect("Failed to parse");
-        }
-
-        #[test]
-        fn parse_to_located_raw_link() {
-            let input = Language::from_vimwiki_str("https://example.com");
-            let _result: Located<RawLink> =
-                input.parse().expect("Failed to parse");
-        }
-
-        #[test]
-        fn parse_to_located_transclusion_link() {
-            let input =
-                Language::from_vimwiki_str("{{https://example.com/img.jpg}}");
-            let _result: Located<TransclusionLink> =
-                input.parse().expect("Failed to parse");
-        }
-
-        #[test]
-        fn parse_to_located_wiki_link() {
-            let input = Language::from_vimwiki_str("[[link]]");
-            let _result: Located<WikiLink> =
-                input.parse().expect("Failed to parse");
-        }
-
-        #[test]
-        fn parse_to_located_inter_wiki_link() {
-            let input = Language::from_vimwiki_str("[[wiki1:link]]");
-            let _result: Located<InterWikiLink> =
-                input.parse().expect("Failed to parse");
-        }
-
-        #[test]
         fn parse_to_located_list() {
             let input = Language::from_vimwiki_str("- some list item");
             let _result: Located<List> =
@@ -411,9 +342,9 @@ mod tests {
         }
 
         #[test]
-        fn parse_to_located_preformatted_text() {
+        fn parse_to_located_code_block() {
             let input = Language::from_vimwiki_str("{{{\nsome code\n}}}");
-            let _result: Located<PreformattedText> =
+            let _result: Located<CodeBlock> =
                 input.parse().expect("Failed to parse");
         }
 

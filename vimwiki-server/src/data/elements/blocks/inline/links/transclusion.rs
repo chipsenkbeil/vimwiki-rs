@@ -1,6 +1,6 @@
 use crate::data::{
     Description, Element, ElementQuery, FromVimwikiElement, GqlPageFilter,
-    GraphqlDatabaseError, Page, PageQuery, Region, Uri,
+    GraphqlDatabaseError, Page, PageQuery, Region, UriRef,
 };
 use entity::*;
 use entity_async_graphql::*;
@@ -17,7 +17,7 @@ pub struct TransclusionLink {
 
     /// The URI representing the link's content to pull in
     #[ent(field(graphql(filter_untyped)))]
-    uri: Uri,
+    uri_ref: UriRef,
 
     /// Optional description associated with the link
     #[ent(field(graphql(filter_untyped)))]
@@ -40,13 +40,13 @@ impl fmt::Display for TransclusionLink {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.description().as_ref() {
             Some(desc) => write!(f, "{}", desc),
-            None => write!(f, "{}", self.uri()),
+            None => write!(f, "{}", self.uri_ref()),
         }
     }
 }
 
 impl<'a> FromVimwikiElement<'a> for TransclusionLink {
-    type Element = Located<v::TransclusionLink<'a>>;
+    type Element = Located<v::Link<'a>>;
 
     fn from_vimwiki_element(
         page_id: Id,
@@ -54,15 +54,17 @@ impl<'a> FromVimwikiElement<'a> for TransclusionLink {
         element: Self::Element,
     ) -> Result<Self, GraphqlDatabaseError> {
         let region = Region::from(element.region());
-        let element = element.into_inner();
+        let link = element.into_inner();
+        let (uri_ref, maybe_description, maybe_properties) =
+            link.into_data().into_parts();
         GraphqlDatabaseError::wrap(
             Self::build()
                 .region(region)
-                .uri(Uri::from(element.uri))
-                .description(element.description.map(Description::from))
+                .uri_ref(UriRef::from(uri_ref))
+                .description(maybe_description.map(Description::from))
                 .properties(
-                    element
-                        .properties
+                    maybe_properties
+                        .unwrap_or_default()
                         .into_iter()
                         .map(|(key, value)| Property {
                             key: key.to_string(),
@@ -101,18 +103,18 @@ mod tests {
     #[test]
     fn should_fully_populate_from_vimwiki_element() {
         global::with_db(InmemoryDatabase::default(), || {
-            let element = vimwiki_transclusion_link!(
+            let link = vimwiki_link!(
                 r#"{{https://example.com/pic.png|Some description|class="some class"}}"#
             );
-            let region = Region::from(element.region());
+            let region = Region::from(link.region());
             let ent =
-                TransclusionLink::from_vimwiki_element(999, Some(123), element)
+                TransclusionLink::from_vimwiki_element(999, Some(123), link)
                     .expect("Failed to convert from element");
 
             assert_eq!(ent.region(), &region);
             assert_eq!(
-                ent.uri(),
-                &"https://example.com/pic.png".parse::<Uri>().unwrap()
+                ent.uri_ref(),
+                &"https://example.com/pic.png".parse::<UriRef>().unwrap()
             );
             assert_eq!(
                 ent.description(),

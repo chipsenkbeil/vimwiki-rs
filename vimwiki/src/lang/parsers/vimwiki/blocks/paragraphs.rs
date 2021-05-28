@@ -1,8 +1,7 @@
 use super::{
-    blockquotes::blockquote, definitions::definition_list, dividers::divider,
-    headers::header, inline::inline_element_container, lists::list,
-    math::math_block, placeholders::placeholder,
-    preformatted::preformatted_text, tables::table,
+    blockquotes::blockquote, code::code_block, definitions::definition_list,
+    dividers::divider, headers::header, inline::inline_element_container,
+    lists::list, math::math_block, placeholders::placeholder, tables::table,
 };
 use crate::lang::{
     elements::{InlineElementContainer, Located, Paragraph},
@@ -30,7 +29,7 @@ pub fn paragraph(input: Span) -> IResult<Located<Paragraph>> {
 
         // Continuously take content until we encounter another type of
         // element
-        let (input, elements) = context(
+        let (input, lines) = context(
             "Paragraph",
             many1(delimited(
                 continue_paragraph,
@@ -40,7 +39,7 @@ pub fn paragraph(input: Span) -> IResult<Located<Paragraph>> {
         )(input)?;
 
         // Transform contents into the paragraph itself
-        let paragraph = Paragraph::new(From::from(elements));
+        let paragraph = Paragraph::new(lines);
 
         Ok((input, paragraph))
     }
@@ -65,7 +64,7 @@ fn continue_paragraph(input: Span) -> IResult<()> {
     let (input, _) = not(definition_list)(input)?;
     let (input, _) = not(list)(input)?;
     let (input, _) = not(table)(input)?;
-    let (input, _) = not(preformatted_text)(input)?;
+    let (input, _) = not(code_block)(input)?;
     let (input, _) = not(math_block)(input)?;
     let (input, _) = not(blank_line)(input)?;
     let (input, _) = not(blockquote)(input)?;
@@ -79,10 +78,11 @@ mod tests {
     use super::*;
     use crate::lang::elements::{
         DecoratedText, DecoratedTextContent, InlineElement, Link, MathInline,
-        Text, WikiLink,
+        Text,
     };
     use indoc::indoc;
-    use std::path::PathBuf;
+    use std::convert::TryFrom;
+    use uriparse::URIReference;
 
     #[test]
     fn paragraph_should_fail_if_on_blank_line() {
@@ -99,7 +99,7 @@ mod tests {
         assert!(input.is_empty(), "Did not consume paragraph");
 
         assert_eq!(
-            p.content
+            p.lines[0]
                 .elements
                 .drain(..)
                 .map(|c| c.into_inner())
@@ -112,9 +112,10 @@ mod tests {
                     )))
                 ])),
                 InlineElement::Text(Text::from(", ")),
-                InlineElement::Link(Link::from(WikiLink::from(PathBuf::from(
-                    "links"
-                )))),
+                InlineElement::Link(Link::new_wiki_link(
+                    URIReference::try_from("links").unwrap(),
+                    None
+                )),
                 InlineElement::Text(Text::from(", ")),
                 InlineElement::Math(MathInline::from("math")),
                 InlineElement::Text(Text::from(", and more")),
@@ -132,7 +133,7 @@ mod tests {
         assert!(input.is_empty(), "Did not consume paragraph");
 
         assert_eq!(
-            p.content
+            p.lines[0]
                 .elements
                 .drain(..)
                 .map(|c| c.into_inner())
@@ -145,9 +146,20 @@ mod tests {
                     )))
                 ])),
                 InlineElement::Text(Text::from(",")),
-                InlineElement::Link(Link::from(WikiLink::from(PathBuf::from(
-                    "links"
-                )))),
+            ],
+        );
+
+        assert_eq!(
+            p.lines[1]
+                .elements
+                .drain(..)
+                .map(|c| c.into_inner())
+                .collect::<Vec<InlineElement>>(),
+            vec![
+                InlineElement::Link(Link::new_wiki_link(
+                    URIReference::try_from("links").unwrap(),
+                    None
+                )),
                 InlineElement::Text(Text::from(", ")),
                 InlineElement::Math(MathInline::from("math")),
                 InlineElement::Text(Text::from(", and more")),
@@ -166,7 +178,7 @@ mod tests {
         assert!(input.is_empty(), "Did not consume paragraph");
 
         assert_eq!(
-            p.content
+            p.lines[0]
                 .elements
                 .drain(..)
                 .map(|c| c.into_inner())
@@ -179,9 +191,20 @@ mod tests {
                     )))
                 ])),
                 InlineElement::Text(Text::from(",")),
-                InlineElement::Link(Link::from(WikiLink::from(PathBuf::from(
-                    "links"
-                )))),
+            ],
+        );
+
+        assert_eq!(
+            p.lines[1]
+                .elements
+                .drain(..)
+                .map(|c| c.into_inner())
+                .collect::<Vec<InlineElement>>(),
+            vec![
+                InlineElement::Link(Link::new_wiki_link(
+                    URIReference::try_from("links").unwrap(),
+                    None
+                )),
                 InlineElement::Text(Text::from(", ")),
                 InlineElement::Math(MathInline::from("math")),
                 InlineElement::Text(Text::from(", and more")),
@@ -205,7 +228,7 @@ mod tests {
         );
 
         assert_eq!(
-            p.content
+            p.lines[0]
                 .elements
                 .drain(..)
                 .map(|c| c.into_inner())
@@ -218,9 +241,20 @@ mod tests {
                     )))
                 ],)),
                 InlineElement::Text(Text::from(",")),
-                InlineElement::Link(Link::from(WikiLink::from(PathBuf::from(
-                    "links"
-                )))),
+            ],
+        );
+
+        assert_eq!(
+            p.lines[1]
+                .elements
+                .drain(..)
+                .map(|c| c.into_inner())
+                .collect::<Vec<InlineElement>>(),
+            vec![
+                InlineElement::Link(Link::new_wiki_link(
+                    URIReference::try_from("links").unwrap(),
+                    None
+                )),
                 InlineElement::Text(Text::from(", ")),
                 InlineElement::Math(MathInline::from("math")),
                 InlineElement::Text(Text::from(", and more")),

@@ -105,15 +105,7 @@ pub type Definition<'a> = DefinitionListValue<'a>;
 /// Represents a list of terms and definitions, where a term can have multiple
 /// definitions associated with it
 #[derive(
-    Constructor,
-    Clone,
-    Debug,
-    Default,
-    Eq,
-    PartialEq,
-    Serialize,
-    Deserialize,
-    IntoIterator,
+    Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize, IntoIterator,
 )]
 pub struct DefinitionList<'a> {
     #[into_iterator(owned, ref, ref_mut)]
@@ -161,6 +153,16 @@ impl DefinitionList<'_> {
 }
 
 impl<'a> DefinitionList<'a> {
+    pub fn new<
+        I: IntoIterator<Item = (Located<Term<'a>>, Vec<Located<Definition<'a>>>)>,
+    >(
+        iter: I,
+    ) -> Self {
+        Self {
+            mapping: iter.into_iter().collect(),
+        }
+    }
+
     /// Retrieves definitions for an specific term
     pub fn get(
         &'a self,

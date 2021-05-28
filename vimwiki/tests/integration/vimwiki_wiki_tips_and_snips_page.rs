@@ -44,7 +44,7 @@ fn test() {
             configuration folder (create this file if it doesn't already exist):
         "#}
             .into(),
-        vimwiki_preformatted_text_raw! {r#"
+        vimwiki_code_block_raw! {r#"
 {{{vim
 let l:vimwiki_fold_blank_lines = 0  " set to 1 to fold blank lines
 let l:vimwiki_header_type = '#'     " set to '=' for wiki syntax
@@ -86,7 +86,7 @@ setlocal foldexpr=Fold(v:lnum)
             tasks which are ready to be performed.
         "#}
             .into(),
-        vimwiki_preformatted_text_raw! {r#"
+        vimwiki_code_block_raw! {r#"
 {{{vim
 function! VimwikiFindIncompleteTasks()
   lvimgrep /- \[ \]/ %:p
@@ -110,7 +110,7 @@ nmap <Leader>wx :call VimwikiFindIncompleteTasks()<CR>
             conjunction with vimwiki. Add the following to your `vimrc`:
         "#}
             .into(),
-        vimwiki_preformatted_text_raw! {r#"
+        vimwiki_code_block_raw! {r#"
 {{{vim
 let g:GPGFilePattern = '*.\(gpg\|asc\|pgp\)\(.wiki\)\='
 }}}
@@ -145,7 +145,7 @@ let g:GPGFilePattern = '*.\(gpg\|asc\|pgp\)\(.wiki\)\='
             other the folder.
         "#}
             .into(),
-        vimwiki_preformatted_text_raw! {r#"
+        vimwiki_code_block_raw! {r#"
 {{{vim
 let g:vimwiki_list = [{'path': '~/mywiki/',
                       \ 'path_html': '~/mywiki_html'}]
@@ -158,7 +158,7 @@ let g:vimwiki_list = [{'path': '~/mywiki/',
             Yes:
         "#}
             .into(),
-        vimwiki_preformatted_text_raw! {r#"
+        vimwiki_code_block_raw! {r#"
 {{{bash
 $ vim -c VimwikiIndex
 }}}
@@ -169,7 +169,7 @@ $ vim -c VimwikiIndex
             with another than your main page. Example:
         "#}
             .into(),
-        vimwiki_preformatted_text_raw! {r#"
+        vimwiki_code_block_raw! {r#"
 {{{bash
 $ alias importantpage='vim vimwiki/importantpage.wiki'
 $ importantpage
@@ -184,7 +184,7 @@ $ importantpage
             `vimwiki git [commands]` from any directory:
         "#}
             .into(),
-        vimwiki_preformatted_text_raw! {r#"
+        vimwiki_code_block_raw! {r#"
 {{{bash
 vimwiki () {
     if [[ $# == 0 ]]
@@ -215,7 +215,7 @@ vimwiki () {
             configuration to you vimrc:
         "#}
             .into(),
-        vimwiki_preformatted_text_raw! {r#"
+        vimwiki_code_block_raw! {r#"
 {{{vim
 let g:vimwiki_list = [{'path': '~/vimwiki/',
                       \ 'syntax': 'markdown', 'ext': '.md'}]
@@ -229,7 +229,7 @@ let g:vimwiki_list = [{'path': '~/vimwiki/',
             configured file-extension as a wiki. To disable this feature add this to your vimrc:
         "#}
             .into(),
-        vimwiki_preformatted_text_raw! {r#"
+        vimwiki_code_block_raw! {r#"
 {{{vim
 let g:vimwiki_global_ext = 0
 }}}

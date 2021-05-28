@@ -10,6 +10,11 @@ that enable parsing, querying, modifying, and generating vimwiki content.
 
 Represents the language definition and parsing support for the vimwiki language.
 
+## [vimwiki-cli](./vimwiki-cli/README.md) [![Latest Version](https://img.shields.io/crates/v/vimwiki-cli.svg)](https://crates.io/crates/vimwiki-cli)
+
+Provides tiny command-line interface on top of the vimwiki parser and HTML
+output functionality of the vimwiki library.
+
 ## [vimwiki_macros](./vimwiki_macros/README.md) [![Latest Version](https://img.shields.io/crates/v/vimwiki_macros.svg)](https://crates.io/crates/vimwiki_macros)
 
 Contains macros to generate vimwiki components in Rust at compile time.
@@ -17,6 +22,11 @@ Contains macros to generate vimwiki components in Rust at compile time.
 ## [vimwiki-server](./vimwiki-server/README.md) [![Latest Version](https://img.shields.io/crates/v/vimwiki-server.svg)](https://crates.io/crates/vimwiki-server)
 
 Provides graphql server to inspect and manipulate vimwiki files.
+
+## [vimwiki-wasm](./vimwiki-wasm/README.md) [![Latest Version](https://img.shields.io/crates/v/vimwiki-wasm.svg)](https://crates.io/crates/vimwiki-wasm)
+
+Provides a Web Assembly (wasm) binding to the vimwiki library, enabling parsing
+of vimwiki text within a browser (or NodeJS) and outputting in HTML.
 
 # Sister Projects
 

@@ -1,6 +1,6 @@
 use crate::data::{
     Element, ElementQuery, FromVimwikiElement, GqlPageFilter,
-    GraphqlDatabaseError, Page, PageQuery, Region, Uri,
+    GraphqlDatabaseError, Page, PageQuery, Region, UriRef,
 };
 use entity::*;
 use entity_async_graphql::*;
@@ -16,7 +16,7 @@ pub struct RawLink {
 
     /// The URI representing the link
     #[ent(field(graphql(filter_untyped)))]
-    uri: Uri,
+    uri_ref: UriRef,
 
     /// Page containing the element
     #[ent(edge)]
@@ -29,12 +29,12 @@ pub struct RawLink {
 
 impl fmt::Display for RawLink {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.uri())
+        write!(f, "{}", self.uri_ref())
     }
 }
 
 impl<'a> FromVimwikiElement<'a> for RawLink {
-    type Element = Located<v::RawLink<'a>>;
+    type Element = Located<v::Link<'a>>;
 
     fn from_vimwiki_element(
         page_id: Id,
@@ -45,7 +45,9 @@ impl<'a> FromVimwikiElement<'a> for RawLink {
         GraphqlDatabaseError::wrap(
             Self::build()
                 .region(region)
-                .uri(Uri::from(element.into_inner().uri))
+                .uri_ref(UriRef::from(
+                    element.into_inner().into_data().into_uri_ref(),
+                ))
                 .page(page_id)
                 .parent(parent_id)
                 .finish_and_commit(),
@@ -62,15 +64,15 @@ mod tests {
     #[test]
     fn should_fully_populate_from_vimwiki_element() {
         global::with_db(InmemoryDatabase::default(), || {
-            let element = vimwiki_raw_link!(r#"https://example.com"#);
-            let region = Region::from(element.region());
-            let ent = RawLink::from_vimwiki_element(999, Some(123), element)
+            let link = vimwiki_link!(r#"https://example.com"#);
+            let region = Region::from(link.region());
+            let ent = RawLink::from_vimwiki_element(999, Some(123), link)
                 .expect("Failed to convert from element");
 
             assert_eq!(ent.region(), &region);
             assert_eq!(
-                ent.uri(),
-                &"https://example.com".parse::<Uri>().unwrap()
+                ent.uri_ref(),
+                &"https://example.com".parse::<UriRef>().unwrap()
             );
             assert_eq!(ent.page_id(), 999);
             assert_eq!(ent.parent_id(), Some(123));

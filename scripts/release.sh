@@ -5,8 +5,10 @@
 # are temporarily removed using cargo-hack
 CRATES=(
   vimwiki
+  vimwiki-cli
   vimwiki_macros
   vimwiki-server
+  vimwiki-wasm
 )
 
 # https://stackoverflow.com/questions/59895/how-can-i-get-the-source-directory-of-a-bash-script-from-within-the-script-itsel

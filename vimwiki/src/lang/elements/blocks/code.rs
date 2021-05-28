@@ -4,24 +4,36 @@ use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, collections::HashMap};
 
 #[derive(Constructor, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct PreformattedText<'a> {
+pub struct CodeBlock<'a> {
     pub lang: Option<Cow<'a, str>>,
     pub metadata: HashMap<Cow<'a, str>, Cow<'a, str>>,
     pub lines: Vec<Cow<'a, str>>,
 }
 
-impl PreformattedText<'_> {
-    pub fn to_borrowed(&self) -> PreformattedText {
+impl<'a> CodeBlock<'a> {
+    /// Constructs a code block with the provided lines using no language or metadata
+    pub fn from_lines<I: IntoIterator<Item = L>, L: Into<Cow<'a, str>>>(
+        iter: I,
+    ) -> Self {
+        Self {
+            lang: None,
+            metadata: HashMap::new(),
+            lines: iter.into_iter().map(Into::into).collect(),
+        }
+    }
+}
+
+impl CodeBlock<'_> {
+    pub fn to_borrowed(&self) -> CodeBlock {
         use self::Cow::*;
 
-        PreformattedText {
-            lang: match self.lang.as_ref() {
-                Some(x) => Some(Cow::Borrowed(match x {
+        CodeBlock {
+            lang: self.lang.as_ref().map(|x| {
+                Cow::Borrowed(match x {
                     Borrowed(x) => *x,
                     Owned(x) => x.as_str(),
-                })),
-                _ => None,
-            },
+                })
+            }),
             metadata: self
                 .metadata
                 .iter()
@@ -51,8 +63,8 @@ impl PreformattedText<'_> {
         }
     }
 
-    pub fn into_owned(self) -> PreformattedText<'static> {
-        PreformattedText {
+    pub fn into_owned(self) -> CodeBlock<'static> {
+        CodeBlock {
             lang: self.lang.map(|x| Cow::from(x.into_owned())),
             metadata: self
                 .metadata
@@ -70,7 +82,7 @@ impl PreformattedText<'_> {
     }
 }
 
-impl<'a> StrictEq for PreformattedText<'a> {
+impl<'a> StrictEq for CodeBlock<'a> {
     /// Same as PartialEq
     fn strict_eq(&self, other: &Self) -> bool {
         self == other

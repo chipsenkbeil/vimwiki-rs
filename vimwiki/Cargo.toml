@@ -11,6 +11,8 @@ readme = "README.md"
 license = "MIT OR Apache-2.0"
 
 [features]
+default = []
+html = ["dirs", "relative-path", "shellexpand", "syntect", "voca_rs"]
 timekeeper = []
 
 [[bench]]
@@ -24,9 +26,27 @@ lazy_static = "1.4"
 memchr = "2.3.3"
 nom = "6.1.2"
 numerals = "0.1.4"
+percent-encoding = "2.1.0"
 serde = { version = "1.0.115", features = ["derive"] }
-# shellexpand = "2.0.0"
 uriparse = { version = "0.6.3", features = ["serde"] }
+
+### HTML-only features ###
+
+# For acquiring the home directory
+dirs = { version = "3.0.2", optional = true }
+
+# For support in calculating relative link urls
+relative-path = { version = "1.4.0", optional = true }
+
+# For translating ~/blah/blah and other paths into complete paths
+shellexpand = { version = "2.1.0", optional = true }
+
+# For server-side rendering of code blocks in HTML
+# NOTE: Using default-fancy so we can compile via webassembly elsewhere
+syntect = { version = "4.5.0", optional = true, default-features = false, features = ["default-fancy"] }
+
+# For safe HTML escaping
+voca_rs = { version = "1.13.0", optional = true }
 
 [dependencies.derive_more]
 version = "0.99.0"
@@ -50,4 +70,4 @@ features = [
 [dev-dependencies]
 criterion = "0.3.3"
 indoc = "1.0.2"
-vimwiki_macros = { version = "0.1.0-alpha.6", path = "../vimwiki_macros" }
+vimwiki_macros = { version = "=0.1.0-alpha.6", path = "../vimwiki_macros" }

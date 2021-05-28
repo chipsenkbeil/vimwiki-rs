@@ -1,5 +1,6 @@
 use super::fixtures::VimwikiFile;
-use vimwiki::*;
+use std::convert::TryFrom;
+use vimwiki::{vendor::uriparse::URIReference, *};
 
 #[test]
 fn test() {
@@ -19,8 +20,8 @@ fn test() {
             Region::new_at_depth(0, 13, 0),
         ),
         Located::new(
-            BlockElement::from(Paragraph::new(InlineElementContainer::new(
-                vec![
+            BlockElement::from(Paragraph::new(vec![
+                InlineElementContainer::new(vec![
                     Located::new(
                         InlineElement::from(Text::from(
                             "Paragraph with text, ",
@@ -86,6 +87,8 @@ fn test() {
                         InlineElement::from(Text::from(",")),
                         Region::new_at_depth(82, 1, 1),
                     ),
+                ]),
+                InlineElementContainer::new(vec![
                     Located::new(
                         InlineElement::from(DecoratedText::Superscript(vec![
                             Located::new(
@@ -117,9 +120,7 @@ fn test() {
                         Region::new_at_depth(112, 6, 1),
                     ),
                     Located::new(
-                        InlineElement::from(Link::from(WikiLink::from(
-                            "links",
-                        ))),
+                        InlineElement::from(Link::new_wiki_link(URIReference::try_from("links").unwrap(), None)),
                         Region::new_at_depth(118, 9, 1),
                     ),
                     Located::new(
@@ -127,7 +128,8 @@ fn test() {
                         Region::new_at_depth(127, 1, 1),
                     ),
                 ],
-            ))),
+            )
+            ])),
             Region::new_at_depth(14, 115, 0),
         ),
         Located::new(

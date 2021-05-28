@@ -1,57 +1,22 @@
-use super::{link_anchor, link_description, link_path};
+use super::link_data;
 use crate::lang::{
-    elements::{Located, WikiLink},
+    elements::{Link, Located},
     parsers::{
         utils::{capture, context, locate, not_contains, surround_in_line1},
-        Error, IResult, Span,
+        IResult, Span,
     },
 };
-use nom::{
-    bytes::complete::tag,
-    combinator::{map_parser, opt},
-    sequence::preceded,
-};
-use std::{borrow::Cow, path::PathBuf};
+use nom::combinator::map_parser;
 
 #[inline]
-pub fn wiki_link(input: Span) -> IResult<Located<WikiLink>> {
-    fn inner(input: Span) -> IResult<WikiLink> {
-        // First, check that the start is not an anchor, then grab all content
-        // leading up to | (for description), # (for start of anchor), or
-        // ]] (for end of link); if it is the start of an anchor, we won't have
-        // a path
-        let (input, maybe_path) = opt(link_path)(input)?;
-
-        // Next, check if there are any anchors
-        let (input, maybe_anchor) = opt(link_anchor)(input)?;
-
-        // Finally, check if there is a description (preceding with |), where
-        // a special case is wrapped in {{...}} as a URL
-        let (input, maybe_description) =
-            opt(preceded(tag("|"), link_description))(input)?;
-
-        match maybe_path {
-            Some(path) => Ok((
-                input,
-                WikiLink::new(path, maybe_description, maybe_anchor),
-            )),
-            None if maybe_anchor.is_some() => Ok((
-                input,
-                WikiLink::new(
-                    Cow::from(PathBuf::new()),
-                    maybe_description,
-                    maybe_anchor,
-                ),
-            )),
-            None => Err(nom::Err::Error(Error::from_ctx(
-                &input,
-                "Missing path and anchor",
-            ))),
-        }
+pub fn wiki_link(input: Span) -> IResult<Located<Link>> {
+    fn inner(input: Span) -> IResult<Link> {
+        let (input, data) = link_data(input)?;
+        Ok((input, Link::Wiki { data }))
     }
 
     context(
-        "WikiLink",
+        "Wiki Link",
         locate(capture(map_parser(
             not_contains("%%", surround_in_line1("[[", "]]")),
             inner,
@@ -63,8 +28,8 @@ pub fn wiki_link(input: Span) -> IResult<Located<WikiLink>> {
 mod tests {
     use super::*;
     use crate::lang::elements::{Anchor, Description};
-    use std::convert::TryFrom;
-    use uriparse::URI;
+    use std::{borrow::Cow, convert::TryFrom};
+    use uriparse::URIReference;
 
     #[test]
     fn wiki_link_should_fail_if_does_not_have_proper_prefix() {
@@ -93,10 +58,9 @@ mod tests {
         // Link should be consumed
         assert!(input.is_empty());
 
-        assert!(link.path.is_relative(), "Not detected as relative");
-        assert_eq!(link.path.to_str().unwrap(), "This is a link");
-        assert_eq!(link.description, None);
-        assert_eq!(link.anchor, None);
+        assert_eq!(link.data().uri_ref().path(), "This%20is%20a%20link");
+        assert_eq!(link.description(), None);
+        assert_eq!(link.to_anchor(), None);
     }
 
     #[test]
@@ -109,13 +73,15 @@ mod tests {
         // Link should be consumed
         assert!(input.is_empty());
 
-        assert!(link.path.is_relative(), "Not detected as relative");
-        assert_eq!(link.path.to_str().unwrap(), "This is a link source");
         assert_eq!(
-            link.description,
-            Some(Description::from("Description of the link"))
+            link.data().uri_ref().path(),
+            "This%20is%20a%20link%20source"
         );
-        assert_eq!(link.anchor, None);
+        assert_eq!(
+            link.description(),
+            Some(&Description::from("Description of the link"))
+        );
+        assert_eq!(link.to_anchor(), None);
     }
 
     #[test]
@@ -129,17 +95,19 @@ mod tests {
         // Link should be consumed
         assert!(input.is_empty());
 
-        assert!(link.path.is_relative(), "Not detected as relative");
-        assert_eq!(link.path.to_str().unwrap(), "This is a link source");
         assert_eq!(
-            link.description,
-            Some(Description::from(
-                URI::try_from("https://example.com/img.jpg")
+            link.data().uri_ref().path(),
+            "This%20is%20a%20link%20source"
+        );
+        assert_eq!(
+            link.description(),
+            Some(&Description::from(
+                URIReference::try_from("https://example.com/img.jpg")
                     .unwrap()
                     .into_owned()
             ))
         );
-        assert_eq!(link.anchor, None);
+        assert_eq!(link.to_anchor(), None);
     }
 
     #[test]
@@ -151,10 +119,12 @@ mod tests {
         // Link should be consumed
         assert!(input.is_empty());
 
-        assert!(link.path.is_relative(), "Not detected as relative");
-        assert_eq!(link.path.to_str().unwrap(), "projects/Important Project 1");
-        assert_eq!(link.description, None);
-        assert_eq!(link.anchor, None);
+        assert_eq!(
+            link.data().uri_ref().path(),
+            "projects/Important%20Project%201"
+        );
+        assert_eq!(link.description(), None);
+        assert_eq!(link.to_anchor(), None);
     }
 
     #[test]
@@ -166,16 +136,13 @@ mod tests {
         // Link should be consumed
         assert!(input.is_empty());
 
-        assert!(link.path.is_relative(), "Not detected as relative");
-        assert_eq!(link.path.to_str().unwrap(), "../index");
-        assert_eq!(link.description, None);
-        assert_eq!(link.anchor, None);
+        assert_eq!(link.data().uri_ref().path(), "../index");
+        assert_eq!(link.description(), None);
+        assert_eq!(link.to_anchor(), None);
     }
 
     #[test]
-    #[cfg_attr(target_os = "windows", ignore)]
     fn wiki_link_should_support_absolute_source_for_wiki_root() {
-        // NOTE: This is not an absolute path on windows
         let input = Span::from("[[/index]]");
         let (input, link) =
             wiki_link(input).expect("Parser unexpectedly failed");
@@ -183,10 +150,9 @@ mod tests {
         // Link should be consumed
         assert!(input.is_empty());
 
-        assert!(link.path.is_absolute(), "Not detected as absolute");
-        assert_eq!(link.path.to_str().unwrap(), "/index");
-        assert_eq!(link.description, None);
-        assert_eq!(link.anchor, None);
+        assert_eq!(link.data().uri_ref().path(), "/index");
+        assert_eq!(link.description(), None);
+        assert_eq!(link.to_anchor(), None);
     }
 
     #[test]
@@ -198,10 +164,10 @@ mod tests {
         // Link should be consumed
         assert!(input.is_empty());
 
-        assert!(link.is_path_dir(), "Not detected as subdirectory");
-        assert_eq!(link.path.to_str().unwrap(), "a subdirectory/");
-        assert_eq!(link.description, Some(Description::from("Other files")));
-        assert_eq!(link.anchor, None);
+        assert!(link.data().is_path_dir(), "Not detected as subdirectory");
+        assert_eq!(link.data().uri_ref().path(), "a%20subdirectory/");
+        assert_eq!(link.description(), Some(&Description::from("Other files")));
+        assert_eq!(link.to_anchor(), None);
     }
 
     #[test]
@@ -213,9 +179,9 @@ mod tests {
         // Link should be consumed
         assert!(input.is_empty());
 
-        assert_eq!(link.path.to_str().unwrap(), "Todo List");
-        assert_eq!(link.description, None);
-        assert_eq!(link.anchor, Some(Anchor::from("Tomorrow")));
+        assert_eq!(link.data().uri_ref().path(), "Todo%20List");
+        assert_eq!(link.description(), None);
+        assert_eq!(link.to_anchor(), Some(Anchor::from("Tomorrow")));
     }
 
     #[test]
@@ -227,10 +193,10 @@ mod tests {
         // Link should be consumed
         assert!(input.is_empty());
 
-        assert_eq!(link.path.to_str().unwrap(), "Todo List");
-        assert_eq!(link.description, None);
+        assert_eq!(link.data().uri_ref().path(), "Todo%20List");
+        assert_eq!(link.description(), None);
         assert_eq!(
-            link.anchor,
+            link.to_anchor(),
             Some(Anchor::new(vec![Cow::from("Tomorrow"), Cow::from("Later")]))
         );
     }
@@ -244,12 +210,12 @@ mod tests {
         // Link should be consumed
         assert!(input.is_empty());
 
-        assert_eq!(link.path.to_str().unwrap(), "Todo List");
+        assert_eq!(link.data().uri_ref().path(), "Todo%20List");
         assert_eq!(
-            link.description,
-            Some(Description::from("Tasks for tomorrow"))
+            link.description(),
+            Some(&Description::from("Tasks for tomorrow"))
         );
-        assert_eq!(link.anchor, Some(Anchor::from("Tomorrow")));
+        assert_eq!(link.to_anchor(), Some(Anchor::from("Tomorrow")));
     }
 
     #[test]
@@ -262,13 +228,13 @@ mod tests {
         // Link should be consumed
         assert!(input.is_empty());
 
-        assert_eq!(link.path.to_str().unwrap(), "Todo List");
+        assert_eq!(link.data().uri_ref().path(), "Todo%20List");
         assert_eq!(
-            link.description,
-            Some(Description::from("Tasks for tomorrow"))
+            link.description(),
+            Some(&Description::from("Tasks for tomorrow"))
         );
         assert_eq!(
-            link.anchor,
+            link.to_anchor(),
             Some(Anchor::new(vec![Cow::from("Tomorrow"), Cow::from("Later")]))
         );
     }
@@ -282,9 +248,8 @@ mod tests {
         // Link should be consumed
         assert!(input.is_empty());
 
-        assert!(link.is_local_anchor(), "Not detected as local anchor");
-        assert_eq!(link.path.to_str().unwrap(), "");
-        assert_eq!(link.description, None,);
-        assert_eq!(link.anchor, Some(Anchor::from("Tomorrow")));
+        assert_eq!(link.data().uri_ref().path(), "");
+        assert_eq!(link.description(), None);
+        assert_eq!(link.to_anchor(), Some(Anchor::from("Tomorrow")));
     }
 }

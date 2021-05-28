@@ -22,16 +22,18 @@ fn hygiene_passes_for_vimwiki() {
     let _ = vimwiki_divider!("----");
     let _ = vimwiki_header!("= header =");
     let _ = vimwiki_link!("[[link]]");
-    let _ = vimwiki_diary_link!("[[diary:2012-03-05]]");
-    let _ = vimwiki_external_file_link!("[[file:path/to/file]]");
-    let _ = vimwiki_raw_link!("https://example.com");
-    let _ = vimwiki_transclusion_link!("{{https://example.com/img.jpg}}");
+    let _ = vimwiki_link!("[[diary:2012-03-05]]");
+    let _ = vimwiki_link!("[[file:path/to/file]]");
+    let _ = vimwiki_link!("[[wiki1:Some link]]");
+    let _ = vimwiki_link!("[[wn.MyWiki:Some link]]");
+    let _ = vimwiki_link!("https://example.com");
+    let _ = vimwiki_link!("{{https://example.com/img.jpg}}");
     let _ = vimwiki_placeholder!("%date 2012-03-05");
     let _ = vimwiki_placeholder!("%nohtml");
     let _ = vimwiki_placeholder!("%other some text");
     let _ = vimwiki_placeholder!("%template my_template");
     let _ = vimwiki_placeholder!("%title some text");
-    let _ = vimwiki_preformatted_text! {r#"
+    let _ = vimwiki_code_block! {r#"
         {{{
         some code
         }}}

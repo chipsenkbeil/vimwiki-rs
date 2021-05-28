@@ -11,6 +11,18 @@ pub struct MathBlock<'a> {
     pub environment: Option<Cow<'a, str>>,
 }
 
+impl<'a> MathBlock<'a> {
+    /// Constructs a math block with the provided lines using no environment
+    pub fn from_lines<I: IntoIterator<Item = L>, L: Into<Cow<'a, str>>>(
+        iter: I,
+    ) -> Self {
+        Self {
+            lines: iter.into_iter().map(Into::into).collect(),
+            environment: None,
+        }
+    }
+}
+
 impl MathBlock<'_> {
     pub fn to_borrowed(&self) -> MathBlock {
         use self::Cow::*;

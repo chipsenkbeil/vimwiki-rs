@@ -6,21 +6,21 @@ use vimwiki::{
     self as v,
     vendor::{
         chrono::{self, NaiveDate},
-        uriparse::{self, URI},
+        uriparse::{self, URIReference},
     },
 };
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Description {
     Text(String),
-    Uri(Uri),
+    UriRef(UriRef),
 }
 
 impl fmt::Display for Description {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Text(ref x) => write!(f, "{}", x),
-            Self::Uri(ref x) => write!(f, "{}", x.to_string()),
+            Self::UriRef(ref x) => write!(f, "{}", x.to_string()),
         }
     }
 }
@@ -29,7 +29,9 @@ impl<'a> From<v::Description<'a>> for Description {
     fn from(d: v::Description<'a>) -> Self {
         match d {
             v::Description::Text(x) => Self::Text(x.to_string()),
-            v::Description::Uri(x) => Self::Uri(Uri::from(x)),
+            v::Description::TransclusionLink(x) => {
+                Self::UriRef(UriRef::from(x.into_uri_ref()))
+            }
         }
     }
 }
@@ -38,13 +40,13 @@ impl ValueLike for Description {
     fn into_value(self) -> Value {
         match self {
             Self::Text(x) => Value::Text(x),
-            Self::Uri(x) => x.into_value(),
+            Self::UriRef(x) => x.into_value(),
         }
     }
 
     fn try_from_value(value: Value) -> Result<Self, Value> {
-        Uri::try_from_value(value)
-            .map(Description::Uri)
+        UriRef::try_from_value(value)
+            .map(Description::UriRef)
             .or_else(|value| match value {
                 Value::Text(x) => Ok(Self::Text(x)),
                 x => Err(x),
@@ -55,24 +57,16 @@ impl ValueLike for Description {
 /// Represents the description of a link
 #[async_graphql::Object]
 impl Description {
-    /// Represents the content of the description if it is text
-    async fn text(&self) -> Option<&String> {
-        match self {
-            Self::Text(ref x) => Some(x),
-            _ => None,
-        }
-    }
-
     /// Represents the content of the description if it is a URI
-    async fn uri(&self) -> Option<&Uri> {
+    async fn uri_ref(&self) -> Option<&UriRef> {
         match self {
-            Self::Uri(ref x) => Some(x),
+            Self::UriRef(ref x) => Some(x),
             _ => None,
         }
     }
 
-    /// Represents the content of the description
-    async fn content(&self) -> String {
+    /// Represents the content of the description as text
+    async fn text(&self) -> String {
         self.to_string()
     }
 }
@@ -115,7 +109,7 @@ impl fmt::Display for Anchor {
 impl<'a> From<v::Anchor<'a>> for Anchor {
     fn from(a: v::Anchor<'a>) -> Self {
         Self {
-            elements: a.elements.iter().map(ToString::to_string).collect(),
+            elements: a.iter().map(ToString::to_string).collect(),
         }
     }
 }
@@ -153,23 +147,23 @@ impl ValueLike for Date {
 async_graphql::scalar!(Date);
 
 #[derive(Constructor, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Uri(URI<'static>);
+pub struct UriRef(URIReference<'static>);
 
-impl fmt::Display for Uri {
+impl fmt::Display for UriRef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0.to_string())
     }
 }
 
-impl FromStr for Uri {
-    type Err = uriparse::URIError;
+impl FromStr for UriRef {
+    type Err = uriparse::URIReferenceError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        URI::try_from(s).map(|x| Uri(x.into_owned()))
+        URIReference::try_from(s).map(|x| UriRef(x.into_owned()))
     }
 }
 
-impl ValueLike for Uri {
+impl ValueLike for UriRef {
     fn into_value(self) -> Value {
         Value::Text(self.to_string())
     }
@@ -182,33 +176,33 @@ impl ValueLike for Uri {
     }
 }
 
-impl<'a> From<URI<'a>> for Uri {
-    fn from(uri: URI<'a>) -> Self {
-        Self(uri.into_owned())
+impl<'a> From<URIReference<'a>> for UriRef {
+    fn from(uri_ref: URIReference<'a>) -> Self {
+        Self(uri_ref.into_owned())
     }
 }
 
-/// Represents a traditional URI
+/// Represents a traditional URI (or relative reference)
 #[async_graphql::Object]
-impl Uri {
+impl UriRef {
     /// The authority portion of the URI, if it exists
     async fn authority(&self) -> Option<String> {
-        self.0.authority().map(|x| x.to_string())
+        self.0.authority().map(ToString::to_string)
     }
 
     /// The fragment portion of the URI, if it exists
     async fn fragment(&self) -> Option<String> {
-        self.0.fragment().map(|x| x.to_string())
+        self.0.fragment().map(ToString::to_string)
     }
 
     /// The host portion of the URI, if it exists
     async fn host(&self) -> Option<String> {
-        self.0.host().map(|x| x.to_string())
+        self.0.host().map(ToString::to_string)
     }
 
     /// The password portion of the URI, if it exists
     async fn password(&self) -> Option<String> {
-        self.0.password().map(|x| x.to_string())
+        self.0.password().map(ToString::to_string)
     }
 
     /// The path of the URI
@@ -217,26 +211,26 @@ impl Uri {
     }
 
     /// The port portion of the URI, if it exists
-    async fn port(&self) -> Option<i32> {
-        self.0.port().map(|x| x as i32)
+    async fn port(&self) -> Option<u16> {
+        self.0.port()
     }
 
     /// The query portion of the URI, if it exists
     async fn query(&self) -> Option<String> {
-        self.0.query().map(|x| x.to_string())
+        self.0.query().map(ToString::to_string)
     }
 
     /// The scheme of the URI
-    async fn scheme(&self) -> String {
-        self.0.scheme().to_string()
+    async fn scheme(&self) -> Option<String> {
+        self.0.scheme().map(ToString::to_string)
     }
 
     /// The username portion of the URI, if it exists
     async fn username(&self) -> Option<String> {
-        self.0.username().map(|x| x.to_string())
+        self.0.username().map(ToString::to_string)
     }
 
-    /// The entire URI
+    /// The entire URI as a textual representation
     async fn text(&self) -> String {
         self.0.to_string()
     }

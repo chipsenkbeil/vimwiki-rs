@@ -66,13 +66,25 @@ impl<'a> From<Tag<'a>> for Tags<'a> {
 
 impl From<String> for Tags<'static> {
     fn from(s: String) -> Self {
-        Self::from(Tag::from(s))
+        Self::from(vec![s])
     }
 }
 
 impl<'a> From<&'a str> for Tags<'a> {
     fn from(s: &'a str) -> Self {
-        Self::from(Tag::from(s))
+        Self::from(vec![s])
+    }
+}
+
+impl From<Vec<String>> for Tags<'static> {
+    fn from(list: Vec<String>) -> Self {
+        Self::new(list.into_iter().map(Tag::from).collect())
+    }
+}
+
+impl<'a> From<Vec<&'a str>> for Tags<'a> {
+    fn from(list: Vec<&'a str>) -> Self {
+        Self::new(list.into_iter().map(Tag::from).collect())
     }
 }
 
@@ -117,6 +129,12 @@ impl Tag<'_> {
         let inner = Cow::from(self.0.into_owned());
 
         Tag(inner)
+    }
+}
+
+impl<'a> Tag<'a> {
+    pub fn as_str(&self) -> &str {
+        self.0.as_ref()
     }
 }
 

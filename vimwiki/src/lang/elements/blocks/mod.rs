@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 
 mod blockquotes;
 pub use blockquotes::*;
+mod code;
+pub use code::*;
 mod definitions;
 pub use definitions::*;
 mod dividers;
@@ -23,8 +25,6 @@ mod paragraphs;
 pub use paragraphs::*;
 mod placeholders;
 pub use placeholders::*;
-mod preformatted;
-pub use preformatted::*;
 mod tables;
 pub use tables::*;
 
@@ -32,6 +32,7 @@ pub use tables::*;
 #[derive(Clone, Debug, From, Eq, PartialEq, Serialize, Deserialize)]
 pub enum BlockElement<'a> {
     Blockquote(Blockquote<'a>),
+    CodeBlock(CodeBlock<'a>),
     DefinitionList(DefinitionList<'a>),
     Divider(Divider),
     Header(Header<'a>),
@@ -39,7 +40,6 @@ pub enum BlockElement<'a> {
     Math(MathBlock<'a>),
     Paragraph(Paragraph<'a>),
     Placeholder(Placeholder<'a>),
-    PreformattedText(PreformattedText<'a>),
     Table(Table<'a>),
 }
 
@@ -47,6 +47,7 @@ impl BlockElement<'_> {
     pub fn to_borrowed(&self) -> BlockElement {
         match self {
             Self::Blockquote(x) => BlockElement::from(x.to_borrowed()),
+            Self::CodeBlock(x) => BlockElement::from(x.to_borrowed()),
             Self::DefinitionList(x) => BlockElement::from(x.to_borrowed()),
             Self::Divider(x) => BlockElement::from(*x),
             Self::Header(x) => BlockElement::from(x.to_borrowed()),
@@ -54,7 +55,6 @@ impl BlockElement<'_> {
             Self::Math(x) => BlockElement::from(x.to_borrowed()),
             Self::Paragraph(x) => BlockElement::from(x.to_borrowed()),
             Self::Placeholder(x) => BlockElement::from(x.to_borrowed()),
-            Self::PreformattedText(x) => BlockElement::from(x.to_borrowed()),
             Self::Table(x) => BlockElement::from(x.to_borrowed()),
         }
     }
@@ -62,6 +62,7 @@ impl BlockElement<'_> {
     pub fn into_owned(self) -> BlockElement<'static> {
         match self {
             Self::Blockquote(x) => BlockElement::Blockquote(x.into_owned()),
+            Self::CodeBlock(x) => BlockElement::CodeBlock(x.into_owned()),
             Self::DefinitionList(x) => {
                 BlockElement::DefinitionList(x.into_owned())
             }
@@ -71,9 +72,6 @@ impl BlockElement<'_> {
             Self::Math(x) => BlockElement::Math(x.into_owned()),
             Self::Paragraph(x) => BlockElement::Paragraph(x.into_owned()),
             Self::Placeholder(x) => BlockElement::Placeholder(x.into_owned()),
-            Self::PreformattedText(x) => {
-                BlockElement::PreformattedText(x.into_owned())
-            }
             Self::Table(x) => BlockElement::Table(x.into_owned()),
         }
     }
@@ -119,6 +117,7 @@ impl<'a> StrictEq for BlockElement<'a> {
     fn strict_eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Blockquote(x), Self::Blockquote(y)) => x.strict_eq(y),
+            (Self::CodeBlock(x), Self::CodeBlock(y)) => x.strict_eq(y),
             (Self::DefinitionList(x), Self::DefinitionList(y)) => {
                 x.strict_eq(y)
             }
@@ -128,9 +127,6 @@ impl<'a> StrictEq for BlockElement<'a> {
             (Self::Math(x), Self::Math(y)) => x.strict_eq(y),
             (Self::Paragraph(x), Self::Paragraph(y)) => x.strict_eq(y),
             (Self::Placeholder(x), Self::Placeholder(y)) => x.strict_eq(y),
-            (Self::PreformattedText(x), Self::PreformattedText(y)) => {
-                x.strict_eq(y)
-            }
             (Self::Table(x), Self::Table(y)) => x.strict_eq(y),
             _ => false,
         }
@@ -152,7 +148,7 @@ le_mapping!(Paragraph<'a>);
 le_mapping!(DefinitionList<'a>);
 le_mapping!(List<'a>);
 le_mapping!(Table<'a>);
-le_mapping!(PreformattedText<'a>);
+le_mapping!(CodeBlock<'a>);
 le_mapping!(MathBlock<'a>);
 le_mapping!(Blockquote<'a>);
 le_mapping!(Divider);

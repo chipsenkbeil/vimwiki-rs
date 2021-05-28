@@ -59,11 +59,12 @@ mod tests {
         elements::{
             CodeInline, DecoratedText, DecoratedTextContent, InlineElement,
             Keyword, LineComment, Link, MathInline, MultiLineComment, Tags,
-            Text, WikiLink,
+            Text,
         },
         parsers::Span,
     };
-    use std::path::PathBuf;
+    use std::convert::TryFrom;
+    use uriparse::URIReference;
 
     #[test]
     fn inline_element_container_should_prioritize_comments_over_bold_text() {
@@ -258,9 +259,10 @@ mod tests {
                     )))
                 ],)),
                 InlineElement::Text(Text::from(" has a ")),
-                InlineElement::Link(Link::from(WikiLink::from(PathBuf::from(
-                    "link"
-                )))),
+                InlineElement::Link(Link::new_wiki_link(
+                    URIReference::try_from("link").unwrap(),
+                    None
+                )),
                 InlineElement::Text(Text::from(" with ")),
                 InlineElement::Code(CodeInline::from("code")),
                 InlineElement::Text(Text::from(" and ")),

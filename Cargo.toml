@@ -1,8 +1,10 @@
 [workspace]
 members = [
     "vimwiki",
+    "vimwiki-cli",
     "vimwiki_macros",
     "vimwiki-server",
+    "vimwiki-wasm",
 ]
 
 [profile.release]

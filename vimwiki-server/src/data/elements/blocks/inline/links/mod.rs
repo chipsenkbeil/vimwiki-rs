@@ -19,9 +19,6 @@ pub use diary::*;
 mod raw;
 pub use raw::*;
 
-mod external;
-pub use external::*;
-
 mod transclusion;
 pub use transclusion::*;
 
@@ -33,7 +30,6 @@ pub enum Link {
     NamedInterWiki(NamedInterWikiLink),
     Diary(DiaryLink),
     Raw(RawLink),
-    ExternalFile(ExternalFileLink),
     Transclusion(TransclusionLink),
 }
 
@@ -45,7 +41,6 @@ impl Link {
             Self::NamedInterWiki(x) => x.page_id(),
             Self::Diary(x) => x.page_id(),
             Self::Raw(x) => x.page_id(),
-            Self::ExternalFile(x) => x.page_id(),
             Self::Transclusion(x) => x.page_id(),
         }
     }
@@ -57,7 +52,6 @@ impl Link {
             Self::NamedInterWiki(x) => x.parent_id(),
             Self::Diary(x) => x.parent_id(),
             Self::Raw(x) => x.parent_id(),
-            Self::ExternalFile(x) => x.parent_id(),
             Self::Transclusion(x) => x.parent_id(),
         }
     }
@@ -71,51 +65,29 @@ impl<'a> FromVimwikiElement<'a> for Link {
         parent_id: Option<Id>,
         element: Self::Element,
     ) -> Result<Self, GraphqlDatabaseError> {
-        let region = element.region();
-        Ok(match element.into_inner() {
-            v::Link::Wiki(x) => Self::Wiki(WikiLink::from_vimwiki_element(
-                page_id,
-                parent_id,
-                Located::new(x, region),
+        Ok(match element.as_inner() {
+            v::Link::Wiki { .. } => Self::Wiki(WikiLink::from_vimwiki_element(
+                page_id, parent_id, element,
             )?),
-            v::Link::InterWiki(v::InterWikiLink::Indexed(x)) => {
-                Self::IndexedInterWiki(
-                    IndexedInterWikiLink::from_vimwiki_element(
-                        page_id,
-                        parent_id,
-                        Located::new(x, region),
-                    )?,
-                )
-            }
-            v::Link::InterWiki(v::InterWikiLink::Named(x)) => {
+            v::Link::IndexedInterWiki { .. } => Self::IndexedInterWiki(
+                IndexedInterWikiLink::from_vimwiki_element(
+                    page_id, parent_id, element,
+                )?,
+            ),
+            v::Link::NamedInterWiki { .. } => {
                 Self::NamedInterWiki(NamedInterWikiLink::from_vimwiki_element(
-                    page_id,
-                    parent_id,
-                    Located::new(x, region),
+                    page_id, parent_id, element,
                 )?)
             }
-            v::Link::Diary(x) => Self::Diary(DiaryLink::from_vimwiki_element(
-                page_id,
-                parent_id,
-                Located::new(x, region),
+            v::Link::Diary { .. } => Self::Diary(
+                DiaryLink::from_vimwiki_element(page_id, parent_id, element)?,
+            ),
+            v::Link::Raw { .. } => Self::Raw(RawLink::from_vimwiki_element(
+                page_id, parent_id, element,
             )?),
-            v::Link::Raw(x) => Self::Raw(RawLink::from_vimwiki_element(
-                page_id,
-                parent_id,
-                Located::new(x, region),
-            )?),
-            v::Link::ExternalFile(x) => {
-                Self::ExternalFile(ExternalFileLink::from_vimwiki_element(
-                    page_id,
-                    parent_id,
-                    Located::new(x, region),
-                )?)
-            }
-            v::Link::Transclusion(x) => {
+            v::Link::Transclusion { .. } => {
                 Self::Transclusion(TransclusionLink::from_vimwiki_element(
-                    page_id,
-                    parent_id,
-                    Located::new(x, region),
+                    page_id, parent_id, element,
                 )?)
             }
         })

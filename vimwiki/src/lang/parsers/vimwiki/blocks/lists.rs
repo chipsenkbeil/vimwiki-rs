@@ -339,10 +339,11 @@ mod tests {
     use super::*;
     use crate::lang::elements::{
         DecoratedText, DecoratedTextContent, InlineElement, Keyword, Link,
-        MathInline, Tags, Text, WikiLink,
+        MathInline, Tags, Text,
     };
     use indoc::indoc;
-    use std::path::PathBuf;
+    use std::convert::TryFrom;
+    use uriparse::URIReference;
 
     fn check_single_line_list_item(
         l: &List,
@@ -564,9 +565,10 @@ mod tests {
                     )))
                 ])),
                 &InlineElement::Text(Text::from(" has a ")),
-                &InlineElement::Link(Link::from(WikiLink::from(
-                    PathBuf::from("link")
-                ))),
+                &InlineElement::Link(Link::new_wiki_link(
+                    URIReference::try_from("link").unwrap(),
+                    None
+                )),
                 &InlineElement::Text(Text::from(" with ")),
                 &InlineElement::Tags(Tags::from("tag")),
                 &InlineElement::Text(Text::from(" and ")),

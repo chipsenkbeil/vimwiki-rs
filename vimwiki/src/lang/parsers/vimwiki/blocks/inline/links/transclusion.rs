@@ -1,89 +1,46 @@
+use super::link_data;
 use crate::lang::{
-    elements::{Description, Located, TransclusionLink},
+    elements::{Link, Located},
     parsers::{
-        utils::{
-            capture, context, cow_str, locate, take_line_until,
-            take_line_until1, take_line_until_one_of_two,
-            take_line_until_one_of_two1, uri,
-        },
+        utils::{capture, context, locate, not_contains, surround_in_line1},
         IResult, Span,
     },
 };
-use nom::{
-    bytes::complete::tag,
-    combinator::{map, map_parser, opt},
-    multi::separated_list1,
-    sequence::{delimited, preceded, separated_pair},
-};
-use std::{borrow::Cow, collections::HashMap};
+use nom::combinator::map_parser;
 
-pub fn transclusion_link(input: Span) -> IResult<Located<TransclusionLink>> {
-    fn inner(input: Span) -> IResult<TransclusionLink> {
-        let (input, _) = tag("{{")(input)?;
-        let (input, link_uri) =
-            map_parser(take_line_until_one_of_two1("|", "}}"), uri)(input)?;
-        let (input, maybe_description) = opt(map(
-            map_parser(
-                preceded(tag("|"), take_line_until_one_of_two("|", "}}")),
-                cow_str,
-            ),
-            Description::from,
-        ))(input)?;
-        let (input, maybe_properties) =
-            opt(preceded(tag("|"), transclusion_properties))(input)?;
-        let (input, _) = tag("}}")(input)?;
-
-        Ok((
-            input,
-            TransclusionLink::new(
-                link_uri,
-                maybe_description,
-                maybe_properties.unwrap_or_default(),
-            ),
-        ))
+pub fn transclusion_link(input: Span) -> IResult<Located<Link>> {
+    fn inner(input: Span) -> IResult<Link> {
+        let (input, data) = link_data(input)?;
+        Ok((input, Link::Transclusion { data }))
     }
 
-    context("Transclusion Link", locate(capture(inner)))(input)
-}
-
-/// Parser for property pairs separated by | in the form of
-///
-/// key1="value1"|key2="value2"|...
-fn transclusion_properties<'a>(
-    input: Span<'a>,
-) -> IResult<HashMap<Cow<'a, str>, Cow<'a, str>>> {
-    map(
-        separated_list1(
-            tag("|"),
-            map_parser(
-                take_line_until_one_of_two1("|", "}}"),
-                separated_pair(
-                    map_parser(take_line_until1("="), cow_str),
-                    tag("="),
-                    map_parser(
-                        delimited(tag("\""), take_line_until("\""), tag("\"")),
-                        cow_str,
-                    ),
-                ),
-            ),
-        ),
-        |mut pairs| pairs.drain(..).collect(),
+    context(
+        "Transclusion Link",
+        locate(capture(map_parser(
+            not_contains("%%", surround_in_line1("{{", "}}")),
+            inner,
+        ))),
     )(input)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Description;
+    use std::borrow::Cow;
 
     #[test]
     fn transclusion_link_should_support_local_relative_uri() {
         let input = Span::from("{{file:../../images/vimwiki_logo.png}}");
         let (input, link) = transclusion_link(input).unwrap();
         assert!(input.is_empty(), "Did not consume link");
-        assert_eq!(link.uri.scheme().as_str(), "file");
-        assert_eq!(link.uri.path(), "../../images/vimwiki_logo.png");
-        assert_eq!(link.description, None);
-        assert!(link.properties.is_empty(), "Unexpectedly found property");
+        assert_eq!(link.scheme().unwrap(), "file");
+        assert_eq!(
+            link.data().uri_ref().path(),
+            "../../images/vimwiki_logo.png"
+        );
+        assert_eq!(link.description(), None);
+        assert!(link.properties().is_none(), "Unexpectedly found property");
     }
 
     #[test]
@@ -91,10 +48,13 @@ mod tests {
         let input = Span::from("{{file:/some/path/images/vimwiki_logo.png}}");
         let (input, link) = transclusion_link(input).unwrap();
         assert!(input.is_empty(), "Did not consume link");
-        assert_eq!(link.uri.scheme().as_str(), "file");
-        assert_eq!(link.uri.path(), "/some/path/images/vimwiki_logo.png");
-        assert_eq!(link.description, None);
-        assert!(link.properties.is_empty(), "Unexpectedly found property");
+        assert_eq!(link.scheme().unwrap(), "file");
+        assert_eq!(
+            link.data().uri_ref().path(),
+            "/some/path/images/vimwiki_logo.png"
+        );
+        assert_eq!(link.description(), None);
+        assert!(link.properties().is_none(), "Unexpectedly found property");
     }
 
     #[test]
@@ -104,14 +64,14 @@ mod tests {
         );
         let (input, link) = transclusion_link(input).unwrap();
         assert!(input.is_empty(), "Did not consume link");
-        assert_eq!(link.uri.scheme().as_str(), "http");
+        assert_eq!(link.scheme().unwrap(), "http");
         assert_eq!(
-            link.uri.host().unwrap().to_string(),
+            link.data().uri_ref().host().unwrap().to_string(),
             "vimwiki.googlecode.com"
         );
-        assert_eq!(link.uri.path(), "/hg/images/vimwiki_logo.png");
-        assert_eq!(link.description, None);
-        assert!(link.properties.is_empty(), "Unexpectedly found property");
+        assert_eq!(link.data().uri_ref().path(), "/hg/images/vimwiki_logo.png");
+        assert_eq!(link.description(), None);
+        assert!(link.properties().is_none(), "Unexpectedly found property");
     }
 
     #[test]
@@ -124,14 +84,14 @@ mod tests {
         let input = Span::from("{{http://vimwiki.googlecode.com/hg/images/vimwiki_logo.png|Vimwiki}}");
         let (input, link) = transclusion_link(input).unwrap();
         assert!(input.is_empty(), "Did not consume link");
-        assert_eq!(link.uri.scheme().as_str(), "http");
+        assert_eq!(link.scheme().unwrap(), "http");
         assert_eq!(
-            link.uri.host().unwrap().to_string(),
+            link.data().uri_ref().host().unwrap().to_string(),
             "vimwiki.googlecode.com"
         );
-        assert_eq!(link.uri.path(), "/hg/images/vimwiki_logo.png");
-        assert_eq!(link.description, Some(Description::from("Vimwiki")));
-        assert!(link.properties.is_empty(), "Unexpectedly found property");
+        assert_eq!(link.data().uri_ref().path(), "/hg/images/vimwiki_logo.png");
+        assert_eq!(link.description(), Some(&Description::from("Vimwiki")));
+        assert!(link.properties().is_none(), "Unexpectedly found property");
     }
 
     #[test]
@@ -144,18 +104,23 @@ mod tests {
         let input = Span::from("{{http://vimwiki.googlecode.com/vimwiki_logo.png|cool stuff|style=\"width:150px;height:120px;\"}}");
         let (input, link) = transclusion_link(input).unwrap();
         assert!(input.is_empty(), "Did not consume link");
-        assert_eq!(link.uri.scheme().as_str(), "http");
+        assert_eq!(link.scheme().unwrap(), "http");
         assert_eq!(
-            link.uri.host().unwrap().to_string(),
+            link.data().uri_ref().host().unwrap().to_string(),
             "vimwiki.googlecode.com"
         );
-        assert_eq!(link.uri.path(), "/vimwiki_logo.png");
-        assert_eq!(link.description, Some(Description::from("cool stuff")));
+        assert_eq!(link.data().uri_ref().path(), "/vimwiki_logo.png");
+        assert_eq!(link.description(), Some(&Description::from("cool stuff")));
         assert_eq!(
-            link.properties,
-            vec![(Cow::from("style"), Cow::from("width:150px;height:120px;"))]
+            link.properties(),
+            Some(
+                &vec![(
+                    Cow::from("style"),
+                    Cow::from("width:150px;height:120px;")
+                )]
                 .drain(..)
                 .collect()
+            )
         );
     }
 
@@ -171,18 +136,20 @@ mod tests {
         );
         let (input, link) = transclusion_link(input).unwrap();
         assert!(input.is_empty(), "Did not consume link");
-        assert_eq!(link.uri.scheme().as_str(), "http");
+        assert_eq!(link.scheme().unwrap(), "http");
         assert_eq!(
-            link.uri.host().unwrap().to_string(),
+            link.data().uri_ref().host().unwrap().to_string(),
             "vimwiki.googlecode.com"
         );
-        assert_eq!(link.uri.path(), "/vimwiki_logo.png");
-        assert_eq!(link.description, Some(Description::from("")));
+        assert_eq!(link.data().uri_ref().path(), "/vimwiki_logo.png");
+        assert_eq!(link.description(), Some(&Description::from("")));
         assert_eq!(
-            link.properties,
-            vec![(Cow::from("class"), Cow::from("center flow blabla"))]
-                .drain(..)
-                .collect()
+            link.properties(),
+            Some(
+                &vec![(Cow::from("class"), Cow::from("center flow blabla"))]
+                    .drain(..)
+                    .collect()
+            )
         );
     }
 }

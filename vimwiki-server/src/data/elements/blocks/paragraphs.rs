@@ -69,15 +69,17 @@ impl<'a> FromVimwikiElement<'a> for Paragraph {
         )?;
 
         let mut contents = Vec::new();
-        for content in element.into_inner().content.elements {
-            contents.push(
-                InlineElement::from_vimwiki_element(
-                    page_id,
-                    Some(ent.id()),
-                    content,
-                )?
-                .id(),
-            );
+        for line in element.into_inner().lines {
+            for content in line.elements {
+                contents.push(
+                    InlineElement::from_vimwiki_element(
+                        page_id,
+                        Some(ent.id()),
+                        content,
+                    )?
+                    .id(),
+                );
+            }
         }
 
         ent.set_contents_ids(contents);

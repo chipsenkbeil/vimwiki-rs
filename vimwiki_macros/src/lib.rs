@@ -84,7 +84,9 @@ macro_rules! impl_macro {
 /// beginning of each line.
 ///
 /// The format versions perform variable substitution in the same way that
-/// format!, println!, and write! can inject content.
+/// format!, println!, and write! can inject content. Note that formatting
+/// with {} currently does not support lists and definition lists as the order
+/// cannot be guaranteed. Instead, use named or numbered injection instead.
 macro_rules! impl_macro_vimwiki {
     ($suffix:ident, $type:ty) => {
         paste! {
@@ -111,12 +113,6 @@ impl_macro_vimwiki!(definition_list, Located<DefinitionList>);
 impl_macro_vimwiki!(divider, Located<Divider>);
 impl_macro_vimwiki!(header, Located<Header>);
 impl_macro_vimwiki!(link, Located<Link>);
-impl_macro_vimwiki!(diary_link, Located<DiaryLink>);
-impl_macro_vimwiki!(external_file_link, Located<ExternalFileLink>);
-impl_macro_vimwiki!(raw_link, Located<RawLink>);
-impl_macro_vimwiki!(transclusion_link, Located<TransclusionLink>);
-impl_macro_vimwiki!(wiki_link, Located<WikiLink>);
-impl_macro_vimwiki!(inter_wiki_link, Located<InterWikiLink>);
 impl_macro_vimwiki!(list, Located<List>);
 impl_macro_vimwiki!(list_item, Located<ListItem>);
 impl_macro_vimwiki!(code_inline, Located<CodeInline>);
@@ -124,7 +120,7 @@ impl_macro_vimwiki!(math_inline, Located<MathInline>);
 impl_macro_vimwiki!(math_block, Located<MathBlock>);
 impl_macro_vimwiki!(paragraph, Located<Paragraph>);
 impl_macro_vimwiki!(placeholder, Located<Placeholder>);
-impl_macro_vimwiki!(preformatted_text, Located<PreformattedText>);
+impl_macro_vimwiki!(code_block, Located<CodeBlock>);
 impl_macro_vimwiki!(table, Located<Table>);
 impl_macro_vimwiki!(tags, Located<Tags>);
 impl_macro_vimwiki!(decorated_text, Located<DecoratedText>);

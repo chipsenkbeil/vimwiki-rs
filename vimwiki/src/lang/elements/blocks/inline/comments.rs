@@ -66,6 +66,12 @@ impl LineComment<'_> {
     }
 }
 
+impl<'a> LineComment<'a> {
+    pub fn as_str(&self) -> &str {
+        self.0.as_ref()
+    }
+}
+
 impl<'a> From<&'a str> for LineComment<'a> {
     fn from(s: &'a str) -> Self {
         Self::new(Cow::from(s))
@@ -129,15 +135,33 @@ impl MultiLineComment<'_> {
     }
 }
 
+impl<'a> MultiLineComment<'a> {
+    pub fn as_lines(&self) -> &[Cow<'a, str>] {
+        &self.0
+    }
+}
+
 impl<'a> From<&'a str> for MultiLineComment<'a> {
     fn from(s: &'a str) -> Self {
-        Self::new(vec![Cow::from(s)])
+        Self::from(vec![s])
     }
 }
 
 impl<'a> From<String> for MultiLineComment<'a> {
     fn from(s: String) -> Self {
-        Self::new(vec![Cow::from(s)])
+        Self::from(vec![s])
+    }
+}
+
+impl<'a> From<Vec<&'a str>> for MultiLineComment<'a> {
+    fn from(list: Vec<&'a str>) -> Self {
+        Self::new(list.into_iter().map(Cow::from).collect())
+    }
+}
+
+impl<'a> From<Vec<String>> for MultiLineComment<'a> {
+    fn from(list: Vec<String>) -> Self {
+        Self::new(list.into_iter().map(Cow::from).collect())
     }
 }
 

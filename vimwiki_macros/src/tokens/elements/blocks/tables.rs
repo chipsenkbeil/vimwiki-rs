@@ -1,33 +1,28 @@
-use crate::tokens::{utils::root_crate, Tokenize, TokenizeContext};
+use crate::tokens::{
+    utils::{root_crate, tokenize_hashmap},
+    Tokenize, TokenizeContext,
+};
 use proc_macro2::TokenStream;
 use quote::quote;
-use vimwiki::{Cell, ColumnAlign, Row, Table};
+use vimwiki::{Cell, CellPos, CellSpan, ColumnAlign, Table};
 
 impl_tokenize!(tokenize_table, Table<'a>, 'a);
 fn tokenize_table(ctx: &TokenizeContext, table: &Table) -> TokenStream {
     let root = root_crate();
-    let rows = table.rows.iter().map(|x| do_tokenize!(ctx, x));
-    let centered = table.centered;
-    quote! {
-        #root::Table {
-            rows: ::std::vec![#(#rows),*],
-            centered: #centered,
-        }
-    }
-}
+    let centered = table.is_centered();
+    let cells = tokenize_hashmap(
+        table.as_data(),
+        quote!(#root::CellPos),
+        quote!(#root::Located<#root::Cell>),
+        |x| do_tokenize!(ctx, x),
+        |x| do_tokenize!(ctx, x),
+    );
 
-impl_tokenize!(tokenize_row, Row<'a>, 'a);
-fn tokenize_row(ctx: &TokenizeContext, row: &Row) -> TokenStream {
-    let root = root_crate();
-    match &row {
-        Row::Content { cells } => {
-            let t = cells.iter().map(|x| do_tokenize!(ctx, x));
-            quote! { #root::Row::Content { cells: ::std::vec![#(#t),*] } }
-        }
-        Row::Divider { columns } => {
-            let t = columns.iter().map(|x| do_tokenize!(ctx, x));
-            quote! { #root::Row::Divider { columns: ::std::vec![#(#t),*] } }
-        }
+    quote! {
+        #root::Table::new(
+            #cells,
+            #centered,
+        )
     }
 }
 
@@ -39,11 +34,13 @@ fn tokenize_cell(ctx: &TokenizeContext, cell: &Cell) -> TokenStream {
             let t = do_tokenize!(ctx, &x);
             quote! { #root::Cell::Content(#t) }
         }
-        Cell::SpanAbove => {
-            quote! { #root::Cell::SpanAbove }
+        Cell::Span(x) => {
+            let t = do_tokenize!(ctx, &x);
+            quote! { #root::Cell::Span(#t) }
         }
-        Cell::SpanLeft => {
-            quote! { #root::Cell::SpanLeft }
+        Cell::Align(x) => {
+            let t = do_tokenize!(ctx, &x);
+            quote! { #root::Cell::Align(#t) }
         }
     }
 }
@@ -65,4 +62,31 @@ fn tokenize_column_align(
             quote! { #root::ColumnAlign::Right }
         }
     }
+}
+
+impl_tokenize!(tokenize_cell_span, CellSpan);
+fn tokenize_cell_span(
+    _ctx: &TokenizeContext,
+    cell_span: &CellSpan,
+) -> TokenStream {
+    let root = root_crate();
+    match cell_span {
+        CellSpan::FromAbove => {
+            quote! { #root::CellSpan::FromAbove }
+        }
+        CellSpan::FromLeft => {
+            quote! { #root::CellSpan::FromLeft }
+        }
+    }
+}
+
+impl_tokenize!(tokenize_cell_pos, CellPos);
+fn tokenize_cell_pos(
+    _ctx: &TokenizeContext,
+    cell_pos: &CellPos,
+) -> TokenStream {
+    let root = root_crate();
+    let row = cell_pos.row;
+    let col = cell_pos.col;
+    quote! { #root::CellPos::new(#row, #col) }
 }

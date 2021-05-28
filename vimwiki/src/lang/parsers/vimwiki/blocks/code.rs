@@ -1,5 +1,5 @@
 use crate::lang::{
-    elements::{Located, PreformattedText},
+    elements::{CodeBlock, Located},
     parsers::{
         utils::{
             any_line, beginning_of_line, capture, context, cow_str,
@@ -21,23 +21,23 @@ type MaybeLang<'a> = Option<Cow<'a, str>>;
 type Metadata<'a> = HashMap<Cow<'a, str>, Cow<'a, str>>;
 
 #[inline]
-pub fn preformatted_text(input: Span) -> IResult<Located<PreformattedText>> {
-    fn inner(input: Span) -> IResult<PreformattedText> {
-        let (input, (maybe_lang, metadata)) = preformatted_text_start(input)?;
+pub fn code_block(input: Span) -> IResult<Located<CodeBlock>> {
+    fn inner(input: Span) -> IResult<CodeBlock> {
+        let (input, (maybe_lang, metadata)) = code_block_start(input)?;
         let (input, lines) = many0(preceded(
-            not(preformatted_text_end),
+            not(code_block_end),
             map_parser(any_line, cow_str),
         ))(input)?;
-        let (input, _) = preformatted_text_end(input)?;
+        let (input, _) = code_block_end(input)?;
 
-        Ok((input, PreformattedText::new(maybe_lang, metadata, lines)))
+        Ok((input, CodeBlock::new(maybe_lang, metadata, lines)))
     }
 
     context("Preformatted Text", locate(capture(inner)))(input)
 }
 
 #[inline]
-fn preformatted_text_start<'a>(
+fn code_block_start<'a>(
     input: Span<'a>,
 ) -> IResult<(MaybeLang<'a>, Metadata<'a>)> {
     // First, verify we have the start of a block and consume it
@@ -82,7 +82,7 @@ fn preformatted_text_start<'a>(
 }
 
 #[inline]
-fn preformatted_text_end(input: Span) -> IResult<()> {
+fn code_block_end(input: Span) -> IResult<()> {
     let (input, _) = beginning_of_line(input)?;
     let (input, _) = space0(input)?;
     let (input, _) = tag("}}}")(input)?;
@@ -98,84 +98,84 @@ mod tests {
     use indoc::indoc;
 
     #[test]
-    fn preformatted_text_should_fail_if_does_not_have_starting_line() {
+    fn code_block_should_fail_if_does_not_have_starting_line() {
         let input = Span::from(indoc! {r"
             some code
             }}}
         "});
-        assert!(preformatted_text(input).is_err());
+        assert!(code_block(input).is_err());
     }
 
     #[test]
-    fn preformatted_text_should_fail_if_starting_block_not_on_own_line() {
+    fn code_block_should_fail_if_starting_block_not_on_own_line() {
         let input = Span::from(indoc! {r"
             {{{some code
             }}}
         "});
-        assert!(preformatted_text(input).is_err());
+        assert!(code_block(input).is_err());
     }
 
     #[test]
-    fn preformatted_text_should_fail_if_does_not_have_ending_line() {
+    fn code_block_should_fail_if_does_not_have_ending_line() {
         let input = Span::from(indoc! {r"
             {{{
             some code
         "});
-        assert!(preformatted_text(input).is_err());
+        assert!(code_block(input).is_err());
     }
 
     #[test]
-    fn preformatted_text_should_fail_if_ending_block_not_on_own_line() {
+    fn code_block_should_fail_if_ending_block_not_on_own_line() {
         let input = Span::from(indoc! {r"
             {{{
             some code}}}
         "});
-        assert!(preformatted_text(input).is_err());
+        assert!(code_block(input).is_err());
     }
 
     #[test]
-    fn preformatted_text_should_support_having_no_lines() {
+    fn code_block_should_support_having_no_lines() {
         let input = Span::from(indoc! {r"
             {{{
             }}}
         "});
-        let (input, p) = preformatted_text(input).unwrap();
-        assert!(input.is_empty(), "Did not consume preformatted block");
+        let (input, p) = code_block(input).unwrap();
+        assert!(input.is_empty(), "Did not consume code block");
         assert!(p.lang.is_none(), "Has unexpected language");
         assert!(p.lines.is_empty(), "Has unexpected lines");
         assert!(p.metadata.is_empty(), "Has unexpected metadata");
     }
 
     #[test]
-    fn preformatted_text_should_support_lang_shorthand() {
+    fn code_block_should_support_lang_shorthand() {
         let input = Span::from(indoc! {r"
             {{{c++
             some code
             }}}
         "});
-        let (input, p) = preformatted_text(input).unwrap();
-        assert!(input.is_empty(), "Did not consume preformatted block");
+        let (input, p) = code_block(input).unwrap();
+        assert!(input.is_empty(), "Did not consume code block");
         assert_eq!(p.lang, Some(Cow::from("c++")));
         assert_eq!(p.lines, vec![Cow::from("some code")]);
         assert!(p.metadata.is_empty(), "Has unexpected metadata");
     }
 
     #[test]
-    fn preformatted_text_should_support_lang_shorthand_with_metadata() {
+    fn code_block_should_support_lang_shorthand_with_metadata() {
         let input = Span::from(indoc! {r#"
             {{{c++ key="value"
             some code
             }}}
         "#});
-        let (input, p) = preformatted_text(input).unwrap();
-        assert!(input.is_empty(), "Did not consume preformatted block");
+        let (input, p) = code_block(input).unwrap();
+        assert!(input.is_empty(), "Did not consume code block");
         assert_eq!(p.lang, Some(Cow::from("c++")));
         assert_eq!(p.lines, vec![Cow::from("some code")]);
         assert_eq!(p.metadata.get("key"), Some(&Cow::from("value")));
     }
 
     #[test]
-    fn preformatted_text_should_parse_all_lines_between() {
+    fn code_block_should_parse_all_lines_between() {
         let input = Span::from(indoc! {r"
             {{{
             Tyger! Tyger! burning bright
@@ -188,8 +188,8 @@ mod tests {
                What the hand dare sieze the fire?
             }}}
         "});
-        let (input, p) = preformatted_text(input).unwrap();
-        assert!(input.is_empty(), "Did not consume preformatted block");
+        let (input, p) = code_block(input).unwrap();
+        assert!(input.is_empty(), "Did not consume code block");
         assert_eq!(
             p.lines,
             vec![
@@ -208,7 +208,7 @@ mod tests {
     }
 
     #[test]
-    fn preformatted_text_should_support_single_metadata() {
+    fn code_block_should_support_single_metadata() {
         let input = Span::from(indoc! {r#"
             {{{class="brush: python"
             def hello(world):
@@ -216,8 +216,8 @@ mod tests {
                     print("Hello {0} number {1}".format(world, x))
             }}}
         "#});
-        let (input, p) = preformatted_text(input).unwrap();
-        assert!(input.is_empty(), "Did not consume preformatted block");
+        let (input, p) = code_block(input).unwrap();
+        assert!(input.is_empty(), "Did not consume code block");
         assert_eq!(
             p.lines,
             vec![
@@ -230,7 +230,7 @@ mod tests {
     }
 
     #[test]
-    fn preformatted_text_should_support_multiple_metadata() {
+    fn code_block_should_support_multiple_metadata() {
         let input = Span::from(indoc! {r#"
             {{{class="brush: python" style="position: relative"
             def hello(world):
@@ -238,8 +238,8 @@ mod tests {
                     print("Hello {0} number {1}".format(world, x))
             }}}
         "#});
-        let (input, p) = preformatted_text(input).unwrap();
-        assert!(input.is_empty(), "Did not consume preformatted block");
+        let (input, p) = code_block(input).unwrap();
+        assert!(input.is_empty(), "Did not consume code block");
         assert_eq!(
             p.lines,
             vec![
