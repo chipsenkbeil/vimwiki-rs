@@ -4,6 +4,8 @@
 
 ## [Unreleased] - ReleaseDate
 
+## [0.1.0-alpha.6] - 2021-05-28
+
 ### Added
 
 - This `CHANGELOG.md` file to keep track of future changes
