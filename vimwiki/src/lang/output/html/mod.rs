@@ -1408,12 +1408,39 @@ mod tests {
 
     #[test]
     fn math_block_should_output_a_mathjax_notation() {
-        todo!();
+        let math = MathBlock::from_lines(vec!["some lines", "of math"]);
+        let mut f = HtmlFormatter::default();
+        math.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            indoc! {r"
+                \[
+                some lines
+                of math
+                \]
+            "}
+        );
     }
 
     #[test]
     fn math_block_should_support_environments() {
-        todo!();
+        let math = MathBlock::new(
+            vec![Cow::from("some lines"), Cow::from("of math")],
+            Some(Cow::from("test environment")),
+        );
+        let mut f = HtmlFormatter::default();
+        math.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            indoc! {r"
+                \begin{test environment}
+                some lines
+                of math
+                \end{test environment}
+            "}
+        );
     }
 
     #[test]
