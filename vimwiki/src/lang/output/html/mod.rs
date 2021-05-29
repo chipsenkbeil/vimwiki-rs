@@ -47,6 +47,32 @@ impl<'a> Output for Page<'a> {
     }
 }
 
+impl<'a> Output for Element<'a> {
+    type Formatter = HtmlFormatter;
+    type Error = HtmlOutputError;
+
+    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
+        match self {
+            Self::Block(x) => x.fmt(f),
+            Self::Inline(x) => x.fmt(f),
+            Self::InlineBlock(x) => x.fmt(f),
+        }
+    }
+}
+
+impl<'a> Output for InlineBlockElement<'a> {
+    type Formatter = HtmlFormatter;
+    type Error = HtmlOutputError;
+
+    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
+        match self {
+            Self::ListItem(x) => x.fmt(f),
+            Self::Term(x) => x.fmt(f),
+            Self::Definition(x) => x.fmt(f),
+        }
+    }
+}
+
 impl<'a> Output for BlockElement<'a> {
     type Formatter = HtmlFormatter;
     type Error = HtmlOutputError;

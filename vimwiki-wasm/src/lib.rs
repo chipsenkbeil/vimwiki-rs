@@ -1,42 +1,18 @@
-use vimwiki::{BlockElement, Language, Page, ParseError, ToHtmlString};
+use vimwiki::{self as v, Language, ParseError};
 use wasm_bindgen::prelude::*;
 
-#[wasm_bindgen]
-pub struct Output(Page<'static>);
+mod elements;
+pub use elements::*;
+
+mod utils;
 
 #[wasm_bindgen]
-impl Output {
-    pub fn to_js(&self) -> JsValue {
-        JsValue::from_serde(&self.0).unwrap()
-    }
-
-    pub fn to_html_str(&self) -> Result<String, JsValue> {
-        self.0
-            .to_html_string(Default::default())
-            .map_err(|x| x.to_string().into())
-    }
-
-    pub fn find_all_header_regions(&self) -> Vec<JsValue> {
-        self.0
-            .elements
-            .iter()
-            .filter_map(|el| match el.as_inner() {
-                BlockElement::Header(_) => {
-                    Some(JsValue::from_serde(&el.region()).unwrap())
-                }
-                _ => None,
-            })
-            .collect()
-    }
-}
-
-#[wasm_bindgen]
-pub fn parse_vimwiki_str(s: &str) -> Result<Output, JsValue> {
-    let page_res: Result<Page, ParseError> =
+pub fn parse_vimwiki_str(s: &str) -> Result<Page, JsValue> {
+    let page_res: Result<v::Page, ParseError> =
         Language::from_vimwiki_str(s).parse();
 
     match page_res {
-        Ok(page) => Ok(Output(page.into_owned())),
+        Ok(page) => Ok(Page::from(page.into_owned())),
         Err(x) => Err(x.to_string().into()),
     }
 }

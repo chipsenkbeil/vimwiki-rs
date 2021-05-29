@@ -54,6 +54,14 @@ impl Page<'_> {
     }
 }
 
+impl<'a> IntoChildren for Page<'a> {
+    type Child = Located<BlockElement<'a>>;
+
+    fn into_children(self) -> Vec<Self::Child> {
+        self.elements
+    }
+}
+
 impl<'a> StrictEq for Page<'a> {
     /// Performs strict_eq on page elements
     fn strict_eq(&self, other: &Self) -> bool {
