@@ -15,6 +15,8 @@ use uriparse::{
 
 /// For use with serde's deserialize_with when deseriaizing to a path that
 /// we also want to validate is an absolute path
+///
+/// NOTE: For wasm32 architecture, this does not actually perform canonicalization
 pub(crate) fn deserialize_absolute_path<'de, D>(
     d: D,
 ) -> Result<PathBuf, D::Error>
@@ -36,12 +38,16 @@ where
     );
 
     // Attempt to resolve all symlinks and other quirks
-    let value = value.canonicalize().map_err(|x| {
-        de::Error::invalid_value(
-            de::Unexpected::Str(value.to_string_lossy().as_ref()),
-            &x.to_string().as_str(),
-        )
-    })?;
+    let value = if cfg!(not(target_arch = "wasm32")) {
+        value.canonicalize().map_err(|x| {
+            de::Error::invalid_value(
+                de::Unexpected::Str(value.to_string_lossy().as_ref()),
+                &x.to_string().as_str(),
+            )
+        })?
+    } else {
+        value
+    };
 
     // Verify that the path given is actually absolute
     if !value.is_absolute() {

@@ -40,10 +40,6 @@ pub struct HtmlConfig {
     #[serde(skip)]
     pub runtime: HtmlRuntimeConfig,
 
-    /// Configuration settings that are applied generally
-    #[serde(default)]
-    pub general: HtmlGeneralConfig,
-
     /// Maps to vimwiki's wiki config and order matters for use in indexed
     /// wiki links
     #[serde(default)]
@@ -267,7 +263,7 @@ impl HtmlConfig {
 /// Represents a configuration that provides runtime-only configuration settings
 /// needed to convert to HTML at a page or wiki-wide level such as the path to
 /// the current page that is being processed
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct HtmlRuntimeConfig {
     /// Index of wiki that contains the page being processed
     pub wiki_index: Option<usize>,
@@ -291,36 +287,16 @@ impl HtmlRuntimeConfig {
     }
 }
 
-/// Represents a configuration representing various properties associated with
-/// the overall HTML process
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct HtmlGeneralConfig {
-    /// Path to the html output for all wikis on the local machine (must be absolute path)
-    ///
-    /// Can be overridden by supplying `path_html` at the individual wiki level
-    #[serde(
-        default = "HtmlGeneralConfig::default_path_html",
-        deserialize_with = "deserialize_absolute_path"
-    )]
-    pub path_html: PathBuf,
-}
-
-impl Default for HtmlGeneralConfig {
+impl Default for HtmlRuntimeConfig {
     fn default() -> Self {
         Self {
-            path_html: Self::default_path_html(),
-        }
-    }
-}
+            wiki_index: None,
 
-impl HtmlGeneralConfig {
-    #[inline]
-    pub fn default_path_html() -> PathBuf {
-        // NOTE: For wasm, home directory will always return None, but we don't
-        //       expect the default value to be used in wasm
-        dirs::home_dir()
-            .unwrap_or_else(PathBuf::new)
-            .join("vimwiki_html")
+            // NOTE: This needs to line up with the default wiki config path
+            //       being included, otherwise trying to map the runtime
+            //       page (default) to a tmp wiki (default) will fail
+            page: HtmlWikiConfig::default_path().join("index.wiki"),
+        }
     }
 }
 
@@ -448,17 +424,27 @@ impl HtmlWikiConfig {
 
     #[inline]
     pub fn default_path() -> PathBuf {
-        PathBuf::new()
+        // NOTE: For wasm, home directory will always return None, but we don't
+        //       expect the default value to be used in wasm
+        dirs::home_dir()
+            .unwrap_or_else(|| {
+                let mut path = PathBuf::new();
+                path.push(Component::RootDir);
+                path
+            })
+            .join("vimwiki")
     }
 
-    // TODO: Make this optional and instead using general's path_html as the
-    //       default if this is not provided !!!
     #[inline]
     pub fn default_path_html() -> PathBuf {
         // NOTE: For wasm, home directory will always return None, but we don't
         //       expect the default value to be used in wasm
         dirs::home_dir()
-            .unwrap_or_else(PathBuf::new)
+            .unwrap_or_else(|| {
+                let mut path = PathBuf::new();
+                path.push(Component::RootDir);
+                path
+            })
             .join("vimwiki_html")
     }
 

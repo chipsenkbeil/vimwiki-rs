@@ -1784,10 +1784,18 @@ macro_rules! impl_convert {
     ($name:ident $($tail:tt)*) => {
         #[wasm_bindgen]
         impl $name {
-            /// Convert to an HTML string
-            pub fn to_html_str(&self) -> Result<String, JsValue> {
+            /// Convert to an HTML string, optionally taking a config object
+            pub fn to_html_str(&self, config: &JsValue) -> Result<String, JsValue> {
+                // Attempt to read a config from a JS object, but if not provided
+                // default to the standard config
+                let config: v::HtmlConfig = if !config.is_undefined() && !config.is_null() {
+                    config.into_serde().map_err(|x| JsValue::from(x.to_string()))?
+                } else {
+                    Default::default()
+                };
+
                 self.0
-                    .to_html_string(Default::default())
+                    .to_html_string(config)
                     .map_err(|x| x.to_string().into())
             }
         }
