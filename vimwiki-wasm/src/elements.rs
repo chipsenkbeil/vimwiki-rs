@@ -1598,6 +1598,42 @@ impl Text {
     }
 }
 
+/// Represents a wrapper around a vimwiki region
+#[wasm_bindgen]
+pub struct Region(v::Region);
+
+#[wasm_bindgen]
+impl Region {
+    /// Creates a new region instance
+    #[wasm_bindgen(constructor)]
+    pub fn new(offset: usize, len: usize, depth: u16) -> Self {
+        Self(v::Region::new_at_depth(offset, len, depth))
+    }
+
+    /// Represents the offset (starting from 0) of this region in the text
+    #[wasm_bindgen(getter)]
+    pub fn offset(&self) -> usize {
+        self.0.offset()
+    }
+
+    /// Returns true if the region is actually empty (len == 0)
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    /// Represents the length of this region in the text
+    #[wasm_bindgen(getter)]
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Represents the depth of this region in the text
+    #[wasm_bindgen(getter)]
+    pub fn depth(&self) -> u16 {
+        self.0.depth()
+    }
+}
+
 macro_rules! impl_from {
     (@$name:ident $($tail:tt)*) => {
         impl From<v::$name> for $name {
