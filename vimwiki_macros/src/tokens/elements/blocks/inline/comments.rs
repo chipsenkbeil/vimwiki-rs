@@ -1,7 +1,7 @@
 use crate::tokens::{utils::root_crate, Tokenize, TokenizeContext};
 use proc_macro2::TokenStream;
 use quote::quote;
-use vimwiki::{Comment, LineComment, MultiLineComment};
+use vimwiki_core::{Comment, LineComment, MultiLineComment};
 
 impl_tokenize!(tokenize_comment, Comment<'a>, 'a);
 fn tokenize_comment(ctx: &TokenizeContext, comment: &Comment) -> TokenStream {

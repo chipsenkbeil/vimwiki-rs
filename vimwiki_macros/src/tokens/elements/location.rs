@@ -1,7 +1,7 @@
 use crate::tokens::{utils::root_crate, Tokenize, TokenizeContext};
 use proc_macro2::TokenStream;
 use quote::quote;
-use vimwiki::{Located, Region};
+use vimwiki_core::{Located, Region};
 
 impl<T: Tokenize> Tokenize for Located<T> {
     fn tokenize(&self, ctx: &TokenizeContext, stream: &mut TokenStream) {

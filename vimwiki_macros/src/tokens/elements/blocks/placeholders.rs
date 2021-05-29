@@ -1,7 +1,7 @@
 use crate::tokens::{utils::root_crate, Tokenize, TokenizeContext};
 use proc_macro2::TokenStream;
 use quote::quote;
-use vimwiki::Placeholder;
+use vimwiki_core::Placeholder;
 
 impl_tokenize!(tokenize_placeholder, Placeholder<'a>, 'a);
 fn tokenize_placeholder(

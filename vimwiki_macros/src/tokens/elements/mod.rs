@@ -1,7 +1,7 @@
 use crate::tokens::{utils::root_crate, Tokenize, TokenizeContext};
 use proc_macro2::TokenStream;
 use quote::quote;
-use vimwiki::Page;
+use vimwiki_core::Page;
 
 pub mod blocks;
 pub mod location;

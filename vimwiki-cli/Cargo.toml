@@ -24,4 +24,3 @@ toml = "0.5.8"
 walkdir = "2.3.2"
 
 vimwiki = { version = "=0.1.0", path = "../vimwiki", features = ["html"] }
-vimwiki_macros = { version = "=0.1.0", path = "../vimwiki_macros" }

@@ -1,7 +1,9 @@
 use crate::tokens::{utils::root_crate, Tokenize, TokenizeContext};
 use proc_macro2::TokenStream;
 use quote::quote;
-use vimwiki::{Definition, DefinitionList, DefinitionListValue, Located, Term};
+use vimwiki_core::{
+    Definition, DefinitionList, DefinitionListValue, Located, Term,
+};
 
 impl_tokenize!(tokenize_definition_list, DefinitionList<'a>, 'a);
 fn tokenize_definition_list(

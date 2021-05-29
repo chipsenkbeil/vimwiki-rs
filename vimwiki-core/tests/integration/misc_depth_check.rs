@@ -1,6 +1,6 @@
 use super::fixtures::VimwikiFile;
 use std::convert::TryFrom;
-use vimwiki::{vendor::uriparse::URIReference, *};
+use vimwiki_core::{vendor::uriparse::URIReference, *};
 
 #[test]
 fn test() {

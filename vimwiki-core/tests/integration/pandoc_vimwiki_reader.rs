@@ -1,6 +1,6 @@
 use super::{fixtures::VimwikiFile, utils::compare_page_elements};
+use vimwiki::macros::*;
 use vimwiki::*;
-use vimwiki_macros::*;
 
 #[test]
 #[ignore]

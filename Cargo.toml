@@ -2,6 +2,7 @@
 members = [
     "vimwiki",
     "vimwiki-cli",
+    "vimwiki-core",
     "vimwiki_macros",
     "vimwiki-server",
     "vimwiki-wasm",

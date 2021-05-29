@@ -4,8 +4,9 @@
 # order, so depenencies of each other must be published first! dev-dependencies
 # are temporarily removed using cargo-hack
 CRATES=(
-  vimwiki
+  vimwiki-core
   vimwiki_macros
+  vimwiki
   vimwiki-cli
   vimwiki-server
   vimwiki-wasm

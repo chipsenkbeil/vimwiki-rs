@@ -6,7 +6,7 @@ use crate::tokens::{
 };
 use proc_macro2::TokenStream;
 use quote::quote;
-use vimwiki::CodeBlock;
+use vimwiki_core::CodeBlock;
 
 impl_tokenize!(tokenize_code_block, CodeBlock<'a>, 'a);
 fn tokenize_code_block(

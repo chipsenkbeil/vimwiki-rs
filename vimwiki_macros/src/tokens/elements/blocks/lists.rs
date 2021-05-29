@@ -3,7 +3,7 @@ use crate::tokens::{
 };
 use proc_macro2::TokenStream;
 use quote::quote;
-use vimwiki::{
+use vimwiki_core::{
     List, ListItem, ListItemAttributes, ListItemContent, ListItemContents,
     ListItemSuffix, ListItemTodoStatus, ListItemType, OrderedListItemType,
     UnorderedListItemType,

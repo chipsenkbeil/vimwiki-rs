@@ -4,7 +4,7 @@ use crate::tokens::{
 };
 use proc_macro2::TokenStream;
 use quote::quote;
-use vimwiki::{Cell, CellPos, CellSpan, ColumnAlign, Table};
+use vimwiki_core::{Cell, CellPos, CellSpan, ColumnAlign, Table};
 
 impl_tokenize!(tokenize_table, Table<'a>, 'a);
 fn tokenize_table(ctx: &TokenizeContext, table: &Table) -> TokenStream {

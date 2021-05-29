@@ -4,7 +4,7 @@ use crate::tokens::{
 };
 use proc_macro2::TokenStream;
 use quote::quote;
-use vimwiki::{Anchor, Description, Link, LinkData};
+use vimwiki_core::{Anchor, Description, Link, LinkData};
 
 impl_tokenize!(tokenize_link, Link<'a>, 'a);
 fn tokenize_link(ctx: &TokenizeContext, link: &Link) -> TokenStream {

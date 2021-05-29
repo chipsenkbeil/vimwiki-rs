@@ -12,7 +12,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-vimwiki = "0.1.0-alpha.5"
+vimwiki = "0.1"
 ```
 
 ## Examples
@@ -36,14 +36,14 @@ let page: Page = language.parse().unwrap();
 
 By default, no features are enable, but the following are offered:
 
-- **location**: If specified, all elements parsed will automatically have
-their line and column information encoded in the `Region` of `Located<...>`.
-This is particularly expensive and is therefore gated behind a feature. This
-operation can always be done manually on a region-by-region basis.
+- **html**: If specified, builds in support to convert vimwiki elements to
+  html.
+- **macros**: If specified, pulls in `vimwiki_macros` to expose top-level macro
+  functions to parse and produce vimwiki elements at compile-time.
 - **timekeeper**: If specified, all parser logic runs through a
-statically-allocated `HashMap` that logs the time taken to parse various
-elements and can print out results in a human-readable format. This is
-predominately useful for performance optimizations internally.
+  statically-allocated `HashMap` that logs the time taken to parse various
+  elements and can print out results in a human-readable format. This is
+  predominately useful for performance optimizations internally.
 
 ## License
 

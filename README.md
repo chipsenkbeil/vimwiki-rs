@@ -15,6 +15,11 @@ Represents the language definition and parsing support for the vimwiki language.
 Provides tiny command-line interface on top of the vimwiki parser and HTML
 output functionality of the vimwiki library.
 
+## [vimwiki-core](./vimwiki-core/README.md) [![Latest Version](https://img.shields.io/crates/v/vimwiki-core.svg)](https://crates.io/crates/vimwiki-core)
+
+Provides the core vimwiki elements, parsing, and other features that are
+exposed through the primary vimwiki crate.
+
 ## [vimwiki_macros](./vimwiki_macros/README.md) [![Latest Version](https://img.shields.io/crates/v/vimwiki_macros.svg)](https://crates.io/crates/vimwiki_macros)
 
 Contains macros to generate vimwiki components in Rust at compile time.

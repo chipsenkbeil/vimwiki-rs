@@ -9,7 +9,9 @@ use syn::{parse_quote, Ident, Path};
 /// the `vimwiki` crate
 #[inline]
 pub fn root_crate() -> Path {
-    get_crate("vimwiki").expect("vimwiki crate exists")
+    get_crate("vimwiki")
+        .or_else(|_| get_crate("vimwiki-core"))
+        .expect("vimwiki crate exists")
 }
 
 fn get_crate(cname: &str) -> syn::Result<Path> {

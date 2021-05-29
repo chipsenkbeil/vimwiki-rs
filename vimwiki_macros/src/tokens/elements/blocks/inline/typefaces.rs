@@ -1,7 +1,7 @@
 use crate::tokens::{utils::root_crate, Tokenize, TokenizeContext};
 use proc_macro2::TokenStream;
 use quote::quote;
-use vimwiki::{DecoratedText, DecoratedTextContent, Keyword, Text};
+use vimwiki_core::{DecoratedText, DecoratedTextContent, Keyword, Text};
 
 impl_tokenize!(tokenize_text, Text<'a>, 'a);
 fn tokenize_text(ctx: &TokenizeContext, text: &Text) -> TokenStream {

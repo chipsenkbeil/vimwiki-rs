@@ -2,19 +2,22 @@
 
 Contains macros to generate vimwiki components in Rust at compile time.
 
+It should NOT be imported directly. Instead, when importing `vimwiki`, this
+crate is brought in when supplying the `macros` feature.
+
 ## Usage
 
 Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-vimwiki_macros = "0.1.0-alpha.5"
+vimwiki = { version = "0.1", features = ["macros"] }
 ```
 
 ## Examples
 
 ```rust
-use vimwiki_macros::*;
+use vimwiki::macros::vimwiki_page;
 
 // Parse vimwiki language at compile-time and generate Rust-based elements
 let page = vimwiki_page! {r#"

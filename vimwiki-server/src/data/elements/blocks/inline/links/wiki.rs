@@ -79,7 +79,7 @@ impl<'a> FromVimwikiElement<'a> for WikiLink {
 mod tests {
     use super::*;
     use entity_inmemory::InmemoryDatabase;
-    use vimwiki_macros::*;
+    use vimwiki::macros::*;
 
     #[test]
     fn should_fully_populate_from_vimwiki_element() {

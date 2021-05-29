@@ -2,7 +2,10 @@ use crate::tokens::{utils::vendor_path, Tokenize, TokenizeContext};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use std::{borrow::Cow, path::Path};
-use vimwiki::vendor::{chrono::NaiveDate, uriparse::URIReference};
+use vimwiki_core::vendor::{
+    chrono::{Datelike, NaiveDate},
+    uriparse::URIReference,
+};
 
 // Implement primitives that already implement ToTokens via quote crate
 impl_tokenize!(bool);
@@ -53,7 +56,6 @@ fn tokenize_naive_date(
     _ctx: &TokenizeContext,
     naive_date: &NaiveDate,
 ) -> TokenStream {
-    use vimwiki::vendor::chrono::Datelike;
     let root = vendor_path();
     let year = naive_date.year();
     let month = naive_date.month();

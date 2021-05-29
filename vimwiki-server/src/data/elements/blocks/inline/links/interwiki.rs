@@ -171,7 +171,7 @@ impl<'a> FromVimwikiElement<'a> for NamedInterWikiLink {
 mod tests {
     use super::*;
     use entity_inmemory::InmemoryDatabase;
-    use vimwiki_macros::*;
+    use vimwiki::macros::*;
 
     #[test]
     fn indexed_interwiki_link_should_fully_populate_from_vimwiki_element() {

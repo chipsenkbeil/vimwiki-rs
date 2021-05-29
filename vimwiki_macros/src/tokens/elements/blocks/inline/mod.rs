@@ -1,7 +1,7 @@
 use crate::tokens::{utils::root_crate, Tokenize, TokenizeContext};
 use proc_macro2::TokenStream;
 use quote::quote;
-use vimwiki::{InlineElement, InlineElementContainer};
+use vimwiki_core::{InlineElement, InlineElementContainer};
 
 pub mod code;
 pub mod comments;

@@ -3,7 +3,7 @@ use crate::tokens::{
 };
 use proc_macro2::TokenStream;
 use quote::quote;
-use vimwiki::MathBlock;
+use vimwiki_core::MathBlock;
 
 impl_tokenize!(tokenize_math_block, MathBlock<'a>, 'a);
 fn tokenize_math_block(

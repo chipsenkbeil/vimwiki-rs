@@ -1,7 +1,7 @@
 use crate::tokens::{utils::root_crate, Tokenize, TokenizeContext};
 use proc_macro2::TokenStream;
 use quote::quote;
-use vimwiki::Blockquote;
+use vimwiki_core::Blockquote;
 
 impl_tokenize!(tokenize_blockquote, Blockquote<'a>, 'a);
 fn tokenize_blockquote(

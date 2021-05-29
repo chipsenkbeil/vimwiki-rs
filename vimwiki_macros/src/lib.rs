@@ -1,7 +1,7 @@
 use paste::paste;
 use proc_macro2::{Span, TokenStream};
 use syn::parse_macro_input;
-use vimwiki::*;
+use vimwiki_core::*;
 
 mod error;
 use error::{Error, Result};

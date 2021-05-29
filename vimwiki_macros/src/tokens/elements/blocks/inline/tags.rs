@@ -1,7 +1,7 @@
 use crate::tokens::{utils::root_crate, Tokenize, TokenizeContext};
 use proc_macro2::TokenStream;
 use quote::quote;
-use vimwiki::{Tag, Tags};
+use vimwiki_core::{Tag, Tags};
 
 impl_tokenize!(tokenize_tags, Tags<'a>, 'a);
 fn tokenize_tags(ctx: &TokenizeContext, tags: &Tags) -> TokenStream {

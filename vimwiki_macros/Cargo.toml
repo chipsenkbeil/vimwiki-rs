@@ -22,4 +22,4 @@ proc-macro-crate = "1.0.0"
 quote = "1.0"
 regex = "1.4.6"
 syn = "1.0.70"
-vimwiki = { version = "=0.1.0", path = "../vimwiki" }
+vimwiki-core = { version = "=0.1.0", path = "../vimwiki-core" }

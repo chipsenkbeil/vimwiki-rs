@@ -1,7 +1,7 @@
 use crate::tokens::{utils::root_crate, Tokenize, TokenizeContext};
 use proc_macro2::TokenStream;
 use quote::quote;
-use vimwiki::Paragraph;
+use vimwiki_core::Paragraph;
 
 impl_tokenize!(tokenize_paragraph, Paragraph<'a>, 'a);
 fn tokenize_paragraph(
