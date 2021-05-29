@@ -1634,6 +1634,7 @@ impl Region {
     }
 }
 
+/// Provide From impl; use @ to not use lifetimes
 macro_rules! impl_from {
     (@$name:ident $($tail:tt)*) => {
         impl From<v::$name> for $name {
@@ -1661,11 +1662,12 @@ impl_from!(
     CodeBlock DefinitionList @Divider Header List MathBlock Paragraph Table
     DecoratedText Link Tags CodeInline MathInline Comment Text
     InlineElementContainer DecoratedTextContent ListItem ListItemContent
-    Placeholder
+    Placeholder @Region
 );
 
+/// Provide conversion functions; use @ to not include html
 macro_rules! impl_convert {
-    ($name:ident $($tail:tt)*) => {
+    (@$name:ident $($tail:tt)*) => {
         #[wasm_bindgen]
         impl $name {
             /// Convert to a JavaScript value
@@ -1677,7 +1679,13 @@ macro_rules! impl_convert {
             pub fn to_debug_str(&self) -> String {
                 format!("{:?}", self.0)
             }
+        }
 
+        impl_convert!($($tail)*);
+    };
+    ($name:ident $($tail:tt)*) => {
+        #[wasm_bindgen]
+        impl $name {
             /// Convert to an HTML string
             pub fn to_html_str(&self) -> Result<String, JsValue> {
                 self.0
@@ -1686,7 +1694,7 @@ macro_rules! impl_convert {
             }
         }
 
-        impl_convert!($($tail)*);
+        impl_convert!(@$name $($tail)*);
     };
     () => {};
 }
@@ -1696,7 +1704,7 @@ impl_convert!(
     CodeBlock DefinitionList Divider Header List MathBlock Paragraph Table
     DecoratedText Link Tags CodeInline MathInline Comment Text
     InlineElementContainer DecoratedTextContent ListItem ListItemContent
-    Placeholder
+    Placeholder @Region
 );
 
 macro_rules! impl_iter {
