@@ -42,12 +42,12 @@ impl Element {
     }
 
     /// Casts to block element if it is one
-    pub fn as_block(&self) -> Option<BlockElement> {
-        match self.0.as_inner() {
-            v::Element::Block(x) => Some(BlockElement(v::Located::new(
-                x.to_borrowed().into_owned(),
-                self.0.region(),
-            ))),
+    pub fn into_block(self) -> Option<BlockElement> {
+        let region = self.0.region();
+        match self.0.into_inner() {
+            v::Element::Block(x) => {
+                Some(BlockElement(v::Located::new(x, region)))
+            }
             _ => None,
         }
     }
@@ -58,12 +58,12 @@ impl Element {
     }
 
     /// Casts to inline element if it is one
-    pub fn as_inline(&self) -> Option<InlineElement> {
-        match self.0.as_inner() {
-            v::Element::Inline(x) => Some(InlineElement(v::Located::new(
-                x.to_borrowed().into_owned(),
-                self.0.region(),
-            ))),
+    pub fn into_inline(self) -> Option<InlineElement> {
+        let region = self.0.region();
+        match self.0.into_inner() {
+            v::Element::Inline(x) => {
+                Some(InlineElement(v::Located::new(x, region)))
+            }
             _ => None,
         }
     }
@@ -74,11 +74,12 @@ impl Element {
     }
 
     /// Casts to inline block element if it is one
-    pub fn as_inline_block(&self) -> Option<InlineBlockElement> {
-        match self.0.as_inner() {
-            v::Element::InlineBlock(x) => Some(InlineBlockElement(
-                v::Located::new(x.to_borrowed().into_owned(), self.0.region()),
-            )),
+    pub fn into_inline_block(self) -> Option<InlineBlockElement> {
+        let region = self.0.region();
+        match self.0.into_inner() {
+            v::Element::InlineBlock(x) => {
+                Some(InlineBlockElement(v::Located::new(x, region)))
+            }
             _ => None,
         }
     }
@@ -96,27 +97,28 @@ impl BlockElement {
     }
 
     /// Casts to blockquote if it is one
-    pub fn as_blockquote(&self) -> Option<Blockquote> {
-        match self.0.as_inner() {
-            v::BlockElement::Blockquote(x) => Some(Blockquote(
-                v::Located::new(x.to_borrowed().into_owned(), self.0.region()),
-            )),
+    pub fn into_blockquote(self) -> Option<Blockquote> {
+        let region = self.0.region();
+        match self.0.into_inner() {
+            v::BlockElement::Blockquote(x) => {
+                Some(Blockquote(v::Located::new(x, region)))
+            }
             _ => None,
         }
     }
 
     /// Returns true if element is code block
-    pub fn is_code(&self) -> bool {
+    pub fn is_code_block(&self) -> bool {
         matches!(self.0.as_inner(), v::BlockElement::CodeBlock(_))
     }
 
     /// Casts to code block if it is one
-    pub fn as_code(&self) -> Option<CodeBlock> {
-        match self.0.as_inner() {
-            v::BlockElement::CodeBlock(x) => Some(CodeBlock(v::Located::new(
-                x.to_borrowed().into_owned(),
-                self.0.region(),
-            ))),
+    pub fn into_code_block(self) -> Option<CodeBlock> {
+        let region = self.0.region();
+        match self.0.into_inner() {
+            v::BlockElement::CodeBlock(x) => {
+                Some(CodeBlock(v::Located::new(x, region)))
+            }
             _ => None,
         }
     }
@@ -127,12 +129,12 @@ impl BlockElement {
     }
 
     /// Casts to math block if it is one
-    pub fn as_math(&self) -> Option<MathBlock> {
-        match self.0.as_inner() {
-            v::BlockElement::Math(x) => Some(MathBlock(v::Located::new(
-                x.to_borrowed().into_owned(),
-                self.0.region(),
-            ))),
+    pub fn into_math_block(self) -> Option<MathBlock> {
+        let region = self.0.region();
+        match self.0.into_inner() {
+            v::BlockElement::Math(x) => {
+                Some(MathBlock(v::Located::new(x, region)))
+            }
             _ => None,
         }
     }
@@ -143,11 +145,12 @@ impl BlockElement {
     }
 
     /// Casts to definition list if it is one
-    pub fn as_definition_list(&self) -> Option<DefinitionList> {
-        match self.0.as_inner() {
-            v::BlockElement::DefinitionList(x) => Some(DefinitionList(
-                v::Located::new(x.to_borrowed().into_owned(), self.0.region()),
-            )),
+    pub fn into_definition_list(self) -> Option<DefinitionList> {
+        let region = self.0.region();
+        match self.0.into_inner() {
+            v::BlockElement::DefinitionList(x) => {
+                Some(DefinitionList(v::Located::new(x, region)))
+            }
             _ => None,
         }
     }
@@ -158,10 +161,11 @@ impl BlockElement {
     }
 
     /// Casts to divider if it is one
-    pub fn as_divider(&self) -> Option<Divider> {
-        match self.0.as_inner() {
+    pub fn into_divider(self) -> Option<Divider> {
+        let region = self.0.region();
+        match self.0.into_inner() {
             v::BlockElement::Divider(x) => {
-                Some(Divider(v::Located::new(*x, self.0.region())))
+                Some(Divider(v::Located::new(x, region)))
             }
             _ => None,
         }
@@ -173,12 +177,12 @@ impl BlockElement {
     }
 
     /// Casts to definition list if it is one
-    pub fn as_header(&self) -> Option<Header> {
-        match self.0.as_inner() {
-            v::BlockElement::Header(x) => Some(Header(v::Located::new(
-                x.to_borrowed().into_owned(),
-                self.0.region(),
-            ))),
+    pub fn into_header(self) -> Option<Header> {
+        let region = self.0.region();
+        match self.0.into_inner() {
+            v::BlockElement::Header(x) => {
+                Some(Header(v::Located::new(x, region)))
+            }
             _ => None,
         }
     }
@@ -189,12 +193,10 @@ impl BlockElement {
     }
 
     /// Casts to list if it is one
-    pub fn as_list(&self) -> Option<List> {
-        match self.0.as_inner() {
-            v::BlockElement::List(x) => Some(List(v::Located::new(
-                x.to_borrowed().into_owned(),
-                self.0.region(),
-            ))),
+    pub fn into_list(self) -> Option<List> {
+        let region = self.0.region();
+        match self.0.into_inner() {
+            v::BlockElement::List(x) => Some(List(v::Located::new(x, region))),
             _ => None,
         }
     }
@@ -205,12 +207,12 @@ impl BlockElement {
     }
 
     /// Casts to paragraph if it is one
-    pub fn as_paragraph(&self) -> Option<Paragraph> {
-        match self.0.as_inner() {
-            v::BlockElement::Paragraph(x) => Some(Paragraph(v::Located::new(
-                x.to_borrowed().into_owned(),
-                self.0.region(),
-            ))),
+    pub fn into_paragraph(self) -> Option<Paragraph> {
+        let region = self.0.region();
+        match self.0.into_inner() {
+            v::BlockElement::Paragraph(x) => {
+                Some(Paragraph(v::Located::new(x, region)))
+            }
             _ => None,
         }
     }
@@ -221,11 +223,12 @@ impl BlockElement {
     }
 
     /// Casts to placeholder if it is one
-    pub fn as_placeholder(&self) -> Option<Placeholder> {
-        match self.0.as_inner() {
-            v::BlockElement::Placeholder(x) => Some(Placeholder(
-                v::Located::new(x.to_borrowed().into_owned(), self.0.region()),
-            )),
+    pub fn into_placeholder(self) -> Option<Placeholder> {
+        let region = self.0.region();
+        match self.0.into_inner() {
+            v::BlockElement::Placeholder(x) => {
+                Some(Placeholder(v::Located::new(x, region)))
+            }
             _ => None,
         }
     }
@@ -236,12 +239,12 @@ impl BlockElement {
     }
 
     /// Casts to table if it is one
-    pub fn as_table(&self) -> Option<Table> {
-        match self.0.as_inner() {
-            v::BlockElement::Table(x) => Some(Table(v::Located::new(
-                x.to_borrowed().into_owned(),
-                self.0.region(),
-            ))),
+    pub fn into_table(self) -> Option<Table> {
+        let region = self.0.region();
+        match self.0.into_inner() {
+            v::BlockElement::Table(x) => {
+                Some(Table(v::Located::new(x, region)))
+            }
             _ => None,
         }
     }
@@ -259,11 +262,12 @@ impl InlineBlockElement {
     }
 
     /// Casts to list item if it is one
-    pub fn as_list_item(&self) -> Option<ListItem> {
-        match self.0.as_inner() {
-            v::InlineBlockElement::ListItem(x) => Some(ListItem(
-                v::Located::new(x.to_borrowed().into_owned(), self.0.region()),
-            )),
+    pub fn into_list_item(self) -> Option<ListItem> {
+        let region = self.0.region();
+        match self.0.into_inner() {
+            v::InlineBlockElement::ListItem(x) => {
+                Some(ListItem(v::Located::new(x, region)))
+            }
             _ => None,
         }
     }
@@ -274,11 +278,11 @@ impl InlineBlockElement {
     }
 
     /// Casts to term if it is one
-    pub fn as_term(&self) -> Option<InlineElementContainer> {
-        match self.0.as_inner() {
-            v::InlineBlockElement::Term(x) => Some(InlineElementContainer(
-                x.as_inner().to_borrowed().into_owned(),
-            )),
+    pub fn into_term(self) -> Option<InlineElementContainer> {
+        match self.0.into_inner() {
+            v::InlineBlockElement::Term(x) => {
+                Some(InlineElementContainer(x.into_inner()))
+            }
             _ => None,
         }
     }
@@ -289,11 +293,11 @@ impl InlineBlockElement {
     }
 
     /// Casts to definition if it is one
-    pub fn as_definition(&self) -> Option<InlineElementContainer> {
-        match self.0.as_inner() {
-            v::InlineBlockElement::Definition(x) => Some(
-                InlineElementContainer(x.as_inner().to_borrowed().into_owned()),
-            ),
+    pub fn into_definition(self) -> Option<InlineElementContainer> {
+        match self.0.into_inner() {
+            v::InlineBlockElement::Definition(x) => {
+                Some(InlineElementContainer(x.into_inner()))
+            }
             _ => None,
         }
     }
@@ -311,12 +315,10 @@ impl InlineElement {
     }
 
     /// Casts to text if it is one
-    pub fn as_text(&self) -> Option<Text> {
-        match self.0.as_inner() {
-            v::InlineElement::Text(x) => Some(Text(v::Located::new(
-                x.as_borrowed().into_owned(),
-                self.0.region(),
-            ))),
+    pub fn into_text(self) -> Option<Text> {
+        let region = self.0.region();
+        match self.0.into_inner() {
+            v::InlineElement::Text(x) => Some(Text(v::Located::new(x, region))),
             _ => None,
         }
     }
@@ -327,11 +329,12 @@ impl InlineElement {
     }
 
     /// Casts to decorated text if it is one
-    pub fn as_decorated_text(&self) -> Option<DecoratedText> {
-        match self.0.as_inner() {
-            v::InlineElement::DecoratedText(x) => Some(DecoratedText(
-                v::Located::new(x.to_borrowed().into_owned(), self.0.region()),
-            )),
+    pub fn into_decorated_text(self) -> Option<DecoratedText> {
+        let region = self.0.region();
+        match self.0.into_inner() {
+            v::InlineElement::DecoratedText(x) => {
+                Some(DecoratedText(v::Located::new(x, region)))
+            }
             _ => None,
         }
     }
@@ -342,9 +345,9 @@ impl InlineElement {
     }
 
     /// Casts to keyword if it is one
-    pub fn as_keyword(&self) -> Option<Keyword> {
-        match self.0.as_inner() {
-            v::InlineElement::Keyword(x) => Some(Keyword::from(*x)),
+    pub fn into_keyword(self) -> Option<Keyword> {
+        match self.0.into_inner() {
+            v::InlineElement::Keyword(x) => Some(Keyword::from(x)),
             _ => None,
         }
     }
@@ -355,12 +358,10 @@ impl InlineElement {
     }
 
     /// Casts to link if it is one
-    pub fn as_link(&self) -> Option<Link> {
-        match self.0.as_inner() {
-            v::InlineElement::Link(x) => Some(Link(v::Located::new(
-                x.to_borrowed().into_owned(),
-                self.0.region(),
-            ))),
+    pub fn into_link(self) -> Option<Link> {
+        let region = self.0.region();
+        match self.0.into_inner() {
+            v::InlineElement::Link(x) => Some(Link(v::Located::new(x, region))),
             _ => None,
         }
     }
@@ -371,44 +372,42 @@ impl InlineElement {
     }
 
     /// Casts to tag set if it is one
-    pub fn as_tags(&self) -> Option<Tags> {
-        match self.0.as_inner() {
-            v::InlineElement::Tags(x) => Some(Tags(v::Located::new(
-                x.to_borrowed().into_owned(),
-                self.0.region(),
-            ))),
+    pub fn into_tags(self) -> Option<Tags> {
+        let region = self.0.region();
+        match self.0.into_inner() {
+            v::InlineElement::Tags(x) => Some(Tags(v::Located::new(x, region))),
             _ => None,
         }
     }
 
     /// Returns true if element is inline code
-    pub fn is_code(&self) -> bool {
+    pub fn is_inline_code(&self) -> bool {
         matches!(self.0.as_inner(), v::InlineElement::Code(_))
     }
 
     /// Casts to inline code if it is one
-    pub fn as_code(&self) -> Option<CodeInline> {
-        match self.0.as_inner() {
-            v::InlineElement::Code(x) => Some(CodeInline(v::Located::new(
-                x.as_borrowed().into_owned(),
-                self.0.region(),
-            ))),
+    pub fn into_inline_code(self) -> Option<CodeInline> {
+        let region = self.0.region();
+        match self.0.into_inner() {
+            v::InlineElement::Code(x) => {
+                Some(CodeInline(v::Located::new(x, region)))
+            }
             _ => None,
         }
     }
 
     /// Returns true if element is inline math
-    pub fn is_math(&self) -> bool {
+    pub fn is_inline_math(&self) -> bool {
         matches!(self.0.as_inner(), v::InlineElement::Math(_))
     }
 
     /// Casts to inline math if it is one
-    pub fn as_math(&self) -> Option<MathInline> {
-        match self.0.as_inner() {
-            v::InlineElement::Math(x) => Some(MathInline(v::Located::new(
-                x.as_borrowed().into_owned(),
-                self.0.region(),
-            ))),
+    pub fn into_inline_math(self) -> Option<MathInline> {
+        let region = self.0.region();
+        match self.0.into_inner() {
+            v::InlineElement::Math(x) => {
+                Some(MathInline(v::Located::new(x, region)))
+            }
             _ => None,
         }
     }
@@ -419,12 +418,12 @@ impl InlineElement {
     }
 
     /// Casts to comment if it is one
-    pub fn as_comment(&self) -> Option<Comment> {
-        match self.0.as_inner() {
-            v::InlineElement::Comment(x) => Some(Comment(v::Located::new(
-                x.to_borrowed().into_owned(),
-                self.0.region(),
-            ))),
+    pub fn into_comment(self) -> Option<Comment> {
+        let region = self.0.region();
+        match self.0.into_inner() {
+            v::InlineElement::Comment(x) => {
+                Some(Comment(v::Located::new(x, region)))
+            }
             _ => None,
         }
     }
@@ -687,21 +686,21 @@ pub struct ListItemContent(v::Located<v::ListItemContent<'static>>);
 #[wasm_bindgen]
 impl ListItemContent {
     /// Casts to list if it is one
-    pub fn as_list(&self) -> Option<List> {
-        match self.0.as_inner() {
-            v::ListItemContent::List(x) => Some(List(v::Located::new(
-                x.to_borrowed().into_owned(),
-                self.0.region(),
-            ))),
+    pub fn into_list(self) -> Option<List> {
+        let region = self.0.region();
+        match self.0.into_inner() {
+            v::ListItemContent::List(x) => {
+                Some(List(v::Located::new(x, region)))
+            }
             _ => None,
         }
     }
 
     /// Casts to inline element container if it is one
-    pub fn as_inline(&self) -> Option<InlineElementContainer> {
-        match self.0.as_inner() {
+    pub fn into_inline_container(self) -> Option<InlineElementContainer> {
+        match self.0.into_inner() {
             v::ListItemContent::InlineContent(x) => {
-                Some(InlineElementContainer(x.to_borrowed().into_owned()))
+                Some(InlineElementContainer(x))
             }
             _ => None,
         }
@@ -713,7 +712,7 @@ impl ListItemContent {
     }
 
     /// Returns true if content is inline content
-    pub fn is_inline(&self) -> bool {
+    pub fn is_inline_container(&self) -> bool {
         matches!(self.0.as_inner(), v::ListItemContent::InlineContent(_))
     }
 }
