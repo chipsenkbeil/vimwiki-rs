@@ -15,10 +15,12 @@ pub struct Page(v::Page<'static>);
 impl Page {
     /// Returns top-level element at the given index if it exists
     pub fn element_at(&self, idx: usize) -> Option<BlockElement> {
-        self.0
-            .elements
-            .get(idx)
-            .map(|x| BlockElement(x.to_borrowed().into_owned()))
+        self.0.elements.get(idx).map(|x| {
+            BlockElement(v::Located::new(
+                x.to_borrowed().into_owned(),
+                x.region(),
+            ))
+        })
     }
 
     /// Represents total number of top-level elements within the page
@@ -30,51 +32,53 @@ impl Page {
 
 /// Represents a wrapper around a vimwiki element
 #[wasm_bindgen]
-pub struct Element(v::Element<'static>);
+pub struct Element(v::Located<v::Element<'static>>);
 
 #[wasm_bindgen]
 impl Element {
     /// Returns true if element is block element
     pub fn is_block(&self) -> bool {
-        matches!(self.0, v::Element::Block(_))
+        matches!(self.0.as_inner(), v::Element::Block(_))
     }
 
     /// Casts to block element if it is one
     pub fn as_block(&self) -> Option<BlockElement> {
-        match self.0 {
-            v::Element::Block(ref x) => {
-                Some(BlockElement(x.to_borrowed().into_owned()))
-            }
+        match self.0.as_inner() {
+            v::Element::Block(x) => Some(BlockElement(v::Located::new(
+                x.to_borrowed().into_owned(),
+                self.0.region(),
+            ))),
             _ => None,
         }
     }
 
     /// Returns true if element is inline element
     pub fn is_inline(&self) -> bool {
-        matches!(self.0, v::Element::Inline(_))
+        matches!(self.0.as_inner(), v::Element::Inline(_))
     }
 
     /// Casts to inline element if it is one
     pub fn as_inline(&self) -> Option<InlineElement> {
-        match self.0 {
-            v::Element::Inline(ref x) => {
-                Some(InlineElement(x.to_borrowed().into_owned()))
-            }
+        match self.0.as_inner() {
+            v::Element::Inline(x) => Some(InlineElement(v::Located::new(
+                x.to_borrowed().into_owned(),
+                self.0.region(),
+            ))),
             _ => None,
         }
     }
 
     /// Returns true if element is inline block element
     pub fn is_inline_block(&self) -> bool {
-        matches!(self.0, v::Element::InlineBlock(_))
+        matches!(self.0.as_inner(), v::Element::InlineBlock(_))
     }
 
     /// Casts to inline block element if it is one
     pub fn as_inline_block(&self) -> Option<InlineBlockElement> {
-        match self.0 {
-            v::Element::InlineBlock(ref x) => {
-                Some(InlineBlockElement(x.to_borrowed().into_owned()))
-            }
+        match self.0.as_inner() {
+            v::Element::InlineBlock(x) => Some(InlineBlockElement(
+                v::Located::new(x.to_borrowed().into_owned(), self.0.region()),
+            )),
             _ => None,
         }
     }
@@ -82,154 +86,162 @@ impl Element {
 
 /// Represents a wrapper around a vimwiki block element
 #[wasm_bindgen]
-pub struct BlockElement(v::BlockElement<'static>);
+pub struct BlockElement(v::Located<v::BlockElement<'static>>);
 
 #[wasm_bindgen]
 impl BlockElement {
     /// Returns true if element is blockquote
     pub fn is_blockquote(&self) -> bool {
-        matches!(self.0, v::BlockElement::Blockquote(_))
+        matches!(self.0.as_inner(), v::BlockElement::Blockquote(_))
     }
 
     /// Casts to blockquote if it is one
     pub fn as_blockquote(&self) -> Option<Blockquote> {
-        match self.0 {
-            v::BlockElement::Blockquote(ref x) => {
-                Some(Blockquote(x.to_borrowed().into_owned()))
-            }
+        match self.0.as_inner() {
+            v::BlockElement::Blockquote(x) => Some(Blockquote(
+                v::Located::new(x.to_borrowed().into_owned(), self.0.region()),
+            )),
             _ => None,
         }
     }
 
     /// Returns true if element is code block
     pub fn is_code(&self) -> bool {
-        matches!(self.0, v::BlockElement::CodeBlock(_))
+        matches!(self.0.as_inner(), v::BlockElement::CodeBlock(_))
     }
 
     /// Casts to code block if it is one
     pub fn as_code(&self) -> Option<CodeBlock> {
-        match self.0 {
-            v::BlockElement::CodeBlock(ref x) => {
-                Some(CodeBlock(x.to_borrowed().into_owned()))
-            }
+        match self.0.as_inner() {
+            v::BlockElement::CodeBlock(x) => Some(CodeBlock(v::Located::new(
+                x.to_borrowed().into_owned(),
+                self.0.region(),
+            ))),
             _ => None,
         }
     }
 
     /// Returns true if element is math block
     pub fn is_math(&self) -> bool {
-        matches!(self.0, v::BlockElement::Math(_))
+        matches!(self.0.as_inner(), v::BlockElement::Math(_))
     }
 
     /// Casts to math block if it is one
     pub fn as_math(&self) -> Option<MathBlock> {
-        match self.0 {
-            v::BlockElement::Math(ref x) => {
-                Some(MathBlock(x.to_borrowed().into_owned()))
-            }
+        match self.0.as_inner() {
+            v::BlockElement::Math(x) => Some(MathBlock(v::Located::new(
+                x.to_borrowed().into_owned(),
+                self.0.region(),
+            ))),
             _ => None,
         }
     }
 
     /// Returns true if element is definition list
     pub fn is_definition_list(&self) -> bool {
-        matches!(self.0, v::BlockElement::DefinitionList(_))
+        matches!(self.0.as_inner(), v::BlockElement::DefinitionList(_))
     }
 
     /// Casts to definition list if it is one
     pub fn as_definition_list(&self) -> Option<DefinitionList> {
-        match self.0 {
-            v::BlockElement::DefinitionList(ref x) => {
-                Some(DefinitionList(x.to_borrowed().into_owned()))
-            }
+        match self.0.as_inner() {
+            v::BlockElement::DefinitionList(x) => Some(DefinitionList(
+                v::Located::new(x.to_borrowed().into_owned(), self.0.region()),
+            )),
             _ => None,
         }
     }
 
     /// Returns true if element is divider
     pub fn is_divider(&self) -> bool {
-        matches!(self.0, v::BlockElement::Divider(_))
+        matches!(self.0.as_inner(), v::BlockElement::Divider(_))
     }
 
     /// Casts to divider if it is one
     pub fn as_divider(&self) -> Option<Divider> {
-        match self.0 {
-            v::BlockElement::Divider(ref x) => Some(Divider(*x)),
+        match self.0.as_inner() {
+            v::BlockElement::Divider(x) => {
+                Some(Divider(v::Located::new(*x, self.0.region())))
+            }
             _ => None,
         }
     }
 
     /// Returns true if element is header
     pub fn is_header(&self) -> bool {
-        matches!(self.0, v::BlockElement::Header(_))
+        matches!(self.0.as_inner(), v::BlockElement::Header(_))
     }
 
     /// Casts to definition list if it is one
     pub fn as_header(&self) -> Option<Header> {
-        match self.0 {
-            v::BlockElement::Header(ref x) => {
-                Some(Header(x.to_borrowed().into_owned()))
-            }
+        match self.0.as_inner() {
+            v::BlockElement::Header(x) => Some(Header(v::Located::new(
+                x.to_borrowed().into_owned(),
+                self.0.region(),
+            ))),
             _ => None,
         }
     }
 
     /// Returns true if element is list
     pub fn is_list(&self) -> bool {
-        matches!(self.0, v::BlockElement::List(_))
+        matches!(self.0.as_inner(), v::BlockElement::List(_))
     }
 
     /// Casts to list if it is one
     pub fn as_list(&self) -> Option<List> {
-        match self.0 {
-            v::BlockElement::List(ref x) => {
-                Some(List(x.to_borrowed().into_owned()))
-            }
+        match self.0.as_inner() {
+            v::BlockElement::List(x) => Some(List(v::Located::new(
+                x.to_borrowed().into_owned(),
+                self.0.region(),
+            ))),
             _ => None,
         }
     }
 
     /// Returns true if element is paragraph
     pub fn is_paragraph(&self) -> bool {
-        matches!(self.0, v::BlockElement::Paragraph(_))
+        matches!(self.0.as_inner(), v::BlockElement::Paragraph(_))
     }
 
     /// Casts to paragraph if it is one
     pub fn as_paragraph(&self) -> Option<Paragraph> {
-        match self.0 {
-            v::BlockElement::Paragraph(ref x) => {
-                Some(Paragraph(x.to_borrowed().into_owned()))
-            }
+        match self.0.as_inner() {
+            v::BlockElement::Paragraph(x) => Some(Paragraph(v::Located::new(
+                x.to_borrowed().into_owned(),
+                self.0.region(),
+            ))),
             _ => None,
         }
     }
 
     /// Returns true if element is placeholder
     pub fn is_placeholder(&self) -> bool {
-        matches!(self.0, v::BlockElement::Placeholder(_))
+        matches!(self.0.as_inner(), v::BlockElement::Placeholder(_))
     }
 
     /// Casts to placeholder if it is one
     pub fn as_placeholder(&self) -> Option<Placeholder> {
-        match self.0 {
-            v::BlockElement::Placeholder(ref x) => {
-                Some(Placeholder(x.to_borrowed().into_owned()))
-            }
+        match self.0.as_inner() {
+            v::BlockElement::Placeholder(x) => Some(Placeholder(
+                v::Located::new(x.to_borrowed().into_owned(), self.0.region()),
+            )),
             _ => None,
         }
     }
 
     /// Returns true if element is table
     pub fn is_table(&self) -> bool {
-        matches!(self.0, v::BlockElement::Table(_))
+        matches!(self.0.as_inner(), v::BlockElement::Table(_))
     }
 
     /// Casts to table if it is one
     pub fn as_table(&self) -> Option<Table> {
-        match self.0 {
-            v::BlockElement::Table(ref x) => {
-                Some(Table(x.to_borrowed().into_owned()))
-            }
+        match self.0.as_inner() {
+            v::BlockElement::Table(x) => Some(Table(v::Located::new(
+                x.to_borrowed().into_owned(),
+                self.0.region(),
+            ))),
             _ => None,
         }
     }
@@ -237,34 +249,34 @@ impl BlockElement {
 
 /// Represents a wrapper around a vimwiki inline block element
 #[wasm_bindgen]
-pub struct InlineBlockElement(v::InlineBlockElement<'static>);
+pub struct InlineBlockElement(v::Located<v::InlineBlockElement<'static>>);
 
 #[wasm_bindgen]
 impl InlineBlockElement {
     /// Returns true if element is list item
     pub fn is_list_item(&self) -> bool {
-        matches!(self.0, v::InlineBlockElement::ListItem(_))
+        matches!(self.0.as_inner(), v::InlineBlockElement::ListItem(_))
     }
 
     /// Casts to list item if it is one
     pub fn as_list_item(&self) -> Option<ListItem> {
-        match self.0 {
-            v::InlineBlockElement::ListItem(ref x) => {
-                Some(ListItem(x.to_borrowed().into_owned()))
-            }
+        match self.0.as_inner() {
+            v::InlineBlockElement::ListItem(x) => Some(ListItem(
+                v::Located::new(x.to_borrowed().into_owned(), self.0.region()),
+            )),
             _ => None,
         }
     }
 
     /// Returns true if element is term
     pub fn is_term(&self) -> bool {
-        matches!(self.0, v::InlineBlockElement::Term(_))
+        matches!(self.0.as_inner(), v::InlineBlockElement::Term(_))
     }
 
     /// Casts to term if it is one
     pub fn as_term(&self) -> Option<InlineElementContainer> {
-        match self.0 {
-            v::InlineBlockElement::Term(ref x) => Some(InlineElementContainer(
+        match self.0.as_inner() {
+            v::InlineBlockElement::Term(x) => Some(InlineElementContainer(
                 x.as_inner().to_borrowed().into_owned(),
             )),
             _ => None,
@@ -273,13 +285,13 @@ impl InlineBlockElement {
 
     /// Returns true if element is definition
     pub fn is_definition(&self) -> bool {
-        matches!(self.0, v::InlineBlockElement::Definition(_))
+        matches!(self.0.as_inner(), v::InlineBlockElement::Definition(_))
     }
 
     /// Casts to definition if it is one
     pub fn as_definition(&self) -> Option<InlineElementContainer> {
-        match self.0 {
-            v::InlineBlockElement::Definition(ref x) => Some(
+        match self.0.as_inner() {
+            v::InlineBlockElement::Definition(x) => Some(
                 InlineElementContainer(x.as_inner().to_borrowed().into_owned()),
             ),
             _ => None,
@@ -289,124 +301,130 @@ impl InlineBlockElement {
 
 /// Represents a wrapper around a vimwiki inline element
 #[wasm_bindgen]
-pub struct InlineElement(v::InlineElement<'static>);
+pub struct InlineElement(v::Located<v::InlineElement<'static>>);
 
 #[wasm_bindgen]
 impl InlineElement {
     /// Returns true if element is text
     pub fn is_text(&self) -> bool {
-        matches!(self.0, v::InlineElement::Text(_))
+        matches!(self.0.as_inner(), v::InlineElement::Text(_))
     }
 
     /// Casts to text if it is one
     pub fn as_text(&self) -> Option<Text> {
-        match self.0 {
-            v::InlineElement::Text(ref x) => {
-                Some(Text(x.as_borrowed().into_owned()))
-            }
+        match self.0.as_inner() {
+            v::InlineElement::Text(x) => Some(Text(v::Located::new(
+                x.as_borrowed().into_owned(),
+                self.0.region(),
+            ))),
             _ => None,
         }
     }
 
     /// Returns true if element is decorated text
     pub fn is_decorated_text(&self) -> bool {
-        matches!(self.0, v::InlineElement::DecoratedText(_))
+        matches!(self.0.as_inner(), v::InlineElement::DecoratedText(_))
     }
 
     /// Casts to decorated text if it is one
     pub fn as_decorated_text(&self) -> Option<DecoratedText> {
-        match self.0 {
-            v::InlineElement::DecoratedText(ref x) => {
-                Some(DecoratedText(x.to_borrowed().into_owned()))
-            }
+        match self.0.as_inner() {
+            v::InlineElement::DecoratedText(x) => Some(DecoratedText(
+                v::Located::new(x.to_borrowed().into_owned(), self.0.region()),
+            )),
             _ => None,
         }
     }
 
     /// Returns true if element is keyword
     pub fn is_keyword(&self) -> bool {
-        matches!(self.0, v::InlineElement::Keyword(_))
+        matches!(self.0.as_inner(), v::InlineElement::Keyword(_))
     }
 
     /// Casts to keyword if it is one
     pub fn as_keyword(&self) -> Option<Keyword> {
-        match self.0 {
-            v::InlineElement::Keyword(ref x) => Some(Keyword::from(*x)),
+        match self.0.as_inner() {
+            v::InlineElement::Keyword(x) => Some(Keyword::from(*x)),
             _ => None,
         }
     }
 
     /// Returns true if element is link
     pub fn is_link(&self) -> bool {
-        matches!(self.0, v::InlineElement::Link(_))
+        matches!(self.0.as_inner(), v::InlineElement::Link(_))
     }
 
     /// Casts to link if it is one
     pub fn as_link(&self) -> Option<Link> {
-        match self.0 {
-            v::InlineElement::Link(ref x) => {
-                Some(Link(x.to_borrowed().into_owned()))
-            }
+        match self.0.as_inner() {
+            v::InlineElement::Link(x) => Some(Link(v::Located::new(
+                x.to_borrowed().into_owned(),
+                self.0.region(),
+            ))),
             _ => None,
         }
     }
 
     /// Returns true if element is tag set
     pub fn is_tags(&self) -> bool {
-        matches!(self.0, v::InlineElement::Tags(_))
+        matches!(self.0.as_inner(), v::InlineElement::Tags(_))
     }
 
     /// Casts to tag set if it is one
     pub fn as_tags(&self) -> Option<Tags> {
-        match self.0 {
-            v::InlineElement::Tags(ref x) => {
-                Some(Tags(x.to_borrowed().into_owned()))
-            }
+        match self.0.as_inner() {
+            v::InlineElement::Tags(x) => Some(Tags(v::Located::new(
+                x.to_borrowed().into_owned(),
+                self.0.region(),
+            ))),
             _ => None,
         }
     }
 
     /// Returns true if element is inline code
     pub fn is_code(&self) -> bool {
-        matches!(self.0, v::InlineElement::Code(_))
+        matches!(self.0.as_inner(), v::InlineElement::Code(_))
     }
 
     /// Casts to inline code if it is one
     pub fn as_code(&self) -> Option<CodeInline> {
-        match self.0 {
-            v::InlineElement::Code(ref x) => {
-                Some(CodeInline(x.as_borrowed().into_owned()))
-            }
+        match self.0.as_inner() {
+            v::InlineElement::Code(x) => Some(CodeInline(v::Located::new(
+                x.as_borrowed().into_owned(),
+                self.0.region(),
+            ))),
             _ => None,
         }
     }
 
     /// Returns true if element is inline math
     pub fn is_math(&self) -> bool {
-        matches!(self.0, v::InlineElement::Math(_))
+        matches!(self.0.as_inner(), v::InlineElement::Math(_))
     }
 
     /// Casts to inline math if it is one
     pub fn as_math(&self) -> Option<MathInline> {
-        match self.0 {
-            v::InlineElement::Math(ref x) => {
-                Some(MathInline(x.as_borrowed().into_owned()))
-            }
+        match self.0.as_inner() {
+            v::InlineElement::Math(x) => Some(MathInline(v::Located::new(
+                x.as_borrowed().into_owned(),
+                self.0.region(),
+            ))),
             _ => None,
         }
     }
 
     /// Returns true if element is comment
     pub fn is_comment(&self) -> bool {
-        matches!(self.0, v::InlineElement::Comment(_))
+        matches!(self.0.as_inner(), v::InlineElement::Comment(_))
     }
 
     /// Casts to comment if it is one
     pub fn as_comment(&self) -> Option<Comment> {
-        match self.0 {
-            v::InlineElement::Comment(ref x) => {
-                Some(Comment(x.to_borrowed().into_owned()))
-            }
+        match self.0.as_inner() {
+            v::InlineElement::Comment(x) => Some(Comment(v::Located::new(
+                x.to_borrowed().into_owned(),
+                self.0.region(),
+            ))),
             _ => None,
         }
     }
@@ -420,9 +438,12 @@ pub struct InlineElementContainer(v::InlineElementContainer<'static>);
 impl InlineElementContainer {
     /// Returns element at the given index if it exists
     pub fn element_at(&self, idx: usize) -> Option<InlineElement> {
-        self.0
-            .get(idx)
-            .map(|x| InlineElement(x.to_borrowed().into_owned()))
+        self.0.get(idx).map(|x| {
+            InlineElement(v::Located::new(
+                x.to_borrowed().into_owned(),
+                x.region(),
+            ))
+        })
     }
 
     /// Represents total number of elements within container
@@ -439,7 +460,7 @@ impl InlineElementContainer {
 
 /// Represents a wrapper around a vimwiki blockquote
 #[wasm_bindgen]
-pub struct Blockquote(v::Blockquote<'static>);
+pub struct Blockquote(v::Located<v::Blockquote<'static>>);
 
 #[wasm_bindgen]
 impl Blockquote {
@@ -457,7 +478,7 @@ impl Blockquote {
 
 /// Represents a wrapper around a vimwiki code block
 #[wasm_bindgen]
-pub struct CodeBlock(v::CodeBlock<'static>);
+pub struct CodeBlock(v::Located<v::CodeBlock<'static>>);
 
 #[wasm_bindgen]
 impl CodeBlock {
@@ -497,7 +518,7 @@ impl CodeBlock {
 
 /// Represents a wrapper around a vimwiki definition list
 #[wasm_bindgen]
-pub struct DefinitionList(v::DefinitionList<'static>);
+pub struct DefinitionList(v::Located<v::DefinitionList<'static>>);
 
 #[wasm_bindgen]
 impl DefinitionList {
@@ -537,11 +558,11 @@ impl DefinitionList {
 
 /// Represents a wrapper around a vimwiki divider
 #[wasm_bindgen]
-pub struct Divider(v::Divider);
+pub struct Divider(v::Located<v::Divider>);
 
 /// Represents a wrapper around a vimwiki header
 #[wasm_bindgen]
-pub struct Header(v::Header<'static>);
+pub struct Header(v::Located<v::Header<'static>>);
 
 #[wasm_bindgen]
 impl Header {
@@ -571,16 +592,15 @@ impl Header {
 
 /// Represents a wrapper around a vimwiki list
 #[wasm_bindgen]
-pub struct List(v::List<'static>);
+pub struct List(v::Located<v::List<'static>>);
 
 #[wasm_bindgen]
 impl List {
     /// Returns list item at the given index if it exists
     pub fn item_at(&self, idx: usize) -> Option<ListItem> {
-        self.0
-            .items
-            .get(idx)
-            .map(|x| ListItem(x.to_borrowed().into_owned()))
+        self.0.items.get(idx).map(|x| {
+            ListItem(v::Located::new(x.to_borrowed().into_owned(), x.region()))
+        })
     }
 
     /// Represents total number of items within list
@@ -592,7 +612,7 @@ impl List {
 
 /// Represents a wrapper around a vimwiki list item
 #[wasm_bindgen]
-pub struct ListItem(v::ListItem<'static>);
+pub struct ListItem(v::Located<v::ListItem<'static>>);
 
 #[wasm_bindgen]
 impl ListItem {
@@ -645,9 +665,12 @@ pub struct ListItemContents(v::ListItemContents<'static>);
 impl ListItemContents {
     /// Returns content at the given index if it exists
     pub fn content_at(&self, idx: usize) -> Option<ListItemContent> {
-        self.0
-            .get(idx)
-            .map(|x| ListItemContent(x.to_borrowed().into_owned()))
+        self.0.get(idx).map(|x| {
+            ListItemContent(v::Located::new(
+                x.to_borrowed().into_owned(),
+                x.region(),
+            ))
+        })
     }
 
     /// Represents total number of separate content within the list item contents
@@ -659,24 +682,25 @@ impl ListItemContents {
 
 /// Represents a singular piece of list item content
 #[wasm_bindgen]
-pub struct ListItemContent(v::ListItemContent<'static>);
+pub struct ListItemContent(v::Located<v::ListItemContent<'static>>);
 
 #[wasm_bindgen]
 impl ListItemContent {
     /// Casts to list if it is one
     pub fn as_list(&self) -> Option<List> {
-        match self.0 {
-            v::ListItemContent::List(ref x) => {
-                Some(List(x.to_borrowed().into_owned()))
-            }
+        match self.0.as_inner() {
+            v::ListItemContent::List(x) => Some(List(v::Located::new(
+                x.to_borrowed().into_owned(),
+                self.0.region(),
+            ))),
             _ => None,
         }
     }
 
     /// Casts to inline element container if it is one
     pub fn as_inline(&self) -> Option<InlineElementContainer> {
-        match self.0 {
-            v::ListItemContent::InlineContent(ref x) => {
+        match self.0.as_inner() {
+            v::ListItemContent::InlineContent(x) => {
                 Some(InlineElementContainer(x.to_borrowed().into_owned()))
             }
             _ => None,
@@ -685,12 +709,12 @@ impl ListItemContent {
 
     /// Returns true if content is a sublist
     pub fn is_list(&self) -> bool {
-        matches!(self.0, v::ListItemContent::List(_))
+        matches!(self.0.as_inner(), v::ListItemContent::List(_))
     }
 
     /// Returns true if content is inline content
     pub fn is_inline(&self) -> bool {
-        matches!(self.0, v::ListItemContent::InlineContent(_))
+        matches!(self.0.as_inner(), v::ListItemContent::InlineContent(_))
     }
 }
 
@@ -824,7 +848,7 @@ impl From<v::ListItemSuffix> for ListItemSuffix {
 
 /// Represents a wrapper around a vimwiki math block
 #[wasm_bindgen]
-pub struct MathBlock(v::MathBlock<'static>);
+pub struct MathBlock(v::Located<v::MathBlock<'static>>);
 
 #[wasm_bindgen]
 impl MathBlock {
@@ -848,7 +872,7 @@ impl MathBlock {
 
 /// Represents a wrapper around a vimwiki paragraph
 #[wasm_bindgen]
-pub struct Paragraph(v::Paragraph<'static>);
+pub struct Paragraph(v::Located<v::Paragraph<'static>>);
 
 #[wasm_bindgen]
 impl Paragraph {
@@ -879,15 +903,15 @@ impl Paragraph {
 
 /// Represents a wrapper around a vimwiki placeholder
 #[wasm_bindgen]
-pub struct Placeholder(v::Placeholder<'static>);
+pub struct Placeholder(v::Located<v::Placeholder<'static>>);
 
 #[wasm_bindgen]
 impl Placeholder {
     /// Represents the title associated with the placeholder if it has one
     #[wasm_bindgen(getter)]
     pub fn title(&self) -> Option<String> {
-        match self.0 {
-            v::Placeholder::Title(ref x) => Some(x.to_string()),
+        match self.0.as_inner() {
+            v::Placeholder::Title(x) => Some(x.to_string()),
             _ => None,
         }
     }
@@ -895,8 +919,8 @@ impl Placeholder {
     /// Represents the template associated with the placeholder if it has one
     #[wasm_bindgen(getter)]
     pub fn template(&self) -> Option<String> {
-        match self.0 {
-            v::Placeholder::Template(ref x) => Some(x.to_string()),
+        match self.0.as_inner() {
+            v::Placeholder::Template(x) => Some(x.to_string()),
             _ => None,
         }
     }
@@ -905,8 +929,8 @@ impl Placeholder {
     #[wasm_bindgen(getter)]
     pub fn date(&self) -> Option<js_sys::Date> {
         use chrono::Datelike;
-        match self.0 {
-            v::Placeholder::Date(ref x) => {
+        match self.0.as_inner() {
+            v::Placeholder::Date(x) => {
                 Some(js_sys::Date::new_with_year_month_day(
                     x.year() as u32,
                     x.month() as i32,
@@ -920,8 +944,8 @@ impl Placeholder {
     /// Represents the other placeholder's name if it has one
     #[wasm_bindgen(getter)]
     pub fn other_name(&self) -> Option<String> {
-        match self.0 {
-            v::Placeholder::Other { ref name, .. } => Some(name.to_string()),
+        match self.0.as_inner() {
+            v::Placeholder::Other { name, .. } => Some(name.to_string()),
             _ => None,
         }
     }
@@ -929,21 +953,21 @@ impl Placeholder {
     /// Represents the other placeholder's value if it has one
     #[wasm_bindgen(getter)]
     pub fn other_value(&self) -> Option<String> {
-        match self.0 {
-            v::Placeholder::Other { ref value, .. } => Some(value.to_string()),
+        match self.0.as_inner() {
+            v::Placeholder::Other { value, .. } => Some(value.to_string()),
             _ => None,
         }
     }
 
     /// Returns true if placeholder represents a flag for no html output
     pub fn is_no_html(&self) -> bool {
-        matches!(self.0, v::Placeholder::NoHtml)
+        matches!(self.0.as_inner(), v::Placeholder::NoHtml)
     }
 }
 
 /// Represents a wrapper around a vimwiki table
 #[wasm_bindgen]
-pub struct Table(v::Table<'static>);
+pub struct Table(v::Located<v::Table<'static>>);
 
 #[wasm_bindgen]
 impl Table {
@@ -951,36 +975,43 @@ impl Table {
     ///
     /// Cells are a 2D matrix
     #[wasm_bindgen(constructor)]
-    pub fn new(cells: js_sys::Array, centered: bool) -> Result<Table, JsValue> {
-        Ok(Self(v::Table::new(
-            cells
-                .iter()
-                .map(js_sys::Array::try_from)
-                .enumerate()
-                .filter_map(|(row, res)| {
-                    res.map(|arr| {
-                        arr.iter()
+    pub fn new(
+        cells: js_sys::Array,
+        centered: bool,
+        region: Option<Region>,
+    ) -> Result<Table, JsValue> {
+        Ok(Self(v::Located::new(
+            v::Table::new(
+                cells
+                    .iter()
+                    .map(js_sys::Array::try_from)
+                    .enumerate()
+                    .filter_map(|(row, res)| {
+                        res.map(|arr| {
+                            arr.iter()
                             .filter_map(|x| {
                                 utils::cast_value::<Cell>(x, "Cell").ok()
                             })
                             .enumerate()
                             .map(|(col, x)| {
-                                (v::CellPos { row, col }, v::Located::from(x.0))
+                                (v::CellPos { row, col }, x.0)
                             })
                             .collect::<Vec<(v::CellPos, v::Located<v::Cell>)>>()
+                        })
+                        .ok()
                     })
-                    .ok()
-                })
-                .flatten(),
-            centered,
+                    .flatten(),
+                centered,
+            ),
+            region.map(|x| x.0).unwrap_or_default(),
         )))
     }
 
     /// Returns cell at the given row & column if it exists
     pub fn cell_at(&self, row: usize, col: usize) -> Option<Cell> {
-        self.0
-            .get_cell(row, col)
-            .map(|x| Cell(x.to_borrowed().into_owned()))
+        self.0.get_cell(row, col).map(|x| {
+            Cell(v::Located::new(x.to_borrowed().into_owned(), x.region()))
+        })
     }
 
     /// Returns total number of rows
@@ -1004,17 +1035,18 @@ impl Table {
 
 /// Represents a wrapper around a vimwiki table cell
 #[wasm_bindgen]
-pub struct Cell(v::Cell<'static>);
+pub struct Cell(v::Located<v::Cell<'static>>);
 
 #[wasm_bindgen]
 impl Cell {
     /// Creates a new table cell from the given string
     #[wasm_bindgen(constructor)]
-    pub fn new(txt: &str) -> Result<Cell, JsValue> {
-        Ok(Self(
+    pub fn new(txt: &str, region: Option<Region>) -> Result<Cell, JsValue> {
+        Ok(Self(v::Located::new(
             v::Cell::Content(v::Located::from(v::Text::from(txt)).into())
                 .into_owned(),
-        ))
+            region.map(|x| x.0).unwrap_or_default(),
+        )))
     }
 
     /// Represents content contained within cell if it has content
@@ -1083,83 +1115,97 @@ impl Cell {
 
 /// Represents a wrapper around a vimwiki decorated text
 #[wasm_bindgen]
-pub struct DecoratedText(v::DecoratedText<'static>);
+pub struct DecoratedText(v::Located<v::DecoratedText<'static>>);
 
 #[wasm_bindgen]
 impl DecoratedText {
     /// Creates some new bold text
-    pub fn new_bold_text(txt: &str) -> DecoratedText {
-        Self(
+    pub fn new_bold_text(txt: &str, region: Option<Region>) -> DecoratedText {
+        Self(v::Located::new(
             v::DecoratedText::Bold(vec![v::Located::from(
                 v::DecoratedTextContent::Text(v::Text::from(txt)),
             )])
             .into_owned(),
-        )
+            region.map(|x| x.0).unwrap_or_default(),
+        ))
     }
 
     /// Creates some new italic text
-    pub fn new_italic_text(txt: &str) -> DecoratedText {
-        Self(
+    pub fn new_italic_text(txt: &str, region: Option<Region>) -> DecoratedText {
+        Self(v::Located::new(
             v::DecoratedText::Italic(vec![v::Located::from(
                 v::DecoratedTextContent::Text(v::Text::from(txt)),
             )])
             .into_owned(),
-        )
+            region.map(|x| x.0).unwrap_or_default(),
+        ))
     }
 
     /// Creates some new strikeout text
-    pub fn new_strikeout_text(txt: &str) -> DecoratedText {
-        Self(
+    pub fn new_strikeout_text(
+        txt: &str,
+        region: Option<Region>,
+    ) -> DecoratedText {
+        Self(v::Located::new(
             v::DecoratedText::Strikeout(vec![v::Located::from(
                 v::DecoratedTextContent::Text(v::Text::from(txt)),
             )])
             .into_owned(),
-        )
+            region.map(|x| x.0).unwrap_or_default(),
+        ))
     }
 
     /// Creates some new superscript text
-    pub fn new_superscript_text(txt: &str) -> DecoratedText {
-        Self(
+    pub fn new_superscript_text(
+        txt: &str,
+        region: Option<Region>,
+    ) -> DecoratedText {
+        Self(v::Located::new(
             v::DecoratedText::Superscript(vec![v::Located::from(
                 v::DecoratedTextContent::Text(v::Text::from(txt)),
             )])
             .into_owned(),
-        )
+            region.map(|x| x.0).unwrap_or_default(),
+        ))
     }
 
     /// Creates some new subscript text
-    pub fn new_subscript_text(txt: &str) -> DecoratedText {
-        Self(
+    pub fn new_subscript_text(
+        txt: &str,
+        region: Option<Region>,
+    ) -> DecoratedText {
+        Self(v::Located::new(
             v::DecoratedText::Subscript(vec![v::Located::from(
                 v::DecoratedTextContent::Text(v::Text::from(txt)),
             )])
             .into_owned(),
-        )
+            region.map(|x| x.0).unwrap_or_default(),
+        ))
     }
 
     /// Returns true if bold
     pub fn is_bold(&self) -> bool {
-        matches!(self.0, v::DecoratedText::Bold(_))
+        matches!(self.0.as_inner(), v::DecoratedText::Bold(_))
     }
 
     /// Returns true if italic
     pub fn is_italic(&self) -> bool {
-        matches!(self.0, v::DecoratedText::Italic(_))
+        matches!(self.0.as_inner(), v::DecoratedText::Italic(_))
     }
 
     /// Returns true if strikeout
     pub fn is_strikeout(&self) -> bool {
-        matches!(self.0, v::DecoratedText::Strikeout(_))
+        matches!(self.0.as_inner(), v::DecoratedText::Strikeout(_))
     }
 
     /// Returns true if superscript
     pub fn is_superscript(&self) -> bool {
-        matches!(self.0, v::DecoratedText::Superscript(_))
+        matches!(self.0.as_inner(), v::DecoratedText::Superscript(_))
     }
 
     /// Returns true if subscript
     pub fn is_subscript(&self) -> bool {
-        matches!(self.0, v::DecoratedText::Subscript(_))
+        matches!(self.0.as_inner(), v::DecoratedText::Subscript(_))
     }
 
     /// Returns the contents of the decorated text
@@ -1190,9 +1236,11 @@ pub struct DecoratedTextContents(
 impl DecoratedTextContents {
     /// Returns the content at the specified index
     pub fn get(&self, idx: usize) -> Option<DecoratedTextContent> {
-        self.0
-            .get(idx)
-            .map(|x| DecoratedTextContent(x.to_borrowed().into_owned()))
+        self.0.get(idx).map(|x| {
+            DecoratedTextContent(
+                x.as_ref().map(|x| x.to_borrowed().into_owned()),
+            )
+        })
     }
 
     /// Indicates whether or not there is content
@@ -1209,7 +1257,7 @@ impl DecoratedTextContents {
 
 /// Represents a singular piece of content within decorated text
 #[wasm_bindgen]
-pub struct DecoratedTextContent(v::DecoratedTextContent<'static>);
+pub struct DecoratedTextContent(v::Located<v::DecoratedTextContent<'static>>);
 
 #[wasm_bindgen]
 impl DecoratedTextContent {
@@ -1260,7 +1308,7 @@ impl From<v::Keyword> for Keyword {
 
 /// Represents a wrapper around a vimwiki link
 #[wasm_bindgen]
-pub struct Link(v::Link<'static>);
+pub struct Link(v::Located<v::Link<'static>>);
 
 #[wasm_bindgen]
 impl Link {
@@ -1268,8 +1316,9 @@ impl Link {
     pub fn new_wiki_link(
         uri: &str,
         description: &str,
+        region: Option<Region>,
     ) -> Result<Link, JsValue> {
-        Ok(Self(
+        Ok(Self(v::Located::new(
             v::Link::new_wiki_link(
                 uriparse::URIReference::try_from(uri)
                     .map_err(|x| JsValue::from_str(x.to_string().as_str()))?,
@@ -1277,7 +1326,8 @@ impl Link {
                     .unwrap_or_else(|_| v::Description::from(description)),
             )
             .into_owned(),
-        ))
+            region.map(|x| x.0).unwrap_or_default(),
+        )))
     }
 
     /// Creates a new indexed interwiki link
@@ -1285,8 +1335,9 @@ impl Link {
         index: u32,
         uri: &str,
         description: &str,
+        region: Option<Region>,
     ) -> Result<Link, JsValue> {
-        Ok(Self(
+        Ok(Self(v::Located::new(
             v::Link::new_indexed_interwiki_link(
                 index,
                 uriparse::URIReference::try_from(uri)
@@ -1295,7 +1346,8 @@ impl Link {
                     .unwrap_or_else(|_| v::Description::from(description)),
             )
             .into_owned(),
-        ))
+            region.map(|x| x.0).unwrap_or_default(),
+        )))
     }
 
     /// Creates a new named interwiki link
@@ -1303,8 +1355,9 @@ impl Link {
         name: &str,
         uri: &str,
         description: &str,
+        region: Option<Region>,
     ) -> Result<Link, JsValue> {
-        Ok(Self(
+        Ok(Self(v::Located::new(
             v::Link::new_named_interwiki_link(
                 name,
                 uriparse::URIReference::try_from(uri)
@@ -1313,7 +1366,8 @@ impl Link {
                     .unwrap_or_else(|_| v::Description::from(description)),
             )
             .into_owned(),
-        ))
+            region.map(|x| x.0).unwrap_or_default(),
+        )))
     }
 
     /// Creates a new diary link
@@ -1321,8 +1375,9 @@ impl Link {
         date: js_sys::Date,
         description: &str,
         anchor: &str,
+        region: Option<Region>,
     ) -> Link {
-        Self(
+        Self(v::Located::new(
             v::Link::new_diary_link(
                 chrono::NaiveDate::from_ymd(
                     date.get_utc_full_year() as i32,
@@ -1334,18 +1389,23 @@ impl Link {
                 v::Anchor::from_uri_fragment(anchor),
             )
             .into_owned(),
-        )
+            region.map(|x| x.0).unwrap_or_default(),
+        ))
     }
 
     /// Creates a new raw link
-    pub fn new_raw_link(uri: &str) -> Result<Link, JsValue> {
-        Ok(Self(
+    pub fn new_raw_link(
+        uri: &str,
+        region: Option<Region>,
+    ) -> Result<Link, JsValue> {
+        Ok(Self(v::Located::new(
             v::Link::new_raw_link(
                 uriparse::URIReference::try_from(uri)
                     .map_err(|x| JsValue::from_str(x.to_string().as_str()))?,
             )
             .into_owned(),
-        ))
+            region.map(|x| x.0).unwrap_or_default(),
+        )))
     }
 
     /// Creates a new transclusion link
@@ -1353,6 +1413,7 @@ impl Link {
         uri: &str,
         description: &str,
         properties: &js_sys::Object,
+        region: Option<Region>,
     ) -> Result<Link, JsValue> {
         let uri = uriparse::URIReference::try_from(uri)
             .map_err(|x| JsValue::from_str(x.to_string().as_str()))?;
@@ -1376,9 +1437,10 @@ impl Link {
                 })
                 .collect();
 
-        Ok(Self(
+        Ok(Self(v::Located::new(
             v::Link::new_transclusion_link(uri, desc, props).into_owned(),
-        ))
+            region.map(|x| x.0).unwrap_or_default(),
+        )))
     }
 
     /// Returns uri associated with link
@@ -1445,18 +1507,24 @@ impl Link {
 
 /// Represents a wrapper around a set of vimwiki tags
 #[wasm_bindgen]
-pub struct Tags(v::Tags<'static>);
+pub struct Tags(v::Located<v::Tags<'static>>);
 
 #[wasm_bindgen]
 impl Tags {
     /// Creates a new tag set instance using the given list of strings
     #[allow(clippy::boxed_local)]
     #[wasm_bindgen(constructor)]
-    pub fn new(array: Box<[JsValue]>) -> Result<Tags, JsValue> {
+    pub fn new(
+        array: Box<[JsValue]>,
+        region: Option<Region>,
+    ) -> Result<Tags, JsValue> {
         let array: Vec<String> =
             array.iter().filter_map(|x| x.as_string()).collect();
 
-        Ok(Self(v::Tags::from(array)))
+        Ok(Self(v::Located::new(
+            v::Tags::from(array),
+            region.map(|x| x.0).unwrap_or_default(),
+        )))
     }
 
     /// Retrieves the tag at the specified index within the tag set
@@ -1495,14 +1563,17 @@ impl Tag {
 
 /// Represents a wrapper around a vimwiki code inline
 #[wasm_bindgen]
-pub struct CodeInline(v::CodeInline<'static>);
+pub struct CodeInline(v::Located<v::CodeInline<'static>>);
 
 #[wasm_bindgen]
 impl CodeInline {
     /// Creates a new inline code instance using the given string
     #[wasm_bindgen(constructor)]
-    pub fn new(txt: &str) -> Self {
-        Self(v::CodeInline::new(Cow::from(txt)).into_owned())
+    pub fn new(txt: &str, region: Option<Region>) -> Self {
+        Self(v::Located::new(
+            v::CodeInline::new(Cow::from(txt)).into_owned(),
+            region.map(|x| x.0).unwrap_or_default(),
+        ))
     }
 
     /// Converts inline code to a JavaScript string
@@ -1513,14 +1584,17 @@ impl CodeInline {
 
 /// Represents a wrapper around a vimwiki math inline
 #[wasm_bindgen]
-pub struct MathInline(v::MathInline<'static>);
+pub struct MathInline(v::Located<v::MathInline<'static>>);
 
 #[wasm_bindgen]
 impl MathInline {
     /// Creates a new inline math instance using the given string
     #[wasm_bindgen(constructor)]
-    pub fn new(txt: &str) -> Self {
-        Self(v::MathInline::new(Cow::from(txt)).into_owned())
+    pub fn new(txt: &str, region: Option<Region>) -> Self {
+        Self(v::Located::new(
+            v::MathInline::new(Cow::from(txt)).into_owned(),
+            region.map(|x| x.0).unwrap_or_default(),
+        ))
     }
 
     /// Converts inline math to a JavaScript string
@@ -1531,36 +1605,36 @@ impl MathInline {
 
 /// Represents a wrapper around a vimwiki comment
 #[wasm_bindgen]
-pub struct Comment(v::Comment<'static>);
+pub struct Comment(v::Located<v::Comment<'static>>);
 
 #[wasm_bindgen]
 impl Comment {
     /// Creates a new comment instance, marked as either a line comment
     /// or multiline comment based on the flag
     #[wasm_bindgen(constructor)]
-    pub fn new(txt: &str, multiline: bool) -> Self {
+    pub fn new(txt: &str, multiline: bool, region: Option<Region>) -> Self {
         if multiline {
-            Self(
+            Self(v::Located::new(
                 v::Comment::MultiLine(v::MultiLineComment::new(
                     txt.split('\n').map(Cow::from).collect(),
                 ))
                 .into_owned(),
-            )
+                region.map(|x| x.0).unwrap_or_default(),
+            ))
         } else {
-            Self(
+            Self(v::Located::new(
                 v::Comment::Line(v::LineComment::new(Cow::from(txt)))
                     .into_owned(),
-            )
+                region.map(|x| x.0).unwrap_or_default(),
+            ))
         }
     }
 
     /// Retrieves the line at the specified index
     pub fn line_at(&self, idx: usize) -> Option<String> {
-        match self.0 {
-            v::Comment::Line(ref x) if idx == 0 => Some(x.0.to_string()),
-            v::Comment::MultiLine(ref x) => {
-                x.0.get(idx).map(ToString::to_string)
-            }
+        match self.0.as_inner() {
+            v::Comment::Line(x) if idx == 0 => Some(x.0.to_string()),
+            v::Comment::MultiLine(x) => x.0.get(idx).map(ToString::to_string),
             _ => None,
         }
     }
@@ -1568,9 +1642,9 @@ impl Comment {
     /// Returns total lines contained within the comment
     #[wasm_bindgen(getter)]
     pub fn line_cnt(&self) -> usize {
-        match self.0 {
+        match self.0.as_inner() {
             v::Comment::Line(_) => 1,
-            v::Comment::MultiLine(ref x) => x.0.len(),
+            v::Comment::MultiLine(x) => x.0.len(),
         }
     }
 
@@ -1582,14 +1656,17 @@ impl Comment {
 
 /// Represents a wrapper around a vimwiki text
 #[wasm_bindgen]
-pub struct Text(v::Text<'static>);
+pub struct Text(v::Located<v::Text<'static>>);
 
 #[wasm_bindgen]
 impl Text {
     /// Creates a new text instance using the given string
     #[wasm_bindgen(constructor)]
-    pub fn new(txt: &str) -> Self {
-        Self(v::Text::new(Cow::from(txt)).into_owned())
+    pub fn new(txt: &str, region: Option<Region>) -> Self {
+        Self(v::Located::new(
+            v::Text::new(Cow::from(txt)).into_owned(),
+            region.map(|x| x.0).unwrap_or_default(),
+        ))
     }
 
     /// Converts text to a JavaScript string
@@ -1634,9 +1711,13 @@ impl Region {
     }
 }
 
-/// Provide From impl; use @ to not use lifetimes
+/// Provide From impl;
+///
+/// use @ to not use lifetimes
+/// use - to not use Located<..>
+/// use -@ to apply both
 macro_rules! impl_from {
-    (@$name:ident $($tail:tt)*) => {
+    (-@$name:ident $($tail:tt)*) => {
         impl From<v::$name> for $name {
             fn from(x: v::$name) -> Self {
                 Self(x)
@@ -1645,9 +1726,27 @@ macro_rules! impl_from {
 
         impl_from!($($tail)*);
     };
-    ($name:ident $($tail:tt)*) => {
+    (-$name:ident $($tail:tt)*) => {
         impl From<v::$name<'static>> for $name {
             fn from(x: v::$name<'static>) -> Self {
+                Self(x)
+            }
+        }
+
+        impl_from!($($tail)*);
+    };
+    (@$name:ident $($tail:tt)*) => {
+        impl From<v::Located<v::$name>> for $name {
+            fn from(x: v::Located<v::$name>) -> Self {
+                Self(x)
+            }
+        }
+
+        impl_from!($($tail)*);
+    };
+    ($name:ident $($tail:tt)*) => {
+        impl From<v::Located<v::$name<'static>>> for $name {
+            fn from(x: v::Located<v::$name<'static>>) -> Self {
                 Self(x)
             }
         }
@@ -1658,11 +1757,11 @@ macro_rules! impl_from {
 }
 
 impl_from!(
-    Page Element BlockElement InlineBlockElement InlineElement Blockquote
+    -Page Element BlockElement InlineBlockElement InlineElement Blockquote
     CodeBlock DefinitionList @Divider Header List MathBlock Paragraph Table
     DecoratedText Link Tags CodeInline MathInline Comment Text
-    InlineElementContainer DecoratedTextContent ListItem ListItemContent
-    Placeholder @Region
+    -InlineElementContainer DecoratedTextContent ListItem ListItemContent
+    Placeholder -@Region
 );
 
 /// Provide conversion functions; use @ to not include html
@@ -1719,36 +1818,43 @@ macro_rules! impl_iter {
                     .to_borrowed()
                     .into_children()
                     .into_iter()
-                    .map(|x| x.to_borrowed().into_owned())
-                    .map(v::Element::from)
+                    .map(|x| v::Located::new(
+                        v::Element::from(x.to_borrowed().into_owned()),
+                        x.region(),
+                    ))
                     .map(Element::from)
                     .map(JsValue::from)
                     .collect()
             }
 
             /// Convert to an array of all elements within current object
-            pub fn to_all_elements(&self) -> js_sys::Array {
+            #[wasm_bindgen(getter)]
+            pub fn descendants(&self) -> js_sys::Array {
                 use vimwiki::IntoChildren;
 
                 // Used to keep track of all elements
                 let mut elements = Vec::new();
 
                 // Queue of elements whose children to acquire
-                let mut queue: Vec<v::Element<'_>> = self.0
+                let mut queue: Vec<v::Located<v::Element<'_>>> = self.0
                     .to_borrowed()
                     .into_children()
                     .into_iter()
-                    .map(|x| x.to_borrowed().into_owned())
-                    .map(v::Element::from)
+                    .map(|x| x.as_ref().map(
+                        |x| v::Element::from(x.to_borrowed().into_owned())
+                    ))
                     .collect();
 
                 while !queue.is_empty() {
                     let next = queue.remove(0);
-                    let children: Vec<v::Element<'_>> = next
+                    let children: Vec<v::Located<v::Element<'_>>> = next
+                        .as_inner()
                         .clone()
                         .into_children()
                         .into_iter()
-                        .map(v::Located::into_inner)
+                        .map(|x| x.as_ref().map(
+                            |x| v::Element::from(x.to_borrowed().into_owned()),
+                        ))
                         .collect();
                     elements.push(next);
                     queue.extend(children);
@@ -1772,4 +1878,30 @@ impl_iter!(
     Page Element BlockElement InlineBlockElement InlineElement
     DefinitionList Header List Paragraph Table
     DecoratedText InlineElementContainer DecoratedTextContent ListItem
+);
+
+macro_rules! impl_region {
+    ($name:ident $($tail:tt)*) => {
+        #[wasm_bindgen]
+        impl $name {
+            /// Represents region of text that this element occupies
+            #[wasm_bindgen(getter)]
+            pub fn region(&self) -> Region {
+                Region(self.0.region())
+            }
+        }
+
+        impl_region!($($tail)*);
+    };
+    () => {};
+}
+
+impl_region!(
+    Element BlockElement InlineBlockElement InlineElement
+
+    Blockquote CodeBlock DefinitionList Divider Header List MathBlock
+    Paragraph Placeholder Table
+
+    DecoratedText Link Tags CodeInline MathInline Comment Text
+    DecoratedTextContent ListItem ListItemContent
 );
