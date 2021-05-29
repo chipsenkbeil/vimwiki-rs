@@ -7,80 +7,6 @@ use vimwiki::{
 };
 use wasm_bindgen::prelude::*;
 
-// Provide a name to implement From and common wasm methods
-// Use @ prefix if vimwiki type does not have a lifetime (e.g. @Divider)
-macro_rules! impl_common {
-    (@$name:ident $($tail:tt)*) => {
-        impl From<v::$name> for $name {
-            fn from(x: v::$name) -> Self {
-                Self(x)
-            }
-        }
-
-        #[wasm_bindgen]
-        impl $name {
-            /// Searches for elements in all children (and their children, recursively) and returns all matches
-            pub fn search(&self, _f: &js_sys::Function) -> js_sys::Array {
-                // TODO: Actually implement this to use the closure to determine
-                //       which elements to keep
-                js_sys::Array::new()
-            }
-
-            /// Convert to a JavaScript value
-            pub fn to_js(&self) -> JsValue {
-                JsValue::from_serde(&self.0).unwrap()
-            }
-
-            /// Convert to a debug string
-            pub fn to_debug_str(&self) -> String {
-                format!("{:?}", self.0)
-            }
-
-            /// Convert to an HTML string
-            pub fn to_html_str(&self) -> Result<String, JsValue> {
-                self.0
-                    .to_html_string(Default::default())
-                    .map_err(|x| x.to_string().into())
-            }
-        }
-
-        impl_common!($($tail)*);
-    };
-    ($name:ident $($tail:tt)*) => {
-        impl From<v::$name<'static>> for $name {
-            fn from(x: v::$name<'static>) -> Self {
-                Self(x)
-            }
-        }
-
-        #[wasm_bindgen]
-        impl $name {
-            /// Convert to a JavaScript value
-            pub fn to_js(&self) -> JsValue {
-                JsValue::from_serde(&self.0).unwrap()
-            }
-
-            /// Convert to an HTML string
-            pub fn to_html_str(&self) -> Result<String, JsValue> {
-                self.0
-                    .to_html_string(Default::default())
-                    .map_err(|x| x.to_string().into())
-            }
-        }
-
-        impl_common!($($tail)*);
-    };
-    () => {};
-}
-
-impl_common!(
-    Page Element BlockElement InlineBlockElement InlineElement Blockquote
-    CodeBlock DefinitionList @Divider Header List MathBlock Paragraph Table
-    DecoratedText Link Tags CodeInline MathInline Comment Text
-    InlineElementContainer DecoratedTextContent ListItem ListItemContent
-    Placeholder
-);
-
 /// Represents a wrapper around a vimwiki page
 #[wasm_bindgen]
 pub struct Page(v::Page<'static>);
@@ -1671,3 +1597,135 @@ impl Text {
         self.0.to_string()
     }
 }
+
+macro_rules! impl_from {
+    (@$name:ident $($tail:tt)*) => {
+        impl From<v::$name> for $name {
+            fn from(x: v::$name) -> Self {
+                Self(x)
+            }
+        }
+
+        impl_from!($($tail)*);
+    };
+    ($name:ident $($tail:tt)*) => {
+        impl From<v::$name<'static>> for $name {
+            fn from(x: v::$name<'static>) -> Self {
+                Self(x)
+            }
+        }
+
+        impl_from!($($tail)*);
+    };
+    () => {};
+}
+
+impl_from!(
+    Page Element BlockElement InlineBlockElement InlineElement Blockquote
+    CodeBlock DefinitionList @Divider Header List MathBlock Paragraph Table
+    DecoratedText Link Tags CodeInline MathInline Comment Text
+    InlineElementContainer DecoratedTextContent ListItem ListItemContent
+    Placeholder
+);
+
+macro_rules! impl_convert {
+    ($name:ident $($tail:tt)*) => {
+        #[wasm_bindgen]
+        impl $name {
+            /// Convert to a JavaScript value
+            pub fn to_js(&self) -> JsValue {
+                JsValue::from_serde(&self.0).unwrap()
+            }
+
+            /// Convert to a debug string
+            pub fn to_debug_str(&self) -> String {
+                format!("{:?}", self.0)
+            }
+
+            /// Convert to an HTML string
+            pub fn to_html_str(&self) -> Result<String, JsValue> {
+                self.0
+                    .to_html_string(Default::default())
+                    .map_err(|x| x.to_string().into())
+            }
+        }
+
+        impl_convert!($($tail)*);
+    };
+    () => {};
+}
+
+impl_convert!(
+    Page Element BlockElement InlineBlockElement InlineElement Blockquote
+    CodeBlock DefinitionList Divider Header List MathBlock Paragraph Table
+    DecoratedText Link Tags CodeInline MathInline Comment Text
+    InlineElementContainer DecoratedTextContent ListItem ListItemContent
+    Placeholder
+);
+
+macro_rules! impl_iter {
+    ($name:ident $($tail:tt)*) => {
+        #[wasm_bindgen]
+        impl $name {
+            /// Convert to an array containing all immediate children elements
+            #[wasm_bindgen(getter)]
+            pub fn children(&self) -> js_sys::Array {
+                use vimwiki::IntoChildren;
+                self.0
+                    .to_borrowed()
+                    .into_children()
+                    .into_iter()
+                    .map(|x| x.to_borrowed().into_owned())
+                    .map(v::Element::from)
+                    .map(Element::from)
+                    .map(JsValue::from)
+                    .collect()
+            }
+
+            /// Convert to an array of all elements within current object
+            pub fn to_all_elements(&self) -> js_sys::Array {
+                use vimwiki::IntoChildren;
+
+                // Used to keep track of all elements
+                let mut elements = Vec::new();
+
+                // Queue of elements whose children to acquire
+                let mut queue: Vec<v::Element<'_>> = self.0
+                    .to_borrowed()
+                    .into_children()
+                    .into_iter()
+                    .map(|x| x.to_borrowed().into_owned())
+                    .map(v::Element::from)
+                    .collect();
+
+                while !queue.is_empty() {
+                    let next = queue.remove(0);
+                    let children: Vec<v::Element<'_>> = next
+                        .clone()
+                        .into_children()
+                        .into_iter()
+                        .map(v::Located::into_inner)
+                        .collect();
+                    elements.push(next);
+                    queue.extend(children);
+                }
+
+                // Collect elements into final array
+                elements
+                    .into_iter()
+                    .map(Element::from)
+                    .map(JsValue::from)
+                    .collect()
+            }
+        }
+
+        impl_iter!($($tail)*);
+    };
+    () => {};
+}
+
+impl_iter!(
+    Page Element BlockElement InlineBlockElement InlineElement
+    DefinitionList Header List Paragraph Table
+    DecoratedText InlineElementContainer DecoratedTextContent ListItem
+);
