@@ -1,6 +1,9 @@
 use crate::{Ast, CommonOpt, InspectSubcommand};
 use jsonpath_lib as jsonpath;
-use std::{fs, io};
+use std::{
+    fs,
+    io::{self, Write},
+};
 use vimwiki::HtmlConfig;
 
 pub fn inspect(
@@ -18,10 +21,14 @@ pub fn inspect(
         })?;
 
     if let Some(path) = output {
-        serde_json::to_writer_pretty(fs::File::create(path)?, &values)
-            .map_err(io::Error::from)
+        let file = fs::File::create(path)?;
+        let mut writer = io::BufWriter::new(file);
+        serde_json::to_writer_pretty(&mut writer, &values)
+            .map_err(io::Error::from)?;
+        writer.flush()?;
+        Ok(())
     } else {
-        serde_json::to_writer_pretty(io::stdout(), &values)
-            .map_err(io::Error::from)
+        let stdout = io::stdout();
+        serde_json::to_writer_pretty(stdout, &values).map_err(io::Error::from)
     }
 }

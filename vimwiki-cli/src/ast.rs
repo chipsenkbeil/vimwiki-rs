@@ -5,7 +5,8 @@ use sha1::{Digest, Sha1};
 use std::collections::HashSet;
 use std::{
     ffi::OsStr,
-    fs, io,
+    fs,
+    io::{self, Write},
     path::{Path, PathBuf},
 };
 use vimwiki::{HtmlConfig, HtmlWikiConfig, Language, Page};
@@ -259,11 +260,30 @@ fn load_wiki_file(
 
     // Update our cache with the new file; old files get cleaned later
     if !has_cached_page {
-        let writer = io::BufWriter::new(fs::File::create(
-            cache.join(checksum.as_str()),
-        )?);
-        serde_json::to_writer_pretty(writer, &page).map_err(io::Error::from)?;
-        trace!("{:?} :: wrote cache", path);
+        match fs::File::create(cache.join(checksum.as_str())) {
+            Ok(file) => {
+                let mut writer = io::BufWriter::new(file);
+                match serde_json::to_writer_pretty(&mut writer, &page) {
+                    Ok(()) => {
+                        if let Err(x) = writer.flush() {
+                            trace!(
+                                "{:?} :: failed to write cache: {}",
+                                path,
+                                x
+                            );
+                        } else {
+                            trace!("{:?} :: wrote cache", path);
+                        }
+                    }
+                    Err(x) => {
+                        error!("{:?} :: failed to write cache: {}", path, x);
+                    }
+                }
+            }
+            Err(x) => {
+                error!("{:?} :: open cache for write failed: {}", path, x);
+            }
+        }
     }
 
     Ok(WikiFile {
