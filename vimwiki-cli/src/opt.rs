@@ -1,5 +1,14 @@
+use directories::ProjectDirs;
+use lazy_static::lazy_static;
 use std::path::PathBuf;
 use structopt::StructOpt;
+
+lazy_static! {
+    static ref DEFAULT_CACHE_DIR: String =
+        ProjectDirs::from("rs", "vimwiki", "vimwiki-cli")
+            .map(|dir| dir.cache_dir().to_string_lossy().to_string())
+            .unwrap_or_default();
+}
 
 /// Tooling to convert and manipulation vimwiki files and wikis
 #[derive(Debug, StructOpt)]
@@ -25,6 +34,50 @@ pub struct CommonOpt {
     /// Timestamp for logging (sec, ms, ns, none)
     #[structopt(short, long, global = true)]
     pub timestamp: Option<stderrlog::Timestamp>,
+
+    /// Directory where cache information is stored
+    #[structopt(long, default_value = &DEFAULT_CACHE_DIR, global = true)]
+    pub cache: PathBuf,
+
+    /// If specified, no cache will be used
+    #[structopt(long, global = true)]
+    pub no_cache: bool,
+
+    /// If specified, cache directory will not be pruned of old files
+    #[structopt(long, global = true)]
+    pub no_prune_cache: bool,
+
+    /// Path to config file
+    #[structopt(short, long, global = true)]
+    pub config: Option<PathBuf>,
+
+    /// If specified, will attempt to merge wikis loaded from vim/neovim
+    /// with wikis defined via a config file if accessible. Wikis from
+    /// vim/neovim will be first such that their indexes align with those
+    /// defined in vimscript with the config file wikis being added after
+    ///
+    /// If not specified, then vim/neovim wikis are only loaded if there
+    /// is no config file or the config file has no wikis defined
+    #[structopt(short, long, global = true)]
+    pub merge: bool,
+
+    /// Specifies specific wikis to include by index or name; if none are
+    /// provided, then all available wikis are converted
+    #[structopt(short, long, global = true)]
+    pub include: Vec<IndexOrName>,
+}
+
+impl CommonOpt {
+    /// Filter for wikis to process, defaulting to every wiki unless given a
+    /// filter of wikis to include
+    pub fn filter_by_wiki_idx_and_name(
+        &self,
+        idx: usize,
+        name: Option<&str>,
+    ) -> bool {
+        self.include.is_empty()
+            || self.include.iter().any(|f| f.matches_either(idx, name))
+    }
 }
 
 #[derive(Debug, StructOpt)]
@@ -46,30 +99,6 @@ pub struct ConvertSubcommand {
     #[structopt(long)]
     pub include_vimwiki_css: bool,
 
-    /// Path to config file for output (otherwise uses default settings)
-    #[structopt(short, long)]
-    pub config: Option<PathBuf>,
-
-    /// If specified, will attempt to merge wikis loaded from vim/neovim
-    /// with wikis defined via a config file if accessible. Wikis from
-    /// vim/neovim will be first such that their indexes align with those
-    /// defined in vimscript with the config file wikis being added after
-    ///
-    /// If not specified, then vim/neovim wikis are only loaded if there
-    /// is no config file or the config file has no wikis defined
-    #[structopt(short, long)]
-    pub merge: bool,
-
-    /// Specifies specific wikis to include by index or name; if none are
-    /// provided, then all available wikis are converted
-    #[structopt(short, long)]
-    pub include: Vec<IndexOrName>,
-
-    /// If provided, will fail immediately when encountering an error instead
-    /// of continuing
-    #[structopt(long)]
-    pub fail_fast: bool,
-
     /// Files (or directories) to process
     #[structopt(name = "FILE", parse(from_os_str))]
     pub files: Vec<PathBuf>,
@@ -87,25 +116,6 @@ pub struct ServeSubcommand {
     #[structopt(long)]
     pub include_styles_css: bool,
 
-    /// Path to config file for output (otherwise uses default settings)
-    #[structopt(short, long)]
-    pub config: Option<PathBuf>,
-
-    /// If specified, will attempt to merge wikis loaded from vim/neovim
-    /// with wikis defined via a config file if accessible. Wikis from
-    /// vim/neovim will be first such that their indexes align with those
-    /// defined in vimscript with the config file wikis being added after
-    ///
-    /// If not specified, then vim/neovim wikis are only loaded if there
-    /// is no config file or the config file has no wikis defined
-    #[structopt(short, long)]
-    pub merge: bool,
-
-    /// Specifies specific wikis to include by index or name; if none are
-    /// provided, then all available wikis are converted
-    #[structopt(short, long)]
-    pub include: Vec<IndexOrName>,
-
     /// Files (or directories) to process
     #[structopt(name = "FILE", parse(from_os_str))]
     pub files: Vec<PathBuf>,
@@ -114,25 +124,6 @@ pub struct ServeSubcommand {
 /// Inspect information that is available
 #[derive(Debug, StructOpt)]
 pub struct InspectSubcommand {
-    /// Path to config file for wiki definitions
-    #[structopt(long)]
-    pub config: Option<PathBuf>,
-
-    /// If specified, will attempt to merge wikis loaded from vim/neovim
-    /// with wikis defined via a config file if accessible. Wikis from
-    /// vim/neovim will be first such that their indexes align with those
-    /// defined in vimscript with the config file wikis being added after
-    ///
-    /// If not specified, then vim/neovim wikis are only loaded if there
-    /// is no config file or the config file has no wikis defined
-    #[structopt(short, long)]
-    pub merge: bool,
-
-    /// Specifies specific wikis to include by index or name; if none are
-    /// provided, then all wikis are available
-    #[structopt(short, long)]
-    pub include: Vec<IndexOrName>,
-
     /// Writes to output file instead of stdout
     #[structopt(short, long)]
     pub output: Option<PathBuf>,

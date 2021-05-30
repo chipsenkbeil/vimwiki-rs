@@ -126,5 +126,5 @@ pub async fn store(opt: &Opt) -> async_graphql::Result<()> {
 /// Represents the path to the cache file for the database
 #[inline]
 fn cache_file(opt: &Opt) -> PathBuf {
-    opt.cache_dir.join("vimwiki.database")
+    opt.cache.join("vimwiki.database")
 }

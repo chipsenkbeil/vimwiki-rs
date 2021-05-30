@@ -36,7 +36,7 @@ pub struct Opt {
 
     /// Directory where cache information for use with server will be stored
     #[structopt(long, default_value = &DEFAULT_CACHE_DIR)]
-    pub cache_dir: PathBuf,
+    pub cache: PathBuf,
 
     /// Path to config file for wiki definitions
     #[structopt(long)]

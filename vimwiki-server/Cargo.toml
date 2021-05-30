@@ -22,7 +22,7 @@ path = "src/main.rs"
 async-graphql = "2.8.4"
 async-graphql-warp = "2.8.4"
 derive_more = { version = "0.99.0", default-features = false, features = [ "display", "error", "from" ] }
-directories = "3.0.1"
+directories = "3.0.2"
 entity = { version = "0.3.2", features = ["global", "macros", "serde-1"] }
 entity-inmemory = { version = "0.3.2", features = ["serde-1"] }
 entity-async-graphql = { version = "0.3.2", features = ["macros"] }
