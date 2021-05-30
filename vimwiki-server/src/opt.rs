@@ -23,12 +23,7 @@ pub struct Opt {
     pub log_dir: Option<PathBuf>,
 
     /// Mode to run server (http = web; stdin = read input from stdin and reply on stdout)
-    #[structopt(
-        long, 
-        possible_values = Mode::VARIANTS,
-        case_insensitive = true,
-        default_value = "http"
-    )]
+    #[structopt(long, possible_values = Mode::VARIANTS, case_insensitive = true, default_value = "http")]
     pub mode: Mode,
 
     /// Host/IP address of server in http mode
