@@ -37,7 +37,7 @@ pub fn convert(cmd: ConvertSubcommand, _opt: CommonOpt) -> io::Result<()> {
                     html_config.clone(),
                     wiki.path.as_path(),
                     cmd.stdout,
-                    &cmd.extensions,
+                    &wiki.ext,
                 ),
             );
 
@@ -73,7 +73,7 @@ pub fn convert(cmd: ConvertSubcommand, _opt: CommonOpt) -> io::Result<()> {
                 html_config.clone(),
                 path.as_path(),
                 cmd.stdout,
-                &cmd.extensions,
+                &HtmlWikiConfig::default_ext(),
             ),
         );
 
@@ -126,13 +126,13 @@ fn process_path(
     mut html_config: HtmlConfig,
     input_path: &Path,
     stdout: bool,
-    exts: &[String],
+    ext: &str,
 ) -> io::Result<()> {
     trace!(
-        "process_path(_, input_path = {:?}, stdout = {}, exts = {:?})",
+        "process_path(_, input_path = {:?}, stdout = {}, ext = {})",
         input_path,
         stdout,
-        exts
+        ext
     );
 
     // See if we have a wiki that already contains this path and, if not, we
@@ -160,10 +160,7 @@ fn process_path(
         .filter_map(|e| e.ok())
         .filter(|e| {
             e.file_type().is_file()
-                && exts.iter().any(|ext| {
-                    e.path().extension().and_then(OsStr::to_str)
-                        == Some(ext.as_str())
-                })
+                && e.path().extension().and_then(OsStr::to_str) == Some(ext)
         })
     {
         let mut html_config = html_config.clone();

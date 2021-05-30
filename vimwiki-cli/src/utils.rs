@@ -1,22 +1,7 @@
-use crate::VimVar;
 use log::*;
 use std::{io, path::Path};
+use vimvar::VimVar;
 use vimwiki::{HtmlConfig, HtmlWikiConfig};
-
-/// Loads g:vimwiki_list from vim/neovim and then attempts to convert it into
-/// a structured html wiki config
-pub fn load_vimwiki_list() -> std::io::Result<Vec<HtmlWikiConfig>> {
-    trace!("load_vimwiki_list()");
-
-    let vimwiki_list_json = VimVar::get_global("vimwiki_list", false)?;
-    trace!("g:vimwiki_list == {:?}", vimwiki_list_json);
-
-    if let Some(json) = vimwiki_list_json {
-        serde_json::from_value(json).map_err(Into::into)
-    } else {
-        Ok(Vec::new())
-    }
-}
 
 /// Attempts to load an html config from a file, attempting to load wikis from
 /// vim/neovim if no wikis are defined or if merge = true
@@ -25,7 +10,11 @@ pub fn load_html_config<'a, I: Into<Option<&'a Path>>>(
     merge: bool,
 ) -> io::Result<HtmlConfig> {
     let maybe_path = path.into();
-    trace!("load_html_config(path = {:?})", maybe_path);
+    trace!(
+        "load_html_config(path = {:?}, merge = {})",
+        maybe_path,
+        merge
+    );
 
     let mut html_config: HtmlConfig = if let Some(path) = maybe_path {
         let config_string = std::fs::read_to_string(path)?;
@@ -48,4 +37,19 @@ pub fn load_html_config<'a, I: Into<Option<&'a Path>>>(
     }
 
     Ok(html_config)
+}
+
+/// Loads g:vimwiki_list from vim/neovim and then attempts to convert it into
+/// a structured html wiki config
+fn load_vimwiki_list() -> std::io::Result<Vec<HtmlWikiConfig>> {
+    trace!("load_vimwiki_list()");
+
+    let vimwiki_list_json = VimVar::load_global_var("vimwiki_list", false)?;
+    trace!("g:vimwiki_list == {:?}", vimwiki_list_json);
+
+    if let Some(json) = vimwiki_list_json {
+        serde_json::from_value(json).map_err(Into::into)
+    } else {
+        Ok(Vec::new())
+    }
 }

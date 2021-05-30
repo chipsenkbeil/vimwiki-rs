@@ -3,11 +3,6 @@ use log::trace;
 
 pub struct Mutation;
 
-#[inline]
-fn default_exts() -> Vec<String> {
-    vec!["wiki".to_string()]
-}
-
 #[async_graphql::Object]
 impl Mutation {
     /// Imports/re-imports a wiki from the specified path
@@ -16,7 +11,7 @@ impl Mutation {
         path: String,
         index: u32,
         name: Option<String>,
-        #[graphql(default_with = "default_exts()")] exts: Vec<String>,
+        #[graphql(default = "wiki")] ext: String,
     ) -> async_graphql::Result<Wiki> {
         trace!(
             "import_wiki(path: {:?}, index: {}, name: {:?})",
@@ -28,7 +23,7 @@ impl Mutation {
             index as usize,
             path,
             name,
-            &exts,
+            ext.as_str(),
             |_| {},
             |_, _, _| {},
             |_| {},

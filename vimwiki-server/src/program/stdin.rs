@@ -1,4 +1,4 @@
-use crate::{graphql, Config};
+use crate::{graphql, Opt};
 use log::{error, info};
 use serde::{Deserialize, Serialize};
 
@@ -21,7 +21,7 @@ struct Output {
 }
 
 /// Spawns a worker to process stdin and communicate back over stdout & stderr
-pub async fn run(_config: Config) {
+pub async fn run(_opt: Opt) {
     let schema = graphql::new_schema();
 
     info!("Monitoring stdin...");

@@ -21,7 +21,6 @@ path = "src/main.rs"
 [dependencies]
 async-graphql = "2.8.4"
 async-graphql-warp = "2.8.4"
-clap = "3.0.0-beta.2"
 derive_more = { version = "0.99.0", default-features = false, features = [ "display", "error", "from" ] }
 directories = "3.0.1"
 entity = { version = "0.3.2", features = ["global", "macros", "serde-1"] }
@@ -37,9 +36,13 @@ serde = { version = "1.0.115", features = ["derive", "rc"] }
 serde_json = "1.0.58"
 typetag = "0.1.6"
 sha-1 = "0.9.1"
+shellexpand = "2.1.0"
 snafu = "0.6.9"
+structopt = "0.3.21"
 strum = { version = "0.20.0", features = ["derive"] }
 tokio = { version = "1.4.0", features = ["full"] }
+toml = "0.5.8"
+vimvar = "0.1.1"
 vimwiki = { version = "=0.1.0", path = "../vimwiki", features = ["macros"] }
 walkdir = "2.3.1"
 warp = "0.3.1"

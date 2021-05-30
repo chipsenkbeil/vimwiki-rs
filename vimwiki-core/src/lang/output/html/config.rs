@@ -327,6 +327,10 @@ pub struct HtmlWikiConfig {
     #[serde(default = "HtmlWikiConfig::default_css_name")]
     pub css_name: String,
 
+    /// File extension to use when searching for wiki files within a wiki
+    #[serde(default = "HtmlWikiConfig::default_ext")]
+    pub ext: String,
+
     /// Path for diary directory relative to this wiki's path
     #[serde(default = "HtmlWikiConfig::default_diary_rel_path")]
     pub diary_rel_path: PathBuf,
@@ -339,6 +343,7 @@ impl Default for HtmlWikiConfig {
             path_html: Self::default_path_html(),
             name: Self::default_name(),
             css_name: Self::default_css_name(),
+            ext: Self::default_ext(),
             diary_rel_path: Self::default_diary_rel_path(),
         }
     }
@@ -456,6 +461,11 @@ impl HtmlWikiConfig {
     #[inline]
     pub fn default_css_name() -> String {
         String::from("style.css")
+    }
+
+    #[inline]
+    pub fn default_ext() -> String {
+        String::from("wiki")
     }
 
     #[inline]

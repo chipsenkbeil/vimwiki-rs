@@ -9,7 +9,8 @@ use notify::{
     Error, Event, EventKind, RecommendedWatcher, RecursiveMode,
 };
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
+    ffi::OsStr,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -134,7 +135,15 @@ impl Watcher {
     ) -> Result<Self, Error> {
         let (tx, rx) = mpsc::unbounded_channel::<notify::Event>();
         let internal_watcher = Self::new_internal_watcher(tx)?;
-        let _handle = Self::spawn_handle(config, Arc::clone(&database), rx);
+
+        // Build a map of wiki path -> ext for use in file event monitoring
+        let ext_map = config
+            .wikis
+            .iter()
+            .map(|w| (w.path.to_path_buf(), w.ext.to_string()))
+            .collect();
+        let _handle = Self::spawn_handle(ext_map, Arc::clone(&database), rx);
+
         let watcher = Self {
             watcher: Arc::new(Mutex::new(internal_watcher)),
             _handle,
@@ -203,19 +212,32 @@ impl Watcher {
     }
 
     fn spawn_handle(
-        config: &Config,
+        ext_map: HashMap<PathBuf, String>,
         _database: DatabaseRc,
         mut rx: mpsc::UnboundedReceiver<Event>,
     ) -> JoinHandle<()> {
-        let exts = config.exts.clone();
         tokio::spawn(async move {
             while let Some(event) = rx.recv().await {
                 // Ensure that the event we receive is for a supported
                 // file extension
                 let not_for_valid_file_exts = event.paths.iter().any(|p| {
-                    p.extension()
-                        .map(|ex| !exts.iter().any(|ext| ext.as_str() == ex))
-                        .unwrap_or(true)
+                    let ext = ext_map.iter().find_map(|(path, ext)| {
+                        // Check if the path of the file change event is within
+                        // one of our ext map paths and, if so, apply that
+                        // extension
+                        //
+                        // NOTE: This doesn't support nested paths where one
+                        //       path is /my/wiki and another is /my/wiki/nested
+                        //       as it finds the first match rather than the
+                        //       deepest match
+                        if p.starts_with(path) {
+                            Some(ext.as_str())
+                        } else {
+                            None
+                        }
+                    });
+                    ext.is_some()
+                        && p.extension().and_then(OsStr::to_str) == ext
                 });
                 if not_for_valid_file_exts {
                     continue;

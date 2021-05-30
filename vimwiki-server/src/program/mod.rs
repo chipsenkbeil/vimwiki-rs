@@ -3,7 +3,7 @@ mod stdin;
 mod watcher;
 use watcher::*;
 
-use crate::{config::Mode, database, Config};
+use crate::{database, opt::Mode, Config, Opt};
 use derive_more::{Display, From};
 use entity::DatabaseRc;
 
@@ -22,11 +22,12 @@ pub struct Program;
 
 impl Program {
     /// Runs our program
-    pub async fn run(config: Config) -> ProgramResult<()> {
-        // Load our database using the provided configuration and any
+    pub async fn run(opt: Opt, config: Config) -> ProgramResult<()> {
+        // Load our database using the provided opturation and any
         // cached data from a previous run
-        let database =
-            database::load(&config).await.map_err(ProgramError::from)?;
+        let database = database::load(&opt, &config)
+            .await
+            .map_err(ProgramError::from)?;
 
         // Initialize our watcher to update the database based on changes
         // that occur in wikis and standalone files
@@ -35,9 +36,9 @@ impl Program {
                 .await
                 .map_err(ProgramError::from)?;
 
-        match config.mode {
-            Mode::Stdin => stdin::run(config).await,
-            Mode::Http => server::run(config).await,
+        match opt.mode {
+            Mode::Stdin => stdin::run(opt).await,
+            Mode::Http => server::run(opt).await,
         }
 
         Ok(())

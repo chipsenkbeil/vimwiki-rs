@@ -15,12 +15,14 @@ name = "vimwiki"
 path = "src/main.rs"
 
 [dependencies]
+jsonpath_lib = "0.2.6"
 log = "0.4.14"
+serde = "1.0.126"
 serde_json = "1.0.64"
 shellexpand = "2.1.0"
 stderrlog = "0.5.1"
 structopt = "0.3.21"
 toml = "0.5.8"
 walkdir = "2.3.2"
-
+vimvar = "0.1.1"
 vimwiki = { version = "=0.1.0", path = "../vimwiki", features = ["html"] }

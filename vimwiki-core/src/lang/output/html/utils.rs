@@ -15,8 +15,6 @@ use uriparse::{
 
 /// For use with serde's deserialize_with when deseriaizing to a path that
 /// we also want to validate is an absolute path
-///
-/// NOTE: For wasm32 architecture, this does not actually perform canonicalization
 pub(crate) fn deserialize_absolute_path<'de, D>(
     d: D,
 ) -> Result<PathBuf, D::Error>
@@ -37,17 +35,8 @@ where
             .to_string(),
     );
 
-    // Attempt to resolve all symlinks and other quirks
-    let value = if cfg!(not(target_arch = "wasm32")) {
-        value.canonicalize().map_err(|x| {
-            de::Error::invalid_value(
-                de::Unexpected::Str(value.to_string_lossy().as_ref()),
-                &x.to_string().as_str(),
-            )
-        })?
-    } else {
-        value
-    };
+    // Resolve .. and . in path (but not symlinks)
+    let value = normalize_path(value.as_path());
 
     // Verify that the path given is actually absolute
     if !value.is_absolute() {
@@ -58,6 +47,44 @@ where
     }
 
     Ok(value)
+}
+
+/// Normalize a path, removing things like `.` and `..`.
+///
+/// CAUTION: This does not resolve symlinks (unlike
+/// [`std::fs::canonicalize`]). This may cause incorrect or surprising
+/// behavior at times. This should be used carefully. Unfortunately,
+/// [`std::fs::canonicalize`] can be hard to use correctly, since it can often
+/// fail, or on Windows returns annoying device paths. This is a problem Cargo
+/// needs to improve on.
+///
+/// From https://github.com/rust-lang/cargo/blob/070e459c2d8b79c5b2ac5218064e7603329c92ae/crates/cargo-util/src/paths.rs#L81
+pub(crate) fn normalize_path(path: &Path) -> PathBuf {
+    let mut components = path.components().peekable();
+    let mut ret =
+        if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
+            components.next();
+            PathBuf::from(c.as_os_str())
+        } else {
+            PathBuf::new()
+        };
+
+    for component in components {
+        match component {
+            Component::Prefix(..) => unreachable!(),
+            Component::RootDir => {
+                ret.push(component.as_os_str());
+            }
+            Component::CurDir => {}
+            Component::ParentDir => {
+                ret.pop();
+            }
+            Component::Normal(c) => {
+                ret.push(c);
+            }
+        }
+    }
+    ret
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Display, Error)]

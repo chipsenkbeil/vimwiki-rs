@@ -15,23 +15,23 @@ pub struct Opt {
 #[derive(Debug, StructOpt)]
 pub struct CommonOpt {
     /// Verbose mode (-v, -vv, -vvv, etc.)
-    #[structopt(short, long, parse(from_occurrences))]
+    #[structopt(short, long, parse(from_occurrences), global = true)]
     pub verbose: usize,
 
     /// Quiet mode
-    #[structopt(short, long)]
+    #[structopt(short, long, global = true)]
     pub quiet: bool,
 
     /// Timestamp for logging (sec, ms, ns, none)
-    #[structopt(short, long)]
+    #[structopt(short, long, global = true)]
     pub timestamp: Option<stderrlog::Timestamp>,
 }
 
 #[derive(Debug, StructOpt)]
 pub enum Subcommand {
     Convert(ConvertSubcommand),
+    Inspect(InspectSubcommand),
     Serve(ServeSubcommand),
-    Print(PrintSubcommand),
 }
 
 /// Convert vimwiki into something else
@@ -59,11 +59,6 @@ pub struct ConvertSubcommand {
     /// is no config file or the config file has no wikis defined
     #[structopt(short, long)]
     pub merge: bool,
-
-    /// Extensions of files to parse when loading from wikis or arbitrary
-    /// directories
-    #[structopt(short, long = "ext", default_value = "wiki")]
-    pub extensions: Vec<String>,
 
     /// Specifies specific wikis to include by index or name; if none are
     /// provided, then all available wikis are converted
@@ -106,11 +101,6 @@ pub struct ServeSubcommand {
     #[structopt(short, long)]
     pub merge: bool,
 
-    /// Extensions of files to parse when loading from wikis or arbitrary
-    /// directories
-    #[structopt(short, long = "ext", default_value = "wiki")]
-    pub extensions: Vec<String>,
-
     /// Specifies specific wikis to include by index or name; if none are
     /// provided, then all available wikis are converted
     #[structopt(short, long)]
@@ -121,39 +111,35 @@ pub struct ServeSubcommand {
     pub files: Vec<PathBuf>,
 }
 
-/// Print out information that is available
+/// Inspect information that is available
 #[derive(Debug, StructOpt)]
-pub struct PrintSubcommand {
-    /// Path to config file to inspect for printing
+pub struct InspectSubcommand {
+    /// Path to config file for wiki definitions
     #[structopt(long)]
     pub config: Option<PathBuf>,
 
-    #[structopt(subcommand)]
-    pub ty: PrintType,
-}
+    /// If specified, will attempt to merge wikis loaded from vim/neovim
+    /// with wikis defined via a config file if accessible. Wikis from
+    /// vim/neovim will be first such that their indexes align with those
+    /// defined in vimscript with the config file wikis being added after
+    ///
+    /// If not specified, then vim/neovim wikis are only loaded if there
+    /// is no config file or the config file has no wikis defined
+    #[structopt(short, long)]
+    pub merge: bool,
 
-#[derive(Clone, Debug, StructOpt)]
-pub enum PrintType {
-    /// Print information about one or more wikis
-    Wiki {
-        /// Print all loaded wikis
-        #[structopt(short, long)]
-        all: bool,
+    /// Specifies specific wikis to include by index or name; if none are
+    /// provided, then all wikis are available
+    #[structopt(short, long)]
+    pub include: Vec<IndexOrName>,
 
-        /// If specified, will attempt to merge wikis loaded from vim/neovim
-        /// with wikis defined via a config file if accessible. Wikis from
-        /// vim/neovim will be first such that their indexes align with those
-        /// defined in vimscript with the config file wikis being added after
-        ///
-        /// If not specified, then vim/neovim wikis are only loaded if there
-        /// is no config file or the config file has no wikis defined
-        #[structopt(short, long)]
-        merge: bool,
+    /// Writes to output file instead of stdout
+    #[structopt(short, long)]
+    pub output: Option<PathBuf>,
 
-        /// Print wiki with specific index or name
-        #[structopt(name = "TARGET")]
-        target: Option<IndexOrName>,
-    },
+    /// JSON path to use for inspection
+    #[structopt(name = "PATH")]
+    pub json_path: String,
 }
 
 /// Represents either a wiki index or a wiki name

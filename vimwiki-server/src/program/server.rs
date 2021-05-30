@@ -1,4 +1,4 @@
-use crate::{graphql, Config};
+use crate::{graphql, Opt};
 use log::info;
 use std::convert::Infallible;
 use warp::{reply::Reply, Filter};
@@ -33,33 +33,12 @@ macro_rules! graphiql_endpoint {
     }};
 }
 
-macro_rules! graphql_playground_endpoint {
-    ($path:expr, $graphql_endpoint:expr) => {{
-        warp::path($path).map(move || {
-            warp::reply::html(async_graphql::http::playground_source(
-                async_graphql::http::GraphQLPlaygroundConfig::new(
-                    $graphql_endpoint,
-                ),
-            ))
-        })
-    }};
-}
-
-pub async fn run(config: Config) {
-    let endpoint = format!("http://{}:{}/graphql", config.host, config.port);
-    let endpoint_2 = endpoint.clone();
-
+pub async fn run(opt: Opt) {
     let graphql_filter = graphql_endpoint!("graphql", program);
-    let graphiql_filter = graphiql_endpoint!("graphiql", &endpoint);
-    let graphql_playground_filter =
-        graphql_playground_endpoint!("graphql_playground", &endpoint_2);
+    let graphiql_filter = graphiql_endpoint!("graphiql", "/graphql");
 
-    let routes = warp::any().and(
-        graphiql_filter
-            .or(graphql_playground_filter)
-            .or(graphql_filter),
-    );
+    let routes = warp::any().and(graphiql_filter.or(graphql_filter));
 
-    info!("Listening on 0.0.0.0:{}", config.port);
-    warp::serve(routes).run(([0, 0, 0, 0], config.port)).await;
+    info!("Listening on 0.0.0.0:{}", opt.port);
+    warp::serve(routes).run(([0, 0, 0, 0], opt.port)).await;
 }

@@ -46,7 +46,7 @@ impl Wiki {
                     i,
                     &wc.path,
                     wc.name.as_ref(),
-                    &config.exts,
+                    wc.ext.as_str(),
                     before_loading_files,
                     on_file_loaded,
                     after_loading_files,
@@ -59,7 +59,6 @@ impl Wiki {
 
     pub async fn load<
         N: AsRef<str>,
-        E: AsRef<str>,
         F1: Fn(usize) -> R1,
         F2: Fn(&R1, usize, &Path),
         F3: Fn(R1),
@@ -68,7 +67,7 @@ impl Wiki {
         index: usize,
         path: impl AsRef<Path>,
         name: Option<N>,
-        exts: &[E],
+        ext: &str,
         before_loading_files: F1,
         on_file_loaded: F2,
         after_loading_files: F3,
@@ -77,7 +76,7 @@ impl Wiki {
             .await
             .map_err(|x| async_graphql::Error::new(x.to_string()))?;
 
-        let paths = utils::walk_and_resolve_paths(c_path.as_path(), exts);
+        let paths = utils::walk_and_resolve_paths(c_path.as_path(), ext);
         let tracker = before_loading_files(paths.len());
 
         let mut file_ids = Vec::new();

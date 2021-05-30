@@ -1,4 +1,4 @@
-use crate::{data::Wiki, utils, Config};
+use crate::{data::Wiki, utils, Config, Opt};
 use async_graphql::ErrorExtensions;
 use entity::*;
 use entity_inmemory::InmemoryDatabase;
@@ -46,8 +46,11 @@ pub fn gql_db() -> async_graphql::Result<DatabaseRc> {
         .ok_or_else(|| VimwikiDatabaseError::DatabaseUnavailable.extend())
 }
 
-/// Load database state using given config
-pub async fn load(config: &Config) -> async_graphql::Result<DatabaseRc> {
+/// Load database state using given opt
+pub async fn load(
+    opt: &Opt,
+    config: &Config,
+) -> async_graphql::Result<DatabaseRc> {
     // If we already have a database loaded, just return it
     if let Ok(db) = gql_db() {
         return Ok(db);
@@ -56,7 +59,7 @@ pub async fn load(config: &Config) -> async_graphql::Result<DatabaseRc> {
     // Load our database from a cache file if it exists, otherwise we
     // start with a clean cache file
     let database = {
-        let path = cache_file(config);
+        let path = cache_file(opt);
         if path.exists() {
             let contents = tokio::fs::read_to_string(&path)
                 .await
@@ -89,13 +92,13 @@ pub async fn load(config: &Config) -> async_graphql::Result<DatabaseRc> {
     .await?;
 
     // Store our new database as the cache
-    let _ = store(&config).await?;
+    let _ = store(&opt).await?;
 
     gql_db()
 }
 
-/// Write database state to disk using given config
-pub async fn store(config: &Config) -> async_graphql::Result<()> {
+/// Write database state to disk using given opt
+pub async fn store(opt: &Opt) -> async_graphql::Result<()> {
     let db = gql_db()?;
 
     let json = serde_json::to_string_pretty(
@@ -104,7 +107,7 @@ pub async fn store(config: &Config) -> async_graphql::Result<()> {
     .context(DatabaseToJson {})
     .map_err(|x| x.extend())?;
 
-    let path = cache_file(config);
+    let path = cache_file(opt);
     if let Some(path) = path.parent() {
         tokio::fs::create_dir_all(path)
             .await
@@ -122,6 +125,6 @@ pub async fn store(config: &Config) -> async_graphql::Result<()> {
 
 /// Represents the path to the cache file for the database
 #[inline]
-fn cache_file(config: &Config) -> PathBuf {
-    config.cache_dir.join("vimwiki.database")
+fn cache_file(opt: &Opt) -> PathBuf {
+    opt.cache_dir.join("vimwiki.database")
 }

@@ -2,11 +2,8 @@ mod css;
 mod opt;
 mod subcommand;
 mod utils;
-mod vim;
 
 use opt::*;
-use vim::*;
-
 use structopt::StructOpt;
 
 fn main() {
@@ -16,7 +13,7 @@ fn main() {
     match opt.subcommand {
         Subcommand::Convert(cmd) => subcommand::convert(cmd, opt.common),
         Subcommand::Serve(cmd) => subcommand::serve(cmd, opt.common),
-        Subcommand::Print(cmd) => subcommand::print(cmd, opt.common),
+        Subcommand::Inspect(cmd) => subcommand::inspect(cmd, opt.common),
     }
     .expect("Command failed unexpectedly");
 }
