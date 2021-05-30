@@ -262,7 +262,7 @@ fn load_wiki_file(
         let writer = io::BufWriter::new(fs::File::create(
             cache.join(checksum.as_str()),
         )?);
-        serde_json::to_writer(writer, &page).map_err(io::Error::from)?;
+        serde_json::to_writer_pretty(writer, &page).map_err(io::Error::from)?;
         trace!("{:?} :: wrote cache", path);
     }
 
