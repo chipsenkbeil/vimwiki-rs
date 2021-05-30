@@ -204,8 +204,6 @@ fn load_wiki_file(
     let checksum = format!("{:x}", Sha1::digest(text.as_bytes()));
     trace!("{:?} :: checksum = {}", path, checksum);
 
-    // Load our index.json file to see if there is a file at the specified path
-    // that has been cached
     let cached_page: Option<Page> = if !no_cache {
         let cached_page_path = cache.join(checksum.as_str());
         trace!("{:?} :: checking cache at {:?}", path, cached_page_path);
@@ -213,11 +211,29 @@ fn load_wiki_file(
         // If a checksum file exists for the current checksum, then we can
         // just load that as it should match what we want
         if cached_page_path.exists() {
-            let reader = io::BufReader::new(fs::File::open(cached_page_path)?);
-            let cached_page: Page =
-                serde_json::from_reader(reader).map_err(io::Error::from)?;
-            trace!("{:?} :: loaded from cache", path);
-            Some(cached_page)
+            let cached_page: io::Result<Page> =
+                fs::File::open(cached_page_path.as_path())
+                    .map(io::BufReader::new)
+                    .and_then(|reader| {
+                        serde_json::from_reader(reader).map_err(io::Error::from)
+                    });
+
+            match cached_page {
+                Ok(page) => {
+                    trace!("{:?} :: loaded from cache", path);
+                    Some(page)
+                }
+                Err(x) => {
+                    error!("{:?} :: cache corrupted: {}", path, x);
+                    if let Err(x) = fs::remove_file(cached_page_path) {
+                        error!(
+                            "{:?} :: failed to remove corrupted cache: {}",
+                            path, x
+                        );
+                    }
+                    None
+                }
+            }
         } else {
             trace!("{:?} :: no cache found", path);
             None
