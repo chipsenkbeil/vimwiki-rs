@@ -38,7 +38,11 @@ pub fn load_html_config(
         // We attempt to load and parse our wiki content now, and if it fails
         // then we report over stderr and continue
         match load_vimwiki_list() {
-            Ok(wikis) => config.wikis.extend(wikis),
+            Ok(mut wikis) => {
+                // Add our config wikis AFTER the vimwiki list to maintain order
+                wikis.extend(config.wikis);
+                config.wikis = wikis;
+            }
             Err(x) => {
                 warn!("Failed to load vimwiki_list from vim/neovim: {}", x)
             }

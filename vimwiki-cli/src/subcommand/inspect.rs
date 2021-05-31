@@ -12,7 +12,9 @@ pub fn inspect(
     _config: HtmlConfig,
     ast: Ast,
 ) -> io::Result<()> {
-    let InspectSubcommand { output, json_path } = cmd;
+    let InspectSubcommand {
+        output, json_path, ..
+    } = cmd;
 
     let ast_json = serde_json::to_value(ast).map_err(io::Error::from)?;
     let values =

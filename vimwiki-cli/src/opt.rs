@@ -88,12 +88,12 @@ pub enum Subcommand {
 }
 
 impl Subcommand {
-    /// Returns extra paths to process, if any
+    /// Returns extra paths to process
     pub fn extra_paths(&self) -> &[PathBuf] {
         match self {
-            Self::Convert(x) => &x.files,
-            Self::Inspect(_) => &[],
-            Self::Serve(x) => &x.files,
+            Self::Convert(x) => &x.extra_paths,
+            Self::Inspect(x) => &x.extra_paths,
+            Self::Serve(x) => &x.extra_paths,
         }
     }
 }
@@ -110,9 +110,9 @@ pub struct ConvertSubcommand {
     #[structopt(long)]
     pub include_vimwiki_css: bool,
 
-    /// Files (or directories) to process
-    #[structopt(name = "FILE", parse(from_os_str))]
-    pub files: Vec<PathBuf>,
+    /// Additional standalone files (or directories) to process
+    #[structopt(name = "PATH", parse(from_os_str))]
+    pub extra_paths: Vec<PathBuf>,
 }
 
 /// Convert vimwiki into something else and serve it via http
@@ -127,9 +127,9 @@ pub struct ServeSubcommand {
     #[structopt(long)]
     pub include_styles_css: bool,
 
-    /// Files (or directories) to process
-    #[structopt(name = "FILE", parse(from_os_str))]
-    pub files: Vec<PathBuf>,
+    /// Additional standalone files (or directories) to process
+    #[structopt(name = "PATH", parse(from_os_str))]
+    pub extra_paths: Vec<PathBuf>,
 }
 
 /// Inspect information that is available
@@ -140,8 +140,12 @@ pub struct InspectSubcommand {
     pub output: Option<PathBuf>,
 
     /// JSON path to use for inspection
-    #[structopt(name = "PATH")]
+    #[structopt(name = "JSONPATH")]
     pub json_path: String,
+
+    /// Additional standalone files (or directories) to process
+    #[structopt(name = "PATH", parse(from_os_str))]
+    pub extra_paths: Vec<PathBuf>,
 }
 
 /// Represents either a wiki index or a wiki name

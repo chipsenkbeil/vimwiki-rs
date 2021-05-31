@@ -12,7 +12,7 @@ pub fn convert(
 ) -> io::Result<()> {
     // Process all wikis that match the given filters if we aren't given
     // specific files/wikis to convert
-    if cmd.files.is_empty() {
+    if cmd.extra_paths.is_empty() {
         for (_, wiki) in
             config.wikis.iter().enumerate().filter(|(idx, wiki)| {
                 opt.filter_by_wiki_idx_and_name(*idx, wiki.name.as_deref())
@@ -40,7 +40,7 @@ pub fn convert(
     }
 
     // Additionally, we process any directories & files provided adhoc
-    for path in cmd.files {
+    for path in cmd.extra_paths {
         // Need to make sure the path is legit
         let path = match path.canonicalize() {
             Ok(path) => path,
