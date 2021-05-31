@@ -109,6 +109,7 @@ pub type Definition<'a> = DefinitionListValue<'a>;
 )]
 pub struct DefinitionList<'a> {
     #[into_iterator(owned, ref, ref_mut)]
+    #[serde(with = "serde_with::rust::map_as_tuple_list")]
     mapping: HashMap<Located<Term<'a>>, Vec<Located<Definition<'a>>>>,
 }
 
