@@ -138,11 +138,9 @@ fn load_ast(
     };
 
     for (index, wiki) in config.wikis.iter().enumerate().filter(filter) {
-        trace!(
+        debug!(
             "Loading wiki @ index = {} | name = {:?} from {:?}",
-            index,
-            wiki.name,
-            wiki.path
+            index, wiki.name, wiki.path
         );
         ast.wikis.push(Wiki {
             index,
@@ -175,7 +173,7 @@ fn load_ast(
             .flat_map(|w| w.files.as_slice())
             .map(|f| f.checksum.as_str())
             .collect();
-        trace!("Pruning cache down to {} files", checksums.len());
+        debug!("Pruning cache down to {} files", checksums.len());
 
         let iter = WalkDir::new(cache)
             .into_iter()
@@ -185,12 +183,24 @@ fn load_ast(
         for entry in iter {
             match entry.file_name().to_str() {
                 Some(name) if !checksums.contains(name) => {
-                    trace!("Removing cache file {}", name);
-                    fs::remove_file(entry.path())?;
+                    debug!("Removing cache file {}", name);
+                    if let Err(x) = fs::remove_file(entry.path()) {
+                        error!(
+                            "Failed to remove cache file @ {:?}: {}",
+                            entry.path(),
+                            x,
+                        );
+                    }
                 }
                 None => {
-                    trace!("Removing corrupt cache file @ {:?}", entry.path());
-                    fs::remove_file(entry.path())?;
+                    warn!("Removing corrupt cache file @ {:?}", entry.path());
+                    if let Err(x) = fs::remove_file(entry.path()) {
+                        error!(
+                            "Failed to remove cache file @ {:?}: {}",
+                            entry.path(),
+                            x,
+                        );
+                    }
                 }
                 _ => {}
             }
@@ -215,14 +225,14 @@ fn load_wiki_file(
     // Load the file contents and calculate the checksum to see how it
     // compares to our cached version
     let text = fs::read_to_string(path)?;
-    trace!("{:?} :: text loaded", path);
+    debug!("{:?} :: text loaded", path);
 
     let checksum = format!("{:x}", Sha1::digest(text.as_bytes()));
-    trace!("{:?} :: checksum = {}", path, checksum);
+    debug!("{:?} :: checksum = {}", path, checksum);
 
     let cached_page: Option<Page> = if !no_cache {
         let cached_page_path = cache.join(checksum.as_str());
-        trace!("{:?} :: checking cache at {:?}", path, cached_page_path);
+        debug!("{:?} :: checking cache at {:?}", path, cached_page_path);
 
         // If a checksum file exists for the current checksum, then we can
         // just load that as it should match what we want
@@ -236,7 +246,7 @@ fn load_wiki_file(
 
             match cached_page {
                 Ok(page) => {
-                    trace!("{:?} :: loaded from cache", path);
+                    debug!("{:?} :: loaded from cache", path);
                     Some(page)
                 }
                 Err(x) => {
@@ -251,11 +261,11 @@ fn load_wiki_file(
                 }
             }
         } else {
-            trace!("{:?} :: no cache found", path);
+            debug!("{:?} :: no cache found", path);
             None
         }
     } else {
-        trace!("{:?} :: skipping cache", path);
+        debug!("{:?} :: skipping cache", path);
         None
     };
 
@@ -282,16 +292,14 @@ fn load_wiki_file(
                 match serde_json::to_writer_pretty(&mut writer, &page) {
                     Ok(()) => {
                         if let Err(x) = writer.flush() {
-                            trace!(
+                            error!(
                                 "{:?} :: failed to write cache: {}",
-                                path,
-                                x
+                                path, x
                             );
                         } else {
-                            trace!(
+                            debug!(
                                 "{:?} :: wrote cache to {:?}",
-                                path,
-                                cache_file_path
+                                path, cache_file_path
                             );
                         }
                     }

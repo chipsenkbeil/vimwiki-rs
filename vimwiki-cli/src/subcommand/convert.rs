@@ -149,7 +149,7 @@ fn process_file(
 
     // If we already have a file loaded at this path, use it
     let html = if let Some(file) = ast.find_file_by_path(input_path) {
-        trace!("{:?} :: loaded from cache!", input_path);
+        debug!("{:?} :: loaded from cache!", input_path);
 
         file.data.to_html_page(config).map_err(|x| {
             io::Error::new(io::ErrorKind::InvalidData, x.to_string())
@@ -163,7 +163,7 @@ fn process_file(
             io::Error::new(io::ErrorKind::InvalidData, x.to_string())
         })?
     };
-    trace!("{:?} :: html generated!", input_path);
+    debug!("{:?} :: html generated!", input_path);
 
     // If told to print to stdout, do so
     if stdout {
@@ -175,7 +175,7 @@ fn process_file(
             .unwrap_or_default()
             .make_output_path(input_path, "html");
 
-        debug!("Writing to {:?}", path);
+        info!("Writing to {:?}", path);
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }

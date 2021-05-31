@@ -40,7 +40,7 @@ pub fn load_html_config(
         match load_vimwiki_list() {
             Ok(wikis) => config.wikis.extend(wikis),
             Err(x) => {
-                error!("Failed to load vimwiki_list from vim/neovim: {}", x)
+                warn!("Failed to load vimwiki_list from vim/neovim: {}", x)
             }
         }
     }
