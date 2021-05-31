@@ -87,6 +87,17 @@ pub enum Subcommand {
     Serve(ServeSubcommand),
 }
 
+impl Subcommand {
+    /// Returns extra paths to process, if any
+    pub fn extra_paths(&self) -> &[PathBuf] {
+        match self {
+            Self::Convert(x) => &x.files,
+            Self::Inspect(_) => &[],
+            Self::Serve(x) => &x.files,
+        }
+    }
+}
+
 /// Convert vimwiki into something else
 #[derive(Debug, StructOpt)]
 pub struct ConvertSubcommand {

@@ -4,22 +4,72 @@ use crate::{
     },
     StrictEq,
 };
-use derive_more::{Constructor, From, IntoIterator};
+use derive_more::{Constructor, Display, Error, From, IntoIterator};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::{num::ParseIntError, str::FromStr};
 
 /// Represents the position of a cell in a table
 #[derive(
-    Constructor, Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
+    Constructor,
+    Copy,
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    Hash,
+    Display,
+    Serialize,
+    Deserialize,
 )]
+#[display(fmt = "{},{}", row, col)]
 pub struct CellPos {
     pub row: usize,
     pub col: usize,
 }
 
+#[derive(Debug, Display, Error)]
+pub enum ParseCellPosError {
+    TooFewItems,
+    TooManyItems,
+    BadRow(#[error(source)] ParseIntError),
+    BadCol(#[error(source)] ParseIntError),
+}
+
+impl FromStr for CellPos {
+    type Err = ParseCellPosError;
+
+    /// Parses "{row},{col}" into [`CellPos`]
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut iter = s.split(',');
+        let row_str = iter.next();
+        let col_str = iter.next();
+
+        if iter.next().is_some() {
+            Err(ParseCellPosError::TooManyItems)
+        } else {
+            match (row_str, col_str) {
+                (Some(row_str), Some(col_str)) => {
+                    let row: usize = row_str
+                        .trim()
+                        .parse()
+                        .map_err(ParseCellPosError::BadRow)?;
+                    let col: usize = col_str
+                        .trim()
+                        .parse()
+                        .map_err(ParseCellPosError::BadCol)?;
+                    Ok(Self { row, col })
+                }
+                _ => Err(ParseCellPosError::TooFewItems),
+            }
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, IntoIterator, Serialize, Deserialize)]
 pub struct Table<'a> {
     #[into_iterator(owned, ref, ref_mut)]
+    #[serde(with = "serde_with::rust::map_as_tuple_list")]
     cells: HashMap<CellPos, Located<Cell<'a>>>,
     row_cnt: usize,
     col_cnt: usize,

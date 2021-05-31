@@ -41,13 +41,28 @@ impl Ast {
     ) -> io::Result<&WikiFile> {
         let file = WikiFile::load(path, cache, no_cache)?;
 
-        // Figure out where to put the file
+        // Figure out which wiki to put the file
         if let Some(wiki) = self
             .wikis
             .iter_mut()
             .find(|w| path.starts_with(w.path.as_path()))
         {
             wiki.files.push(file);
+
+        // Otherwise, this is a new file that has no wiki, so let's make one
+        } else {
+            let wiki = Wiki {
+                index: self.wikis.len(),
+                name: None,
+                path: file
+                    .path
+                    .parent()
+                    .map(Path::to_path_buf)
+                    .unwrap_or_default(),
+                files: vec![file],
+            };
+
+            self.wikis.push(wiki);
         }
 
         self.find_file_by_path(path).ok_or_else(|| {
@@ -260,7 +275,8 @@ fn load_wiki_file(
 
     // Update our cache with the new file; old files get cleaned later
     if !has_cached_page {
-        match fs::File::create(cache.join(checksum.as_str())) {
+        let cache_file_path = cache.join(checksum.as_str());
+        match fs::File::create(cache_file_path.as_path()) {
             Ok(file) => {
                 let mut writer = io::BufWriter::new(file);
                 match serde_json::to_writer_pretty(&mut writer, &page) {
@@ -272,7 +288,11 @@ fn load_wiki_file(
                                 x
                             );
                         } else {
-                            trace!("{:?} :: wrote cache", path);
+                            trace!(
+                                "{:?} :: wrote cache to {:?}",
+                                path,
+                                cache_file_path
+                            );
                         }
                     }
                     Err(x) => {

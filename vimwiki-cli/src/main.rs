@@ -13,7 +13,7 @@ fn main() {
     init_logging(&opt.common);
 
     let config =
-        utils::load_html_config(opt.common.config.as_deref(), opt.common.merge)
+        utils::load_html_config(&opt.common, opt.subcommand.extra_paths())
             .expect("Failed to load config");
     let ast = Ast::load(
         &config,

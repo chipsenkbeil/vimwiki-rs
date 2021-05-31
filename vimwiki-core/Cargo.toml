@@ -28,6 +28,7 @@ nom = "6.1.2"
 numerals = "0.1.4"
 percent-encoding = "2.1.0"
 serde = { version = "1.0.115", features = ["derive"] }
+serde_with = "1.9.1"
 uriparse = { version = "0.6.3", features = ["serde"] }
 
 ### HTML-only features ###
