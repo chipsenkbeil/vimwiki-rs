@@ -50,7 +50,7 @@ pub fn list(input: Span) -> IResult<Located<List>> {
             |(index, mut items), mut item| {
                 // NOTE: The index information isn't available to the list_item
                 //       parser, so we have to assign it here
-                item.pos = index;
+                item.set_pos(index);
 
                 items.push(item);
                 (index + 1, items)
@@ -136,7 +136,7 @@ fn list_item_tail(
                 ListItemAttributes {
                     todo_status: maybe_todo_status,
                 },
-                contents.into(),
+                contents.into_iter().collect(),
             ),
         ))
     }

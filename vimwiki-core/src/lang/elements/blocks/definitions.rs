@@ -5,18 +5,41 @@ use crate::{
     },
     StrictEq,
 };
-use derive_more::{Constructor, Display, IntoIterator};
+use derive_more::{
+    AsRef, Constructor, Display, Index, IndexMut, Into, IntoIterator,
+};
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::{hash_map, HashMap},
+    collections::HashMap,
     hash::{Hash, Hasher},
+    iter::FromIterator,
 };
 
 /// Represents the newtype used for terms & definitions
-#[derive(Constructor, Clone, Debug, Display, Serialize, Deserialize)]
+#[derive(
+    AsRef,
+    Constructor,
+    Clone,
+    Debug,
+    Display,
+    Index,
+    IndexMut,
+    IntoIterator,
+    Into,
+    Serialize,
+    Deserialize,
+)]
+#[as_ref(forward)]
 #[display(fmt = "{}", _0)]
+#[into_iterator(owned, ref, ref_mut)]
 #[serde(transparent)]
 pub struct DefinitionListValue<'a>(InlineElementContainer<'a>);
+
+impl<'a> DefinitionListValue<'a> {
+    pub fn as_inner(&self) -> &InlineElementContainer<'a> {
+        &self.0
+    }
+}
 
 impl DefinitionListValue<'_> {
     pub fn to_borrowed(&self) -> DefinitionListValue {
@@ -25,16 +48,6 @@ impl DefinitionListValue<'_> {
 
     pub fn into_owned(self) -> DefinitionListValue<'static> {
         DefinitionListValue(self.0.into_owned())
-    }
-}
-
-impl<'a> DefinitionListValue<'a> {
-    pub fn as_inner(&self) -> &InlineElementContainer<'a> {
-        &self.0
-    }
-
-    pub fn into_inner(self) -> InlineElementContainer<'a> {
-        self.0
     }
 }
 
@@ -77,14 +90,6 @@ impl<'a> PartialEq<String> for DefinitionListValue<'a> {
 impl<'a, 'b> PartialEq<&'b str> for DefinitionListValue<'a> {
     fn eq(&self, other: &&'b str) -> bool {
         &self.to_string() == other
-    }
-}
-
-impl<'a> From<&'a str> for DefinitionListValue<'a> {
-    /// Creates a new term by wrapping the given str in `Located` and then
-    /// wrapping that in `InlineElementContainer`
-    fn from(s: &'a str) -> Self {
-        Self::new(InlineElementContainer::from(Located::from(s)))
     }
 }
 
@@ -168,23 +173,22 @@ impl<'a> DefinitionList<'a> {
     pub fn get(
         &'a self,
         term: impl Into<Term<'a>>,
-    ) -> Option<&Vec<Located<Definition<'a>>>> {
-        self.mapping.get(&Located::from(term.into()))
+    ) -> Option<&[Located<Definition<'a>>]> {
+        self.mapping
+            .get(&Located::from(term.into()))
+            .map(AsRef::as_ref)
     }
 
     /// Iterates through all terms and their associated definitions in the list
     pub fn iter(
         &self,
-    ) -> hash_map::Iter<'_, Located<Term<'a>>, Vec<Located<Definition<'a>>>>
+    ) -> impl Iterator<Item = (&Located<Term<'a>>, &[Located<Definition<'a>>])>
     {
-        self.mapping.iter()
+        self.mapping.iter().map(|(k, v)| (k, v.as_slice()))
     }
 
     /// Iterates through all terms in the list
-    pub fn terms(
-        &self,
-    ) -> hash_map::Keys<'_, Located<Term<'a>>, Vec<Located<Definition<'a>>>>
-    {
+    pub fn terms(&self) -> impl Iterator<Item = &Located<Term<'a>>> {
         self.mapping.keys()
     }
 
@@ -212,19 +216,16 @@ impl<'a> IntoChildren for DefinitionList<'a> {
     }
 }
 
-impl<'a> From<Vec<(Located<Term<'a>>, Vec<Located<Definition<'a>>>)>>
-    for DefinitionList<'a>
+impl<'a, T: IntoIterator<Item = Located<Definition<'a>>>>
+    FromIterator<(Located<Term<'a>>, T)> for DefinitionList<'a>
 {
-    fn from(
-        terms_and_definitions: Vec<(
-            Located<Term<'a>>,
-            Vec<Located<Definition<'a>>>,
-        )>,
+    fn from_iter<I: IntoIterator<Item = (Located<Term<'a>>, T)>>(
+        iter: I,
     ) -> Self {
         let mut dl = Self::default();
 
-        for (term, definitions) in terms_and_definitions.into_iter() {
-            dl.mapping.insert(term, definitions);
+        for (term, definitions) in iter.into_iter() {
+            dl.mapping.insert(term, definitions.into_iter().collect());
         }
 
         dl

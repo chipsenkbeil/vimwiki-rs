@@ -5,13 +5,12 @@ use crate::{
     },
     StrictEq,
 };
-use derive_more::{AsMut, AsRef, Constructor, Display, From, Into};
+use derive_more::{AsRef, Constructor, Display, From, Into, IsVariant};
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, fmt};
 
 /// Represents plain text with no decorations or inline elements
 #[derive(
-    AsMut,
     AsRef,
     Constructor,
     Clone,
@@ -24,7 +23,25 @@ use std::{borrow::Cow, fmt};
     Serialize,
     Deserialize,
 )]
-pub struct Text<'a>(pub Cow<'a, str>);
+pub struct Text<'a>(Cow<'a, str>);
+
+impl<'a> Text<'a> {
+    /// Extracts a string slice containing the entire text snippet
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```
+    /// # use std::borrow::Cow;
+    /// # use vimwiki_core::TextInline;
+    /// let text = Text::new(Cow::Borrowed("some text"));
+    /// assert_eq!(text.as_str(), "some text");
+    /// ```
+    pub fn as_str(&self) -> &str {
+        self.0.as_ref()
+    }
+}
 
 impl Text<'_> {
     pub fn as_borrowed(&self) -> Text {
@@ -45,15 +62,15 @@ impl Text<'_> {
     }
 }
 
-impl From<String> for Text<'static> {
-    fn from(s: String) -> Self {
-        Self::new(Cow::from(s))
+impl<'a> From<&'a str> for Text<'a> {
+    fn from(s: &'a str) -> Self {
+        Self::new(Cow::Borrowed(s))
     }
 }
 
-impl<'a> From<&'a str> for Text<'a> {
-    fn from(s: &'a str) -> Self {
-        Self::new(Cow::from(s))
+impl From<String> for Text<'static> {
+    fn from(s: String) -> Self {
+        Self::new(Cow::Owned(s))
     }
 }
 
@@ -67,7 +84,16 @@ impl<'a> StrictEq for Text<'a> {
 
 /// Represents content that can be contained within a decoration
 #[derive(
-    Clone, Debug, Display, From, Eq, PartialEq, Hash, Serialize, Deserialize,
+    Clone,
+    Debug,
+    Display,
+    From,
+    Eq,
+    PartialEq,
+    Hash,
+    IsVariant,
+    Serialize,
+    Deserialize,
 )]
 pub enum DecoratedTextContent<'a> {
     Text(Text<'a>),
@@ -169,7 +195,9 @@ impl<'a> StrictEq for DecoratedTextContent<'a> {
 }
 
 /// Represents text (series of content) with a typeface decoration
-#[derive(Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(
+    Clone, Debug, Eq, PartialEq, Hash, IsVariant, Serialize, Deserialize,
+)]
 pub enum DecoratedText<'a> {
     Bold(Vec<Located<DecoratedTextContent<'a>>>),
     Italic(Vec<Located<DecoratedTextContent<'a>>>),
@@ -221,8 +249,22 @@ impl DecoratedText<'_> {
 }
 
 impl<'a> DecoratedText<'a> {
+    /// Returns iterator over references to text content
+    pub fn iter(
+        &self,
+    ) -> impl Iterator<Item = &Located<DecoratedTextContent<'a>>> {
+        self.into_iter()
+    }
+
+    /// Returns iterator over mutable references to text content
+    pub fn iter_mut(
+        &mut self,
+    ) -> impl Iterator<Item = &mut Located<DecoratedTextContent<'a>>> {
+        self.into_iter()
+    }
+
     /// Converts to reference of the underlying decorated text contents
-    pub fn as_contents(&self) -> &[Located<DecoratedTextContent<'a>>] {
+    pub fn as_contents_slice(&self) -> &[Located<DecoratedTextContent<'a>>] {
         match self {
             Self::Bold(ref x) => x.as_slice(),
             Self::Italic(ref x) => x.as_slice(),
@@ -231,15 +273,64 @@ impl<'a> DecoratedText<'a> {
             Self::Subscript(ref x) => x.as_slice(),
         }
     }
-    /// Converts into the underlying decorated text contents
-    pub fn into_contents(self) -> Vec<Located<DecoratedTextContent<'a>>> {
-        match self {
-            Self::Bold(x) => x,
-            Self::Italic(x) => x,
-            Self::Strikeout(x) => x,
-            Self::Superscript(x) => x,
-            Self::Subscript(x) => x,
-        }
+}
+
+impl<'a, 'b> IntoIterator for &'a DecoratedText<'b> {
+    type Item =
+        <&'a Vec<Located<DecoratedTextContent<'b>>> as IntoIterator>::Item;
+    type IntoIter =
+        <&'a Vec<Located<DecoratedTextContent<'b>>> as IntoIterator>::IntoIter;
+
+    #[inline]
+    fn into_iter(self) -> Self::IntoIter {
+        <&'a Vec<Located<DecoratedTextContent<'b>>> as IntoIterator>::into_iter(
+            match self {
+                DecoratedText::Bold(x) => x,
+                DecoratedText::Italic(x) => x,
+                DecoratedText::Strikeout(x) => x,
+                DecoratedText::Superscript(x) => x,
+                DecoratedText::Subscript(x) => x,
+            },
+        )
+    }
+}
+
+impl<'a, 'b> IntoIterator for &'a mut DecoratedText<'b> {
+    type Item =
+        <&'a mut Vec<Located<DecoratedTextContent<'b>>> as IntoIterator>::Item;
+    type IntoIter =
+        <&'a mut Vec<Located<DecoratedTextContent<'b>>> as IntoIterator>::IntoIter;
+
+    #[inline]
+    fn into_iter(self) -> Self::IntoIter {
+        <&'a mut Vec<Located<DecoratedTextContent<'b>>> as IntoIterator>::into_iter(
+            match self {
+                DecoratedText::Bold(x) => x,
+                DecoratedText::Italic(x) => x,
+                DecoratedText::Strikeout(x) => x,
+                DecoratedText::Superscript(x) => x,
+                DecoratedText::Subscript(x) => x,
+            },
+        )
+    }
+}
+
+impl<'a> IntoIterator for DecoratedText<'a> {
+    type Item = <Vec<Located<DecoratedTextContent<'a>>> as IntoIterator>::Item;
+    type IntoIter =
+        <Vec<Located<DecoratedTextContent<'a>>> as IntoIterator>::IntoIter;
+
+    #[inline]
+    fn into_iter(self) -> Self::IntoIter {
+        <Vec<Located<DecoratedTextContent<'a>>> as IntoIterator>::into_iter(
+            match self {
+                Self::Bold(x) => x,
+                Self::Italic(x) => x,
+                Self::Strikeout(x) => x,
+                Self::Superscript(x) => x,
+                Self::Subscript(x) => x,
+            },
+        )
     }
 }
 
@@ -294,7 +385,7 @@ impl<'a> IntoChildren for DecoratedText<'a> {
 
 impl<'a> fmt::Display for DecoratedText<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for content in self.as_contents().iter() {
+        for content in self {
             write!(f, "{}", content.to_string())?;
         }
         Ok(())

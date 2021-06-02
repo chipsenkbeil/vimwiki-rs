@@ -1,7 +1,6 @@
 use crate::StrictEq;
 use derive_more::{
-    Constructor, Deref, DerefMut, Display, From, Index, IndexMut, Into,
-    IntoIterator,
+    AsRef, Constructor, Display, From, Index, IndexMut, Into, IntoIterator,
 };
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, fmt};
@@ -17,11 +16,10 @@ use std::{borrow::Cow, fmt};
 /// Tags([ Tag(my-tag-1), Tag(my-tag-2) ])
 ///
 #[derive(
+    AsRef,
     Constructor,
     Clone,
     Debug,
-    Deref,
-    DerefMut,
     From,
     Index,
     IndexMut,
@@ -33,7 +31,9 @@ use std::{borrow::Cow, fmt};
     Serialize,
     Deserialize,
 )]
-pub struct Tags<'a>(pub Vec<Tag<'a>>);
+#[as_ref(forward)]
+#[into_iterator(owned, ref, ref_mut)]
+pub struct Tags<'a>(Vec<Tag<'a>>);
 
 impl Tags<'_> {
     pub fn to_borrowed(&self) -> Tags {
@@ -50,6 +50,18 @@ impl Tags<'_> {
 }
 
 impl<'a> fmt::Display for Tags<'a> {
+    /// Extracts a string slice containing the entire tag
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```
+    /// # use std::borrow::Cow;
+    /// # use vimwiki_core::Tag;
+    /// let tag = Tag::new(Cow::Borrowed("my-tag"));
+    /// assert_eq!(tag.as_str(), "my-tag");
+    /// ```
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for tag in self.0.iter() {
             write!(f, ":{}", tag.0)?;
@@ -97,21 +109,41 @@ impl<'a> StrictEq for Tags<'a> {
 
 /// Represents a single tag
 #[derive(
+    AsRef,
     Constructor,
     Clone,
     Debug,
-    Deref,
-    DerefMut,
     Display,
     From,
     Into,
     Eq,
     PartialEq,
+    Ord,
+    PartialOrd,
     Hash,
     Serialize,
     Deserialize,
 )]
-pub struct Tag<'a>(pub Cow<'a, str>);
+#[as_ref(forward)]
+pub struct Tag<'a>(Cow<'a, str>);
+
+impl<'a> Tag<'a> {
+    /// Extracts a string slice containing the entire tag
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```
+    /// # use std::borrow::Cow;
+    /// # use vimwiki_core::Tag;
+    /// let tag = Tag::new(Cow::Borrowed("my-tag"));
+    /// assert_eq!(tag.as_str(), "my-tag");
+    /// ```
+    pub fn as_str(&self) -> &str {
+        self.0.as_ref()
+    }
+}
 
 impl Tag<'_> {
     pub fn as_borrowed(&self) -> Tag {
@@ -129,12 +161,6 @@ impl Tag<'_> {
         let inner = Cow::from(self.0.into_owned());
 
         Tag(inner)
-    }
-}
-
-impl<'a> Tag<'a> {
-    pub fn as_str(&self) -> &str {
-        self.0.as_ref()
     }
 }
 

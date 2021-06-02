@@ -35,7 +35,7 @@ pub fn header(input: Span) -> IResult<Located<Header>> {
         // Third, get the content of the header by collecting all text until we
         // find a closing set of = matching our expected level
         let (input, header) = map(header_tail(level), |content| {
-            Header::new(level, content, centered)
+            Header::new(content, level, centered)
         })(input)?;
 
         // Fourth, consume the end of line/input to indicate header complete

@@ -130,7 +130,7 @@ impl<'a> Output for Blockquote<'a> {
 
         // Otherwise, we want to just drop in the lines verbatim
         } else {
-            for line in self.lines().iter() {
+            for line in self {
                 writeln!(f, "{}", escape::escape_html(&line))?;
             }
         }
@@ -160,7 +160,7 @@ impl<'a> Output for DefinitionList<'a> {
     /// ```
     fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
         writeln!(f, "<dl>")?;
-        for (term, defs) in self.iter() {
+        for (term, defs) in self {
             // Write our term in the form <dt>{term}</dt>
             write!(f, "<dt>")?;
             term.fmt(f)?;
@@ -231,31 +231,32 @@ impl<'a> Output for Header<'a> {
     /// </div>
     /// ```
     fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
-        let raw_content = self.content.to_string();
+        let raw_content = self.content().to_string();
         let header_id = escape::escape_html(&raw_content);
-        f.insert_header_text(self.level, header_id.clone());
+        f.insert_header_text(self.level(), header_id.clone());
 
         let is_toc = raw_content.trim() == f.config().header.table_of_contents;
         if is_toc {
             write!(f, r#"<div id="{}" class="toc">"#, header_id)?;
-            write!(f, r#"<h{} id="{}">"#, self.level, header_id)?;
-            self.content.fmt(f)?;
-            writeln!(f, "</h{}></div>", self.level)?;
+            write!(f, r#"<h{} id="{}">"#, self.level(), header_id)?;
+            self.content().fmt(f)?;
+            writeln!(f, "</h{}></div>", self.level())?;
         } else {
             // Build our full id using each of the most recent header's
             // contents (earlier levels) up to and including the current header
             let complete_header_id =
-                build_complete_id(f, self.level, &header_id)?;
+                build_complete_id(f, self.level(), &header_id)?;
 
             write!(f, r#"<div id="{}">"#, complete_header_id)?;
             write!(
                 f,
                 r#"<h{} id="{}" class="header">"#,
-                self.level, header_id
+                self.level(),
+                header_id
             )?;
             write!(f, r##"<a href="#{}">"##, complete_header_id)?;
-            self.content.fmt(f)?;
-            writeln!(f, "</a></h{}></div>", self.level)?;
+            self.content().fmt(f)?;
+            writeln!(f, "</a></h{}></div>", self.level())?;
         }
 
         Ok(())
@@ -299,7 +300,7 @@ impl<'a> Output for List<'a> {
             writeln!(f, "<ul>")?;
         }
 
-        for item in self.items.iter() {
+        for item in self {
             item.fmt(f)?;
         }
 
@@ -378,7 +379,7 @@ impl<'a> Output for ListItem<'a> {
             write!(f, "<li>")?;
         }
 
-        self.contents.fmt(f)?;
+        self.contents().fmt(f)?;
 
         writeln!(f, "</li>")?;
 
@@ -392,7 +393,7 @@ impl<'a> Output for ListItemContents<'a> {
 
     /// Writes a list item's contents in HTML
     fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
-        for content in self.contents.iter() {
+        for content in self {
             content.fmt(f)?;
         }
 
@@ -436,9 +437,9 @@ impl<'a> Output for MathBlock<'a> {
     /// \end{environment}
     /// ```
     fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
-        if let Some(env) = self.environment.as_deref() {
+        if let Some(env) = self.environment().as_deref() {
             writeln!(f, r"\begin{{{}}}", env)?;
-            for line in self.lines.iter() {
+            for line in self {
                 writeln!(f, "{}", escape::escape_html(line))?;
             }
             writeln!(f, r"\end{{{}}}", env)?;
@@ -448,7 +449,7 @@ impl<'a> Output for MathBlock<'a> {
             //       do not parse. This would be appended to the end of the
             //       starting notation \[<CLASS>
             writeln!(f, r"\[")?;
-            for line in self.lines.iter() {
+            for line in self {
                 writeln!(f, "{}", escape::escape_html(line))?;
             }
             writeln!(f, r"\]")?;
@@ -553,7 +554,7 @@ impl<'a> Output for CodeBlock<'a> {
             let ts = custom_ts.as_ref().unwrap_or(&DEFAULT_THEME_SET);
 
             // Get syntax using language specifier, otherwise use plain text
-            let syntax = if let Some(lang) = self.lang.as_ref() {
+            let syntax = if let Some(lang) = self.language() {
                 ss.find_syntax_by_token(lang)
                     .unwrap_or_else(|| ss.find_syntax_plain_text())
             } else {
@@ -579,7 +580,7 @@ impl<'a> Output for CodeBlock<'a> {
             //       may need to be retooled to be just the entire text
             //       including line endings while supporting an iterator over
             //       the lines
-            for line in self.lines.iter() {
+            for line in self {
                 let regions = h.highlight(line, ss);
                 writeln!(
                     f,
@@ -603,12 +604,12 @@ impl<'a> Output for CodeBlock<'a> {
                 write!(f, "<code")?;
 
                 // If provided with a language, fill it in as the class
-                if let Some(lang) = self.lang.as_ref() {
+                if let Some(lang) = self.language() {
                     write!(f, r#" class="{}""#, lang)?;
                 }
 
                 // For each metadata assignment, treat it as an HTML attribute
-                for (attr, value) in self.metadata.iter() {
+                for (attr, value) in self.metadata() {
                     write!(f, r#" {}="{}""#, attr, value)?;
                 }
 
@@ -618,8 +619,8 @@ impl<'a> Output for CodeBlock<'a> {
                 write!(f, ">")?;
             }
 
-            for (idx, line) in self.lines.iter().enumerate() {
-                let is_last_line = idx == self.lines.len() - 1;
+            for (idx, line) in self.lines().enumerate() {
+                let is_last_line = idx == self.line_cnt() - 1;
                 let line = escape::escape_html(&line);
 
                 if is_last_line {
@@ -661,13 +662,31 @@ impl<'a> Output for Paragraph<'a> {
     /// ```
     fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
         let ignore_newlines = f.config().paragraph.ignore_newline;
+        let is_blank = self.is_blank();
 
-        write!(f, "<p>")?;
+        // TODO: CHIP CHIP CHIP -- need to handle situation where a paragraph
+        //       is comprised ONLY of comments inside itself. In that situation,
+        //       we don't want to render the <p></p>, but we do want to
+        //       attempt to render comments in case the <!-- --> happens
+        //
+        //       Add to inline element container a method that checks through
+        //       all of the children to see if they are comments; then, we
+        //       can use this across all lines in a paragraph to do the same
+        //
+        //       We probably also need to support this for definition lists,
+        //       lists, and other places (???) where inline element containers
+        //       can exist
 
-        for (idx, line) in self.lines.iter().enumerate() {
-            let is_last_line = idx < self.lines.len() - 1;
+        // Only render opening tag if not blank (meaning comprised of more
+        // than just comments)
+        if !is_blank {
+            write!(f, "<p>")?;
+        }
 
-            for element in line.elements.iter() {
+        for (idx, line) in self.iter().enumerate() {
+            let is_last_line = idx < self.len() - 1;
+
+            for element in line.iter() {
                 element.fmt(f)?;
             }
 
@@ -682,7 +701,11 @@ impl<'a> Output for Paragraph<'a> {
             }
         }
 
-        writeln!(f, "</p>")?;
+        // Only render closing tag if not blank (meaning comprised of more
+        // than just comments)
+        if !is_blank {
+            write!(f, "</p>")?;
+        }
 
         Ok(())
     }
@@ -846,7 +869,7 @@ impl<'a> Output for InlineElementContainer<'a> {
 
     /// Writes a collection of inline elements in HTML
     fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
-        for element in self.elements.iter() {
+        for element in self {
             element.fmt(f)?;
         }
 
@@ -879,7 +902,7 @@ impl<'a> Output for Text<'a> {
 
     /// Writes text in HTML, escaping any HTML-specific characters
     fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
-        write!(f, "{}", escape::escape_html(&self.0))?;
+        write!(f, "{}", escape::escape_html(self.as_str()))?;
         Ok(())
     }
 }
@@ -1180,7 +1203,7 @@ impl<'a> Output for Tags<'a> {
     /// <span id="Header 1-tag1"></span><span class="tag" id="tag1">tag1</span>
     /// ```
     fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
-        for tag in self.iter() {
+        for tag in self {
             let id = escape::escape_html(tag.as_str());
             let complete_id = build_complete_id(
                 f,
@@ -1207,7 +1230,7 @@ impl<'a> Output for CodeInline<'a> {
     /// <code>some code</code>
     /// ```
     fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
-        write!(f, "<code>{}</code>", escape::escape_html(&self.code))?;
+        write!(f, "<code>{}</code>", escape::escape_html(self.as_str()))?;
         Ok(())
     }
 }
@@ -1224,7 +1247,7 @@ impl<'a> Output for MathInline<'a> {
     /// \(some math\)
     /// ```
     fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
-        write!(f, r"\({}\)", escape::escape_html(&self.formula))?;
+        write!(f, r"\({}\)", escape::escape_html(self.as_str()))?;
         Ok(())
     }
 }
@@ -1284,7 +1307,7 @@ impl<'a> Output for MultiLineComment<'a> {
     fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
         if f.config().comment.include {
             writeln!(f, "<!--")?;
-            for line in self.as_lines() {
+            for line in self {
                 writeln!(f, "{}", line)?;
             }
             write!(f, "-->")?;

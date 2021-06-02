@@ -4,21 +4,36 @@ use crate::{
     },
     StrictEq,
 };
-use derive_more::{Constructor, From};
+use derive_more::{Constructor, From, Index, IndexMut, IntoIterator};
 use numerals::roman::Roman;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 
 /// Represents an item in a list
 #[derive(
-    Constructor, Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize,
+    Constructor,
+    Clone,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    Index,
+    IndexMut,
+    IntoIterator,
+    Serialize,
+    Deserialize,
 )]
 pub struct ListItem<'a> {
-    pub item_type: ListItemType<'a>,
-    pub suffix: ListItemSuffix,
-    pub pos: usize,
-    pub contents: ListItemContents<'a>,
-    pub attributes: ListItemAttributes,
+    item_type: ListItemType<'a>,
+    suffix: ListItemSuffix,
+    pos: usize,
+
+    #[index]
+    #[index_mut]
+    #[into_iterator(owned, ref, ref_mut)]
+    contents: ListItemContents<'a>,
+
+    attributes: ListItemAttributes,
 }
 
 impl ListItem<'_> {
@@ -63,6 +78,41 @@ impl<'a> StrictEq for ListItem<'a> {
 }
 
 impl<'a> ListItem<'a> {
+    /// Returns reference to the type of list item
+    pub fn r#type(&self) -> &ListItemType<'a> {
+        &self.item_type
+    }
+
+    #[doc(hidden)]
+    pub(crate) fn set_type(&mut self, item_type: ListItemType<'a>) {
+        self.item_type = item_type;
+    }
+
+    /// Returns a copy of the list item's suffix
+    pub fn suffix(&self) -> ListItemSuffix {
+        self.suffix
+    }
+
+    /// Returns position of the list item in the list
+    pub fn pos(&self) -> usize {
+        self.pos
+    }
+
+    #[doc(hidden)]
+    pub(crate) fn set_pos(&mut self, pos: usize) {
+        self.pos = pos;
+    }
+
+    /// Returns reference to the contents contained within the list item
+    pub fn contents(&self) -> &ListItemContents<'a> {
+        &self.contents
+    }
+
+    /// Returns a copy of the list item's attributes
+    pub fn attributes(&self) -> ListItemAttributes {
+        self.attributes
+    }
+
     /// Indicates whether or not this list item represents an unordered item
     pub fn is_unordered(&self) -> bool {
         self.item_type.is_unordered()
@@ -99,7 +149,7 @@ impl<'a> ListItem<'a> {
                 ListItemContent::InlineContent(_) => acc,
                 ListItemContent::List(list) => {
                     let (mut sum, mut count) =
-                        list.items.iter().fold((0.0, 0), |acc, item| {
+                        list.iter().fold((0.0, 0), |acc, item| {
                             // NOTE: This is a recursive call that is NOT
                             //       tail recursive, but I do not want to
                             //       spend the time needed to translate it

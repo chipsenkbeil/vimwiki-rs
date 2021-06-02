@@ -3,11 +3,10 @@ use crate::{
     StrictEq,
 };
 use derive_more::{
-    Constructor, Deref, DerefMut, Display, From, Index, IndexMut, Into,
-    IntoIterator,
+    Constructor, Display, From, Index, IndexMut, Into, IntoIterator,
 };
 use serde::{Deserialize, Serialize};
-use std::fmt;
+use std::{fmt, iter::FromIterator};
 
 mod code;
 pub use code::*;
@@ -102,9 +101,6 @@ impl<'a> StrictEq for InlineElement<'a> {
     Constructor,
     Clone,
     Debug,
-    Deref,
-    DerefMut,
-    From,
     Index,
     IndexMut,
     Into,
@@ -115,29 +111,40 @@ impl<'a> StrictEq for InlineElement<'a> {
     Serialize,
     Deserialize,
 )]
-pub struct InlineElementContainer<'a> {
-    pub elements: Vec<Located<InlineElement<'a>>>,
+#[into_iterator(owned, ref, ref_mut)]
+pub struct InlineElementContainer<'a>(Vec<Located<InlineElement<'a>>>);
+
+impl<'a> InlineElementContainer<'a> {
+    /// Returns iterator over references to elements
+    pub fn iter(&self) -> impl Iterator<Item = &Located<InlineElement<'a>>> {
+        self.into_iter()
+    }
+
+    /// Returns iterator over mutable references to elements
+    pub fn iter_mut(
+        &mut self,
+    ) -> impl Iterator<Item = &mut Located<InlineElement<'a>>> {
+        self.into_iter()
+    }
 }
 
 impl InlineElementContainer<'_> {
     pub fn to_borrowed(&self) -> InlineElementContainer {
         let elements = self
-            .elements
             .iter()
             .map(|x| x.as_ref().map(InlineElement::to_borrowed))
             .collect();
 
-        InlineElementContainer { elements }
+        InlineElementContainer::new(elements)
     }
 
     pub fn into_owned(self) -> InlineElementContainer<'static> {
         let elements = self
-            .elements
             .into_iter()
             .map(|x| x.map(InlineElement::into_owned))
             .collect();
 
-        InlineElementContainer { elements }
+        InlineElementContainer::new(elements)
     }
 }
 
@@ -145,58 +152,42 @@ impl<'a> IntoChildren for InlineElementContainer<'a> {
     type Child = Located<InlineElement<'a>>;
 
     fn into_children(self) -> Vec<Self::Child> {
-        self.elements
+        self.0
     }
 }
 
 impl<'a> fmt::Display for InlineElementContainer<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for le in self.elements.iter() {
+        for le in self.iter() {
             write!(f, "{}", le.as_inner().to_string())?;
         }
         Ok(())
     }
 }
 
-impl<'a> From<Vec<InlineElementContainer<'a>>> for InlineElementContainer<'a> {
-    fn from(mut containers: Vec<Self>) -> Self {
-        Self::new(containers.drain(..).flat_map(|c| c.elements).collect())
+impl<'a> FromIterator<Located<InlineElement<'a>>>
+    for InlineElementContainer<'a>
+{
+    fn from_iter<I: IntoIterator<Item = Located<InlineElement<'a>>>>(
+        iter: I,
+    ) -> Self {
+        Self::new(iter.into_iter().collect())
     }
 }
 
-impl<'a> From<Located<InlineElement<'a>>> for InlineElementContainer<'a> {
-    fn from(element: Located<InlineElement<'a>>) -> Self {
-        Self::new(vec![element])
-    }
-}
-
-impl<'a> From<Located<&'a str>> for InlineElementContainer<'a> {
-    fn from(element: Located<&'a str>) -> Self {
-        Self::from(element.map(Text::from))
+impl<'a> FromIterator<InlineElementContainer<'a>>
+    for InlineElementContainer<'a>
+{
+    fn from_iter<I: IntoIterator<Item = InlineElementContainer<'a>>>(
+        iter: I,
+    ) -> Self {
+        Self::new(iter.into_iter().flat_map(|c| c.0).collect())
     }
 }
 
 impl<'a> StrictEq for InlineElementContainer<'a> {
     /// Performs strict_eq check on inner elements
     fn strict_eq(&self, other: &Self) -> bool {
-        self.elements.strict_eq(&other.elements)
+        self.0.strict_eq(&other.0)
     }
 }
-
-macro_rules! container_mapping {
-    ($type:ty) => {
-        impl<'a> From<$type> for InlineElementContainer<'a> {
-            fn from(element: $type) -> Self {
-                Self::from(element.map(InlineElement::from))
-            }
-        }
-    };
-}
-
-container_mapping!(Located<CodeInline<'a>>);
-container_mapping!(Located<MathInline<'a>>);
-container_mapping!(Located<Text<'a>>);
-container_mapping!(Located<DecoratedText<'a>>);
-container_mapping!(Located<Keyword>);
-container_mapping!(Located<Link<'a>>);
-container_mapping!(Located<Tags<'a>>);

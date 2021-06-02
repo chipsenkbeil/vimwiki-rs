@@ -6,6 +6,7 @@ use crate::lang::{
     },
 };
 use nom::{branch::alt, combinator::map, multi::many1};
+use std::iter::FromIterator;
 
 pub mod code;
 pub mod comments;
@@ -24,7 +25,7 @@ pub fn inline_element_container(
         "Inline Element Container",
         locate(capture(map(
             many1(deeper(inline_element)),
-            InlineElementContainer::from,
+            InlineElementContainer::from_iter,
         ))),
     )(input)
 }

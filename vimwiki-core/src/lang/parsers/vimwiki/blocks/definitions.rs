@@ -18,6 +18,7 @@ use nom::{
     multi::{many0, many1},
     sequence::{pair, preceded, terminated},
 };
+use std::iter::FromIterator;
 
 #[inline]
 pub fn definition_list(input: Span) -> IResult<Located<DefinitionList>> {
@@ -25,7 +26,7 @@ pub fn definition_list(input: Span) -> IResult<Located<DefinitionList>> {
         "Definition List",
         locate(capture(map(
             many1(deeper(term_and_definitions)),
-            DefinitionList::from,
+            DefinitionList::from_iter,
         ))),
     )(input)
 }
