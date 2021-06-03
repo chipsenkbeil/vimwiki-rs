@@ -704,7 +704,7 @@ impl<'a> Output for Paragraph<'a> {
         // Only render closing tag if not blank (meaning comprised of more
         // than just comments)
         if !is_blank {
-            write!(f, "</p>")?;
+            writeln!(f, "</p>")?;
         }
 
         Ok(())
@@ -1396,6 +1396,12 @@ mod tests {
         });
     }
 
+    fn text_to_inline_element_container(s: &str) -> InlineElementContainer {
+        InlineElementContainer::new(vec![Located::from(InlineElement::Text(
+            Text::from(s),
+        ))])
+    }
+
     #[test]
     fn blockquote_with_multiple_line_groups_should_output_blockquote_tag_with_paragraph_for_each_group_of_lines(
     ) {
@@ -1491,9 +1497,7 @@ mod tests {
     ) {
         // Test no definitions
         let list = DefinitionList::new(vec![(
-            Located::from(DefinitionListValue::new(
-                Located::from(Text::from("term1")).into(),
-            )),
+            Located::from(DefinitionListValue::from("term1")),
             Vec::new(),
         )]);
 
@@ -1511,12 +1515,8 @@ mod tests {
 
         // Test single definition
         let list = DefinitionList::new(vec![(
-            Located::from(DefinitionListValue::new(
-                Located::from(Text::from("term1")).into(),
-            )),
-            vec![Located::from(DefinitionListValue::new(
-                Located::from(Text::from("def1")).into(),
-            ))],
+            Located::from(DefinitionListValue::from("term1")),
+            vec![Located::from(DefinitionListValue::from("def1"))],
         )]);
 
         let mut f = HtmlFormatter::default();
@@ -1534,16 +1534,10 @@ mod tests {
 
         // Test multiple definitions
         let list = DefinitionList::new(vec![(
-            Located::from(DefinitionListValue::new(
-                Located::from(Text::from("term1")).into(),
-            )),
+            Located::from(DefinitionListValue::from("term1")),
             vec![
-                Located::from(DefinitionListValue::new(
-                    Located::from(Text::from("def1")).into(),
-                )),
-                Located::from(DefinitionListValue::new(
-                    Located::from(Text::from("def2")).into(),
-                )),
+                Located::from(DefinitionListValue::from("def1")),
+                Located::from(DefinitionListValue::from("def2")),
             ],
         )]);
 
@@ -1575,10 +1569,8 @@ mod tests {
     #[test]
     fn header_should_output_div_h_and_a_tags() {
         let header = Header::new(
+            text_to_inline_element_container("some header"),
             3,
-            InlineElementContainer::new(vec![Located::from(
-                InlineElement::from(Text::from("some header")),
-            )]),
             false,
         );
 
@@ -1603,15 +1595,9 @@ mod tests {
 
     #[test]
     fn header_should_support_toc_variant() {
-        let header = Header::new(
-            3,
-            InlineElementContainer::new(vec![Located::from(
-                InlineElement::from(Text::from(
-                    HtmlHeaderConfig::default_table_of_contents(),
-                )),
-            )]),
-            false,
-        );
+        let text = HtmlHeaderConfig::default_table_of_contents();
+        let header =
+            Header::new(text_to_inline_element_container(&text), 3, false);
 
         let mut f = HtmlFormatter::default();
 
@@ -1637,13 +1623,8 @@ mod tests {
 
     #[test]
     fn header_should_escape_html_in_ids() {
-        let header = Header::new(
-            3,
-            InlineElementContainer::new(vec![Located::from(
-                InlineElement::from(Text::from("<test>")),
-            )]),
-            false,
-        );
+        let header =
+            Header::new(text_to_inline_element_container("<test>"), 3, false);
 
         // Configure to use a different table of contents string
         // that has characters that should be escaped
@@ -1673,13 +1654,8 @@ mod tests {
 
     #[test]
     fn header_should_escape_html_in_ids_for_toc() {
-        let header = Header::new(
-            3,
-            InlineElementContainer::new(vec![Located::from(
-                InlineElement::from(Text::from("<test>")),
-            )]),
-            false,
-        );
+        let header =
+            Header::new(text_to_inline_element_container("<test>"), 3, false);
 
         // Configure to use a different table of contents string
         // that has characters that should be escaped
@@ -1718,7 +1694,7 @@ mod tests {
             0,
             ListItemContents::new(vec![Located::from(
                 ListItemContent::InlineContent(
-                    Located::from(Text::from("some list item")).into(),
+                    text_to_inline_element_container("some list item"),
                 ),
             )]),
             ListItemAttributes::default(),
@@ -1744,7 +1720,7 @@ mod tests {
             0,
             ListItemContents::new(vec![Located::from(
                 ListItemContent::InlineContent(
-                    Located::from(Text::from("some list item")).into(),
+                    text_to_inline_element_container("some list item"),
                 ),
             )]),
             ListItemAttributes::default(),
@@ -1770,7 +1746,7 @@ mod tests {
             0,
             ListItemContents::new(vec![Located::from(
                 ListItemContent::InlineContent(
-                    Located::from(Text::from("some list item")).into(),
+                    text_to_inline_element_container("some list item"),
                 ),
             )]),
             ListItemAttributes::default(),
@@ -1789,14 +1765,16 @@ mod tests {
             0,
             ListItemContents::new(vec![Located::from(
                 ListItemContent::InlineContent(
-                    Located::from(Text::from("some list item")).into(),
+                    text_to_inline_element_container("some list item"),
                 ),
             )]),
             ListItemAttributes::default(),
         );
 
         let mut f = HtmlFormatter::default();
-        item.attributes.todo_status = Some(ListItemTodoStatus::Incomplete);
+        item.set_attributes(ListItemAttributes {
+            todo_status: Some(ListItemTodoStatus::Incomplete),
+        });
         item.fmt(&mut f).unwrap();
         assert_eq!(
             f.get_content(),
@@ -1804,8 +1782,9 @@ mod tests {
         );
 
         let mut f = HtmlFormatter::default();
-        item.attributes.todo_status =
-            Some(ListItemTodoStatus::PartiallyComplete1);
+        item.set_attributes(ListItemAttributes {
+            todo_status: Some(ListItemTodoStatus::PartiallyComplete1),
+        });
         item.fmt(&mut f).unwrap();
         assert_eq!(
             f.get_content(),
@@ -1813,8 +1792,9 @@ mod tests {
         );
 
         let mut f = HtmlFormatter::default();
-        item.attributes.todo_status =
-            Some(ListItemTodoStatus::PartiallyComplete2);
+        item.set_attributes(ListItemAttributes {
+            todo_status: Some(ListItemTodoStatus::PartiallyComplete2),
+        });
         item.fmt(&mut f).unwrap();
         assert_eq!(
             f.get_content(),
@@ -1822,8 +1802,9 @@ mod tests {
         );
 
         let mut f = HtmlFormatter::default();
-        item.attributes.todo_status =
-            Some(ListItemTodoStatus::PartiallyComplete3);
+        item.set_attributes(ListItemAttributes {
+            todo_status: Some(ListItemTodoStatus::PartiallyComplete3),
+        });
         item.fmt(&mut f).unwrap();
         assert_eq!(
             f.get_content(),
@@ -1831,7 +1812,9 @@ mod tests {
         );
 
         let mut f = HtmlFormatter::default();
-        item.attributes.todo_status = Some(ListItemTodoStatus::Complete);
+        item.set_attributes(ListItemAttributes {
+            todo_status: Some(ListItemTodoStatus::Complete),
+        });
         item.fmt(&mut f).unwrap();
         assert_eq!(
             f.get_content(),
@@ -1839,7 +1822,9 @@ mod tests {
         );
 
         let mut f = HtmlFormatter::default();
-        item.attributes.todo_status = Some(ListItemTodoStatus::Rejected);
+        item.set_attributes(ListItemAttributes {
+            todo_status: Some(ListItemTodoStatus::Rejected),
+        });
         item.fmt(&mut f).unwrap();
         assert_eq!(
             f.get_content(),
@@ -2010,8 +1995,8 @@ mod tests {
     #[test]
     fn paragraph_should_output_p_tag() {
         let paragraph = Paragraph::new(vec![
-            InlineElementContainer::from(Located::from("some text")),
-            InlineElementContainer::from(Located::from("and more text")),
+            text_to_inline_element_container("some text"),
+            text_to_inline_element_container("and more text"),
         ]);
         let mut f = HtmlFormatter::default();
         paragraph.fmt(&mut f).unwrap();
@@ -2022,8 +2007,8 @@ mod tests {
     #[test]
     fn paragraph_should_support_linebreaks_if_configured() {
         let paragraph = Paragraph::new(vec![
-            InlineElementContainer::from(Located::from("some text")),
-            InlineElementContainer::from(Located::from("and more text")),
+            text_to_inline_element_container("some text"),
+            text_to_inline_element_container("and more text"),
         ]);
         let mut f = HtmlFormatter::new(HtmlConfig {
             paragraph: HtmlParagraphConfig {
@@ -2043,7 +2028,7 @@ mod tests {
                 (
                     CellPos { row: 0, col: 0 },
                     Located::from(Cell::Content(
-                        Located::from(Text::from("some header")).into(),
+                        text_to_inline_element_container("some header"),
                     )),
                 ),
                 (
@@ -2053,7 +2038,7 @@ mod tests {
                 (
                     CellPos { row: 2, col: 0 },
                     Located::from(Cell::Content(
-                        Located::from(Text::from("some text")).into(),
+                        text_to_inline_element_container("some text"),
                     )),
                 ),
             ],
@@ -2088,7 +2073,7 @@ mod tests {
                 (
                     CellPos { row: 0, col: 0 },
                     Located::from(Cell::Content(
-                        Located::from(Text::from("some text")).into(),
+                        text_to_inline_element_container("some text"),
                     )),
                 ),
                 (
@@ -2126,7 +2111,7 @@ mod tests {
                 (
                     CellPos { row: 0, col: 0 },
                     Located::from(Cell::Content(
-                        Located::from(Text::from("some text")).into(),
+                        text_to_inline_element_container("some text"),
                     )),
                 ),
                 (
@@ -2168,7 +2153,7 @@ mod tests {
                 (
                     CellPos { row: 0, col: 0 },
                     Located::from(Cell::Content(
-                        Located::from(Text::from("some text")).into(),
+                        text_to_inline_element_container("some text"),
                     )),
                 ),
                 (
@@ -2202,7 +2187,7 @@ mod tests {
                 (
                     CellPos { row: 0, col: 0 },
                     Located::from(Cell::Content(
-                        Located::from(Text::from("some text")).into(),
+                        text_to_inline_element_container("some text"),
                     )),
                 ),
                 (
@@ -2846,9 +2831,9 @@ mod tests {
         comment.fmt(&mut f).unwrap();
         assert_eq!(f.get_content(), "<!-- some comment -->");
 
-        let comment = Comment::from(MultiLineComment::from(vec![
-            "some comment",
-            "on multiple lines",
+        let comment = Comment::from(MultiLineComment::new(vec![
+            Cow::Borrowed("some comment"),
+            Cow::Borrowed("on multiple lines"),
         ]));
         let mut f = HtmlFormatter::new(HtmlConfig {
             comment: HtmlCommentConfig { include: true },
@@ -2881,8 +2866,10 @@ mod tests {
 
     #[test]
     fn multi_line_comment_should_output_html_comment_if_flagged() {
-        let comment =
-            MultiLineComment::from(vec!["some comment", "on multiple lines"]);
+        let comment = MultiLineComment::new(vec![
+            Cow::Borrowed("some comment"),
+            Cow::Borrowed("on multiple lines"),
+        ]);
 
         // By default, no comment will be output
         let mut f = HtmlFormatter::default();

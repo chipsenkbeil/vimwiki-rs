@@ -113,6 +113,12 @@ impl<'a> ListItem<'a> {
         self.attributes
     }
 
+    #[doc(hidden)]
+    #[warn(dead_code)]
+    pub(crate) fn set_attributes(&mut self, attributes: ListItemAttributes) {
+        self.attributes = attributes;
+    }
+
     /// Indicates whether or not this list item represents an unordered item
     pub fn is_unordered(&self) -> bool {
         self.item_type.is_unordered()
@@ -558,7 +564,10 @@ impl StrictEq for ListItemAttributes {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{List, ListItemContent, Located, Text};
+    use crate::{
+        InlineElement, InlineElementContainer, List, ListItemContent, Located,
+        Text,
+    };
 
     macro_rules! unordered_item {
         ($type:ident, $pos:expr, $content:expr) => {
@@ -575,7 +584,7 @@ mod tests {
                 ListItemType::from(UnorderedListItemType::$type),
                 ListItemSuffix::default(),
                 $pos,
-                vec![].into(),
+                ListItemContents::new(vec![]),
                 Default::default(),
             )
         };
@@ -584,7 +593,7 @@ mod tests {
                 ListItemType::from(UnorderedListItemType::$type),
                 ListItemSuffix::default(),
                 0,
-                vec![].into(),
+                ListItemContents::new(vec![]),
                 Default::default(),
             )
         };
@@ -605,7 +614,7 @@ mod tests {
                 ListItemType::from(OrderedListItemType::$type),
                 ListItemSuffix::$suffix,
                 $pos,
-                vec![].into(),
+                ListItemContents::new(vec![]),
                 Default::default(),
             )
         };
@@ -614,7 +623,7 @@ mod tests {
                 ListItemType::from(OrderedListItemType::$type),
                 ListItemSuffix::$suffix,
                 0,
-                vec![].into(),
+                ListItemContents::new(vec![]),
                 Default::default(),
             )
         };
@@ -623,7 +632,7 @@ mod tests {
                 ListItemType::from(OrderedListItemType::$type),
                 ListItemSuffix::Paren,
                 0,
-                vec![].into(),
+                ListItemContents::new(vec![]),
                 Default::default(),
             )
         };
@@ -644,7 +653,7 @@ mod tests {
                 ListItemType::from(UnorderedListItemType::Other($value)),
                 ListItemSuffix::$suffix,
                 $pos,
-                vec![].into(),
+                ListItemContents::new(vec![]),
                 Default::default(),
             )
         };
@@ -653,7 +662,7 @@ mod tests {
                 ListItemType::from(UnorderedListItemType::Other($value)),
                 ListItemSuffix::$suffix,
                 0,
-                vec![].into(),
+                ListItemContents::new(vec![]),
                 Default::default(),
             )
         };
@@ -662,7 +671,7 @@ mod tests {
                 ListItemType::from(UnorderedListItemType::Other($value)),
                 ListItemSuffix::default(),
                 0,
-                vec![].into(),
+                ListItemContents::new(vec![]),
                 Default::default(),
             )
         };
@@ -671,7 +680,7 @@ mod tests {
                 ListItemType::from(UnorderedListItemType::Other(Cow::from(""))),
                 ListItemSuffix::default(),
                 0,
-                vec![].into(),
+                ListItemContents::new(vec![]),
                 Default::default(),
             )
         };
@@ -694,9 +703,9 @@ mod tests {
                 Default::default(),
                 Default::default(),
                 0,
-                vec![From::from(ListItemContent::List(
+                ListItemContents::new(vec![Located::from(ListItemContent::List(
                     List::new(vec![$($child),+])
-                ))].into(),
+                ))]),
                 ListItemAttributes {
                     todo_status: Some(ListItemTodoStatus::$type),
                 }
@@ -704,12 +713,12 @@ mod tests {
         };
     }
 
-    fn make_content(text: &str) -> ListItemContents {
-        let le_text = Located::from(Text::from(text));
-        vec![Located::from(ListItemContent::InlineContent(
-            le_text.into(),
-        ))]
-        .into()
+    fn make_content(s: &str) -> ListItemContents {
+        ListItemContents::new(vec![Located::from(
+            ListItemContent::InlineContent(InlineElementContainer::new(vec![
+                Located::from(InlineElement::Text(Text::from(s))),
+            ])),
+        )])
     }
 
     #[test]

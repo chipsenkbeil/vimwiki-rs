@@ -1,10 +1,11 @@
 use crate::StrictEq;
-use derive_more::{AsRef, Display, Index, IndexMut, IntoIterator};
+use derive_more::{AsRef, Constructor, Display, Index, IndexMut, IntoIterator};
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, iter::FromIterator};
 
 #[derive(
     AsRef,
+    Constructor,
     Clone,
     Debug,
     Display,
@@ -23,15 +24,29 @@ use std::{borrow::Cow, iter::FromIterator};
 pub struct Blockquote<'a>(Vec<Cow<'a, str>>);
 
 impl<'a> Blockquote<'a> {
-    pub fn new<T: Into<Cow<'a, str>>, I: IntoIterator<Item = T>>(
-        iter: I,
-    ) -> Self {
-        iter.into_iter().map(Into::into).collect()
+    /// Represents total lines contained in blockquote
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Returns true if the blockquote has no lines
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    /// Returns reference to line at specified index, if it exists
+    pub fn get(&self, idx: usize) -> Option<&str> {
+        self.0.get(idx).map(AsRef::as_ref)
     }
 
     /// Returns total lines available
     pub fn line_cnt(&self) -> usize {
         self.0.len()
+    }
+
+    /// Returns slice of lines contained within blockquote
+    pub fn lines_slice(&self) -> &[Cow<'a, str>] {
+        &self.0
     }
 
     /// Returns an iterator over lines
@@ -52,37 +67,39 @@ impl Blockquote<'_> {
     pub fn to_borrowed(&self) -> Blockquote {
         use self::Cow::*;
 
-        let lines = self.0.iter().map(|x| {
-            Cow::Borrowed(match x {
-                Borrowed(x) => *x,
-                Owned(x) => x.as_str(),
+        self.0
+            .iter()
+            .map(|x| {
+                Cow::Borrowed(match x {
+                    Borrowed(x) => *x,
+                    Owned(x) => x.as_str(),
+                })
             })
-        });
-
-        Blockquote::new(lines)
+            .collect()
     }
 
     pub fn into_owned(self) -> Blockquote<'static> {
-        let lines = self.into_iter().map(|x| Cow::from(x.into_owned()));
-        Blockquote::new(lines)
+        self.into_iter()
+            .map(|x| Cow::from(x.into_owned()))
+            .collect()
     }
 }
 
 impl<'a> FromIterator<&'a str> for Blockquote<'a> {
     fn from_iter<I: IntoIterator<Item = &'a str>>(iter: I) -> Self {
-        Self::new(iter)
+        Self(iter.into_iter().map(Cow::Borrowed).collect())
     }
 }
 
 impl FromIterator<String> for Blockquote<'static> {
     fn from_iter<I: IntoIterator<Item = String>>(iter: I) -> Self {
-        Self::new(iter)
+        Self(iter.into_iter().map(Cow::Owned).collect())
     }
 }
 
 impl<'a> FromIterator<Cow<'a, str>> for Blockquote<'a> {
     fn from_iter<I: IntoIterator<Item = Cow<'a, str>>>(iter: I) -> Self {
-        Self::new(iter)
+        Self(iter.into_iter().collect())
     }
 }
 

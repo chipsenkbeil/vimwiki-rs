@@ -35,6 +35,16 @@ use std::{borrow::Cow, fmt};
 #[into_iterator(owned, ref, ref_mut)]
 pub struct Tags<'a>(Vec<Tag<'a>>);
 
+impl<'a> Tags<'a> {
+    pub fn iter(&self) -> impl Iterator<Item = &Tag<'a>> {
+        self.into_iter()
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Tag<'a>> {
+        self.into_iter()
+    }
+}
+
 impl Tags<'_> {
     pub fn to_borrowed(&self) -> Tags {
         let inner = self.0.iter().map(Tag::as_borrowed).collect();

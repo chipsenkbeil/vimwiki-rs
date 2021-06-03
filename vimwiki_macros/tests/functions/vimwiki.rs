@@ -1,4 +1,4 @@
-use std::{borrow::Cow, convert::TryFrom};
+use std::{borrow::Cow, convert::TryFrom, iter::FromIterator};
 use vimwiki::{
     vendor::{chrono::NaiveDate, uriparse::URIReference},
     *,
@@ -91,7 +91,7 @@ fn vimwiki_definition_list() {
     "#};
     assert_eq!(
         x.into_inner(),
-        DefinitionList::from(vec![
+        DefinitionList::from_iter(vec![
             (
                 Located::from(DefinitionListValue::new(
                     InlineElementContainer::new(vec![Located::from(
@@ -139,10 +139,10 @@ fn vimwiki_header() {
     assert_eq!(
         x.into_inner(),
         Header::new(
-            1,
             InlineElementContainer::new(vec![Located::from(
                 InlineElement::from(Text::from("header"))
             )]),
+            1,
             false
         )
     );

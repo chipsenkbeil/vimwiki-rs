@@ -9,10 +9,8 @@ fn tokenize_paragraph(
     paragraph: &Paragraph,
 ) -> TokenStream {
     let root = root_crate();
-    let lines = paragraph.lines.iter().map(|line| do_tokenize!(ctx, line));
+    let lines = paragraph.iter().map(|line| do_tokenize!(ctx, line));
     quote! {
-        #root::Paragraph {
-            lines: ::std::vec![#(#lines),*],
-        }
+        #root::Paragraph::new(::std::vec![#(#lines),*])
     }
 }

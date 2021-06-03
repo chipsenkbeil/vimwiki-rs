@@ -15,18 +15,18 @@ fn tokenize_definition_list(
         .iter()
         .map(|x| tokenize_term_and_definitions(ctx, x));
     quote! {
-        <#root::DefinitionList as ::std::convert::From<
-            ::std::vec::Vec<(
+        <#root::DefinitionList as ::std::iter::FromIterator<
+            (
                 #root::Located<#root::Term>,
                 ::std::vec::Vec<#root::Located<#root::Definition>>,
-            )>
-        >>::from(::std::vec![#(#td),*])
+            )
+        >>::from_iter(::std::vec![#(#td),*])
     }
 }
 
 fn tokenize_term_and_definitions(
     ctx: &TokenizeContext,
-    (term, definitions): (&Located<Term>, &Vec<Located<Definition>>),
+    (term, definitions): (&Located<Term>, &[Located<Definition>]),
 ) -> TokenStream {
     let term = do_tokenize!(ctx, term);
     let definitions = definitions.iter().map(|x| do_tokenize!(ctx, x));

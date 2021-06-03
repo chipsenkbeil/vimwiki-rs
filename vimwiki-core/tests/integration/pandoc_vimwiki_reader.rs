@@ -10,9 +10,9 @@ fn test() {
 
     macro_rules! make_link {
         ($link:expr) => {
-            Located::from(Paragraph::from(
-                vimwiki_link!($link).map(InlineElement::from),
-            ))
+            Located::from(Paragraph::new(vec![InlineElementContainer::new(
+                vec![vimwiki_link!($link).map(InlineElement::Link)],
+            )]))
             .into()
         };
     }
@@ -141,10 +141,7 @@ fn test() {
         make_link!("[[http://google.com|_Google_ search engine]]"),
         make_link!("http://pandoc.org"),
         make_link!("ftp://vim.org"),
-        Located::from(Paragraph::from(vec![
-            vimwiki_link!("[[http://google.com]]").map(InlineElement::from),
-            Located::from(Text::from(" ")).map(InlineElement::from),
-        ])).into(),
+        vimwiki_paragraph!(r#"[[http://google.com]] "#).into(),
         make_link!("[[mailto:info@example.org|email me]]"),
         make_link!("mailto:hello@bye.com"),
         vimwiki_header!("== internal links ==").into(),
@@ -164,10 +161,7 @@ fn test() {
         vimwiki_header!("== images ==").into(),
         make_link!("{{file:./lalune.jpg}}"),
         make_link!("{{http://vimwiki.googlecode.com/hg/images/vimwiki_logo.png|Vimwiki}}"),
-        Located::from(Paragraph::from(vec![
-            vimwiki_link!("{{local:./movie.jpg}}").map(InlineElement::from),
-            Located::from(Text::from("  ")).map(InlineElement::from),
-        ])).into(),
+        vimwiki_paragraph!(r#"{{local:./movie.jpg}}  "#).into(),
         vimwiki_header!("=== image with attributes ===").into(),
         // TODO: Should these parse as transclusion links? Currently, we
         //       enforce a scheme here, which is why they are not links

@@ -34,7 +34,7 @@ impl<'a> Text<'a> {
     ///
     /// ```
     /// # use std::borrow::Cow;
-    /// # use vimwiki_core::TextInline;
+    /// # use vimwiki_core::Text;
     /// let text = Text::new(Cow::Borrowed("some text"));
     /// assert_eq!(text.as_str(), "some text");
     /// ```

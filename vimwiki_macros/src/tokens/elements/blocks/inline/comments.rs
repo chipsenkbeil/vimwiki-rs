@@ -1,6 +1,7 @@
 use crate::tokens::{utils::root_crate, Tokenize, TokenizeContext};
 use proc_macro2::TokenStream;
 use quote::quote;
+use std::borrow::Cow;
 use vimwiki_core::{Comment, LineComment, MultiLineComment};
 
 impl_tokenize!(tokenize_comment, Comment<'a>, 'a);
@@ -24,9 +25,9 @@ fn tokenize_line_comment(
     line_comment: &LineComment,
 ) -> TokenStream {
     let root = root_crate();
-    let t = do_tokenize!(ctx, &line_comment.0);
+    let t = do_tokenize!(ctx, Cow::Borrowed(line_comment.as_str()));
     quote! {
-        #root::LineComment(#t)
+        #root::LineComment::new(#t)
     }
 }
 
@@ -36,8 +37,10 @@ fn tokenize_multi_line_comment(
     multi_line_comment: &MultiLineComment,
 ) -> TokenStream {
     let root = root_crate();
-    let t = multi_line_comment.0.iter().map(|x| do_tokenize!(ctx, x));
+    let t = multi_line_comment
+        .lines()
+        .map(|x| do_tokenize!(ctx, Cow::Borrowed(x)));
     quote! {
-        #root::MultiLineComment(::std::vec![#(#t),*])
+        #root::MultiLineComment::new(::std::vec![#(#t),*])
     }
 }

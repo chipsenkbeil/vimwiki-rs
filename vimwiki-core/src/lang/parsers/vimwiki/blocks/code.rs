@@ -141,9 +141,9 @@ mod tests {
         "});
         let (input, p) = code_block(input).unwrap();
         assert!(input.is_empty(), "Did not consume code block");
-        assert!(p.lang.is_none(), "Has unexpected language");
-        assert!(p.lines.is_empty(), "Has unexpected lines");
-        assert!(p.metadata.is_empty(), "Has unexpected metadata");
+        assert!(p.language().is_none(), "Has unexpected language");
+        assert!(p.line_cnt() == 0, "Has unexpected lines");
+        assert!(p.metadata().is_empty(), "Has unexpected metadata");
     }
 
     #[test]
@@ -155,9 +155,9 @@ mod tests {
         "});
         let (input, p) = code_block(input).unwrap();
         assert!(input.is_empty(), "Did not consume code block");
-        assert_eq!(p.lang, Some(Cow::from("c++")));
-        assert_eq!(p.lines, vec![Cow::from("some code")]);
-        assert!(p.metadata.is_empty(), "Has unexpected metadata");
+        assert_eq!(p.language(), Some("c++"));
+        assert_eq!(p.lines().collect::<Vec<&str>>(), vec!["some code"]);
+        assert!(p.metadata().is_empty(), "Has unexpected metadata");
     }
 
     #[test]
@@ -169,9 +169,9 @@ mod tests {
         "#});
         let (input, p) = code_block(input).unwrap();
         assert!(input.is_empty(), "Did not consume code block");
-        assert_eq!(p.lang, Some(Cow::from("c++")));
-        assert_eq!(p.lines, vec![Cow::from("some code")]);
-        assert_eq!(p.metadata.get("key"), Some(&Cow::from("value")));
+        assert_eq!(p.language(), Some("c++"));
+        assert_eq!(p.lines().collect::<Vec<&str>>(), vec!["some code"]);
+        assert_eq!(p.metadata().get("key"), Some(&Cow::from("value")));
     }
 
     #[test]
@@ -191,7 +191,7 @@ mod tests {
         let (input, p) = code_block(input).unwrap();
         assert!(input.is_empty(), "Did not consume code block");
         assert_eq!(
-            p.lines,
+            p.lines().collect::<Vec<&str>>(),
             vec![
                 "Tyger! Tyger! burning bright",
                 " In the forests of the night,",
@@ -203,8 +203,8 @@ mod tests {
                 "   What the hand dare sieze the fire?",
             ]
         );
-        assert!(p.lang.is_none(), "Has unexpected language");
-        assert!(p.metadata.is_empty(), "Has unexpected metadata");
+        assert!(p.language().is_none(), "Has unexpected language");
+        assert!(p.metadata().is_empty(), "Has unexpected metadata");
     }
 
     #[test]
@@ -219,14 +219,17 @@ mod tests {
         let (input, p) = code_block(input).unwrap();
         assert!(input.is_empty(), "Did not consume code block");
         assert_eq!(
-            p.lines,
+            p.lines().collect::<Vec<&str>>(),
             vec![
                 r#"def hello(world):"#,
                 r#"    for x in range(10):"#,
                 r#"        print("Hello {0} number {1}".format(world, x))"#,
             ]
         );
-        assert_eq!(p.metadata.get("class"), Some(&Cow::from("brush: python")));
+        assert_eq!(
+            p.metadata().get("class"),
+            Some(&Cow::from("brush: python"))
+        );
     }
 
     #[test]
@@ -241,17 +244,20 @@ mod tests {
         let (input, p) = code_block(input).unwrap();
         assert!(input.is_empty(), "Did not consume code block");
         assert_eq!(
-            p.lines,
+            p.lines().collect::<Vec<&str>>(),
             vec![
                 r#"def hello(world):"#,
                 r#"    for x in range(10):"#,
                 r#"        print("Hello {0} number {1}".format(world, x))"#,
             ]
         );
-        assert!(p.lang.is_none(), "Has unexpected language");
-        assert_eq!(p.metadata.get("class"), Some(&Cow::from("brush: python")));
+        assert!(p.language().is_none(), "Has unexpected language");
         assert_eq!(
-            p.metadata.get("style"),
+            p.metadata().get("class"),
+            Some(&Cow::from("brush: python"))
+        );
+        assert_eq!(
+            p.metadata().get("style"),
             Some(&Cow::from("position: relative"))
         );
     }

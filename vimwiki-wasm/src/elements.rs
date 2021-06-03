@@ -281,7 +281,7 @@ impl InlineBlockElement {
     pub fn into_term(self) -> Option<InlineElementContainer> {
         match self.0.into_inner() {
             v::InlineBlockElement::Term(x) => {
-                Some(InlineElementContainer(x.into_inner()))
+                Some(InlineElementContainer(x.into()))
             }
             _ => None,
         }
@@ -296,7 +296,7 @@ impl InlineBlockElement {
     pub fn into_definition(self) -> Option<InlineElementContainer> {
         match self.0.into_inner() {
             v::InlineBlockElement::Definition(x) => {
-                Some(InlineElementContainer(x.into_inner()))
+                Some(InlineElementContainer(x.into()))
             }
             _ => None,
         }
@@ -465,13 +465,13 @@ pub struct Blockquote(v::Located<v::Blockquote<'static>>);
 impl Blockquote {
     /// Returns line at the given index if it exists
     pub fn line_at(&self, idx: usize) -> Option<String> {
-        self.0.lines.get(idx).map(ToString::to_string)
+        self.0.get(idx).map(ToString::to_string)
     }
 
     /// Represents total number of lines within the blockquote
     #[wasm_bindgen(getter)]
     pub fn line_cnt(&self) -> usize {
-        self.0.lines.len()
+        self.0.len()
     }
 }
 
@@ -484,7 +484,7 @@ impl CodeBlock {
     /// Represents the language associated with the code block
     #[wasm_bindgen(getter)]
     pub fn lang(&self) -> Option<String> {
-        self.0.lang.as_ref().map(ToString::to_string)
+        self.0.language().map(ToString::to_string)
     }
 
     /// Returns object containing metadata of code block
@@ -492,10 +492,10 @@ impl CodeBlock {
     pub fn metadata(&self) -> Option<js_sys::Object> {
         let arr = js_sys::Array::new();
 
-        for (key, value) in self.0.metadata.iter() {
+        for (key, value) in self.0.metadata_iter() {
             let tuple = js_sys::Array::new();
-            tuple.push(&JsValue::from_str(key.as_ref()));
-            tuple.push(&JsValue::from_str(value.as_ref()));
+            tuple.push(&JsValue::from_str(key));
+            tuple.push(&JsValue::from_str(value));
 
             arr.push(&tuple);
         }
@@ -505,13 +505,13 @@ impl CodeBlock {
 
     /// Returns line at the given index if it exists
     pub fn line_at(&self, idx: usize) -> Option<String> {
-        self.0.lines.get(idx).map(ToString::to_string)
+        self.0.get(idx).map(ToString::to_string)
     }
 
     /// Represents total number of lines within the block
     #[wasm_bindgen(getter)]
     pub fn line_cnt(&self) -> usize {
-        self.0.lines.len()
+        self.0.len()
     }
 }
 
@@ -534,11 +534,11 @@ impl DefinitionList {
     /// Returns the definition associated with the specified term
     pub fn get_def(&self, term: &str) -> Option<InlineElementContainer> {
         self.0.get(term).map(|x| {
-            InlineElementContainer(v::InlineElementContainer::from(
+            InlineElementContainer(
                 x.iter()
                     .map(|x| x.as_inner().as_inner().to_borrowed().into_owned())
-                    .collect::<Vec<v::InlineElementContainer>>(),
-            ))
+                    .collect::<v::InlineElementContainer>(),
+            )
         })
     }
 
@@ -568,24 +568,24 @@ impl Header {
     /// Represents the level of the header
     #[wasm_bindgen(getter)]
     pub fn level(&self) -> usize {
-        self.0.level
+        self.0.level()
     }
 
     /// Represents the content of the header
     #[wasm_bindgen(getter)]
     pub fn content(&self) -> InlineElementContainer {
-        InlineElementContainer(self.0.content.to_borrowed().into_owned())
+        InlineElementContainer(self.0.content().to_borrowed().into_owned())
     }
 
     /// Represents whether or not the header is centered
     #[wasm_bindgen(getter)]
     pub fn centered(&self) -> bool {
-        self.0.centered
+        self.0.centered()
     }
 
     /// Converts paragraph to a JavaScript string
     pub fn to_str(&self) -> String {
-        self.0.content.to_string()
+        self.0.content().to_string()
     }
 }
 
@@ -597,7 +597,7 @@ pub struct List(v::Located<v::List<'static>>);
 impl List {
     /// Returns list item at the given index if it exists
     pub fn item_at(&self, idx: usize) -> Option<ListItem> {
-        self.0.items.get(idx).map(|x| {
+        self.0.get(idx).map(|x| {
             ListItem(v::Located::new(x.to_borrowed().into_owned(), x.region()))
         })
     }
@@ -605,7 +605,7 @@ impl List {
     /// Represents total number of items within list
     #[wasm_bindgen(getter)]
     pub fn item_cnt(&self) -> usize {
-        self.0.items.len()
+        self.0.len()
     }
 }
 
@@ -618,41 +618,41 @@ impl ListItem {
     /// Represents position of list item within list
     #[wasm_bindgen(getter)]
     pub fn pos(&self) -> usize {
-        self.0.pos
+        self.0.pos()
     }
 
     /// Represents contents contained within list item
     #[wasm_bindgen(getter)]
     pub fn contents(&self) -> ListItemContents {
-        ListItemContents(self.0.contents.to_borrowed().into_owned())
+        ListItemContents(self.0.contents().to_borrowed().into_owned())
     }
 
     /// Represents the prefix of list item (e.g. hyphen or roman numeral)
     #[wasm_bindgen(getter)]
     pub fn prefix(&self) -> String {
-        self.0.item_type.to_prefix(self.0.pos, self.0.suffix)
+        self.0.r#type().to_prefix(self.0.pos(), self.0.suffix())
     }
 
     /// Represents suffix of list item (e.g. period or paren)
     #[wasm_bindgen(getter)]
     pub fn suffix(&self) -> ListItemSuffix {
-        ListItemSuffix::from(self.0.suffix)
+        ListItemSuffix::from(self.0.suffix())
     }
 
     /// Represents attributes of list item
     #[wasm_bindgen(getter)]
     pub fn attributes(&self) -> ListItemAttributes {
-        ListItemAttributes(self.0.attributes)
+        ListItemAttributes(self.0.attributes())
     }
 
     /// Returns true if list item is ordered type
     pub fn is_ordered(&self) -> bool {
-        self.0.item_type.is_ordered()
+        self.0.r#type().is_ordered()
     }
 
     /// Returns true if list item is unordered type
     pub fn is_unordered(&self) -> bool {
-        self.0.item_type.is_unordered()
+        self.0.r#type().is_unordered()
     }
 }
 
@@ -854,18 +854,18 @@ impl MathBlock {
     /// Represents the environment associated with the math block
     #[wasm_bindgen(getter)]
     pub fn environment(&self) -> Option<String> {
-        self.0.environment.as_ref().map(ToString::to_string)
+        self.0.environment().map(ToString::to_string)
     }
 
     /// Returns line at the given index if it exists
     pub fn line_at(&self, idx: usize) -> Option<String> {
-        self.0.lines.get(idx).map(ToString::to_string)
+        self.0.get(idx).map(ToString::to_string)
     }
 
     /// Represents total number of lines within the block
     #[wasm_bindgen(getter)]
     pub fn line_cnt(&self) -> usize {
-        self.0.lines.len()
+        self.0.len()
     }
 }
 
@@ -878,7 +878,6 @@ impl Paragraph {
     /// Returns line as inline element container at the given index if it exists
     pub fn line_at(&self, idx: usize) -> Option<InlineElementContainer> {
         self.0
-            .lines
             .get(idx)
             .map(|x| InlineElementContainer(x.to_borrowed().into_owned()))
     }
@@ -886,13 +885,12 @@ impl Paragraph {
     /// Represents total number of lines within the paragraph
     #[wasm_bindgen(getter)]
     pub fn line_cnt(&self) -> usize {
-        self.0.lines.len()
+        self.0.len()
     }
 
     /// Converts paragraph to a JavaScript string
     pub fn to_str(&self) -> String {
         self.0
-            .lines
             .iter()
             .map(ToString::to_string)
             .collect::<Vec<String>>()

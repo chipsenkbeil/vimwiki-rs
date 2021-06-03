@@ -93,7 +93,7 @@ fn load_vimwiki_list() -> std::io::Result<Vec<HtmlWikiConfig>> {
     let vimwiki_list_json = vimvar::load_global_var("vimwiki_list", false)?;
     trace!(
         "g:vimwiki_list == {:?}",
-        serde_json::to_string_pretty(vimwiki_list_json)
+        serde_json::to_string_pretty(&vimwiki_list_json)
     );
 
     if let Some(json) = vimwiki_list_json {

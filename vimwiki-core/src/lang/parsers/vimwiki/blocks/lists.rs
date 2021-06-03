@@ -351,13 +351,13 @@ mod tests {
         item_suffix: ListItemSuffix,
         text: &str,
     ) {
-        let item = &l.items[0].as_inner();
-        assert_eq!(item.item_type, item_type);
-        assert_eq!(item.suffix, item_suffix);
-        assert_eq!(item.pos, 0);
+        let item = &l[0].as_inner();
+        assert_eq!(item.r#type(), &item_type);
+        assert_eq!(item.suffix(), item_suffix);
+        assert_eq!(item.pos(), 0);
 
-        let element = match &item.contents[0].as_inner() {
-            ListItemContent::InlineContent(c) => c.elements[0].as_inner(),
+        let element = match &item[0].as_inner() {
+            ListItemContent::InlineContent(c) => c[0].as_inner(),
             x => panic!("Unexpected list item content: {:?}", x),
         };
         assert_eq!(element, &InlineElement::Text(Text::from(text)));
@@ -396,9 +396,9 @@ mod tests {
 
         let (_, lst) = list(input).unwrap();
         assert_eq!(lst.depth(), 0, "List depth was at wrong level");
-        for item in lst.items.iter() {
+        for item in lst.iter() {
             assert_eq!(item.depth(), 1, "List item depth was at wrong level");
-            for content in item.contents.contents.iter() {
+            for content in item.contents().iter() {
                 assert_eq!(
                     content.depth(),
                     2,
@@ -413,7 +413,7 @@ mod tests {
         let input = Span::from("- list item 1");
         let (input, l) = list(input).unwrap();
         assert!(input.is_empty(), "Did not consume list");
-        assert_eq!(l.items.len(), 1, "Unexpected number of list items");
+        assert_eq!(l.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
             l.as_inner(),
@@ -428,7 +428,7 @@ mod tests {
         let input = Span::from("* list item 1");
         let (input, l) = list(input).unwrap();
         assert!(input.is_empty(), "Did not consume list");
-        assert_eq!(l.items.len(), 1, "Unexpected number of list items");
+        assert_eq!(l.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
             l.as_inner(),
@@ -443,7 +443,7 @@ mod tests {
         let input = Span::from("# list item 1");
         let (input, l) = list(input).unwrap();
         assert!(input.is_empty(), "Did not consume list");
-        assert_eq!(l.items.len(), 1, "Unexpected number of list items");
+        assert_eq!(l.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
             l.as_inner(),
@@ -458,7 +458,7 @@ mod tests {
         let input = Span::from("1. list item 1");
         let (input, l) = list(input).unwrap();
         assert!(input.is_empty(), "Did not consume list");
-        assert_eq!(l.items.len(), 1, "Unexpected number of list items");
+        assert_eq!(l.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
             l.as_inner(),
@@ -473,7 +473,7 @@ mod tests {
         let input = Span::from("1) list item 1");
         let (input, l) = list(input).unwrap();
         assert!(input.is_empty(), "Did not consume list");
-        assert_eq!(l.items.len(), 1, "Unexpected number of list items");
+        assert_eq!(l.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
             l.as_inner(),
@@ -488,7 +488,7 @@ mod tests {
         let input = Span::from("a) list item 1");
         let (input, l) = list(input).unwrap();
         assert!(input.is_empty(), "Did not consume list");
-        assert_eq!(l.items.len(), 1, "Unexpected number of list items");
+        assert_eq!(l.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
             l.as_inner(),
@@ -503,7 +503,7 @@ mod tests {
         let input = Span::from("A) list item 1");
         let (input, l) = list(input).unwrap();
         assert!(input.is_empty(), "Did not consume list");
-        assert_eq!(l.items.len(), 1, "Unexpected number of list items");
+        assert_eq!(l.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
             l.as_inner(),
@@ -518,7 +518,7 @@ mod tests {
         let input = Span::from("i) list item 1");
         let (input, l) = list(input).unwrap();
         assert!(input.is_empty(), "Did not consume list");
-        assert_eq!(l.items.len(), 1, "Unexpected number of list items");
+        assert_eq!(l.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
             l.as_inner(),
@@ -533,7 +533,7 @@ mod tests {
         let input = Span::from("I) list item 1");
         let (input, l) = list(input).unwrap();
         assert!(input.is_empty(), "Did not consume list");
-        assert_eq!(l.items.len(), 1, "Unexpected number of list items");
+        assert_eq!(l.len(), 1, "Unexpected number of list items");
 
         check_single_line_list_item(
             l.as_inner(),
@@ -550,11 +550,10 @@ mod tests {
         "#});
         let (input, l) = list(input).unwrap();
         assert!(input.is_empty(), "Did not consume list item");
-        assert_eq!(l.items.len(), 1, "Unexpected number of list items");
+        assert_eq!(l.len(), 1, "Unexpected number of list items");
 
         assert_eq!(
-            l.items[0]
-                .contents
+            l[0].contents()
                 .inline_content_iter()
                 .collect::<Vec<&InlineElement>>(),
             vec![
@@ -589,11 +588,10 @@ mod tests {
         "});
         let (input, l) = list(input).unwrap();
         assert_eq!(input.as_unsafe_remaining_str(), "not a list item\n");
-        assert_eq!(l.items.len(), 1, "Unexpected number of list items");
+        assert_eq!(l.len(), 1, "Unexpected number of list items");
 
         assert_eq!(
-            l.items[0]
-                .contents
+            l[0].contents()
                 .inline_content_iter()
                 .collect::<Vec<&InlineElement>>(),
             vec![
@@ -617,12 +615,11 @@ mod tests {
         "});
         let (input, l) = list(input).unwrap();
         assert_eq!(input.as_unsafe_remaining_str(), "not a list item\n");
-        assert_eq!(l.items.len(), 1, "Unexpected number of list items");
+        assert_eq!(l.len(), 1, "Unexpected number of list items");
 
         // Should only have three lines of inline content
         assert_eq!(
-            l.items[0]
-                .contents
+            l[0].contents()
                 .inline_content_iter()
                 .collect::<Vec<&InlineElement>>(),
             vec![
@@ -633,12 +630,12 @@ mod tests {
         );
 
         // Should have a single sublist with two items and content
-        let sublist = l.items[0].contents.sublist_iter().next().unwrap();
-        assert_eq!(sublist.items.len(), 2, "Unexpected number of list items");
+        let sublist = l[0].contents().sublist_iter().next().unwrap();
+        assert_eq!(sublist.len(), 2, "Unexpected number of list items");
 
         assert_eq!(
-            sublist.items[0]
-                .contents
+            sublist[0]
+                .contents()
                 .inline_content_iter()
                 .collect::<Vec<&InlineElement>>(),
             vec![
@@ -648,8 +645,8 @@ mod tests {
         );
 
         assert_eq!(
-            sublist.items[1]
-                .contents
+            sublist[1]
+                .contents()
                 .inline_content_iter()
                 .collect::<Vec<&InlineElement>>(),
             vec![&InlineElement::Text(Text::from("sublist item 2")),]
@@ -668,41 +665,41 @@ mod tests {
         "});
         let (input, l) = list(input).unwrap();
         assert!(input.is_empty(), "Did not consume list");
-        assert_eq!(l.items.len(), 6, "Unexpected number of list items");
+        assert_eq!(l.len(), 6, "Unexpected number of list items");
 
-        assert!(l.items[0].is_todo_incomplete());
+        assert!(l[0].is_todo_incomplete());
         assert_eq!(
-            l.items[0].contents.inline_content_iter().next(),
+            l[0].contents().inline_content_iter().next(),
             Some(&InlineElement::Text(Text::from("list item 1"))),
         );
 
-        assert!(l.items[1].is_todo_partially_complete_1());
+        assert!(l[1].is_todo_partially_complete_1());
         assert_eq!(
-            l.items[1].contents.inline_content_iter().next(),
+            l[1].contents().inline_content_iter().next(),
             Some(&InlineElement::Text(Text::from("list item 2"))),
         );
 
-        assert!(l.items[2].is_todo_partially_complete_2());
+        assert!(l[2].is_todo_partially_complete_2());
         assert_eq!(
-            l.items[2].contents.inline_content_iter().next(),
+            l[2].contents().inline_content_iter().next(),
             Some(&InlineElement::Text(Text::from("list item 3"))),
         );
 
-        assert!(l.items[3].is_todo_partially_complete_3());
+        assert!(l[3].is_todo_partially_complete_3());
         assert_eq!(
-            l.items[3].contents.inline_content_iter().next(),
+            l[3].contents().inline_content_iter().next(),
             Some(&InlineElement::Text(Text::from("list item 4"))),
         );
 
-        assert!(l.items[4].is_todo_complete());
+        assert!(l[4].is_todo_complete());
         assert_eq!(
-            l.items[4].contents.inline_content_iter().next(),
+            l[4].contents().inline_content_iter().next(),
             Some(&InlineElement::Text(Text::from("list item 5"))),
         );
 
-        assert!(l.items[5].is_todo_rejected());
+        assert!(l[5].is_todo_rejected());
         assert_eq!(
-            l.items[5].contents.inline_content_iter().next(),
+            l[5].contents().inline_content_iter().next(),
             Some(&InlineElement::Text(Text::from("list item 6"))),
         );
     }

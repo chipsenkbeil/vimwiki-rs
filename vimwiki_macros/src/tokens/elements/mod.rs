@@ -12,8 +12,6 @@ fn tokenize_page(ctx: &TokenizeContext, page: &Page) -> TokenStream {
     let root = root_crate();
     let elements = page.elements().iter().map(|x| do_tokenize!(ctx, x));
     quote! {
-        #root::Page {
-            elements: ::std::vec![#(#elements),*],
-        }
+        #root::Page::new(::std::vec![#(#elements),*])
     }
 }

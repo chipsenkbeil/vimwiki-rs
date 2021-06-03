@@ -58,6 +58,16 @@ impl<'a> List<'a> {
         self.into_iter()
     }
 
+    /// Returns total items contained in list
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Returns true if list has no items
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
     /// Returns whether or not the list represents an ordered list based on
     /// the first list item; if there are no items then this would return false
     pub fn is_ordered(&self) -> bool {

@@ -71,6 +71,6 @@ mod tests {
         let input = Span::from(r"$\sum_i a_i^2 = 1$");
         let (input, m) = math_inline(input).unwrap();
         assert!(input.is_empty(), "Math inline not consumed");
-        assert_eq!(m.formula, r"\sum_i a_i^2 = 1");
+        assert_eq!(m.as_str(), r"\sum_i a_i^2 = 1");
     }
 }

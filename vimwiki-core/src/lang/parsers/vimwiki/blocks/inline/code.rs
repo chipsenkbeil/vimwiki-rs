@@ -61,6 +61,6 @@ mod tests {
         let input = Span::from(r"`some code`");
         let (input, m) = code_inline(input).unwrap();
         assert!(input.is_empty(), "Code inline not consumed");
-        assert_eq!(m.code, r"some code");
+        assert_eq!(m.as_str(), r"some code");
     }
 }

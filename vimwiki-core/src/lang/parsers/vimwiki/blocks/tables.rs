@@ -139,11 +139,11 @@ mod tests {
         match cell {
             Cell::Content(x) => {
                 assert_eq!(
-                    x.elements.len(),
+                    x.len(),
                     1,
                     "Unexpected number of inline elements in cell"
                 );
-                f(x.elements[0].as_inner());
+                f(x[0].as_inner());
             }
             x => panic!("Unexpected cell: {:?}", x),
         }

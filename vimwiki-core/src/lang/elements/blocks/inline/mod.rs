@@ -126,6 +126,21 @@ impl<'a> InlineElementContainer<'a> {
     ) -> impl Iterator<Item = &mut Located<InlineElement<'a>>> {
         self.into_iter()
     }
+
+    /// Returns total elements contained within container
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Returns true if container has no elements
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    /// Returns reference to element at specified index, if it exists
+    pub fn get(&self, idx: usize) -> Option<&Located<InlineElement<'a>>> {
+        self.0.get(idx)
+    }
 }
 
 impl InlineElementContainer<'_> {

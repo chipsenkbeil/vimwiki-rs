@@ -48,10 +48,10 @@ mod tests {
         let (_, page) = page(Span::from("some text with % signs")).unwrap();
         assert_eq!(
             page.elements(),
-            vec![Located::from(BlockElement::from(Paragraph::from(vec![
-                Located::from(InlineElement::Text(Text::from(
-                    "some text with % signs"
-                )))
+            vec![Located::from(BlockElement::from(Paragraph::new(vec![
+                InlineElementContainer::new(vec![Located::from(
+                    InlineElement::Text(Text::from("some text with % signs"))
+                )])
             ])))]
         );
     }

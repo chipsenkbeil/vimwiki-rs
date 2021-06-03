@@ -17,13 +17,10 @@ fn tokenize_inline_element_container(
 ) -> TokenStream {
     let root = root_crate();
     let elements = inline_element_container
-        .elements
         .iter()
         .map(|c| do_tokenize!(ctx, c));
     quote! {
-        #root::InlineElementContainer {
-            elements: ::std::vec![#(#elements),*],
-        }
+        #root::InlineElementContainer::new(::std::vec![#(#elements),*])
     }
 }
 

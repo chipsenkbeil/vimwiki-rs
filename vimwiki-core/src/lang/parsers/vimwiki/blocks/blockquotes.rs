@@ -131,13 +131,9 @@ mod tests {
         );
 
         // Verify the contents of the blockquote
-        assert_eq!(
-            bq.lines().len(),
-            2,
-            "Wrong number of blockquote lines found"
-        );
-        assert_eq!(bq.lines()[0], "This is a blockquote");
-        assert_eq!(bq.lines()[1], "that is using four spaces");
+        assert_eq!(bq.len(), 2, "Wrong number of blockquote lines found");
+        assert_eq!(bq[0], "This is a blockquote");
+        assert_eq!(bq[1], "that is using four spaces");
     }
 
     #[test]
@@ -163,13 +159,9 @@ mod tests {
         );
 
         // Verify the contents of the blockquote
-        assert_eq!(
-            bq.lines().len(),
-            2,
-            "Wrong number of blockquote lines found"
-        );
-        assert_eq!(bq.lines()[0], "This is a blockquote");
-        assert_eq!(bq.lines()[1], "that is using four spaces");
+        assert_eq!(bq.len(), 2, "Wrong number of blockquote lines found");
+        assert_eq!(bq[0], "This is a blockquote");
+        assert_eq!(bq[1], "that is using four spaces");
     }
 
     #[test]
@@ -200,15 +192,11 @@ mod tests {
         );
 
         // Verify the contents of the blockquote
-        assert_eq!(
-            bq.lines().len(),
-            5,
-            "Wrong number of blockquote lines found"
-        );
-        assert_eq!(bq.lines()[0], "This is a blockquote");
-        assert_eq!(bq.lines()[1], "that is using prefixes");
-        assert_eq!(bq.lines()[2], "");
-        assert_eq!(bq.lines()[3], "This is another blockquote");
-        assert_eq!(bq.lines()[4], "that is using prefixes");
+        assert_eq!(bq.len(), 5, "Wrong number of blockquote lines found");
+        assert_eq!(bq[0], "This is a blockquote");
+        assert_eq!(bq[1], "that is using prefixes");
+        assert_eq!(bq[2], "");
+        assert_eq!(bq[3], "This is another blockquote");
+        assert_eq!(bq[4], "that is using prefixes");
     }
 }

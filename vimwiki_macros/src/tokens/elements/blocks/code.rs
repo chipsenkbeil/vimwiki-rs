@@ -6,6 +6,7 @@ use crate::tokens::{
 };
 use proc_macro2::TokenStream;
 use quote::quote;
+use std::borrow::Cow;
 use vimwiki_core::CodeBlock;
 
 impl_tokenize!(tokenize_code_block, CodeBlock<'a>, 'a);
@@ -14,21 +15,26 @@ fn tokenize_code_block(
     code_block: &CodeBlock,
 ) -> TokenStream {
     let root = root_crate();
-    let lang =
-        tokenize_option(ctx, &code_block.lang, |ctx, x| do_tokenize!(ctx, x));
+    let lang = tokenize_option(
+        ctx,
+        &code_block.language().map(Cow::Borrowed),
+        |ctx, x| do_tokenize!(ctx, x),
+    );
     let metadata = tokenize_hashmap(
-        &code_block.metadata,
+        code_block.metadata(),
         tokenize_cow_str_type(),
         tokenize_cow_str_type(),
         |x| do_tokenize!(ctx, x),
         |x| do_tokenize!(ctx, x),
     );
-    let lines = code_block.lines.iter().map(|x| do_tokenize!(ctx, x));
+    let lines = code_block
+        .lines()
+        .map(|x| do_tokenize!(ctx, Cow::Borrowed(x)));
     quote! {
-        #root::CodeBlock {
-            lang: #lang,
-            metadata: #metadata,
-            lines: ::std::vec![#(#lines),*],
-        }
+        #root::CodeBlock::new(
+            #lang,
+            #metadata,
+            ::std::vec![#(#lines),*],
+        )
     }
 }

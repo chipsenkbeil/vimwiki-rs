@@ -6,17 +6,14 @@ use vimwiki_core::Header;
 impl_tokenize!(tokenize_header, Header<'a>, 'a);
 fn tokenize_header(ctx: &TokenizeContext, header: &Header) -> TokenStream {
     let root = root_crate();
-    let Header {
-        level,
-        content,
-        centered,
-    } = header;
-    let content_t = do_tokenize!(ctx, &content);
+    let level = header.level();
+    let centered = header.centered();
+    let content_t = do_tokenize!(ctx, header.content());
     quote! {
-        #root::Header {
-            level: #level,
-            content: #content_t,
-            centered: #centered,
-        }
+        #root::Header::new(
+            #content_t,
+            #level,
+            #centered,
+        )
     }
 }

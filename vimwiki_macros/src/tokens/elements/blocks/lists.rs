@@ -12,39 +12,29 @@ use vimwiki_core::{
 impl_tokenize!(tokenize_list, List<'a>, 'a);
 fn tokenize_list(ctx: &TokenizeContext, list: &List) -> TokenStream {
     let root = root_crate();
-    let items = list.items.iter().map(|x| do_tokenize!(ctx, x));
+    let items = list.iter().map(|x| do_tokenize!(ctx, x));
     quote! {
-        #root::List {
-            items: ::std::vec![#(#items),*],
-        }
+        #root::List::new(::std::vec![#(#items),*])
     }
 }
 
 impl_tokenize!(tokenize_list_item, ListItem<'a>, 'a);
-fn tokenize_list_item(
-    ctx: &TokenizeContext,
-    list_item: &ListItem,
-) -> TokenStream {
+fn tokenize_list_item(ctx: &TokenizeContext, item: &ListItem) -> TokenStream {
     let root = root_crate();
-    let ListItem {
-        item_type,
-        suffix,
-        pos,
-        contents,
-        attributes,
-    } = list_item;
-    let item_type_t = tokenize_list_item_type(ctx, &item_type);
-    let suffix_t = tokenize_list_item_suffix(ctx, &suffix);
-    let contents_t = tokenize_list_item_contents(ctx, &contents);
-    let attributes_t = tokenize_list_item_attributes(ctx, &attributes);
+
+    let pos = item.pos();
+    let item_type_t = tokenize_list_item_type(ctx, item.r#type());
+    let suffix_t = tokenize_list_item_suffix(ctx, &item.suffix());
+    let contents_t = tokenize_list_item_contents(ctx, item.contents());
+    let attributes_t = tokenize_list_item_attributes(ctx, &item.attributes());
     quote! {
-        #root::ListItem {
-            item_type: #item_type_t,
-            suffix: #suffix_t,
-            pos: #pos,
-            contents: #contents_t,
-            attributes: #attributes_t,
-        }
+        #root::ListItem::new(
+            #item_type_t,
+            #suffix_t,
+            #pos,
+            #contents_t,
+            #attributes_t,
+        )
     }
 }
 
@@ -72,14 +62,9 @@ fn tokenize_list_item_contents(
     list_item_contents: &ListItemContents,
 ) -> TokenStream {
     let root = root_crate();
-    let contents = list_item_contents
-        .contents
-        .iter()
-        .map(|x| do_tokenize!(ctx, x));
+    let contents = list_item_contents.iter().map(|x| do_tokenize!(ctx, x));
     quote! {
-        #root::ListItemContents {
-            contents: ::std::vec![#(#contents),*],
-        }
+        #root::ListItemContents::new(::std::vec![#(#contents),*])
     }
 }
 

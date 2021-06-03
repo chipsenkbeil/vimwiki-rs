@@ -66,7 +66,10 @@ mod tests {
         let input = Span::from(":tag-example:");
         let (input, tags) = tags(input).unwrap();
         assert!(input.is_empty(), "Did not consume tags");
-        assert_eq!(tags.0, vec![Tag::from("tag-example")]);
+        assert_eq!(
+            tags.into_inner().into_iter().collect::<Vec<Tag>>(),
+            vec![Tag::from("tag-example")]
+        );
     }
 
     #[test]
@@ -79,7 +82,10 @@ mod tests {
             "and other text",
             "Unexpected input consumed"
         );
-        assert_eq!(tags.0, vec![Tag::from("tag-example")]);
+        assert_eq!(
+            tags.into_inner().into_iter().collect::<Vec<Tag>>(),
+            vec![Tag::from("tag-example")]
+        );
     }
 
     #[test]
@@ -87,6 +93,9 @@ mod tests {
         let input = Span::from(":tag-one:tag-two:");
         let (input, tags) = tags(input).unwrap();
         assert!(input.is_empty(), "Did not consume tags");
-        assert_eq!(tags.0, vec![Tag::from("tag-one"), Tag::from("tag-two")]);
+        assert_eq!(
+            tags.into_inner().into_iter().collect::<Vec<Tag>>(),
+            vec![Tag::from("tag-one"), Tag::from("tag-two")]
+        );
     }
 }

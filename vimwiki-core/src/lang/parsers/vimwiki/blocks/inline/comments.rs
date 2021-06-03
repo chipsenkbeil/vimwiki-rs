@@ -90,7 +90,7 @@ mod tests {
         assert!(input.is_empty(), "Did not consume comment");
 
         match c.into_inner() {
-            Comment::Line(x) => assert_eq!(x.0, " comment"),
+            Comment::Line(x) => assert_eq!(x.as_str(), " comment"),
             x => panic!("Unexpected element: {:?}", x),
         }
     }
@@ -101,7 +101,7 @@ mod tests {
         let (input, c) = comment(input).unwrap();
         assert!(input.is_empty(), "Did not consume comment");
         match c.into_inner() {
-            Comment::Line(x) => assert_eq!(x.0, " comment"),
+            Comment::Line(x) => assert_eq!(x.as_str(), " comment"),
             x => panic!("Unexpected element: {:?}", x),
         }
 
@@ -113,7 +113,7 @@ mod tests {
             "Unexpected input consumed"
         );
         match c.into_inner() {
-            Comment::Line(x) => assert_eq!(x.0, " comment"),
+            Comment::Line(x) => assert_eq!(x.as_str(), " comment"),
             x => panic!("Unexpected element: {:?}", x),
         }
     }
@@ -124,7 +124,9 @@ mod tests {
         let (input, c) = comment(input).unwrap();
         assert!(input.is_empty(), "Did not consume comment");
         match c.into_inner() {
-            Comment::MultiLine(x) => assert_eq!(x.0, vec![" comment "]),
+            Comment::MultiLine(x) => {
+                assert_eq!(x.lines().collect::<Vec<&str>>(), vec![" comment "])
+            }
             x => panic!("Unexpected element: {:?}", x),
         }
 
@@ -133,7 +135,10 @@ mod tests {
         assert!(input.is_empty(), "Did not consume comment");
         match c.into_inner() {
             Comment::MultiLine(x) => {
-                assert_eq!(x.0, vec![" comment", "next line "])
+                assert_eq!(
+                    x.lines().collect::<Vec<&str>>(),
+                    vec![" comment", "next line "]
+                )
             }
             x => panic!("Unexpected element: {:?}", x),
         }
@@ -147,7 +152,10 @@ mod tests {
         );
         match c.into_inner() {
             Comment::MultiLine(x) => {
-                assert_eq!(x.0, vec![" comment", "next line "])
+                assert_eq!(
+                    x.lines().collect::<Vec<&str>>(),
+                    vec![" comment", "next line "]
+                )
             }
             x => panic!("Unexpected element: {:?}", x),
         }

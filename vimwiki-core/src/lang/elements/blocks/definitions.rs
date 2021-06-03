@@ -1,7 +1,7 @@
 use crate::{
     lang::elements::{
         InlineBlockElement, InlineElement, InlineElementContainer,
-        IntoChildren, Located,
+        IntoChildren, Located, Text,
     },
     StrictEq,
 };
@@ -90,6 +90,18 @@ impl<'a> PartialEq<String> for DefinitionListValue<'a> {
 impl<'a, 'b> PartialEq<&'b str> for DefinitionListValue<'a> {
     fn eq(&self, other: &&'b str) -> bool {
         &self.to_string() == other
+    }
+}
+
+impl<'a> From<&'a str> for DefinitionListValue<'a> {
+    /// Special conversion to support wrapping str as a [`Text`] element,
+    /// wrapped as an [`InlineElement`], wrapped as an [`InlineElementContainer`],
+    /// and finally wrapped as a [`DefinitionListValue`]
+    fn from(s: &'a str) -> Self {
+        let element = InlineElement::Text(Text::from(s));
+        let container =
+            InlineElementContainer::new(vec![Located::from(element)]);
+        Self(container)
     }
 }
 
@@ -303,7 +315,7 @@ mod tests {
 
     #[test]
     fn definition_list_should_be_able_to_iterate_through_terms() {
-        let dl = DefinitionList::from(vec![
+        let dl = DefinitionList::new(vec![
             (Located::from(Term::from("term1")), vec![]),
             (Located::from(Term::from("term2")), vec![]),
         ]);
@@ -318,7 +330,7 @@ mod tests {
     #[test]
     fn definition_list_should_be_able_to_iterate_through_definitions_for_term()
     {
-        let dl = DefinitionList::from(vec![
+        let dl = DefinitionList::new(vec![
             (
                 Located::from(Term::from("term1")),
                 vec![Located::from(Definition::from("definition"))],
@@ -349,7 +361,7 @@ mod tests {
     #[test]
     fn definition_list_should_support_lookup_with_terms_containing_other_inline_elements(
     ) {
-        let dl = DefinitionList::from(vec![
+        let dl = DefinitionList::new(vec![
             (
                 Located::from(Term::from("term1")),
                 vec![

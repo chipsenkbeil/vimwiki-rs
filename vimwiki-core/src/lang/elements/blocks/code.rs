@@ -33,8 +33,13 @@ impl<'a> CodeBlock<'a> {
 
     /// Returns iterator over the metadata of the code block in the form of
     /// key-value pairs
-    pub fn metadata(&self) -> impl Iterator<Item = (&str, &str)> {
+    pub fn metadata_iter(&self) -> impl Iterator<Item = (&str, &str)> {
         self.metadata.iter().map(|(k, v)| (k.as_ref(), v.as_ref()))
+    }
+
+    /// Returns reference to map containing metadata
+    pub fn metadata(&self) -> &HashMap<Cow<'a, str>, Cow<'a, str>> {
+        &self.metadata
     }
 
     /// Returns total lines contained within code block
