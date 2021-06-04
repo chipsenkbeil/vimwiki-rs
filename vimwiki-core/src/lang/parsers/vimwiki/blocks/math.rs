@@ -101,7 +101,7 @@ mod tests {
         "});
         let (input, m) = math_block(input).unwrap();
         assert!(input.is_empty(), "Did not consume math block");
-        assert!(m.lines.len() == 0, "Has lines unexpectedly");
+        assert!(m.lines.is_empty(), "Has lines unexpectedly");
         assert_eq!(m.environment, None);
     }
 

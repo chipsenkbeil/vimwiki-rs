@@ -142,7 +142,7 @@ mod tests {
         let (input, p) = code_block(input).unwrap();
         assert!(input.is_empty(), "Did not consume code block");
         assert!(p.language.is_none(), "Has unexpected language");
-        assert!(p.lines.len() == 0, "Has unexpected lines");
+        assert!(p.lines.is_empty(), "Has unexpected lines");
         assert!(p.metadata.is_empty(), "Has unexpected metadata");
     }
 
