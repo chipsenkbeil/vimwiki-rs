@@ -100,8 +100,11 @@ impl<'a> FromVimwikiElement<'a> for CodeBlock {
         element: Self::Element,
     ) -> Result<Self, GraphqlDatabaseError> {
         let region = Region::from(element.region());
-        let language =
-            element.as_inner().lang.as_ref().map(ToString::to_string);
+        let language = element
+            .as_inner()
+            .language
+            .as_ref()
+            .map(ToString::to_string);
         let lines = element
             .as_inner()
             .lines

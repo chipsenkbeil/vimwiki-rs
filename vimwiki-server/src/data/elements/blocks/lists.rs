@@ -109,7 +109,7 @@ impl<'a> FromVimwikiElement<'a> for ListItem {
         let region = Region::from(element.region());
         let item = element.into_inner();
 
-        let item_type = ListItemType::from(item.item_type);
+        let item_type = ListItemType::from(item.ty);
         let suffix = ListItemSuffix::from(item.suffix);
         let position = item.pos as i32;
 
@@ -127,7 +127,7 @@ impl<'a> FromVimwikiElement<'a> for ListItem {
         )?;
 
         let mut contents = Vec::new();
-        for content in item.contents.contents {
+        for content in item.contents {
             contents.push(
                 ListItemContent::from_vimwiki_element(
                     page_id,
@@ -329,7 +329,7 @@ impl<'a> FromVimwikiElement<'a> for InlineContent {
         )?;
 
         let mut contents = Vec::new();
-        for content in element.into_inner().elements {
+        for content in element.into_inner() {
             contents.push(
                 InlineElement::from_vimwiki_element(
                     page_id,

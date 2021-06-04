@@ -87,7 +87,7 @@ impl<'a> FromVimwikiElement<'a> for DecoratedText {
 
         // Third, we need to create all of the content contained within the text
         let mut contents = Vec::new();
-        for content in element.into_inner().into_contents() {
+        for content in element.into_inner() {
             contents.push(
                 DecoratedTextContent::from_vimwiki_element(
                     page_id,

@@ -80,7 +80,7 @@ impl<'a> FromVimwikiElement<'a> for Header {
         )?;
 
         let mut contents = Vec::new();
-        for content in element.into_inner().content.elements {
+        for content in element.into_inner().content {
             contents.push(
                 InlineElement::from_vimwiki_element(
                     page_id,

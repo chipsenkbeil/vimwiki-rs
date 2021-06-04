@@ -103,7 +103,7 @@ impl<'a> FromVimwikiElement<'a> for LineComment {
         GraphqlDatabaseError::wrap(
             Self::build()
                 .region(Region::from(element.region()))
-                .line(element.into_inner().0.to_string())
+                .line(element.into_inner().to_string())
                 .page(page_id)
                 .parent(parent_id)
                 .finish_and_commit(),
@@ -153,7 +153,6 @@ impl<'a> FromVimwikiElement<'a> for MultiLineComment {
                 .lines(
                     element
                         .into_inner()
-                        .0
                         .iter()
                         .map(ToString::to_string)
                         .collect(),

@@ -42,7 +42,7 @@ impl<'a> FromVimwikiElement<'a> for Table {
         element: Self::Element,
     ) -> Result<Self, GraphqlDatabaseError> {
         let region = Region::from(element.region());
-        let centered = element.as_inner().is_centered();
+        let centered = element.as_inner().centered;
 
         let mut ent = GraphqlDatabaseError::wrap(
             Self::build()
@@ -139,7 +139,7 @@ impl Cell {
                 )?;
 
                 let mut contents = Vec::new();
-                for content in x.elements {
+                for content in x {
                     contents.push(
                         InlineElement::from_vimwiki_element(
                             page_id,

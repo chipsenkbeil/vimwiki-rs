@@ -43,7 +43,7 @@ impl<'a> FromVimwikiElement<'a> for MathInline {
         GraphqlDatabaseError::wrap(
             Self::build()
                 .region(Region::from(element.region()))
-                .formula(element.into_inner().formula.to_string())
+                .formula(element.into_inner().to_string())
                 .page(page_id)
                 .parent(parent_id)
                 .finish_and_commit(),

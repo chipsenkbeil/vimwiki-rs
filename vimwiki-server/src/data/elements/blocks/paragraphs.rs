@@ -70,7 +70,7 @@ impl<'a> FromVimwikiElement<'a> for Paragraph {
 
         let mut contents = Vec::new();
         for line in element.into_inner().lines {
-            for content in line.elements {
+            for content in line {
                 contents.push(
                     InlineElement::from_vimwiki_element(
                         page_id,
