@@ -51,6 +51,11 @@ impl<'a> Header<'a> {
     pub fn content(&self) -> &InlineElementContainer<'a> {
         &self.content
     }
+
+    /// Converts into the content contained within the header
+    pub fn into_content(self) -> InlineElementContainer<'a> {
+        self.content
+    }
 }
 
 impl Header<'_> {

@@ -1,5 +1,7 @@
 use crate::StrictEq;
-use derive_more::{AsRef, Constructor, Display, Index, IndexMut, IntoIterator};
+use derive_more::{
+    AsRef, Constructor, Deref, DerefMut, Display, Index, IndexMut, IntoIterator,
+};
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, iter::FromIterator};
 
@@ -8,6 +10,8 @@ use std::{borrow::Cow, iter::FromIterator};
     Constructor,
     Clone,
     Debug,
+    Deref,
+    DerefMut,
     Display,
     Eq,
     PartialEq,
@@ -24,34 +28,9 @@ use std::{borrow::Cow, iter::FromIterator};
 pub struct Blockquote<'a>(Vec<Cow<'a, str>>);
 
 impl<'a> Blockquote<'a> {
-    /// Represents total lines contained in blockquote
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    /// Returns true if the blockquote has no lines
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    /// Returns reference to line at specified index, if it exists
-    pub fn get(&self, idx: usize) -> Option<&str> {
-        self.0.get(idx).map(AsRef::as_ref)
-    }
-
-    /// Returns total lines available
-    pub fn line_cnt(&self) -> usize {
-        self.0.len()
-    }
-
-    /// Returns slice of lines contained within blockquote
-    pub fn lines_slice(&self) -> &[Cow<'a, str>] {
-        &self.0
-    }
-
-    /// Returns an iterator over lines
-    pub fn lines(&self) -> impl Iterator<Item = &str> {
-        self.0.iter().map(AsRef::as_ref)
+    /// Returns total line groups available
+    pub fn line_group_cnt(&self) -> usize {
+        self.line_groups().count()
     }
 
     /// Returns an iterator over slices of lines where each item is a slice
@@ -60,6 +39,11 @@ impl<'a> Blockquote<'a> {
         self.0
             .split(|line| line.is_empty())
             .filter(|lines| !lines.is_empty())
+    }
+
+    /// Converts into underlying vec
+    pub fn into_vec(self) -> Vec<Cow<'a, str>> {
+        self.0
     }
 }
 

@@ -1040,8 +1040,10 @@ impl Cell {
     #[wasm_bindgen(constructor)]
     pub fn new(txt: &str, region: Option<Region>) -> Result<Cell, JsValue> {
         Ok(Self(v::Located::new(
-            v::Cell::Content(v::Located::from(v::Text::from(txt)).into())
-                .into_owned(),
+            v::Cell::Content(v::InlineElementContainer::new(vec![
+                v::Located::from(v::InlineElement::Text(v::Text::from(txt))),
+            ]))
+            .into_owned(),
             region.map(|x| x.0).unwrap_or_default(),
         )))
     }
@@ -1210,7 +1212,6 @@ impl DecoratedText {
     pub fn contents(&self) -> DecoratedTextContents {
         DecoratedTextContents(
             self.0
-                .as_contents()
                 .iter()
                 .map(|x| x.as_ref().map(|x| x.to_borrowed().into_owned()))
                 .collect(),

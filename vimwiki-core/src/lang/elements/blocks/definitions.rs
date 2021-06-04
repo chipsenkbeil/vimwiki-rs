@@ -36,8 +36,14 @@ use std::{
 pub struct DefinitionListValue<'a>(InlineElementContainer<'a>);
 
 impl<'a> DefinitionListValue<'a> {
+    /// Returns reference to underlying container
     pub fn as_inner(&self) -> &InlineElementContainer<'a> {
         &self.0
+    }
+
+    /// Converts into underlying container
+    pub fn into_inner(self) -> InlineElementContainer<'a> {
+        self.0
     }
 }
 

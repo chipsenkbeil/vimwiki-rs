@@ -6,7 +6,8 @@ use crate::{
     StrictEq,
 };
 use derive_more::{
-    Constructor, Deref, DerefMut, From, Index, IndexMut, Into, IntoIterator,
+    AsRef, Constructor, Deref, DerefMut, From, Index, IndexMut, Into,
+    IntoIterator,
 };
 use serde::{Deserialize, Serialize};
 use std::iter::FromIterator;
@@ -73,7 +74,7 @@ impl<'a> List<'a> {
     pub fn is_ordered(&self) -> bool {
         self.iter()
             .next()
-            .map_or(false, |item| item.r#type().is_ordered())
+            .map_or(false, |item| item.ty().is_ordered())
     }
 
     /// Returns whether or not the list represents an unordered list based on
@@ -81,7 +82,7 @@ impl<'a> List<'a> {
     pub fn is_unordered(&self) -> bool {
         self.iter()
             .next()
-            .map_or(false, |item| item.r#type().is_unordered())
+            .map_or(false, |item| item.ty().is_unordered())
     }
 
     /// Normalizes the list by standardizing the item types based on the
@@ -109,7 +110,7 @@ impl<'a> List<'a> {
             //       alphabetic lists if for some reason starting with i and moving
             //       on to other letters like j and k
             for item in tail {
-                item.set_type(head.r#type().clone());
+                *item.mut_ty() = head.ty().clone();
             }
         }
 
@@ -197,6 +198,7 @@ impl<'a> StrictEq for ListItemContent<'a> {
 
 /// Represents a collection of list item content
 #[derive(
+    AsRef,
     Constructor,
     Clone,
     Debug,
@@ -212,6 +214,7 @@ impl<'a> StrictEq for ListItemContent<'a> {
     Serialize,
     Deserialize,
 )]
+#[as_ref(forward)]
 #[into_iterator(owned, ref, ref_mut)]
 pub struct ListItemContents<'a>(Vec<Located<ListItemContent<'a>>>);
 
@@ -230,16 +233,6 @@ impl ListItemContents<'_> {
 }
 
 impl<'a> ListItemContents<'a> {
-    pub fn iter(&self) -> impl Iterator<Item = &Located<ListItemContent<'a>>> {
-        self.into_iter()
-    }
-
-    pub fn iter_mut(
-        &mut self,
-    ) -> impl Iterator<Item = &mut Located<ListItemContent<'a>>> {
-        self.into_iter()
-    }
-
     pub fn inline_content_iter(
         &self,
     ) -> impl Iterator<Item = &InlineElement> + '_ {

@@ -4,14 +4,19 @@ use crate::{
     },
     StrictEq,
 };
-use derive_more::{Constructor, Index, IndexMut, IntoIterator};
+use derive_more::{
+    AsRef, Constructor, Deref, DerefMut, Index, IndexMut, IntoIterator,
+};
 use serde::{Deserialize, Serialize};
 use std::iter::FromIterator;
 
 #[derive(
+    AsRef,
     Constructor,
     Clone,
     Debug,
+    Deref,
+    DerefMut,
     Eq,
     PartialEq,
     Index,
@@ -20,20 +25,11 @@ use std::iter::FromIterator;
     Serialize,
     Deserialize,
 )]
+#[as_ref(forward)]
 #[into_iterator(owned, ref, ref_mut)]
 pub struct Paragraph<'a>(Vec<InlineElementContainer<'a>>);
 
 impl<'a> Paragraph<'a> {
-    /// Returns total number of lines in paragraph
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    /// Returns true if there are no lines in the paragraph
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
     /// Returns true if the paragraph only contains blank lines (or has no
     /// lines at all)
     pub fn is_blank(&self) -> bool {
@@ -49,23 +45,6 @@ impl<'a> Paragraph<'a> {
             line.into_iter()
                 .any(|e| !matches!(e.as_inner(), InlineElement::Comment(_)))
         })
-    }
-
-    /// Returns slice to the lines in the paragraph
-    pub fn lines(&self) -> &[InlineElementContainer<'a>] {
-        &self.0
-    }
-
-    /// Returns iterator over references to the lines in the paragraph
-    pub fn iter(&self) -> impl Iterator<Item = &InlineElementContainer<'a>> {
-        self.into_iter()
-    }
-
-    /// Returns iterator over mutable references to the lines in the paragraph
-    pub fn iter_mut(
-        &mut self,
-    ) -> impl Iterator<Item = &mut InlineElementContainer<'a>> {
-        self.into_iter()
     }
 }
 

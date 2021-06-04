@@ -79,13 +79,13 @@ impl<'a> StrictEq for ListItem<'a> {
 
 impl<'a> ListItem<'a> {
     /// Returns reference to the type of list item
-    pub fn r#type(&self) -> &ListItemType<'a> {
+    pub fn ty(&self) -> &ListItemType<'a> {
         &self.item_type
     }
 
-    #[doc(hidden)]
-    pub(crate) fn set_type(&mut self, item_type: ListItemType<'a>) {
-        self.item_type = item_type;
+    /// Returns mutable reference to the type of list item
+    pub fn mut_ty(&mut self) -> &mut ListItemType<'a> {
+        &mut self.item_type
     }
 
     /// Returns a copy of the list item's suffix
@@ -93,14 +93,19 @@ impl<'a> ListItem<'a> {
         self.suffix
     }
 
+    /// Returns mutable reference to the list item's suffix
+    pub fn mut_suffix(&mut self) -> &mut ListItemSuffix {
+        &mut self.suffix
+    }
+
     /// Returns position of the list item in the list
     pub fn pos(&self) -> usize {
         self.pos
     }
 
-    #[doc(hidden)]
-    pub(crate) fn set_pos(&mut self, pos: usize) {
-        self.pos = pos;
+    /// Returns mutable reference to the list item's position
+    pub fn mut_pos(&mut self) -> &mut usize {
+        &mut self.pos
     }
 
     /// Returns reference to the contents contained within the list item
@@ -108,15 +113,19 @@ impl<'a> ListItem<'a> {
         &self.contents
     }
 
+    /// Returns mutable reference to the contents contained within the list item
+    pub fn mut_contents(&mut self) -> &mut ListItemContents<'a> {
+        &mut self.contents
+    }
+
     /// Returns a copy of the list item's attributes
     pub fn attributes(&self) -> ListItemAttributes {
         self.attributes
     }
 
-    #[doc(hidden)]
-    #[warn(dead_code)]
-    pub(crate) fn set_attributes(&mut self, attributes: ListItemAttributes) {
-        self.attributes = attributes;
+    /// Returns mutable reference to the list item's attributes
+    pub fn mut_attributes(&mut self) -> &mut ListItemAttributes {
+        &mut self.attributes
     }
 
     /// Indicates whether or not this list item represents an unordered item
