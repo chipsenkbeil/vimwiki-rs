@@ -17,30 +17,17 @@ use std::{borrow::Cow, iter::FromIterator};
     Deserialize,
 )]
 pub struct MathBlock<'a> {
+    /// Represents the lines of text contained within the math block
     #[index]
     #[index_mut]
     #[into_iterator(owned, ref, ref_mut)]
-    lines: Vec<Cow<'a, str>>,
+    pub lines: Vec<Cow<'a, str>>,
 
-    environment: Option<Cow<'a, str>>,
+    /// Represents the environment associated with the math block if it has one
+    pub environment: Option<Cow<'a, str>>,
 }
 
 impl<'a> MathBlock<'a> {
-    /// Returns total lines contained within math block
-    pub fn line_cnt(&self) -> usize {
-        self.lines.len()
-    }
-
-    /// Returns iterator over the lines contained within the math block
-    pub fn lines(&self) -> impl Iterator<Item = &str> {
-        self.lines.iter().map(AsRef::as_ref)
-    }
-
-    /// Returns reference to the math block's environment, if it has one
-    pub fn environment(&self) -> Option<&str> {
-        self.environment.as_deref()
-    }
-
     /// Constructs a math block with the provided lines using no environment
     pub fn from_lines<I: IntoIterator<Item = L>, L: Into<Cow<'a, str>>>(
         iter: I,

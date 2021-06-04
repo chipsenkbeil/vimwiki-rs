@@ -125,7 +125,10 @@ mod tests {
         assert!(input.is_empty(), "Did not consume comment");
         match c.into_inner() {
             Comment::MultiLine(x) => {
-                assert_eq!(x.lines().collect::<Vec<&str>>(), vec![" comment "])
+                assert_eq!(
+                    x.iter().map(AsRef::as_ref).collect::<Vec<&str>>(),
+                    vec![" comment "]
+                )
             }
             x => panic!("Unexpected element: {:?}", x),
         }
@@ -136,7 +139,7 @@ mod tests {
         match c.into_inner() {
             Comment::MultiLine(x) => {
                 assert_eq!(
-                    x.lines().collect::<Vec<&str>>(),
+                    x.iter().map(AsRef::as_ref).collect::<Vec<&str>>(),
                     vec![" comment", "next line "]
                 )
             }
@@ -153,7 +156,7 @@ mod tests {
         match c.into_inner() {
             Comment::MultiLine(x) => {
                 assert_eq!(
-                    x.lines().collect::<Vec<&str>>(),
+                    x.iter().map(AsRef::as_ref).collect::<Vec<&str>>(),
                     vec![" comment", "next line "]
                 )
             }

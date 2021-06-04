@@ -16,7 +16,10 @@ use std::borrow::Cow;
     Deserialize,
 )]
 #[as_ref(forward)]
-pub struct MathInline<'a>(Cow<'a, str>);
+pub struct MathInline<'a>(
+    /// Represents the text contained within the inline math snippet
+    Cow<'a, str>,
+);
 
 impl<'a> MathInline<'a> {
     /// Extracts a string slice containing the entire math snippet

@@ -4,19 +4,14 @@ use crate::{
     },
     StrictEq,
 };
-use derive_more::{
-    AsRef, Constructor, Deref, DerefMut, Index, IndexMut, IntoIterator,
-};
+use derive_more::{Constructor, Index, IndexMut, IntoIterator};
 use serde::{Deserialize, Serialize};
 use std::iter::FromIterator;
 
 #[derive(
-    AsRef,
     Constructor,
     Clone,
     Debug,
-    Deref,
-    DerefMut,
     Eq,
     PartialEq,
     Index,
@@ -25,9 +20,13 @@ use std::iter::FromIterator;
     Serialize,
     Deserialize,
 )]
-#[as_ref(forward)]
-#[into_iterator(owned, ref, ref_mut)]
-pub struct Paragraph<'a>(Vec<InlineElementContainer<'a>>);
+pub struct Paragraph<'a> {
+    /// Represents the lines of content contained within the paragraph
+    #[index]
+    #[index_mut]
+    #[into_iterator(owned, ref, ref_mut)]
+    pub lines: Vec<InlineElementContainer<'a>>,
+}
 
 impl<'a> Paragraph<'a> {
     /// Returns true if the paragraph only contains blank lines (or has no
@@ -77,6 +76,6 @@ impl<'a> FromIterator<InlineElementContainer<'a>> for Paragraph<'a> {
 impl<'a> StrictEq for Paragraph<'a> {
     /// Performs strict_eq on content
     fn strict_eq(&self, other: &Self) -> bool {
-        self.0.strict_eq(&other.0)
+        self.lines.strict_eq(&other.lines)
     }
 }

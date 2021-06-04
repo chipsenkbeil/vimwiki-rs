@@ -1,6 +1,7 @@
 use crate::StrictEq;
 use derive_more::{
-    AsRef, Constructor, Display, From, Index, IndexMut, Into, IntoIterator,
+    AsRef, Constructor, Deref, DerefMut, Display, From, Index, IndexMut, Into,
+    IntoIterator,
 };
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, fmt};
@@ -20,6 +21,8 @@ use std::{borrow::Cow, fmt};
     Constructor,
     Clone,
     Debug,
+    Deref,
+    DerefMut,
     From,
     Index,
     IndexMut,
@@ -33,17 +36,10 @@ use std::{borrow::Cow, fmt};
 )]
 #[as_ref(forward)]
 #[into_iterator(owned, ref, ref_mut)]
-pub struct Tags<'a>(Vec<Tag<'a>>);
-
-impl<'a> Tags<'a> {
-    pub fn iter(&self) -> impl Iterator<Item = &Tag<'a>> {
-        self.into_iter()
-    }
-
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Tag<'a>> {
-        self.into_iter()
-    }
-}
+pub struct Tags<'a>(
+    /// Represents the tags contained within the tag set
+    Vec<Tag<'a>>,
+);
 
 impl Tags<'_> {
     pub fn to_borrowed(&self) -> Tags {

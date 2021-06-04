@@ -16,48 +16,27 @@ use std::{borrow::Cow, collections::HashMap, iter::FromIterator};
     Deserialize,
 )]
 pub struct CodeBlock<'a> {
-    lang: Option<Cow<'a, str>>,
-    metadata: HashMap<Cow<'a, str>, Cow<'a, str>>,
+    /// Represents the language associated with the code block if it has one
+    pub language: Option<Cow<'a, str>>,
 
+    /// Represents metadata associated with the code block in the form of
+    /// key/value pairs
+    pub metadata: HashMap<Cow<'a, str>, Cow<'a, str>>,
+
+    /// Represents the lines of text contained within the code block
     #[index]
     #[index_mut]
     #[into_iterator(owned, ref, ref_mut)]
-    lines: Vec<Cow<'a, str>>,
+    pub lines: Vec<Cow<'a, str>>,
 }
 
 impl<'a> CodeBlock<'a> {
-    /// Returns reference to the code block's language, if it has one
-    pub fn language(&self) -> Option<&str> {
-        self.lang.as_deref()
-    }
-
-    /// Returns iterator over the metadata of the code block in the form of
-    /// key-value pairs
-    pub fn metadata_iter(&self) -> impl Iterator<Item = (&str, &str)> {
-        self.metadata.iter().map(|(k, v)| (k.as_ref(), v.as_ref()))
-    }
-
-    /// Returns reference to map containing metadata
-    pub fn metadata(&self) -> &HashMap<Cow<'a, str>, Cow<'a, str>> {
-        &self.metadata
-    }
-
-    /// Returns total lines contained within code block
-    pub fn line_cnt(&self) -> usize {
-        self.lines.len()
-    }
-
-    /// Returns iterator over the lines contained within the code block
-    pub fn lines(&self) -> impl Iterator<Item = &str> {
-        self.lines.iter().map(AsRef::as_ref)
-    }
-
     /// Constructs a code block with the provided lines using no language or metadata
     pub fn from_lines<I: IntoIterator<Item = L>, L: Into<Cow<'a, str>>>(
         iter: I,
     ) -> Self {
         Self {
-            lang: None,
+            language: None,
             metadata: HashMap::new(),
             lines: iter.into_iter().map(Into::into).collect(),
         }
@@ -69,7 +48,7 @@ impl CodeBlock<'_> {
         use self::Cow::*;
 
         CodeBlock {
-            lang: self.lang.as_ref().map(|x| {
+            language: self.language.as_ref().map(|x| {
                 Cow::Borrowed(match x {
                     Borrowed(x) => *x,
                     Owned(x) => x.as_str(),
@@ -106,7 +85,7 @@ impl CodeBlock<'_> {
 
     pub fn into_owned(self) -> CodeBlock<'static> {
         CodeBlock {
-            lang: self.lang.map(|x| Cow::from(x.into_owned())),
+            language: self.language.map(|x| Cow::from(x.into_owned())),
             metadata: self
                 .metadata
                 .into_iter()

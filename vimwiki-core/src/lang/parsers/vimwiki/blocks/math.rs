@@ -101,8 +101,8 @@ mod tests {
         "});
         let (input, m) = math_block(input).unwrap();
         assert!(input.is_empty(), "Did not consume math block");
-        assert!(m.line_cnt() == 0, "Has lines unexpectedly");
-        assert_eq!(m.environment(), None);
+        assert!(m.lines.len() == 0, "Has lines unexpectedly");
+        assert_eq!(m.environment, None);
     }
 
     #[test]
@@ -117,10 +117,10 @@ mod tests {
         let (input, m) = math_block(input).unwrap();
         assert!(input.is_empty(), "Did not consume math block");
         assert_eq!(
-            m.lines().collect::<Vec<&str>>(),
+            m.lines.iter().map(AsRef::as_ref).collect::<Vec<&str>>(),
             vec![r"\sum_i a_i^2", "=", "1"]
         );
-        assert_eq!(m.environment(), None);
+        assert_eq!(m.environment, None);
     }
 
     #[test]
@@ -164,9 +164,9 @@ mod tests {
         let (input, m) = math_block(input).unwrap();
         assert!(input.is_empty(), "Did not consume math block");
         assert_eq!(
-            m.lines().collect::<Vec<&str>>(),
+            m.lines.iter().map(AsRef::as_ref).collect::<Vec<&str>>(),
             vec![r"\sum_i a_i^2 &= 1 + 1 \\", r"&= 2."]
         );
-        assert_eq!(m.environment(), Some("align"));
+        assert_eq!(m.environment.as_deref(), Some("align"));
     }
 }

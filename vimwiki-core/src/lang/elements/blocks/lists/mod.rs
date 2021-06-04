@@ -29,8 +29,13 @@ pub use item::*;
     Serialize,
     Deserialize,
 )]
-#[into_iterator(owned, ref, ref_mut)]
-pub struct List<'a>(Vec<Located<ListItem<'a>>>);
+pub struct List<'a> {
+    /// Represents items contained within the list
+    #[index]
+    #[index_mut]
+    #[into_iterator(owned, ref, ref_mut)]
+    pub items: Vec<Located<ListItem<'a>>>,
+}
 
 impl List<'_> {
     pub fn to_borrowed(&self) -> List {
@@ -61,12 +66,12 @@ impl<'a> List<'a> {
 
     /// Returns total items contained in list
     pub fn len(&self) -> usize {
-        self.0.len()
+        self.items.len()
     }
 
     /// Returns true if list has no items
     pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        self.items.is_empty()
     }
 
     /// Returns whether or not the list represents an ordered list based on
@@ -74,7 +79,7 @@ impl<'a> List<'a> {
     pub fn is_ordered(&self) -> bool {
         self.iter()
             .next()
-            .map_or(false, |item| item.ty().is_ordered())
+            .map_or(false, |item| item.ty.is_ordered())
     }
 
     /// Returns whether or not the list represents an unordered list based on
@@ -82,7 +87,7 @@ impl<'a> List<'a> {
     pub fn is_unordered(&self) -> bool {
         self.iter()
             .next()
-            .map_or(false, |item| item.ty().is_unordered())
+            .map_or(false, |item| item.ty.is_unordered())
     }
 
     /// Normalizes the list by standardizing the item types based on the
@@ -104,13 +109,13 @@ impl<'a> List<'a> {
     /// manually.
     pub(crate) fn normalize(&mut self) -> &mut Self {
         // If we have items, we want to go through and normalize their types
-        if let [head, tail @ ..] = &mut self.0[..] {
+        if let [head, tail @ ..] = &mut self.items[..] {
             // TODO: Need to support special case where not all item types are
             //       roman numeral but the first one is, as this can happen with
             //       alphabetic lists if for some reason starting with i and moving
             //       on to other letters like j and k
             for item in tail {
-                *item.mut_ty() = head.ty().clone();
+                item.ty = head.ty.clone();
             }
         }
 
@@ -122,7 +127,7 @@ impl<'a> AsChildrenSlice for List<'a> {
     type Child = Located<ListItem<'a>>;
 
     fn as_children_slice(&self) -> &[Self::Child] {
-        &self.0
+        &self.items
     }
 }
 
@@ -130,7 +135,7 @@ impl<'a> AsChildrenMutSlice for List<'a> {
     type Child = Located<ListItem<'a>>;
 
     fn as_children_mut_slice(&mut self) -> &mut [Self::Child] {
-        &mut self.0
+        &mut self.items
     }
 }
 
@@ -155,7 +160,7 @@ impl<'a> FromIterator<Located<ListItem<'a>>> for List<'a> {
 impl<'a> StrictEq for List<'a> {
     /// Performs a strict_eq check against list items
     fn strict_eq(&self, other: &Self) -> bool {
-        self.0.strict_eq(&other.0)
+        self.items.strict_eq(&other.items)
     }
 }
 

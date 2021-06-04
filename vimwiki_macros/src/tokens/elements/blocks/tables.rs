@@ -9,7 +9,7 @@ use vimwiki_core::{Cell, CellPos, CellSpan, ColumnAlign, Table};
 impl_tokenize!(tokenize_table, Table<'a>, 'a);
 fn tokenize_table(ctx: &TokenizeContext, table: &Table) -> TokenStream {
     let root = root_crate();
-    let centered = table.is_centered();
+    let centered = table.centered;
     let cells = tokenize_hashmap(
         table.as_data(),
         quote!(#root::CellPos),

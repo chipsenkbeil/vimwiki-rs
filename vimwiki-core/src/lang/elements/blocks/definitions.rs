@@ -6,7 +6,8 @@ use crate::{
     StrictEq,
 };
 use derive_more::{
-    AsRef, Constructor, Display, Index, IndexMut, Into, IntoIterator,
+    AsRef, Constructor, Deref, DerefMut, Display, Index, IndexMut, Into,
+    IntoIterator,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -21,6 +22,8 @@ use std::{
     Constructor,
     Clone,
     Debug,
+    Deref,
+    DerefMut,
     Display,
     Index,
     IndexMut,
@@ -33,7 +36,10 @@ use std::{
 #[display(fmt = "{}", _0)]
 #[into_iterator(owned, ref, ref_mut)]
 #[serde(transparent)]
-pub struct DefinitionListValue<'a>(InlineElementContainer<'a>);
+pub struct DefinitionListValue<'a>(
+    /// Represents the inner type that the definition list value wraps
+    InlineElementContainer<'a>,
+);
 
 impl<'a> DefinitionListValue<'a> {
     /// Returns reference to underlying container
@@ -131,15 +137,15 @@ pub type Definition<'a> = DefinitionListValue<'a>;
     Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize, IntoIterator,
 )]
 pub struct DefinitionList<'a> {
+    /// Represents the inner mapping of terms to definitions
     #[into_iterator(owned, ref, ref_mut)]
     #[serde(with = "serde_with::rust::map_as_tuple_list")]
-    mapping: HashMap<Located<Term<'a>>, Vec<Located<Definition<'a>>>>,
+    pub mapping: HashMap<Located<Term<'a>>, Vec<Located<Definition<'a>>>>,
 }
 
 impl DefinitionList<'_> {
     pub fn to_borrowed(&self) -> DefinitionList {
         let mapping = self
-            .mapping
             .iter()
             .map(|(key, value)| {
                 (
@@ -159,7 +165,6 @@ impl DefinitionList<'_> {
 
     pub fn into_owned(self) -> DefinitionList<'static> {
         let mapping = self
-            .mapping
             .into_iter()
             .map(|(key, value)| {
                 (
@@ -221,9 +226,9 @@ impl<'a> DefinitionList<'a> {
 impl<'a> IntoChildren for DefinitionList<'a> {
     type Child = Located<InlineBlockElement<'a>>;
 
-    fn into_children(mut self) -> Vec<Self::Child> {
+    fn into_children(self) -> Vec<Self::Child> {
         self.mapping
-            .drain()
+            .into_iter()
             .flat_map(|(term, defs)| {
                 std::iter::once(term.map(InlineBlockElement::Term)).chain(
                     defs.into_iter()

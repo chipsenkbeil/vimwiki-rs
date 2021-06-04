@@ -17,7 +17,10 @@ use std::borrow::Cow;
     Deserialize,
 )]
 #[as_ref(forward)]
-pub struct CodeInline<'a>(Cow<'a, str>);
+pub struct CodeInline<'a>(
+    /// Represents the text contained within the inline code snippet
+    Cow<'a, str>,
+);
 
 impl<'a> CodeInline<'a> {
     /// Extracts a string slice containing the entire code snippet

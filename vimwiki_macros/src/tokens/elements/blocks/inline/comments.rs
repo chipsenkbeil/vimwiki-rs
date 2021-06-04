@@ -38,7 +38,7 @@ fn tokenize_multi_line_comment(
 ) -> TokenStream {
     let root = root_crate();
     let t = multi_line_comment
-        .lines()
+        .iter()
         .map(|x| do_tokenize!(ctx, Cow::Borrowed(x)));
     quote! {
         #root::MultiLineComment::new(::std::vec![#(#t),*])

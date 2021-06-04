@@ -1,17 +1,12 @@
 use crate::StrictEq;
-use derive_more::{
-    AsRef, Constructor, Deref, DerefMut, Display, Index, IndexMut, IntoIterator,
-};
+use derive_more::{Constructor, Display, Index, IndexMut, IntoIterator};
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, iter::FromIterator};
 
 #[derive(
-    AsRef,
     Constructor,
     Clone,
     Debug,
-    Deref,
-    DerefMut,
     Display,
     Eq,
     PartialEq,
@@ -22,10 +17,15 @@ use std::{borrow::Cow, iter::FromIterator};
     Serialize,
     Deserialize,
 )]
-#[as_ref(forward)]
-#[display(fmt = "{}", "_0.join(\"\n\")")]
-#[into_iterator(owned, ref, ref_mut)]
-pub struct Blockquote<'a>(Vec<Cow<'a, str>>);
+#[display(fmt = "{}", "lines.join(\"\n\")")]
+pub struct Blockquote<'a> {
+    /// Represents the lines of text contained within the blockquote include
+    /// potential blank lines
+    #[index]
+    #[index_mut]
+    #[into_iterator(owned, ref, ref_mut)]
+    pub lines: Vec<Cow<'a, str>>,
+}
 
 impl<'a> Blockquote<'a> {
     /// Returns total line groups available
@@ -36,14 +36,17 @@ impl<'a> Blockquote<'a> {
     /// Returns an iterator over slices of lines where each item is a slice
     /// of lines representing a group of lines
     pub fn line_groups(&self) -> impl Iterator<Item = &[Cow<'a, str>]> {
-        self.0
+        self.lines
             .split(|line| line.is_empty())
             .filter(|lines| !lines.is_empty())
     }
 
-    /// Converts into underlying vec
-    pub fn into_vec(self) -> Vec<Cow<'a, str>> {
-        self.0
+    /// Returns an iterator over mutable slices of lines where each item is a slice
+    /// of lines representing a group of lines
+    pub fn mut_line_groups(&self) -> impl Iterator<Item = &[Cow<'a, str>]> {
+        self.lines
+            .split(|line| line.is_empty())
+            .filter(|lines| !lines.is_empty())
     }
 }
 
@@ -51,7 +54,7 @@ impl Blockquote<'_> {
     pub fn to_borrowed(&self) -> Blockquote {
         use self::Cow::*;
 
-        self.0
+        self.lines
             .iter()
             .map(|x| {
                 Cow::Borrowed(match x {
@@ -71,19 +74,25 @@ impl Blockquote<'_> {
 
 impl<'a> FromIterator<&'a str> for Blockquote<'a> {
     fn from_iter<I: IntoIterator<Item = &'a str>>(iter: I) -> Self {
-        Self(iter.into_iter().map(Cow::Borrowed).collect())
+        Self {
+            lines: iter.into_iter().map(Cow::Borrowed).collect(),
+        }
     }
 }
 
 impl FromIterator<String> for Blockquote<'static> {
     fn from_iter<I: IntoIterator<Item = String>>(iter: I) -> Self {
-        Self(iter.into_iter().map(Cow::Owned).collect())
+        Self {
+            lines: iter.into_iter().map(Cow::Owned).collect(),
+        }
     }
 }
 
 impl<'a> FromIterator<Cow<'a, str>> for Blockquote<'a> {
     fn from_iter<I: IntoIterator<Item = Cow<'a, str>>>(iter: I) -> Self {
-        Self(iter.into_iter().collect())
+        Self {
+            lines: iter.into_iter().collect(),
+        }
     }
 }
 

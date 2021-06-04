@@ -35,10 +35,7 @@ mod tests {
         let (input, link) = transclusion_link(input).unwrap();
         assert!(input.is_empty(), "Did not consume link");
         assert_eq!(link.scheme().unwrap(), "file");
-        assert_eq!(
-            link.data().uri_ref().path(),
-            "../../images/vimwiki_logo.png"
-        );
+        assert_eq!(link.data().uri_ref.path(), "../../images/vimwiki_logo.png");
         assert_eq!(link.description(), None);
         assert!(link.properties().is_none(), "Unexpectedly found property");
     }
@@ -50,7 +47,7 @@ mod tests {
         assert!(input.is_empty(), "Did not consume link");
         assert_eq!(link.scheme().unwrap(), "file");
         assert_eq!(
-            link.data().uri_ref().path(),
+            link.data().uri_ref.path(),
             "/some/path/images/vimwiki_logo.png"
         );
         assert_eq!(link.description(), None);
@@ -66,10 +63,10 @@ mod tests {
         assert!(input.is_empty(), "Did not consume link");
         assert_eq!(link.scheme().unwrap(), "http");
         assert_eq!(
-            link.data().uri_ref().host().unwrap().to_string(),
+            link.data().uri_ref.host().unwrap().to_string(),
             "vimwiki.googlecode.com"
         );
-        assert_eq!(link.data().uri_ref().path(), "/hg/images/vimwiki_logo.png");
+        assert_eq!(link.data().uri_ref.path(), "/hg/images/vimwiki_logo.png");
         assert_eq!(link.description(), None);
         assert!(link.properties().is_none(), "Unexpectedly found property");
     }
@@ -86,10 +83,10 @@ mod tests {
         assert!(input.is_empty(), "Did not consume link");
         assert_eq!(link.scheme().unwrap(), "http");
         assert_eq!(
-            link.data().uri_ref().host().unwrap().to_string(),
+            link.data().uri_ref.host().unwrap().to_string(),
             "vimwiki.googlecode.com"
         );
-        assert_eq!(link.data().uri_ref().path(), "/hg/images/vimwiki_logo.png");
+        assert_eq!(link.data().uri_ref.path(), "/hg/images/vimwiki_logo.png");
         assert_eq!(link.description(), Some(&Description::from("Vimwiki")));
         assert!(link.properties().is_none(), "Unexpectedly found property");
     }
@@ -106,10 +103,10 @@ mod tests {
         assert!(input.is_empty(), "Did not consume link");
         assert_eq!(link.scheme().unwrap(), "http");
         assert_eq!(
-            link.data().uri_ref().host().unwrap().to_string(),
+            link.data().uri_ref.host().unwrap().to_string(),
             "vimwiki.googlecode.com"
         );
-        assert_eq!(link.data().uri_ref().path(), "/vimwiki_logo.png");
+        assert_eq!(link.data().uri_ref.path(), "/vimwiki_logo.png");
         assert_eq!(link.description(), Some(&Description::from("cool stuff")));
         assert_eq!(
             link.properties(),
@@ -138,10 +135,10 @@ mod tests {
         assert!(input.is_empty(), "Did not consume link");
         assert_eq!(link.scheme().unwrap(), "http");
         assert_eq!(
-            link.data().uri_ref().host().unwrap().to_string(),
+            link.data().uri_ref.host().unwrap().to_string(),
             "vimwiki.googlecode.com"
         );
-        assert_eq!(link.data().uri_ref().path(), "/vimwiki_logo.png");
+        assert_eq!(link.data().uri_ref.path(), "/vimwiki_logo.png");
         assert_eq!(link.description(), Some(&Description::from("")));
         assert_eq!(
             link.properties(),

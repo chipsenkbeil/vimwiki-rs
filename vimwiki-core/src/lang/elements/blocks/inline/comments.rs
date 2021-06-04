@@ -1,6 +1,7 @@
 use crate::StrictEq;
 use derive_more::{
-    AsRef, Constructor, Display, From, Index, IndexMut, IntoIterator, IsVariant,
+    AsRef, Constructor, Deref, DerefMut, Display, From, Index, IndexMut,
+    IntoIterator, IsVariant,
 };
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, iter::FromIterator};
@@ -61,7 +62,10 @@ impl<'a> StrictEq for Comment<'a> {
 )]
 #[as_ref(forward)]
 #[display(fmt = "{}", "_0.trim()")]
-pub struct LineComment<'a>(Cow<'a, str>);
+pub struct LineComment<'a>(
+    /// Represents the text represented as a comment
+    Cow<'a, str>,
+);
 
 impl<'a> LineComment<'a> {
     /// Returns comment's text as a [`str`]
@@ -112,6 +116,8 @@ impl<'a> StrictEq for LineComment<'a> {
     Clone,
     Constructor,
     Debug,
+    Deref,
+    DerefMut,
     Display,
     Eq,
     PartialEq,
@@ -125,19 +131,10 @@ impl<'a> StrictEq for LineComment<'a> {
 #[as_ref(forward)]
 #[display(fmt = "{}", "_0.join(\"\n\")")]
 #[into_iterator(owned, ref, ref_mut)]
-pub struct MultiLineComment<'a>(Vec<Cow<'a, str>>);
-
-impl<'a> MultiLineComment<'a> {
-    /// Returns total lines available
-    pub fn line_cnt(&self) -> usize {
-        self.0.len()
-    }
-
-    /// Returns an iterator over lines
-    pub fn lines(&self) -> impl Iterator<Item = &str> {
-        self.0.iter().map(AsRef::as_ref)
-    }
-}
+pub struct MultiLineComment<'a>(
+    /// Represents the lines of text represented as a comment
+    Vec<Cow<'a, str>>,
+);
 
 impl MultiLineComment<'_> {
     pub fn to_borrowed(&self) -> MultiLineComment {

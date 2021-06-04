@@ -24,7 +24,10 @@ use std::{num::ParseIntError, str::FromStr};
 )]
 #[display(fmt = "{},{}", row, col)]
 pub struct CellPos {
+    /// Represents the row number of a cell starting from 0
     pub row: usize,
+
+    /// Represents the coumn number of a cell starting from 0
     pub col: usize,
 }
 
@@ -68,12 +71,20 @@ impl FromStr for CellPos {
 
 #[derive(Clone, Debug, Eq, PartialEq, IntoIterator, Serialize, Deserialize)]
 pub struct Table<'a> {
+    /// Represents the table's data (cells) as a mapping between a cell's
+    /// position and its actual content (private)
     #[into_iterator(owned, ref, ref_mut)]
     #[serde(with = "serde_with::rust::map_as_tuple_list")]
     cells: HashMap<CellPos, Located<Cell<'a>>>,
+
+    /// Represents the total rows contained in the table (private)
     row_cnt: usize,
+
+    /// Represents the total columns contained in the table (private)
     col_cnt: usize,
-    centered: bool,
+
+    /// Represents whether or not the table is centered
+    pub centered: bool,
 }
 
 impl Table<'_> {
@@ -188,12 +199,6 @@ impl<'a> Table<'a> {
     #[inline]
     pub fn col_cnt(&self) -> usize {
         self.col_cnt
-    }
-
-    /// Returns true if table is centered
-    #[inline]
-    pub fn is_centered(&self) -> bool {
-        self.centered
     }
 
     /// Returns the total cells (rows * columns) contained in the table

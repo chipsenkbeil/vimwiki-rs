@@ -231,32 +231,31 @@ impl<'a> Output for Header<'a> {
     /// </div>
     /// ```
     fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
-        let raw_content = self.content().to_string();
+        let raw_content = self.content.to_string();
         let header_id = escape::escape_html(&raw_content);
-        f.insert_header_text(self.level(), header_id.clone());
+        f.insert_header_text(self.level, header_id.clone());
 
         let is_toc = raw_content.trim() == f.config().header.table_of_contents;
         if is_toc {
             write!(f, r#"<div id="{}" class="toc">"#, header_id)?;
-            write!(f, r#"<h{} id="{}">"#, self.level(), header_id)?;
-            self.content().fmt(f)?;
-            writeln!(f, "</h{}></div>", self.level())?;
+            write!(f, r#"<h{} id="{}">"#, self.level, header_id)?;
+            self.content.fmt(f)?;
+            writeln!(f, "</h{}></div>", self.level)?;
         } else {
             // Build our full id using each of the most recent header's
             // contents (earlier levels) up to and including the current header
             let complete_header_id =
-                build_complete_id(f, self.level(), &header_id)?;
+                build_complete_id(f, self.level, &header_id)?;
 
             write!(f, r#"<div id="{}">"#, complete_header_id)?;
             write!(
                 f,
                 r#"<h{} id="{}" class="header">"#,
-                self.level(),
-                header_id
+                self.level, header_id
             )?;
             write!(f, r##"<a href="#{}">"##, complete_header_id)?;
-            self.content().fmt(f)?;
-            writeln!(f, "</a></h{}></div>", self.level())?;
+            self.content.fmt(f)?;
+            writeln!(f, "</a></h{}></div>", self.level)?;
         }
 
         Ok(())
@@ -379,7 +378,7 @@ impl<'a> Output for ListItem<'a> {
             write!(f, "<li>")?;
         }
 
-        self.contents().fmt(f)?;
+        self.contents.fmt(f)?;
 
         writeln!(f, "</li>")?;
 
@@ -437,7 +436,7 @@ impl<'a> Output for MathBlock<'a> {
     /// \end{environment}
     /// ```
     fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
-        if let Some(env) = self.environment().as_deref() {
+        if let Some(env) = self.environment.as_deref() {
             writeln!(f, r"\begin{{{}}}", env)?;
             for line in self {
                 writeln!(f, "{}", escape::escape_html(line))?;
@@ -554,7 +553,7 @@ impl<'a> Output for CodeBlock<'a> {
             let ts = custom_ts.as_ref().unwrap_or(&DEFAULT_THEME_SET);
 
             // Get syntax using language specifier, otherwise use plain text
-            let syntax = if let Some(lang) = self.language() {
+            let syntax = if let Some(lang) = self.language.as_ref() {
                 ss.find_syntax_by_token(lang)
                     .unwrap_or_else(|| ss.find_syntax_plain_text())
             } else {
@@ -604,12 +603,12 @@ impl<'a> Output for CodeBlock<'a> {
                 write!(f, "<code")?;
 
                 // If provided with a language, fill it in as the class
-                if let Some(lang) = self.language() {
+                if let Some(lang) = self.language.as_ref() {
                     write!(f, r#" class="{}""#, lang)?;
                 }
 
                 // For each metadata assignment, treat it as an HTML attribute
-                for (attr, value) in self.metadata() {
+                for (attr, value) in self.metadata.iter() {
                     write!(f, r#" {}="{}""#, attr, value)?;
                 }
 
@@ -619,8 +618,8 @@ impl<'a> Output for CodeBlock<'a> {
                 write!(f, ">")?;
             }
 
-            for (idx, line) in self.lines().enumerate() {
-                let is_last_line = idx == self.line_cnt() - 1;
+            for (idx, line) in self.lines.iter().enumerate() {
+                let is_last_line = idx == self.lines.len() - 1;
                 let line = escape::escape_html(&line);
 
                 if is_last_line {
@@ -683,8 +682,8 @@ impl<'a> Output for Paragraph<'a> {
             write!(f, "<p>")?;
         }
 
-        for (idx, line) in self.iter().enumerate() {
-            let is_last_line = idx < self.len() - 1;
+        for (idx, line) in self.lines.iter().enumerate() {
+            let is_last_line = idx < self.lines.len() - 1;
 
             for element in line.iter() {
                 element.fmt(f)?;
@@ -785,7 +784,7 @@ impl<'a> Output for Table<'a> {
     /// ```
     ///
     fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
-        if self.is_centered() {
+        if self.centered {
             writeln!(f, "<table class=\"center\">")?;
         } else {
             writeln!(f, "<table>")?;
@@ -1772,8 +1771,7 @@ mod tests {
         );
 
         let mut f = HtmlFormatter::default();
-        item.mut_attributes().todo_status =
-            Some(ListItemTodoStatus::Incomplete);
+        item.attributes.todo_status = Some(ListItemTodoStatus::Incomplete);
         item.fmt(&mut f).unwrap();
         assert_eq!(
             f.get_content(),
@@ -1781,7 +1779,7 @@ mod tests {
         );
 
         let mut f = HtmlFormatter::default();
-        item.mut_attributes().todo_status =
+        item.attributes.todo_status =
             Some(ListItemTodoStatus::PartiallyComplete1);
         item.fmt(&mut f).unwrap();
         assert_eq!(
@@ -1790,7 +1788,7 @@ mod tests {
         );
 
         let mut f = HtmlFormatter::default();
-        item.mut_attributes().todo_status =
+        item.attributes.todo_status =
             Some(ListItemTodoStatus::PartiallyComplete2);
         item.fmt(&mut f).unwrap();
         assert_eq!(
@@ -1799,7 +1797,7 @@ mod tests {
         );
 
         let mut f = HtmlFormatter::default();
-        item.mut_attributes().todo_status =
+        item.attributes.todo_status =
             Some(ListItemTodoStatus::PartiallyComplete3);
         item.fmt(&mut f).unwrap();
         assert_eq!(
@@ -1808,7 +1806,7 @@ mod tests {
         );
 
         let mut f = HtmlFormatter::default();
-        item.mut_attributes().todo_status = Some(ListItemTodoStatus::Complete);
+        item.attributes.todo_status = Some(ListItemTodoStatus::Complete);
         item.fmt(&mut f).unwrap();
         assert_eq!(
             f.get_content(),
@@ -1816,7 +1814,7 @@ mod tests {
         );
 
         let mut f = HtmlFormatter::default();
-        item.mut_attributes().todo_status = Some(ListItemTodoStatus::Rejected);
+        item.attributes.todo_status = Some(ListItemTodoStatus::Rejected);
         item.fmt(&mut f).unwrap();
         assert_eq!(
             f.get_content(),

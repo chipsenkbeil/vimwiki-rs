@@ -22,11 +22,11 @@ impl_tokenize!(tokenize_list_item, ListItem<'a>, 'a);
 fn tokenize_list_item(ctx: &TokenizeContext, item: &ListItem) -> TokenStream {
     let root = root_crate();
 
-    let pos = item.pos();
-    let item_type_t = tokenize_list_item_type(ctx, item.ty());
-    let suffix_t = tokenize_list_item_suffix(ctx, &item.suffix());
-    let contents_t = tokenize_list_item_contents(ctx, item.contents());
-    let attributes_t = tokenize_list_item_attributes(ctx, &item.attributes());
+    let pos = item.pos;
+    let item_type_t = tokenize_list_item_type(ctx, &item.ty);
+    let suffix_t = tokenize_list_item_suffix(ctx, &item.suffix);
+    let contents_t = tokenize_list_item_contents(ctx, &item.contents);
+    let attributes_t = tokenize_list_item_attributes(ctx, &item.attributes);
     quote! {
         #root::ListItem::new(
             #item_type_t,

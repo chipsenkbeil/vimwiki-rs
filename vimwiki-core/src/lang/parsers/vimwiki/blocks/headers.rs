@@ -96,10 +96,10 @@ mod tests {
     macro_rules! check {
         ($header:expr, $index:expr, $type:ident, $text:expr) => {
             assert!(matches!(
-                $header.content()[$index].as_inner(),
+                $header.content[$index].as_inner(),
                 InlineElement::$type(_)
             ));
-            assert_eq!($header.content()[$index].to_string(), $text);
+            assert_eq!($header.content[$index].to_string(), $text);
         };
     }
 
@@ -108,16 +108,16 @@ mod tests {
         let input = Span::from("=test header=");
         let (input, h) = header(input).unwrap();
         assert!(input.is_empty(), "Did not consume header");
-        assert_eq!(h.level(), 1, "Wrong header level");
-        assert_eq!(h.content().to_string(), "test header", "Wrong header text");
-        assert_eq!(h.centered(), false, "Wrong centered status");
+        assert_eq!(h.level, 1, "Wrong header level");
+        assert_eq!(h.content.to_string(), "test header", "Wrong header text");
+        assert_eq!(h.centered, false, "Wrong centered status");
 
         let input = Span::from(" =test header= ");
         let (input, h) = header(input).unwrap();
         assert!(input.is_empty(), "Did not consume header");
-        assert_eq!(h.level(), 1, "Wrong header level");
-        assert_eq!(h.content().to_string(), "test header", "Wrong header text");
-        assert_eq!(h.centered(), true, "Wrong centered status");
+        assert_eq!(h.level, 1, "Wrong header level");
+        assert_eq!(h.content.to_string(), "test header", "Wrong header text");
+        assert_eq!(h.centered, true, "Wrong centered status");
     }
 
     #[test]
@@ -125,16 +125,16 @@ mod tests {
         let input = Span::from("==test header==");
         let (input, h) = header(input).unwrap();
         assert!(input.is_empty(), "Did not consume header");
-        assert_eq!(h.level(), 2, "Wrong header level");
-        assert_eq!(h.content().to_string(), "test header", "Wrong header text");
-        assert_eq!(h.centered(), false, "Wrong centered status");
+        assert_eq!(h.level, 2, "Wrong header level");
+        assert_eq!(h.content.to_string(), "test header", "Wrong header text");
+        assert_eq!(h.centered, false, "Wrong centered status");
 
         let input = Span::from(" ==test header== ");
         let (input, h) = header(input).unwrap();
         assert!(input.is_empty(), "Did not consume header");
-        assert_eq!(h.level(), 2, "Wrong header level");
-        assert_eq!(h.content().to_string(), "test header", "Wrong header text");
-        assert_eq!(h.centered(), true, "Wrong centered status");
+        assert_eq!(h.level, 2, "Wrong header level");
+        assert_eq!(h.content.to_string(), "test header", "Wrong header text");
+        assert_eq!(h.centered, true, "Wrong centered status");
     }
 
     #[test]
@@ -142,16 +142,16 @@ mod tests {
         let input = Span::from("===test header===");
         let (input, h) = header(input).unwrap();
         assert!(input.is_empty(), "Did not consume header");
-        assert_eq!(h.level(), 3, "Wrong header level");
-        assert_eq!(h.content().to_string(), "test header", "Wrong header text");
-        assert_eq!(h.centered(), false, "Wrong centered status");
+        assert_eq!(h.level, 3, "Wrong header level");
+        assert_eq!(h.content.to_string(), "test header", "Wrong header text");
+        assert_eq!(h.centered, false, "Wrong centered status");
 
         let input = Span::from(" ===test header=== ");
         let (input, h) = header(input).unwrap();
         assert!(input.is_empty(), "Did not consume header");
-        assert_eq!(h.level(), 3, "Wrong header level");
-        assert_eq!(h.content().to_string(), "test header", "Wrong header text");
-        assert_eq!(h.centered(), true, "Wrong centered status");
+        assert_eq!(h.level, 3, "Wrong header level");
+        assert_eq!(h.content.to_string(), "test header", "Wrong header text");
+        assert_eq!(h.centered, true, "Wrong centered status");
     }
 
     #[test]
@@ -159,16 +159,16 @@ mod tests {
         let input = Span::from("====test header====");
         let (input, h) = header(input).unwrap();
         assert!(input.is_empty(), "Did not consume header");
-        assert_eq!(h.level(), 4, "Wrong header level");
-        assert_eq!(h.content().to_string(), "test header", "Wrong header text");
-        assert_eq!(h.centered(), false, "Wrong centered status");
+        assert_eq!(h.level, 4, "Wrong header level");
+        assert_eq!(h.content.to_string(), "test header", "Wrong header text");
+        assert_eq!(h.centered, false, "Wrong centered status");
 
         let input = Span::from(" ====test header==== ");
         let (input, h) = header(input).unwrap();
         assert!(input.is_empty(), "Did not consume header");
-        assert_eq!(h.level(), 4, "Wrong header level");
-        assert_eq!(h.content().to_string(), "test header", "Wrong header text");
-        assert_eq!(h.centered(), true, "Wrong centered status");
+        assert_eq!(h.level, 4, "Wrong header level");
+        assert_eq!(h.content.to_string(), "test header", "Wrong header text");
+        assert_eq!(h.centered, true, "Wrong centered status");
     }
 
     #[test]
@@ -176,16 +176,16 @@ mod tests {
         let input = Span::from("=====test header=====");
         let (input, h) = header(input).unwrap();
         assert!(input.is_empty(), "Did not consume header");
-        assert_eq!(h.level(), 5, "Wrong header level");
-        assert_eq!(h.content().to_string(), "test header", "Wrong header text");
-        assert_eq!(h.centered(), false, "Wrong centered status");
+        assert_eq!(h.level, 5, "Wrong header level");
+        assert_eq!(h.content.to_string(), "test header", "Wrong header text");
+        assert_eq!(h.centered, false, "Wrong centered status");
 
         let input = Span::from(" =====test header===== ");
         let (input, h) = header(input).unwrap();
         assert!(input.is_empty(), "Did not consume header");
-        assert_eq!(h.level(), 5, "Wrong header level");
-        assert_eq!(h.content().to_string(), "test header", "Wrong header text");
-        assert_eq!(h.centered(), true, "Wrong centered status");
+        assert_eq!(h.level, 5, "Wrong header level");
+        assert_eq!(h.content.to_string(), "test header", "Wrong header text");
+        assert_eq!(h.centered, true, "Wrong centered status");
     }
 
     #[test]
@@ -193,16 +193,16 @@ mod tests {
         let input = Span::from("======test header======");
         let (input, h) = header(input).unwrap();
         assert!(input.is_empty(), "Did not consume header");
-        assert_eq!(h.level(), 6, "Wrong header level");
-        assert_eq!(h.content().to_string(), "test header", "Wrong header text");
-        assert_eq!(h.centered(), false, "Wrong centered status");
+        assert_eq!(h.level, 6, "Wrong header level");
+        assert_eq!(h.content.to_string(), "test header", "Wrong header text");
+        assert_eq!(h.centered, false, "Wrong centered status");
 
         let input = Span::from(" ======test header====== ");
         let (input, h) = header(input).unwrap();
         assert!(input.is_empty(), "Did not consume header");
-        assert_eq!(h.level(), 6, "Wrong header level");
-        assert_eq!(h.content().to_string(), "test header", "Wrong header text");
-        assert_eq!(h.centered(), true, "Wrong centered status");
+        assert_eq!(h.level, 6, "Wrong header level");
+        assert_eq!(h.content.to_string(), "test header", "Wrong header text");
+        assert_eq!(h.centered, true, "Wrong centered status");
     }
 
     #[test]
@@ -219,7 +219,7 @@ mod tests {
         let input = Span::from("= test header\t=");
         let (input, h) = header(input).unwrap();
         assert!(input.is_empty(), "Did not consume header");
-        assert_eq!(h.content().to_string(), "test header", "Wrong header text");
+        assert_eq!(h.content.to_string(), "test header", "Wrong header text");
     }
 
     #[test]
@@ -227,11 +227,7 @@ mod tests {
         let input = Span::from("=test =header=");
         let (input, h) = header(input).unwrap();
         assert!(input.is_empty(), "Did not consume header");
-        assert_eq!(
-            h.content().to_string(),
-            "test =header",
-            "Wrong header text"
-        );
+        assert_eq!(h.content.to_string(), "test =header", "Wrong header text");
     }
 
     #[test]

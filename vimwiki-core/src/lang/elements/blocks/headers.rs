@@ -21,13 +21,17 @@ use serde::{Deserialize, Serialize};
     Deserialize,
 )]
 pub struct Header<'a> {
+    /// Represents the content contained within the header
     #[index]
     #[index_mut]
     #[into_iterator(owned, ref, ref_mut)]
-    content: InlineElementContainer<'a>,
+    pub content: InlineElementContainer<'a>,
 
-    level: usize,
-    centered: bool,
+    /// Represents the level of the header (1, 2, 3, etc)
+    pub level: usize,
+
+    /// Represents whether or not the header is centered
+    pub centered: bool,
 }
 
 impl<'a> Header<'a> {
@@ -36,26 +40,6 @@ impl<'a> Header<'a> {
 
     /// Represents teh largest a header's level can be
     pub const MAX_LEVEL: usize = 6;
-
-    /// Returns level of the header
-    pub fn level(&self) -> usize {
-        self.level
-    }
-
-    /// Returns whether or not the header is centered
-    pub fn centered(&self) -> bool {
-        self.centered
-    }
-
-    /// Returns reference to the content contained within the header
-    pub fn content(&self) -> &InlineElementContainer<'a> {
-        &self.content
-    }
-
-    /// Converts into the content contained within the header
-    pub fn into_content(self) -> InlineElementContainer<'a> {
-        self.content
-    }
 }
 
 impl Header<'_> {

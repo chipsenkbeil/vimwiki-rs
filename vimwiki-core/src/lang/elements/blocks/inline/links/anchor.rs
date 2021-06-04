@@ -1,5 +1,7 @@
 use crate::StrictEq;
-use derive_more::{Constructor, Index, IndexMut, IntoIterator};
+use derive_more::{
+    Constructor, Deref, DerefMut, Index, IndexMut, IntoIterator,
+};
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, convert::TryFrom, fmt};
 use uriparse::{Fragment, FragmentError};
@@ -9,6 +11,8 @@ use uriparse::{Fragment, FragmentError};
     Constructor,
     Clone,
     Debug,
+    Deref,
+    DerefMut,
     Eq,
     PartialEq,
     Hash,
@@ -19,7 +23,10 @@ use uriparse::{Fragment, FragmentError};
     Deserialize,
 )]
 #[into_iterator(owned, ref, ref_mut)]
-pub struct Anchor<'a>(Vec<Cow<'a, str>>);
+pub struct Anchor<'a>(
+    /// Represents the individual parts of the anchor
+    Vec<Cow<'a, str>>,
+);
 
 impl Anchor<'_> {
     pub fn to_borrowed(&self) -> Anchor {
@@ -49,22 +56,6 @@ impl Anchor<'_> {
 }
 
 impl<'a> Anchor<'a> {
-    pub fn iter(&self) -> impl Iterator<Item = &str> {
-        self.into_iter().map(AsRef::as_ref)
-    }
-
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Cow<'a, str>> {
-        self.into_iter()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
     /// Produces an encoded URI fragment in the form of #my%23fragment
     /// if the anchor has any elements, otherwise yields an empty string
     pub fn to_encoded_uri_fragment(&self) -> String {
@@ -77,19 +68,7 @@ impl<'a> Anchor<'a> {
         }
         fragment
     }
-}
 
-impl<'a> fmt::Display for Anchor<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.is_empty() {
-            Ok(())
-        } else {
-            write!(f, "#{}", self.0.join("#"))
-        }
-    }
-}
-
-impl<'a> Anchor<'a> {
     // NOTE: Cannot use FromStr due to conflicting lifetimes of impl and trait
     //       method's input str
     pub fn from_uri_fragment(s: &'a str) -> Option<Self> {
@@ -102,6 +81,16 @@ impl<'a> Anchor<'a> {
         }
 
         None
+    }
+}
+
+impl<'a> fmt::Display for Anchor<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.is_empty() {
+            Ok(())
+        } else {
+            write!(f, "#{}", self.0.join("#"))
+        }
     }
 }
 

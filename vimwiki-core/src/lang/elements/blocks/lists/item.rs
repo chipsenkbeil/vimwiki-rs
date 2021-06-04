@@ -24,22 +24,29 @@ use std::borrow::Cow;
     Deserialize,
 )]
 pub struct ListItem<'a> {
-    item_type: ListItemType<'a>,
-    suffix: ListItemSuffix,
-    pos: usize,
+    /// Represents the type of list item
+    pub ty: ListItemType<'a>,
 
+    /// Represents the suffix of the list
+    pub suffix: ListItemSuffix,
+
+    /// Represents the position of the item in the list starting from 0
+    pub pos: usize,
+
+    /// Represents the contents of the list item
     #[index]
     #[index_mut]
     #[into_iterator(owned, ref, ref_mut)]
-    contents: ListItemContents<'a>,
+    pub contents: ListItemContents<'a>,
 
-    attributes: ListItemAttributes,
+    /// Represents attributes associated with the list item
+    pub attributes: ListItemAttributes,
 }
 
 impl ListItem<'_> {
     pub fn to_borrowed(&self) -> ListItem {
         ListItem {
-            item_type: self.item_type.as_borrowed(),
+            ty: self.ty.as_borrowed(),
             suffix: self.suffix,
             pos: self.pos,
             contents: self.contents.to_borrowed(),
@@ -49,7 +56,7 @@ impl ListItem<'_> {
 
     pub fn into_owned(self) -> ListItem<'static> {
         ListItem {
-            item_type: self.item_type.into_owned(),
+            ty: self.ty.into_owned(),
             suffix: self.suffix,
             pos: self.pos,
             contents: self.contents.into_owned(),
@@ -69,7 +76,7 @@ impl<'a> IntoChildren for ListItem<'a> {
 impl<'a> StrictEq for ListItem<'a> {
     /// Performs a strict_eq check against eqivalent variants
     fn strict_eq(&self, other: &Self) -> bool {
-        self.item_type.strict_eq(&other.item_type)
+        self.ty.strict_eq(&other.ty)
             && self.suffix.strict_eq(&other.suffix)
             && self.pos == other.pos
             && self.contents.strict_eq(&other.contents)
@@ -78,69 +85,19 @@ impl<'a> StrictEq for ListItem<'a> {
 }
 
 impl<'a> ListItem<'a> {
-    /// Returns reference to the type of list item
-    pub fn ty(&self) -> &ListItemType<'a> {
-        &self.item_type
-    }
-
-    /// Returns mutable reference to the type of list item
-    pub fn mut_ty(&mut self) -> &mut ListItemType<'a> {
-        &mut self.item_type
-    }
-
-    /// Returns a copy of the list item's suffix
-    pub fn suffix(&self) -> ListItemSuffix {
-        self.suffix
-    }
-
-    /// Returns mutable reference to the list item's suffix
-    pub fn mut_suffix(&mut self) -> &mut ListItemSuffix {
-        &mut self.suffix
-    }
-
-    /// Returns position of the list item in the list
-    pub fn pos(&self) -> usize {
-        self.pos
-    }
-
-    /// Returns mutable reference to the list item's position
-    pub fn mut_pos(&mut self) -> &mut usize {
-        &mut self.pos
-    }
-
-    /// Returns reference to the contents contained within the list item
-    pub fn contents(&self) -> &ListItemContents<'a> {
-        &self.contents
-    }
-
-    /// Returns mutable reference to the contents contained within the list item
-    pub fn mut_contents(&mut self) -> &mut ListItemContents<'a> {
-        &mut self.contents
-    }
-
-    /// Returns a copy of the list item's attributes
-    pub fn attributes(&self) -> ListItemAttributes {
-        self.attributes
-    }
-
-    /// Returns mutable reference to the list item's attributes
-    pub fn mut_attributes(&mut self) -> &mut ListItemAttributes {
-        &mut self.attributes
-    }
-
     /// Indicates whether or not this list item represents an unordered item
     pub fn is_unordered(&self) -> bool {
-        self.item_type.is_unordered()
+        self.ty.is_unordered()
     }
 
     /// Indicates whether or not this list item represents an ordered item
     pub fn is_ordered(&self) -> bool {
-        self.item_type.is_ordered()
+        self.ty.is_ordered()
     }
 
     /// Allocates a new string to represent the prefix of this list item
     pub fn to_prefix(&self) -> String {
-        self.item_type.to_prefix(self.pos, self.suffix)
+        self.ty.to_prefix(self.pos, self.suffix)
     }
 
     /// Whether or not this list item has TODO information

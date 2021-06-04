@@ -50,7 +50,7 @@ pub fn list(input: Span) -> IResult<Located<List>> {
             |(index, mut items), mut item| {
                 // NOTE: The index information isn't available to the list_item
                 //       parser, so we have to assign it here
-                *item.mut_pos() = index;
+                item.pos = index;
 
                 items.push(item);
                 (index + 1, items)
@@ -352,9 +352,9 @@ mod tests {
         text: &str,
     ) {
         let item = &l[0].as_inner();
-        assert_eq!(item.ty(), &item_type);
-        assert_eq!(item.suffix(), item_suffix);
-        assert_eq!(item.pos(), 0);
+        assert_eq!(item.ty, item_type);
+        assert_eq!(item.suffix, item_suffix);
+        assert_eq!(item.pos, 0);
 
         let element = match &item[0].as_inner() {
             ListItemContent::InlineContent(c) => c[0].as_inner(),
@@ -398,7 +398,7 @@ mod tests {
         assert_eq!(lst.depth(), 0, "List depth was at wrong level");
         for item in lst.iter() {
             assert_eq!(item.depth(), 1, "List item depth was at wrong level");
-            for content in item.contents().iter() {
+            for content in item.contents.iter() {
                 assert_eq!(
                     content.depth(),
                     2,
@@ -553,7 +553,7 @@ mod tests {
         assert_eq!(l.len(), 1, "Unexpected number of list items");
 
         assert_eq!(
-            l[0].contents()
+            l[0].contents
                 .inline_content_iter()
                 .collect::<Vec<&InlineElement>>(),
             vec![
@@ -591,7 +591,7 @@ mod tests {
         assert_eq!(l.len(), 1, "Unexpected number of list items");
 
         assert_eq!(
-            l[0].contents()
+            l[0].contents
                 .inline_content_iter()
                 .collect::<Vec<&InlineElement>>(),
             vec![
@@ -619,7 +619,7 @@ mod tests {
 
         // Should only have three lines of inline content
         assert_eq!(
-            l[0].contents()
+            l[0].contents
                 .inline_content_iter()
                 .collect::<Vec<&InlineElement>>(),
             vec![
@@ -630,12 +630,12 @@ mod tests {
         );
 
         // Should have a single sublist with two items and content
-        let sublist = l[0].contents().sublist_iter().next().unwrap();
+        let sublist = l[0].contents.sublist_iter().next().unwrap();
         assert_eq!(sublist.len(), 2, "Unexpected number of list items");
 
         assert_eq!(
             sublist[0]
-                .contents()
+                .contents
                 .inline_content_iter()
                 .collect::<Vec<&InlineElement>>(),
             vec![
@@ -646,7 +646,7 @@ mod tests {
 
         assert_eq!(
             sublist[1]
-                .contents()
+                .contents
                 .inline_content_iter()
                 .collect::<Vec<&InlineElement>>(),
             vec![&InlineElement::Text(Text::from("sublist item 2")),]
@@ -669,37 +669,37 @@ mod tests {
 
         assert!(l[0].is_todo_incomplete());
         assert_eq!(
-            l[0].contents().inline_content_iter().next(),
+            l[0].contents.inline_content_iter().next(),
             Some(&InlineElement::Text(Text::from("list item 1"))),
         );
 
         assert!(l[1].is_todo_partially_complete_1());
         assert_eq!(
-            l[1].contents().inline_content_iter().next(),
+            l[1].contents.inline_content_iter().next(),
             Some(&InlineElement::Text(Text::from("list item 2"))),
         );
 
         assert!(l[2].is_todo_partially_complete_2());
         assert_eq!(
-            l[2].contents().inline_content_iter().next(),
+            l[2].contents.inline_content_iter().next(),
             Some(&InlineElement::Text(Text::from("list item 3"))),
         );
 
         assert!(l[3].is_todo_partially_complete_3());
         assert_eq!(
-            l[3].contents().inline_content_iter().next(),
+            l[3].contents.inline_content_iter().next(),
             Some(&InlineElement::Text(Text::from("list item 4"))),
         );
 
         assert!(l[4].is_todo_complete());
         assert_eq!(
-            l[4].contents().inline_content_iter().next(),
+            l[4].contents.inline_content_iter().next(),
             Some(&InlineElement::Text(Text::from("list item 5"))),
         );
 
         assert!(l[5].is_todo_rejected());
         assert_eq!(
-            l[5].contents().inline_content_iter().next(),
+            l[5].contents.inline_content_iter().next(),
             Some(&InlineElement::Text(Text::from("list item 6"))),
         );
     }
