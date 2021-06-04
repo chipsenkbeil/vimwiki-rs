@@ -1772,9 +1772,8 @@ mod tests {
         );
 
         let mut f = HtmlFormatter::default();
-        item.set_attributes(ListItemAttributes {
-            todo_status: Some(ListItemTodoStatus::Incomplete),
-        });
+        item.mut_attributes().todo_status =
+            Some(ListItemTodoStatus::Incomplete);
         item.fmt(&mut f).unwrap();
         assert_eq!(
             f.get_content(),
@@ -1782,9 +1781,8 @@ mod tests {
         );
 
         let mut f = HtmlFormatter::default();
-        item.set_attributes(ListItemAttributes {
-            todo_status: Some(ListItemTodoStatus::PartiallyComplete1),
-        });
+        item.mut_attributes().todo_status =
+            Some(ListItemTodoStatus::PartiallyComplete1);
         item.fmt(&mut f).unwrap();
         assert_eq!(
             f.get_content(),
@@ -1792,9 +1790,8 @@ mod tests {
         );
 
         let mut f = HtmlFormatter::default();
-        item.set_attributes(ListItemAttributes {
-            todo_status: Some(ListItemTodoStatus::PartiallyComplete2),
-        });
+        item.mut_attributes().todo_status =
+            Some(ListItemTodoStatus::PartiallyComplete2);
         item.fmt(&mut f).unwrap();
         assert_eq!(
             f.get_content(),
@@ -1802,9 +1799,8 @@ mod tests {
         );
 
         let mut f = HtmlFormatter::default();
-        item.set_attributes(ListItemAttributes {
-            todo_status: Some(ListItemTodoStatus::PartiallyComplete3),
-        });
+        item.mut_attributes().todo_status =
+            Some(ListItemTodoStatus::PartiallyComplete3);
         item.fmt(&mut f).unwrap();
         assert_eq!(
             f.get_content(),
@@ -1812,9 +1808,7 @@ mod tests {
         );
 
         let mut f = HtmlFormatter::default();
-        item.set_attributes(ListItemAttributes {
-            todo_status: Some(ListItemTodoStatus::Complete),
-        });
+        item.mut_attributes().todo_status = Some(ListItemTodoStatus::Complete);
         item.fmt(&mut f).unwrap();
         assert_eq!(
             f.get_content(),
@@ -1822,9 +1816,7 @@ mod tests {
         );
 
         let mut f = HtmlFormatter::default();
-        item.set_attributes(ListItemAttributes {
-            todo_status: Some(ListItemTodoStatus::Rejected),
-        });
+        item.mut_attributes().todo_status = Some(ListItemTodoStatus::Rejected);
         item.fmt(&mut f).unwrap();
         assert_eq!(
             f.get_content(),

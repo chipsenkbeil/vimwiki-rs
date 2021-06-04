@@ -23,7 +23,7 @@ fn tokenize_list_item(ctx: &TokenizeContext, item: &ListItem) -> TokenStream {
     let root = root_crate();
 
     let pos = item.pos();
-    let item_type_t = tokenize_list_item_type(ctx, item.r#type());
+    let item_type_t = tokenize_list_item_type(ctx, item.ty());
     let suffix_t = tokenize_list_item_suffix(ctx, &item.suffix());
     let contents_t = tokenize_list_item_contents(ctx, item.contents());
     let attributes_t = tokenize_list_item_attributes(ctx, &item.attributes());

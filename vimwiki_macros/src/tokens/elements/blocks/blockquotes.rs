@@ -11,7 +11,7 @@ fn tokenize_blockquote(
 ) -> TokenStream {
     let root = root_crate();
     let lines = blockquote
-        .lines()
+        .iter()
         .map(|x| do_tokenize!(ctx, Cow::Borrowed(x)));
     quote! {
         #root::Blockquote::new(::std::vec![#(#lines),*])

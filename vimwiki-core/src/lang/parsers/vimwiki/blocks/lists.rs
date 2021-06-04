@@ -50,7 +50,7 @@ pub fn list(input: Span) -> IResult<Located<List>> {
             |(index, mut items), mut item| {
                 // NOTE: The index information isn't available to the list_item
                 //       parser, so we have to assign it here
-                item.set_pos(index);
+                *item.mut_pos() = index;
 
                 items.push(item);
                 (index + 1, items)
@@ -352,7 +352,7 @@ mod tests {
         text: &str,
     ) {
         let item = &l[0].as_inner();
-        assert_eq!(item.r#type(), &item_type);
+        assert_eq!(item.ty(), &item_type);
         assert_eq!(item.suffix(), item_suffix);
         assert_eq!(item.pos(), 0);
 
