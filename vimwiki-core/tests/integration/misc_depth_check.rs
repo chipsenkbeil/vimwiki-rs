@@ -10,11 +10,11 @@ fn test() {
     let expected_page = Page::new(vec![
         Located::new(
             BlockElement::from(Header::new(
-                1,
                 InlineElementContainer::new(vec![Located::new(
                     InlineElement::from(Text::from("Header 1")),
                     Region::new_at_depth(2, 8, 1),
                 )]),
+                1,
                 false,
             )),
             Region::new_at_depth(0, 13, 0),

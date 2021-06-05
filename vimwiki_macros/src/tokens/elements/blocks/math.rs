@@ -17,9 +17,9 @@ fn tokenize_math_block(
             do_tokenize!(ctx, x)
         });
     quote! {
-        #root::MathBlock {
-            lines: ::std::vec![#(#lines),*],
-            environment: #environment,
-        }
+        #root::MathBlock::new(
+            ::std::vec![#(#lines),*],
+            #environment,
+        )
     }
 }

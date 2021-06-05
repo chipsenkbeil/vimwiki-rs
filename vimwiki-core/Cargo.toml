@@ -19,6 +19,26 @@ timekeeper = []
 name = "vimwiki_parser"
 harness = false
 
+[dependencies.derive_more]
+version = "0.99.14"
+default-features = false
+features = [
+    "as_mut",
+    "as_ref",
+    "constructor",
+    "deref",
+    "deref_mut",
+    "display",
+    "error",
+    "from",
+    "index",
+    "index_mut",
+    "into",
+    "into_iterator",
+    "is_variant",
+    "try_into",
+]
+
 [dependencies]
 bytecount = "0.6.0"
 chrono = { version = "0.4.15", features = ["serde"] }
@@ -48,25 +68,6 @@ syntect = { version = "4.5.0", optional = true, default-features = false, featur
 
 # For safe HTML escaping
 voca_rs = { version = "1.13.0", optional = true }
-
-[dependencies.derive_more]
-version = "0.99.0"
-default-features = false
-features = [
-    "as_mut",
-    "as_ref",
-    "constructor",
-    "deref",
-    "deref_mut",
-    "display",
-    "error",
-    "from",
-    "index",
-    "index_mut",
-    "into",
-    "into_iterator",
-    "try_into",
-]
 
 [dev-dependencies]
 criterion = "0.3.3"

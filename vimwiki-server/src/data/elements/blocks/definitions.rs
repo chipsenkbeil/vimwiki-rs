@@ -212,7 +212,7 @@ impl<'a> FromVimwikiElement<'a> for Term {
         )?;
 
         let mut contents = Vec::new();
-        for content in element.into_inner().into_inner().elements {
+        for content in element.into_inner().into_inner() {
             contents.push(
                 InlineElement::from_vimwiki_element(
                     page_id,
@@ -291,7 +291,7 @@ impl<'a> FromVimwikiElement<'a> for Definition {
         )?;
 
         let mut contents = Vec::new();
-        for content in element.into_inner().into_inner().elements {
+        for content in element.into_inner().into_inner() {
             contents.push(
                 InlineElement::from_vimwiki_element(
                     page_id,

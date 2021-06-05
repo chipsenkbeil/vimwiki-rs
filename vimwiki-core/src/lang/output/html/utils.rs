@@ -127,7 +127,7 @@ pub(crate) fn resolve_link(
 
     // We want to figure out if the target uri is a directory to ensure that
     // certain links account for that
-    let target_is_dir = is_directory_uri(target.data().uri_ref());
+    let target_is_dir = is_directory_uri(&target.data().uri_ref);
 
     // First, build our raw uri WITHOUT anchors
     let uri_ref = match target {
@@ -147,7 +147,7 @@ pub(crate) fn resolve_link(
                 //    path relative to the root of the current wiki
                 // 2. If relative, then we want to place the path relative to
                 //    the current file's directory
-                let target_out = if data.uri_ref().path().is_absolute() {
+                let target_out = if data.uri_ref.path().is_absolute() {
                     src_wiki.make_output_path(path.as_path(), ext)
                 } else {
                     src_wiki.make_output_path(
@@ -172,7 +172,7 @@ pub(crate) fn resolve_link(
 
                 uri_ref
             } else {
-                data.uri_ref().clone()
+                data.uri_ref.clone()
             }
         }
         Link::IndexedInterWiki { index, data } => {
@@ -256,7 +256,7 @@ pub(crate) fn resolve_link(
 
             uri_ref
         }
-        Link::Raw { data } => data.uri_ref().clone(),
+        Link::Raw { data } => data.uri_ref.clone(),
         Link::Transclusion { data } => {
             // If target is a local link, then we need to process it the same
             // as any wiki link
@@ -274,7 +274,7 @@ pub(crate) fn resolve_link(
                 //    path relative to the root of the current wiki
                 // 2. If relative, then we want to place the path relative to
                 //    the current file's directory
-                let target_out = if data.uri_ref().path().is_absolute() {
+                let target_out = if data.uri_ref.path().is_absolute() {
                     src_wiki.make_output_path(path.as_path(), ext)
                 } else {
                     src_wiki.make_output_path(
@@ -295,7 +295,7 @@ pub(crate) fn resolve_link(
 
             // Otherwise, we can just pass back the link as-is
             } else {
-                data.uri_ref().clone()
+                data.uri_ref.clone()
             }
         }
     };

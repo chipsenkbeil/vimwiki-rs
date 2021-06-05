@@ -47,7 +47,6 @@ impl<'a> FromVimwikiElement<'a> for Tags {
                 .names(
                     element
                         .into_inner()
-                        .0
                         .iter()
                         .map(ToString::to_string)
                         .collect(),

@@ -58,7 +58,7 @@ mod tests {
         // Link should be consumed
         assert!(input.is_empty());
 
-        assert_eq!(link.data().uri_ref().path(), "This%20is%20a%20link");
+        assert_eq!(link.data().uri_ref.path(), "This%20is%20a%20link");
         assert_eq!(link.description(), None);
         assert_eq!(link.to_anchor(), None);
     }
@@ -73,10 +73,7 @@ mod tests {
         // Link should be consumed
         assert!(input.is_empty());
 
-        assert_eq!(
-            link.data().uri_ref().path(),
-            "This%20is%20a%20link%20source"
-        );
+        assert_eq!(link.data().uri_ref.path(), "This%20is%20a%20link%20source");
         assert_eq!(
             link.description(),
             Some(&Description::from("Description of the link"))
@@ -95,10 +92,7 @@ mod tests {
         // Link should be consumed
         assert!(input.is_empty());
 
-        assert_eq!(
-            link.data().uri_ref().path(),
-            "This%20is%20a%20link%20source"
-        );
+        assert_eq!(link.data().uri_ref.path(), "This%20is%20a%20link%20source");
         assert_eq!(
             link.description(),
             Some(&Description::from(
@@ -120,7 +114,7 @@ mod tests {
         assert!(input.is_empty());
 
         assert_eq!(
-            link.data().uri_ref().path(),
+            link.data().uri_ref.path(),
             "projects/Important%20Project%201"
         );
         assert_eq!(link.description(), None);
@@ -136,7 +130,7 @@ mod tests {
         // Link should be consumed
         assert!(input.is_empty());
 
-        assert_eq!(link.data().uri_ref().path(), "../index");
+        assert_eq!(link.data().uri_ref.path(), "../index");
         assert_eq!(link.description(), None);
         assert_eq!(link.to_anchor(), None);
     }
@@ -150,7 +144,7 @@ mod tests {
         // Link should be consumed
         assert!(input.is_empty());
 
-        assert_eq!(link.data().uri_ref().path(), "/index");
+        assert_eq!(link.data().uri_ref.path(), "/index");
         assert_eq!(link.description(), None);
         assert_eq!(link.to_anchor(), None);
     }
@@ -165,7 +159,7 @@ mod tests {
         assert!(input.is_empty());
 
         assert!(link.data().is_path_dir(), "Not detected as subdirectory");
-        assert_eq!(link.data().uri_ref().path(), "a%20subdirectory/");
+        assert_eq!(link.data().uri_ref.path(), "a%20subdirectory/");
         assert_eq!(link.description(), Some(&Description::from("Other files")));
         assert_eq!(link.to_anchor(), None);
     }
@@ -179,7 +173,7 @@ mod tests {
         // Link should be consumed
         assert!(input.is_empty());
 
-        assert_eq!(link.data().uri_ref().path(), "Todo%20List");
+        assert_eq!(link.data().uri_ref.path(), "Todo%20List");
         assert_eq!(link.description(), None);
         assert_eq!(link.to_anchor(), Some(Anchor::from("Tomorrow")));
     }
@@ -193,7 +187,7 @@ mod tests {
         // Link should be consumed
         assert!(input.is_empty());
 
-        assert_eq!(link.data().uri_ref().path(), "Todo%20List");
+        assert_eq!(link.data().uri_ref.path(), "Todo%20List");
         assert_eq!(link.description(), None);
         assert_eq!(
             link.to_anchor(),
@@ -210,7 +204,7 @@ mod tests {
         // Link should be consumed
         assert!(input.is_empty());
 
-        assert_eq!(link.data().uri_ref().path(), "Todo%20List");
+        assert_eq!(link.data().uri_ref.path(), "Todo%20List");
         assert_eq!(
             link.description(),
             Some(&Description::from("Tasks for tomorrow"))
@@ -228,7 +222,7 @@ mod tests {
         // Link should be consumed
         assert!(input.is_empty());
 
-        assert_eq!(link.data().uri_ref().path(), "Todo%20List");
+        assert_eq!(link.data().uri_ref.path(), "Todo%20List");
         assert_eq!(
             link.description(),
             Some(&Description::from("Tasks for tomorrow"))
@@ -248,7 +242,7 @@ mod tests {
         // Link should be consumed
         assert!(input.is_empty());
 
-        assert_eq!(link.data().uri_ref().path(), "");
+        assert_eq!(link.data().uri_ref.path(), "");
         assert_eq!(link.description(), None);
         assert_eq!(link.to_anchor(), Some(Anchor::from("Tomorrow")));
     }

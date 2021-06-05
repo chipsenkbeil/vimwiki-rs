@@ -42,14 +42,14 @@ fn tokenize_link(ctx: &TokenizeContext, link: &Link) -> TokenStream {
 impl_tokenize!(tokenize_link_data, LinkData<'a>, 'a);
 fn tokenize_link_data(ctx: &TokenizeContext, data: &LinkData) -> TokenStream {
     let root = root_crate();
-    let uri_ref_t = do_tokenize!(ctx, data.uri_ref());
-    let description_t = if let Some(d) = data.description() {
+    let uri_ref_t = do_tokenize!(ctx, &data.uri_ref);
+    let description_t = if let Some(d) = data.description.as_ref() {
         let t = tokenize_description(ctx, d);
         quote!(::std::option::Option::Some(#t))
     } else {
         quote!(::std::option::Option::None)
     };
-    let properties_t = if let Some(properties) = data.properties() {
+    let properties_t = if let Some(properties) = data.properties.as_ref() {
         let t = tokenize_hashmap(
             properties,
             tokenize_cow_str_type(),

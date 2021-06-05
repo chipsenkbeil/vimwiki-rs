@@ -139,11 +139,11 @@ mod tests {
         match cell {
             Cell::Content(x) => {
                 assert_eq!(
-                    x.elements.len(),
+                    x.len(),
                     1,
                     "Unexpected number of inline elements in cell"
                 );
-                f(x.elements[0].as_inner());
+                f(x[0].as_inner());
             }
             x => panic!("Unexpected cell: {:?}", x),
         }
@@ -210,7 +210,7 @@ mod tests {
         "});
         let (input, t) = table(input).unwrap();
         assert!(input.is_empty(), "Did not consume table");
-        assert!(!t.is_centered(), "Table unexpectedly centered");
+        assert!(!t.centered, "Table unexpectedly centered");
 
         let cell = t.get_cell(0, 0).unwrap().as_inner();
         check_cell_text_value(cell, "name");
@@ -251,7 +251,7 @@ mod tests {
         let input = Span::from("|value1|");
         let (input, t) = table(input).unwrap();
         assert!(input.is_empty(), "Did not consume table");
-        assert!(!t.is_centered(), "Table unexpectedly centered");
+        assert!(!t.centered, "Table unexpectedly centered");
 
         let cell = t.get_cell(0, 0).unwrap().as_inner();
         check_cell_text_value(cell, "value1");
@@ -262,7 +262,7 @@ mod tests {
         let input = Span::from("|value1|value2|");
         let (input, t) = table(input).unwrap();
         assert!(input.is_empty(), "Did not consume table");
-        assert!(!t.is_centered(), "Table unexpectedly centered");
+        assert!(!t.centered, "Table unexpectedly centered");
 
         let cell = t.get_cell(0, 0).unwrap().as_inner();
         check_cell_text_value(cell, "value1");
@@ -279,7 +279,7 @@ mod tests {
         "});
         let (input, t) = table(input).unwrap();
         assert!(input.is_empty(), "Did not consume table");
-        assert!(!t.is_centered(), "Table unexpectedly centered");
+        assert!(!t.centered, "Table unexpectedly centered");
 
         let cell = t.get_cell(0, 0).unwrap().as_inner();
         check_cell_text_value(cell, "value1");
@@ -296,7 +296,7 @@ mod tests {
         "});
         let (input, t) = table(input).unwrap();
         assert!(input.is_empty(), "Did not consume table");
-        assert!(!t.is_centered(), "Table unexpectedly centered");
+        assert!(!t.centered, "Table unexpectedly centered");
 
         let cell = t.get_cell(0, 0).unwrap().as_inner();
         check_cell_text_value(cell, "value1");
@@ -323,7 +323,7 @@ mod tests {
             "Did not consume table: '{}'",
             input.as_unsafe_remaining_str()
         );
-        assert!(!t.is_centered(), "Table unexpectedly centered");
+        assert!(!t.centered, "Table unexpectedly centered");
 
         let cell = t.get_cell(0, 0).unwrap().as_inner();
         check_cell_text_value(cell, "value1");
@@ -344,7 +344,7 @@ mod tests {
             "Did not consume table: '{}'",
             input.as_unsafe_remaining_str()
         );
-        assert!(!t.is_centered(), "Table unexpectedly centered");
+        assert!(!t.centered, "Table unexpectedly centered");
 
         let cell = t.get_cell(0, 0).unwrap().as_inner();
         check_cell_text_value(cell, "value1");
@@ -371,7 +371,7 @@ mod tests {
             "Did not consume table: '{}'",
             input.as_unsafe_remaining_str()
         );
-        assert!(!t.is_centered(), "Table unexpectedly centered");
+        assert!(!t.centered, "Table unexpectedly centered");
 
         let cell = t.get_cell(0, 0).unwrap().as_inner();
         check_cell_text_value(cell, "value1");
@@ -394,7 +394,7 @@ mod tests {
         let input = Span::from("|>|");
         let (input, t) = table(input).unwrap();
         assert!(input.is_empty(), "Did not consume table");
-        assert!(!t.is_centered(), "Table unexpectedly centered");
+        assert!(!t.centered, "Table unexpectedly centered");
 
         let cell = t.get_cell(0, 0).unwrap().as_inner();
         assert_eq!(cell, &Cell::Span(CellSpan::FromLeft));
@@ -405,7 +405,7 @@ mod tests {
         let input = Span::from(r"|\/|");
         let (input, t) = table(input).unwrap();
         assert!(input.is_empty(), "Did not consume table");
-        assert!(!t.is_centered(), "Table unexpectedly centered");
+        assert!(!t.centered, "Table unexpectedly centered");
 
         let cell = t.get_cell(0, 0).unwrap().as_inner();
         assert_eq!(cell, &Cell::Span(CellSpan::FromAbove));
@@ -416,7 +416,7 @@ mod tests {
         let input = Span::from(" |value1|");
         let (input, t) = table(input).unwrap();
         assert!(input.is_empty(), "Did not consume table");
-        assert!(t.is_centered(), "Table unexpectedly not centered");
+        assert!(t.centered, "Table unexpectedly not centered");
 
         let cell = t.get_cell(0, 0).unwrap().as_inner();
         check_cell_text_value(cell, "value1");
@@ -427,7 +427,7 @@ mod tests {
         let input = Span::from("|some text|");
         let (input, t) = table(input).unwrap();
         assert!(input.is_empty(), "Did not consume table");
-        assert!(!t.is_centered(), "Table unexpectedly centered");
+        assert!(!t.centered, "Table unexpectedly centered");
 
         let cell = t.get_cell(0, 0).unwrap().as_inner();
         check_cell_value(cell, |c| {

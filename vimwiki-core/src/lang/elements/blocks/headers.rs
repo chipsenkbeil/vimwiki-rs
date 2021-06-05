@@ -4,16 +4,42 @@ use crate::{
     },
     StrictEq,
 };
-use derive_more::Constructor;
+use derive_more::{Constructor, Index, IndexMut, IntoIterator};
 use serde::{Deserialize, Serialize};
 
 #[derive(
-    Constructor, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
+    Constructor,
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    Hash,
+    Index,
+    IndexMut,
+    IntoIterator,
+    Serialize,
+    Deserialize,
 )]
 pub struct Header<'a> {
-    pub level: usize,
+    /// Represents the content contained within the header
+    #[index]
+    #[index_mut]
+    #[into_iterator(owned, ref, ref_mut)]
     pub content: InlineElementContainer<'a>,
+
+    /// Represents the level of the header (1, 2, 3, etc)
+    pub level: usize,
+
+    /// Represents whether or not the header is centered
     pub centered: bool,
+}
+
+impl<'a> Header<'a> {
+    /// Represents the smallest a header's level can be
+    pub const MIN_LEVEL: usize = 1;
+
+    /// Represents teh largest a header's level can be
+    pub const MAX_LEVEL: usize = 6;
 }
 
 impl Header<'_> {
@@ -32,14 +58,6 @@ impl Header<'_> {
             centered: self.centered,
         }
     }
-}
-
-impl<'a> Header<'a> {
-    /// Represents the smallest a header's level can be
-    pub const MIN_LEVEL: usize = 1;
-
-    /// Represents teh largest a header's level can be
-    pub const MAX_LEVEL: usize = 6;
 }
 
 impl<'a> IntoChildren for Header<'a> {

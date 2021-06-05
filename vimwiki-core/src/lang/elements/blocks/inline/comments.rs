@@ -1,10 +1,22 @@
 use crate::StrictEq;
-use derive_more::{Constructor, Display, From};
+use derive_more::{
+    AsRef, Constructor, Deref, DerefMut, Display, From, Index, IndexMut,
+    IntoIterator, IsVariant,
+};
 use serde::{Deserialize, Serialize};
-use std::borrow::Cow;
+use std::{borrow::Cow, iter::FromIterator};
 
 #[derive(
-    Clone, Debug, Display, Hash, From, Eq, PartialEq, Serialize, Deserialize,
+    Clone,
+    Debug,
+    Display,
+    Hash,
+    From,
+    Eq,
+    PartialEq,
+    IsVariant,
+    Serialize,
+    Deserialize,
 )]
 pub enum Comment<'a> {
     Line(LineComment<'a>),
@@ -36,18 +48,31 @@ impl<'a> StrictEq for Comment<'a> {
 }
 
 #[derive(
-    Constructor,
+    AsRef,
     Clone,
+    Constructor,
     Debug,
     Display,
+    From,
     Eq,
     PartialEq,
     Hash,
     Serialize,
     Deserialize,
 )]
+#[as_ref(forward)]
 #[display(fmt = "{}", "_0.trim()")]
-pub struct LineComment<'a>(pub Cow<'a, str>);
+pub struct LineComment<'a>(
+    /// Represents the text represented as a comment
+    Cow<'a, str>,
+);
+
+impl<'a> LineComment<'a> {
+    /// Returns comment's text as a [`str`]
+    pub fn as_str(&self) -> &str {
+        self.0.as_ref()
+    }
+}
 
 impl LineComment<'_> {
     pub fn as_borrowed(&self) -> LineComment {
@@ -66,21 +91,15 @@ impl LineComment<'_> {
     }
 }
 
-impl<'a> LineComment<'a> {
-    pub fn as_str(&self) -> &str {
-        self.0.as_ref()
-    }
-}
-
 impl<'a> From<&'a str> for LineComment<'a> {
     fn from(s: &'a str) -> Self {
-        Self::new(Cow::from(s))
+        Self::new(Cow::Borrowed(s))
     }
 }
 
 impl<'a> From<String> for LineComment<'a> {
     fn from(s: String) -> Self {
-        Self::new(Cow::from(s))
+        Self::new(Cow::Owned(s))
     }
 }
 
@@ -93,18 +112,29 @@ impl<'a> StrictEq for LineComment<'a> {
 }
 
 #[derive(
-    Constructor,
+    AsRef,
     Clone,
+    Constructor,
     Debug,
+    Deref,
+    DerefMut,
     Display,
     Eq,
     PartialEq,
     Hash,
+    Index,
+    IndexMut,
+    IntoIterator,
     Serialize,
     Deserialize,
 )]
+#[as_ref(forward)]
 #[display(fmt = "{}", "_0.join(\"\n\")")]
-pub struct MultiLineComment<'a>(pub Vec<Cow<'a, str>>);
+#[into_iterator(owned, ref, ref_mut)]
+pub struct MultiLineComment<'a>(
+    /// Represents the lines of text represented as a comment
+    Vec<Cow<'a, str>>,
+);
 
 impl MultiLineComment<'_> {
     pub fn to_borrowed(&self) -> MultiLineComment {
@@ -135,33 +165,39 @@ impl MultiLineComment<'_> {
     }
 }
 
-impl<'a> MultiLineComment<'a> {
-    pub fn as_lines(&self) -> &[Cow<'a, str>] {
-        &self.0
-    }
-}
-
 impl<'a> From<&'a str> for MultiLineComment<'a> {
     fn from(s: &'a str) -> Self {
-        Self::from(vec![s])
+        std::iter::once(s).collect()
     }
 }
 
 impl<'a> From<String> for MultiLineComment<'a> {
     fn from(s: String) -> Self {
-        Self::from(vec![s])
+        std::iter::once(s).collect()
     }
 }
 
-impl<'a> From<Vec<&'a str>> for MultiLineComment<'a> {
-    fn from(list: Vec<&'a str>) -> Self {
-        Self::new(list.into_iter().map(Cow::from).collect())
+impl<'a> FromIterator<&'a str> for MultiLineComment<'a> {
+    /// Produces a multiline comment using the given iterator as the
+    /// comment's lines
+    fn from_iter<I: IntoIterator<Item = &'a str>>(iter: I) -> Self {
+        iter.into_iter().map(Cow::Borrowed).collect()
     }
 }
 
-impl<'a> From<Vec<String>> for MultiLineComment<'a> {
-    fn from(list: Vec<String>) -> Self {
-        Self::new(list.into_iter().map(Cow::from).collect())
+impl FromIterator<String> for MultiLineComment<'static> {
+    /// Produces a multiline comment using the given iterator as the
+    /// comment's lines
+    fn from_iter<I: IntoIterator<Item = String>>(iter: I) -> Self {
+        iter.into_iter().map(Cow::Owned).collect()
+    }
+}
+
+impl<'a> FromIterator<Cow<'a, str>> for MultiLineComment<'a> {
+    /// Produces a multiline comment using the given iterator as the
+    /// comment's lines
+    fn from_iter<I: IntoIterator<Item = Cow<'a, str>>>(iter: I) -> Self {
+        Self::new(iter.into_iter().collect())
     }
 }
 

@@ -1,6 +1,6 @@
 use crate::StrictEq;
 use derive_more::{
-    Constructor, Deref, DerefMut, From, Index, IndexMut, Into, IntoIterator,
+    Constructor, Deref, DerefMut, Index, IndexMut, IntoIterator,
 };
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, convert::TryFrom, fmt};
@@ -13,25 +13,27 @@ use uriparse::{Fragment, FragmentError};
     Debug,
     Deref,
     DerefMut,
-    From,
-    Index,
-    IndexMut,
-    Into,
-    IntoIterator,
     Eq,
     PartialEq,
     Hash,
+    Index,
+    IndexMut,
+    IntoIterator,
     Serialize,
     Deserialize,
 )]
-pub struct Anchor<'a>(Vec<Cow<'a, str>>);
+#[into_iterator(owned, ref, ref_mut)]
+pub struct Anchor<'a>(
+    /// Represents the individual parts of the anchor
+    Vec<Cow<'a, str>>,
+);
 
 impl Anchor<'_> {
     pub fn to_borrowed(&self) -> Anchor {
         use self::Cow::*;
 
         let elements = self
-            .iter()
+            .into_iter()
             .map(|x| {
                 Cow::Borrowed(match x {
                     Borrowed(x) => *x,
@@ -60,25 +62,13 @@ impl<'a> Anchor<'a> {
         use std::fmt::Write;
         let mut fragment = String::new();
         if !self.is_empty() {
-            write!(&mut fragment, "#{}", self.join("%23")).expect(
+            write!(&mut fragment, "#{}", self.0.join("%23")).expect(
                 "Anchor encoded_uri_fragment returned error unexpectedly",
             );
         }
         fragment
     }
-}
 
-impl<'a> fmt::Display for Anchor<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.is_empty() {
-            Ok(())
-        } else {
-            write!(f, "#{}", self.join("#"))
-        }
-    }
-}
-
-impl<'a> Anchor<'a> {
     // NOTE: Cannot use FromStr due to conflicting lifetimes of impl and trait
     //       method's input str
     pub fn from_uri_fragment(s: &'a str) -> Option<Self> {
@@ -91,6 +81,16 @@ impl<'a> Anchor<'a> {
         }
 
         None
+    }
+}
+
+impl<'a> fmt::Display for Anchor<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.is_empty() {
+            Ok(())
+        } else {
+            write!(f, "#{}", self.0.join("#"))
+        }
     }
 }
 
@@ -123,7 +123,8 @@ impl<'a> TryFrom<Anchor<'a>> for Fragment<'static> {
 
     /// Consumes an anchor, producing a newly-allocated fragment
     fn try_from(anchor: Anchor<'a>) -> Result<Self, Self::Error> {
-        Fragment::try_from(anchor.join("-").as_str()).map(Fragment::into_owned)
+        Fragment::try_from(anchor.0.join("-").as_str())
+            .map(Fragment::into_owned)
     }
 }
 

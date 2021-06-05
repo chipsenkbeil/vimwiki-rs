@@ -24,7 +24,7 @@ pub fn inline_element_container(
         "Inline Element Container",
         locate(capture(map(
             many1(deeper(inline_element)),
-            InlineElementContainer::from,
+            InlineElementContainer::new,
         ))),
     )(input)
 }
@@ -71,12 +71,9 @@ mod tests {
         let input = Span::from(r"*not %%bold*");
         let (input, container) = inline_element_container(input).unwrap();
         assert!(input.is_empty(), "Did not consume all of input");
+        assert_eq!(container[0], InlineElement::from(Text::from(r"*not ")));
         assert_eq!(
-            container.elements[0],
-            InlineElement::from(Text::from(r"*not "))
-        );
-        assert_eq!(
-            container.elements[1],
+            container[1],
             InlineElement::Comment(LineComment::from(r"bold*").into())
         );
     }
@@ -86,12 +83,9 @@ mod tests {
         let input = Span::from(r"_not %%italic_");
         let (input, container) = inline_element_container(input).unwrap();
         assert!(input.is_empty(), "Did not consume all of input");
+        assert_eq!(container[0], InlineElement::from(Text::from(r"_not ")));
         assert_eq!(
-            container.elements[0],
-            InlineElement::from(Text::from(r"_not "))
-        );
-        assert_eq!(
-            container.elements[1],
+            container[1],
             InlineElement::Comment(LineComment::from(r"italic_").into())
         );
     }
@@ -102,12 +96,9 @@ mod tests {
         let input = Span::from(r"~~not %%strikeout~~");
         let (input, container) = inline_element_container(input).unwrap();
         assert!(input.is_empty(), "Did not consume all of input");
+        assert_eq!(container[0], InlineElement::from(Text::from(r"~~not ")));
         assert_eq!(
-            container.elements[0],
-            InlineElement::from(Text::from(r"~~not "))
-        );
-        assert_eq!(
-            container.elements[1],
+            container[1],
             InlineElement::Comment(LineComment::from(r"strikeout~~").into())
         );
     }
@@ -118,12 +109,9 @@ mod tests {
         let input = Span::from(r"^not %%superscript^");
         let (input, container) = inline_element_container(input).unwrap();
         assert!(input.is_empty(), "Did not consume all of input");
+        assert_eq!(container[0], InlineElement::from(Text::from(r"^not ")));
         assert_eq!(
-            container.elements[0],
-            InlineElement::from(Text::from(r"^not "))
-        );
-        assert_eq!(
-            container.elements[1],
+            container[1],
             InlineElement::Comment(LineComment::from(r"superscript^").into())
         );
     }
@@ -134,12 +122,9 @@ mod tests {
         let input = Span::from(r",,not %%subscript,,");
         let (input, container) = inline_element_container(input).unwrap();
         assert!(input.is_empty(), "Did not consume all of input");
+        assert_eq!(container[0], InlineElement::from(Text::from(r",,not ")));
         assert_eq!(
-            container.elements[0],
-            InlineElement::from(Text::from(r",,not "))
-        );
-        assert_eq!(
-            container.elements[1],
+            container[1],
             InlineElement::Comment(LineComment::from(r"subscript,,").into())
         );
     }
@@ -149,12 +134,9 @@ mod tests {
         let input = Span::from(r"$not %%math$");
         let (input, container) = inline_element_container(input).unwrap();
         assert!(input.is_empty(), "Did not consume all of input");
+        assert_eq!(container[0], InlineElement::from(Text::from(r"$not ")));
         assert_eq!(
-            container.elements[0],
-            InlineElement::from(Text::from(r"$not "))
-        );
-        assert_eq!(
-            container.elements[1],
+            container[1],
             InlineElement::Comment(LineComment::from(r"math$").into())
         );
     }
@@ -164,12 +146,9 @@ mod tests {
         let input = Span::from(r"`not %%code`");
         let (input, container) = inline_element_container(input).unwrap();
         assert!(input.is_empty(), "Did not consume all of input");
+        assert_eq!(container[0], InlineElement::from(Text::from(r"`not ")));
         assert_eq!(
-            container.elements[0],
-            InlineElement::from(Text::from(r"`not "))
-        );
-        assert_eq!(
-            container.elements[1],
+            container[1],
             InlineElement::Comment(LineComment::from(r"code`").into())
         );
     }
@@ -180,11 +159,11 @@ mod tests {
         let (input, container) = inline_element_container(input).unwrap();
         assert!(input.is_empty(), "Did not consume all of input");
         assert_eq!(
-            container.elements[0],
+            container[0],
             InlineElement::from(Text::from(r"[[link|not "))
         );
         assert_eq!(
-            container.elements[1],
+            container[1],
             InlineElement::Comment(LineComment::from(r"link]]").into())
         );
     }
@@ -194,18 +173,12 @@ mod tests {
         let input = Span::from(r"TO%%+DO+%%DO");
         let (input, container) = inline_element_container(input).unwrap();
         assert!(input.is_empty(), "Did not consume all of input");
+        assert_eq!(container[0], InlineElement::from(Text::from(r"TO")));
         assert_eq!(
-            container.elements[0],
-            InlineElement::from(Text::from(r"TO"))
-        );
-        assert_eq!(
-            container.elements[1],
+            container[1],
             InlineElement::Comment(MultiLineComment::from(r"DO").into())
         );
-        assert_eq!(
-            container.elements[2],
-            InlineElement::from(Text::from(r"DO"))
-        );
+        assert_eq!(container[2], InlineElement::from(Text::from(r"DO")));
     }
 
     #[test]
@@ -213,30 +186,21 @@ mod tests {
         let input = Span::from(r"some text%%comment");
         let (input, container) = inline_element_container(input).unwrap();
         assert!(input.is_empty(), "Did not consume all of input");
+        assert_eq!(container[0], InlineElement::from(Text::from(r"some text")));
         assert_eq!(
-            container.elements[0],
-            InlineElement::from(Text::from(r"some text"))
-        );
-        assert_eq!(
-            container.elements[1],
+            container[1],
             InlineElement::Comment(LineComment::from(r"comment").into())
         );
 
         let input = Span::from(r"some%%+comment+%%text");
         let (input, container) = inline_element_container(input).unwrap();
         assert!(input.is_empty(), "Did not consume all of input");
+        assert_eq!(container[0], InlineElement::from(Text::from(r"some")));
         assert_eq!(
-            container.elements[0],
-            InlineElement::from(Text::from(r"some"))
-        );
-        assert_eq!(
-            container.elements[1],
+            container[1],
             InlineElement::Comment(MultiLineComment::from(r"comment").into())
         );
-        assert_eq!(
-            container.elements[2],
-            InlineElement::from(Text::from(r"text"))
-        );
+        assert_eq!(container[2], InlineElement::from(Text::from(r"text")));
     }
 
     #[test]
@@ -244,12 +208,12 @@ mod tests {
         let input = Span::from(
             "*item 1* has a [[link]] with `code` and :tag: and $formula$ is DONE",
         );
-        let (input, mut container) = inline_element_container(input).unwrap();
+        let (input, container) = inline_element_container(input).unwrap();
         assert!(input.is_empty(), "Did not consume all of input");
         assert_eq!(
             container
-                .elements
-                .drain(..)
+                .into_inner()
+                .into_iter()
                 .map(|c| c.into_inner())
                 .collect::<Vec<InlineElement>>(),
             vec![
@@ -286,7 +250,7 @@ mod tests {
             0,
             "Inline element container has wrong depth level"
         );
-        for element in container.elements.iter() {
+        for element in container.iter() {
             assert_eq!(
                 element.depth(),
                 1,

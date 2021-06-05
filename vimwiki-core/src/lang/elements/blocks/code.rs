@@ -1,12 +1,32 @@
 use crate::StrictEq;
-use derive_more::Constructor;
+use derive_more::{Constructor, Index, IndexMut, IntoIterator};
 use serde::{Deserialize, Serialize};
-use std::{borrow::Cow, collections::HashMap};
+use std::{borrow::Cow, collections::HashMap, iter::FromIterator};
 
-#[derive(Constructor, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Constructor,
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    Index,
+    IndexMut,
+    IntoIterator,
+    Serialize,
+    Deserialize,
+)]
 pub struct CodeBlock<'a> {
-    pub lang: Option<Cow<'a, str>>,
+    /// Represents the language associated with the code block if it has one
+    pub language: Option<Cow<'a, str>>,
+
+    /// Represents metadata associated with the code block in the form of
+    /// key/value pairs
     pub metadata: HashMap<Cow<'a, str>, Cow<'a, str>>,
+
+    /// Represents the lines of text contained within the code block
+    #[index]
+    #[index_mut]
+    #[into_iterator(owned, ref, ref_mut)]
     pub lines: Vec<Cow<'a, str>>,
 }
 
@@ -16,7 +36,7 @@ impl<'a> CodeBlock<'a> {
         iter: I,
     ) -> Self {
         Self {
-            lang: None,
+            language: None,
             metadata: HashMap::new(),
             lines: iter.into_iter().map(Into::into).collect(),
         }
@@ -28,7 +48,7 @@ impl CodeBlock<'_> {
         use self::Cow::*;
 
         CodeBlock {
-            lang: self.lang.as_ref().map(|x| {
+            language: self.language.as_ref().map(|x| {
                 Cow::Borrowed(match x {
                     Borrowed(x) => *x,
                     Owned(x) => x.as_str(),
@@ -65,7 +85,7 @@ impl CodeBlock<'_> {
 
     pub fn into_owned(self) -> CodeBlock<'static> {
         CodeBlock {
-            lang: self.lang.map(|x| Cow::from(x.into_owned())),
+            language: self.language.map(|x| Cow::from(x.into_owned())),
             metadata: self
                 .metadata
                 .into_iter()
@@ -79,6 +99,30 @@ impl CodeBlock<'_> {
                 .map(|x| Cow::from(x.into_owned()))
                 .collect(),
         }
+    }
+}
+
+impl<'a> FromIterator<&'a str> for CodeBlock<'a> {
+    /// Produces a new code block using the given iterator as the
+    /// code block's lines
+    fn from_iter<I: IntoIterator<Item = &'a str>>(iter: I) -> Self {
+        Self::from_lines(iter)
+    }
+}
+
+impl FromIterator<String> for CodeBlock<'static> {
+    /// Produces a new code block using the given iterator as the
+    /// code block's lines
+    fn from_iter<I: IntoIterator<Item = String>>(iter: I) -> Self {
+        Self::from_lines(iter)
+    }
+}
+
+impl<'a> FromIterator<Cow<'a, str>> for CodeBlock<'a> {
+    /// Produces a new code block using the given iterator as the
+    /// code block's lines
+    fn from_iter<I: IntoIterator<Item = Cow<'a, str>>>(iter: I) -> Self {
+        Self::from_lines(iter)
     }
 }
 

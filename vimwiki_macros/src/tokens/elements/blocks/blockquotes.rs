@@ -9,10 +9,8 @@ fn tokenize_blockquote(
     blockquote: &Blockquote,
 ) -> TokenStream {
     let root = root_crate();
-    let lines = blockquote.lines().iter().map(|x| do_tokenize!(ctx, x));
+    let lines = blockquote.lines.iter().map(|x| do_tokenize!(ctx, x));
     quote! {
-        #root::Blockquote {
-            lines: ::std::vec![#(#lines),*],
-        }
+        #root::Blockquote::new(::std::vec![#(#lines),*])
     }
 }

@@ -6,58 +6,88 @@ use crate::{
     StrictEq,
 };
 use derive_more::{
-    Constructor, Deref, DerefMut, From, Index, IndexMut, Into, IntoIterator,
+    AsRef, Constructor, Deref, DerefMut, From, Index, IndexMut, Into,
+    IntoIterator,
 };
 use serde::{Deserialize, Serialize};
+use std::iter::FromIterator;
 
 mod item;
 pub use item::*;
 
 /// Represents a regular list comprised of individual items
 #[derive(
-    Constructor, Clone, Debug, From, Eq, PartialEq, Serialize, Deserialize,
+    Constructor,
+    Clone,
+    Debug,
+    From,
+    Eq,
+    PartialEq,
+    Index,
+    IndexMut,
+    IntoIterator,
+    Serialize,
+    Deserialize,
 )]
 pub struct List<'a> {
+    /// Represents items contained within the list
+    #[index]
+    #[index_mut]
+    #[into_iterator(owned, ref, ref_mut)]
     pub items: Vec<Located<ListItem<'a>>>,
 }
 
 impl List<'_> {
     pub fn to_borrowed(&self) -> List {
-        List {
-            items: self
-                .items
-                .iter()
-                .map(|x| x.as_ref().map(ListItem::to_borrowed))
-                .collect(),
-        }
+        self.into_iter()
+            .map(|x| x.as_ref().map(ListItem::to_borrowed))
+            .collect()
     }
 
     pub fn into_owned(self) -> List<'static> {
-        List {
-            items: self
-                .items
-                .into_iter()
-                .map(|x| x.map(ListItem::into_owned))
-                .collect(),
-        }
+        self.into_iter()
+            .map(|x| x.map(ListItem::into_owned))
+            .collect()
     }
 }
 
 impl<'a> List<'a> {
+    /// Returns iterator of references to list items
+    pub fn iter(&self) -> impl Iterator<Item = &Located<ListItem<'a>>> {
+        self.into_iter()
+    }
+
+    /// Returns iterator of mutable references to list items
+    pub fn iter_mut(
+        &mut self,
+    ) -> impl Iterator<Item = &mut Located<ListItem<'a>>> {
+        self.into_iter()
+    }
+
+    /// Returns total items contained in list
+    pub fn len(&self) -> usize {
+        self.items.len()
+    }
+
+    /// Returns true if list has no items
+    pub fn is_empty(&self) -> bool {
+        self.items.is_empty()
+    }
+
     /// Returns whether or not the list represents an ordered list based on
     /// the first list item; if there are no items then this would return false
     pub fn is_ordered(&self) -> bool {
-        self.items
-            .first()
-            .map_or(false, |item| item.item_type.is_ordered())
+        self.iter()
+            .next()
+            .map_or(false, |item| item.ty.is_ordered())
     }
 
     /// Returns whether or not the list represents an unordered list based on
     /// the first list item; if there are no items then this would return false
     pub fn is_unordered(&self) -> bool {
-        self.items
-            .first()
-            .map_or(false, |item| item.item_type.is_unordered())
+        self.iter()
+            .next()
+            .map_or(false, |item| item.ty.is_unordered())
     }
 
     /// Normalizes the list by standardizing the item types based on the
@@ -85,7 +115,7 @@ impl<'a> List<'a> {
             //       alphabetic lists if for some reason starting with i and moving
             //       on to other letters like j and k
             for item in tail {
-                item.item_type = head.item_type.clone();
+                item.ty = head.ty.clone();
             }
         }
 
@@ -113,10 +143,17 @@ impl<'a> IntoChildren for List<'a> {
     type Child = Located<InlineBlockElement<'a>>;
 
     fn into_children(self) -> Vec<Self::Child> {
-        self.items
-            .into_iter()
+        self.into_iter()
             .map(|x| x.map(InlineBlockElement::from))
             .collect()
+    }
+}
+
+impl<'a> FromIterator<Located<ListItem<'a>>> for List<'a> {
+    fn from_iter<I: IntoIterator<Item = Located<ListItem<'a>>>>(
+        iter: I,
+    ) -> Self {
+        Self::new(iter.into_iter().collect())
     }
 }
 
@@ -166,13 +203,13 @@ impl<'a> StrictEq for ListItemContent<'a> {
 
 /// Represents a collection of list item content
 #[derive(
+    AsRef,
     Constructor,
     Clone,
     Debug,
     Default,
     Deref,
     DerefMut,
-    From,
     Index,
     IndexMut,
     Into,
@@ -182,29 +219,21 @@ impl<'a> StrictEq for ListItemContent<'a> {
     Serialize,
     Deserialize,
 )]
-pub struct ListItemContents<'a> {
-    pub contents: Vec<Located<ListItemContent<'a>>>,
-}
+#[as_ref(forward)]
+#[into_iterator(owned, ref, ref_mut)]
+pub struct ListItemContents<'a>(Vec<Located<ListItemContent<'a>>>);
 
 impl ListItemContents<'_> {
     pub fn to_borrowed(&self) -> ListItemContents {
-        ListItemContents {
-            contents: self
-                .contents
-                .iter()
-                .map(|x| x.as_ref().map(ListItemContent::to_borrowed))
-                .collect(),
-        }
+        self.iter()
+            .map(|x| x.as_ref().map(ListItemContent::to_borrowed))
+            .collect()
     }
 
     pub fn into_owned(self) -> ListItemContents<'static> {
-        ListItemContents {
-            contents: self
-                .contents
-                .into_iter()
-                .map(|x| x.map(ListItemContent::into_owned))
-                .collect(),
-        }
+        self.into_iter()
+            .map(|x| x.map(ListItemContent::into_owned))
+            .collect()
     }
 }
 
@@ -212,11 +241,10 @@ impl<'a> ListItemContents<'a> {
     pub fn inline_content_iter(
         &self,
     ) -> impl Iterator<Item = &InlineElement> + '_ {
-        self.contents
-            .iter()
+        self.iter()
             .filter_map(|c| match c.as_inner() {
                 ListItemContent::InlineContent(x) => {
-                    Some(x.elements.iter().map(|y| y.as_inner()))
+                    Some(x.iter().map(|y| y.as_inner()))
                 }
                 _ => None,
             })
@@ -226,11 +254,10 @@ impl<'a> ListItemContents<'a> {
     pub fn inline_content_iter_mut(
         &mut self,
     ) -> impl Iterator<Item = &mut InlineElement<'a>> + '_ {
-        self.contents
-            .iter_mut()
+        self.iter_mut()
             .filter_map(|c| match c.as_mut_inner() {
                 ListItemContent::InlineContent(x) => {
-                    Some(x.elements.iter_mut().map(|y| y.as_mut_inner()))
+                    Some(x.iter_mut().map(|y| y.as_mut_inner()))
                 }
                 _ => None,
             })
@@ -238,7 +265,7 @@ impl<'a> ListItemContents<'a> {
     }
 
     pub fn sublist_iter(&self) -> impl Iterator<Item = &List> + '_ {
-        self.contents.iter().flat_map(|c| match c.as_inner() {
+        self.iter().flat_map(|c| match c.as_inner() {
             ListItemContent::List(x) => Some(x),
             _ => None,
         })
@@ -247,12 +274,10 @@ impl<'a> ListItemContents<'a> {
     pub fn sublist_iter_mut(
         &mut self,
     ) -> impl Iterator<Item = &mut List<'a>> + '_ {
-        self.contents
-            .iter_mut()
-            .flat_map(|c| match c.as_mut_inner() {
-                ListItemContent::List(x) => Some(x),
-                _ => None,
-            })
+        self.iter_mut().flat_map(|c| match c.as_mut_inner() {
+            ListItemContent::List(x) => Some(x),
+            _ => None,
+        })
     }
 }
 
@@ -260,7 +285,7 @@ impl<'a> AsChildrenSlice for ListItemContents<'a> {
     type Child = Located<ListItemContent<'a>>;
 
     fn as_children_slice(&self) -> &[Self::Child] {
-        &self.contents
+        &self.0
     }
 }
 
@@ -268,7 +293,7 @@ impl<'a> AsChildrenMutSlice for ListItemContents<'a> {
     type Child = Located<ListItemContent<'a>>;
 
     fn as_children_mut_slice(&mut self) -> &mut [Self::Child] {
-        &mut self.contents
+        &mut self.0
     }
 }
 
@@ -276,8 +301,7 @@ impl<'a> IntoChildren for ListItemContents<'a> {
     type Child = Located<Element<'a>>;
 
     fn into_children(self) -> Vec<Self::Child> {
-        self.contents
-            .into_iter()
+        self.into_iter()
             .flat_map(|x| {
                 let region = x.region();
                 match x.into_inner() {
@@ -295,9 +319,17 @@ impl<'a> IntoChildren for ListItemContents<'a> {
     }
 }
 
+impl<'a> FromIterator<Located<ListItemContent<'a>>> for ListItemContents<'a> {
+    fn from_iter<I: IntoIterator<Item = Located<ListItemContent<'a>>>>(
+        iter: I,
+    ) -> Self {
+        Self::new(iter.into_iter().collect())
+    }
+}
+
 impl<'a> StrictEq for ListItemContents<'a> {
     /// Performs a strict_eq check against inner contents
     fn strict_eq(&self, other: &Self) -> bool {
-        self.contents.strict_eq(&other.contents)
+        self.0.strict_eq(&other.0)
     }
 }

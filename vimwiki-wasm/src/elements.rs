@@ -281,7 +281,7 @@ impl InlineBlockElement {
     pub fn into_term(self) -> Option<InlineElementContainer> {
         match self.0.into_inner() {
             v::InlineBlockElement::Term(x) => {
-                Some(InlineElementContainer(x.into_inner()))
+                Some(InlineElementContainer(x.into()))
             }
             _ => None,
         }
@@ -296,7 +296,7 @@ impl InlineBlockElement {
     pub fn into_definition(self) -> Option<InlineElementContainer> {
         match self.0.into_inner() {
             v::InlineBlockElement::Definition(x) => {
-                Some(InlineElementContainer(x.into_inner()))
+                Some(InlineElementContainer(x.into()))
             }
             _ => None,
         }
@@ -483,8 +483,8 @@ pub struct CodeBlock(v::Located<v::CodeBlock<'static>>);
 impl CodeBlock {
     /// Represents the language associated with the code block
     #[wasm_bindgen(getter)]
-    pub fn lang(&self) -> Option<String> {
-        self.0.lang.as_ref().map(ToString::to_string)
+    pub fn language(&self) -> Option<String> {
+        self.0.language.as_ref().map(ToString::to_string)
     }
 
     /// Returns object containing metadata of code block
@@ -494,8 +494,8 @@ impl CodeBlock {
 
         for (key, value) in self.0.metadata.iter() {
             let tuple = js_sys::Array::new();
-            tuple.push(&JsValue::from_str(key.as_ref()));
-            tuple.push(&JsValue::from_str(value.as_ref()));
+            tuple.push(&JsValue::from_str(key));
+            tuple.push(&JsValue::from_str(value));
 
             arr.push(&tuple);
         }
@@ -534,11 +534,11 @@ impl DefinitionList {
     /// Returns the definition associated with the specified term
     pub fn get_def(&self, term: &str) -> Option<InlineElementContainer> {
         self.0.get(term).map(|x| {
-            InlineElementContainer(v::InlineElementContainer::from(
+            InlineElementContainer(
                 x.iter()
                     .map(|x| x.as_inner().as_inner().to_borrowed().into_owned())
-                    .collect::<Vec<v::InlineElementContainer>>(),
-            ))
+                    .collect::<v::InlineElementContainer>(),
+            )
         })
     }
 
@@ -605,7 +605,7 @@ impl List {
     /// Represents total number of items within list
     #[wasm_bindgen(getter)]
     pub fn item_cnt(&self) -> usize {
-        self.0.items.len()
+        self.0.len()
     }
 }
 
@@ -630,7 +630,7 @@ impl ListItem {
     /// Represents the prefix of list item (e.g. hyphen or roman numeral)
     #[wasm_bindgen(getter)]
     pub fn prefix(&self) -> String {
-        self.0.item_type.to_prefix(self.0.pos, self.0.suffix)
+        self.0.ty.to_prefix(self.0.pos, self.0.suffix)
     }
 
     /// Represents suffix of list item (e.g. period or paren)
@@ -647,12 +647,12 @@ impl ListItem {
 
     /// Returns true if list item is ordered type
     pub fn is_ordered(&self) -> bool {
-        self.0.item_type.is_ordered()
+        self.0.ty.is_ordered()
     }
 
     /// Returns true if list item is unordered type
     pub fn is_unordered(&self) -> bool {
-        self.0.item_type.is_unordered()
+        self.0.ty.is_unordered()
     }
 }
 
@@ -1028,7 +1028,7 @@ impl Table {
     /// Returns true if centered
     #[wasm_bindgen(getter)]
     pub fn centered(&self) -> bool {
-        self.0.is_centered()
+        self.0.centered
     }
 }
 
@@ -1042,8 +1042,10 @@ impl Cell {
     #[wasm_bindgen(constructor)]
     pub fn new(txt: &str, region: Option<Region>) -> Result<Cell, JsValue> {
         Ok(Self(v::Located::new(
-            v::Cell::Content(v::Located::from(v::Text::from(txt)).into())
-                .into_owned(),
+            v::Cell::Content(v::InlineElementContainer::new(vec![
+                v::Located::from(v::InlineElement::Text(v::Text::from(txt))),
+            ]))
+            .into_owned(),
             region.map(|x| x.0).unwrap_or_default(),
         )))
     }
@@ -1212,7 +1214,6 @@ impl DecoratedText {
     pub fn contents(&self) -> DecoratedTextContents {
         DecoratedTextContents(
             self.0
-                .as_contents()
                 .iter()
                 .map(|x| x.as_ref().map(|x| x.to_borrowed().into_owned()))
                 .collect(),
@@ -1445,7 +1446,7 @@ impl Link {
     /// Returns uri associated with link
     #[wasm_bindgen(getter)]
     pub fn uri(&self) -> String {
-        self.0.data().uri_ref().to_string()
+        self.0.data().uri_ref.to_string()
     }
 
     /// Returns description associated with link (if it exists)
@@ -1632,8 +1633,8 @@ impl Comment {
     /// Retrieves the line at the specified index
     pub fn line_at(&self, idx: usize) -> Option<String> {
         match self.0.as_inner() {
-            v::Comment::Line(x) if idx == 0 => Some(x.0.to_string()),
-            v::Comment::MultiLine(x) => x.0.get(idx).map(ToString::to_string),
+            v::Comment::Line(x) if idx == 0 => Some(x.to_string()),
+            v::Comment::MultiLine(x) => x.get(idx).map(ToString::to_string),
             _ => None,
         }
     }
@@ -1643,7 +1644,7 @@ impl Comment {
     pub fn line_cnt(&self) -> usize {
         match self.0.as_inner() {
             v::Comment::Line(_) => 1,
-            v::Comment::MultiLine(x) => x.0.len(),
+            v::Comment::MultiLine(x) => x.len(),
         }
     }
 

@@ -14,8 +14,9 @@ fn tokenize_code_block(
     code_block: &CodeBlock,
 ) -> TokenStream {
     let root = root_crate();
-    let lang =
-        tokenize_option(ctx, &code_block.lang, |ctx, x| do_tokenize!(ctx, x));
+    let lang = tokenize_option(ctx, &code_block.language, |ctx, x| {
+        do_tokenize!(ctx, x)
+    });
     let metadata = tokenize_hashmap(
         &code_block.metadata,
         tokenize_cow_str_type(),
@@ -25,10 +26,10 @@ fn tokenize_code_block(
     );
     let lines = code_block.lines.iter().map(|x| do_tokenize!(ctx, x));
     quote! {
-        #root::CodeBlock {
-            lang: #lang,
-            metadata: #metadata,
-            lines: ::std::vec![#(#lines),*],
-        }
+        #root::CodeBlock::new(
+            #lang,
+            #metadata,
+            ::std::vec![#(#lines),*],
+        )
     }
 }

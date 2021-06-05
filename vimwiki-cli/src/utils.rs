@@ -1,7 +1,6 @@
 use crate::CommonOpt;
 use log::*;
 use std::{io, path::PathBuf};
-use vimvar::VimVar;
 use vimwiki::{HtmlConfig, HtmlWikiConfig};
 
 /// Attempts to load an html config from a file, attempting to load wikis from
@@ -91,8 +90,11 @@ pub fn load_html_config(
 fn load_vimwiki_list() -> std::io::Result<Vec<HtmlWikiConfig>> {
     trace!("load_vimwiki_list()");
 
-    let vimwiki_list_json = VimVar::load_global_var("vimwiki_list", false)?;
-    trace!("g:vimwiki_list == {:?}", vimwiki_list_json);
+    let vimwiki_list_json = vimvar::load_global_var("vimwiki_list", false)?;
+    trace!(
+        "g:vimwiki_list == {:?}",
+        serde_json::to_string_pretty(&vimwiki_list_json)
+    );
 
     if let Some(json) = vimwiki_list_json {
         serde_json::from_value(json).map_err(Into::into)

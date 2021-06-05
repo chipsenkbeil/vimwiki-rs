@@ -42,7 +42,7 @@ mod tests {
 
         assert_eq!(link.scheme().unwrap(), "http");
         assert_eq!(
-            link.data().uri_ref().host().unwrap().to_string(),
+            link.data().uri_ref.host().unwrap().to_string(),
             "example.com"
         );
     }
@@ -57,7 +57,7 @@ mod tests {
 
         assert_eq!(link.scheme().unwrap(), "https");
         assert_eq!(
-            link.data().uri_ref().host().unwrap().to_string(),
+            link.data().uri_ref.host().unwrap().to_string(),
             "example.com"
         );
     }
@@ -73,7 +73,7 @@ mod tests {
 
         assert_eq!(link.scheme().unwrap(), "https");
         assert_eq!(
-            link.data().uri_ref().host().unwrap().to_string(),
+            link.data().uri_ref.host().unwrap().to_string(),
             "www.example.com"
         );
     }
@@ -88,7 +88,7 @@ mod tests {
 
         assert_eq!(link.scheme().unwrap(), "ftp");
         assert_eq!(
-            link.data().uri_ref().host().unwrap().to_string(),
+            link.data().uri_ref.host().unwrap().to_string(),
             "example.com"
         );
     }
@@ -102,7 +102,7 @@ mod tests {
         assert!(input.is_empty());
 
         assert_eq!(link.scheme().unwrap(), "file");
-        assert_eq!(link.data().uri_ref().path(), "/some/path");
+        assert_eq!(link.data().uri_ref.path(), "/some/path");
     }
 
     #[test]
@@ -114,7 +114,7 @@ mod tests {
         assert!(input.is_empty());
 
         assert_eq!(link.scheme().unwrap(), "local");
-        assert_eq!(link.data().uri_ref().path(), "/some/path");
+        assert_eq!(link.data().uri_ref.path(), "/some/path");
     }
 
     #[test]
@@ -126,6 +126,6 @@ mod tests {
         assert!(input.is_empty());
 
         assert_eq!(link.scheme().unwrap(), "mailto");
-        assert_eq!(link.data().uri_ref().path(), "person@example.com");
+        assert_eq!(link.data().uri_ref.path(), "person@example.com");
     }
 }

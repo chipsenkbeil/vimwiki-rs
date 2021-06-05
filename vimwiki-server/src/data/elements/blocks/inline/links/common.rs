@@ -30,7 +30,7 @@ impl<'a> From<v::Description<'a>> for Description {
         match d {
             v::Description::Text(x) => Self::Text(x.to_string()),
             v::Description::TransclusionLink(x) => {
-                Self::UriRef(UriRef::from(x.into_uri_ref()))
+                Self::UriRef(UriRef::from(x.uri_ref))
             }
         }
     }

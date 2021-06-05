@@ -55,15 +55,18 @@ impl<'a> FromVimwikiElement<'a> for TransclusionLink {
     ) -> Result<Self, GraphqlDatabaseError> {
         let region = Region::from(element.region());
         let link = element.into_inner();
-        let (uri_ref, maybe_description, maybe_properties) =
-            link.into_data().into_parts();
+        let v::LinkData {
+            uri_ref,
+            description,
+            properties,
+        } = link.into_data();
         GraphqlDatabaseError::wrap(
             Self::build()
                 .region(region)
                 .uri_ref(UriRef::from(uri_ref))
-                .description(maybe_description.map(Description::from))
+                .description(description.map(Description::from))
                 .properties(
-                    maybe_properties
+                    properties
                         .unwrap_or_default()
                         .into_iter()
                         .map(|(key, value)| Property {

@@ -1,6 +1,6 @@
 use super::LinkData;
 use crate::StrictEq;
-use derive_more::{Display, From, TryInto};
+use derive_more::{Display, From, IsVariant, TryInto};
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, convert::TryFrom};
 use uriparse::{URIReference, URIReferenceError};
@@ -15,6 +15,7 @@ use uriparse::{URIReference, URIReferenceError};
     Eq,
     PartialEq,
     Hash,
+    IsVariant,
     Serialize,
     Deserialize,
 )]
@@ -26,7 +27,7 @@ pub enum Description<'a> {
 impl<'a> Description<'a> {
     pub fn into_uri_ref(self) -> Option<URIReference<'a>> {
         match self {
-            Self::TransclusionLink(x) => Some(x.into_uri_ref()),
+            Self::TransclusionLink(x) => Some(x.uri_ref),
             _ => None,
         }
     }

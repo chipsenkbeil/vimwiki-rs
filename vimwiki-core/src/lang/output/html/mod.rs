@@ -130,7 +130,7 @@ impl<'a> Output for Blockquote<'a> {
 
         // Otherwise, we want to just drop in the lines verbatim
         } else {
-            for line in self.lines().iter() {
+            for line in self {
                 writeln!(f, "{}", escape::escape_html(&line))?;
             }
         }
@@ -160,7 +160,7 @@ impl<'a> Output for DefinitionList<'a> {
     /// ```
     fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
         writeln!(f, "<dl>")?;
-        for (term, defs) in self.iter() {
+        for (term, defs) in self {
             // Write our term in the form <dt>{term}</dt>
             write!(f, "<dt>")?;
             term.fmt(f)?;
@@ -299,7 +299,7 @@ impl<'a> Output for List<'a> {
             writeln!(f, "<ul>")?;
         }
 
-        for item in self.items.iter() {
+        for item in self {
             item.fmt(f)?;
         }
 
@@ -392,7 +392,7 @@ impl<'a> Output for ListItemContents<'a> {
 
     /// Writes a list item's contents in HTML
     fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
-        for content in self.contents.iter() {
+        for content in self {
             content.fmt(f)?;
         }
 
@@ -438,7 +438,7 @@ impl<'a> Output for MathBlock<'a> {
     fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
         if let Some(env) = self.environment.as_deref() {
             writeln!(f, r"\begin{{{}}}", env)?;
-            for line in self.lines.iter() {
+            for line in self {
                 writeln!(f, "{}", escape::escape_html(line))?;
             }
             writeln!(f, r"\end{{{}}}", env)?;
@@ -448,7 +448,7 @@ impl<'a> Output for MathBlock<'a> {
             //       do not parse. This would be appended to the end of the
             //       starting notation \[<CLASS>
             writeln!(f, r"\[")?;
-            for line in self.lines.iter() {
+            for line in self {
                 writeln!(f, "{}", escape::escape_html(line))?;
             }
             writeln!(f, r"\]")?;
@@ -553,7 +553,7 @@ impl<'a> Output for CodeBlock<'a> {
             let ts = custom_ts.as_ref().unwrap_or(&DEFAULT_THEME_SET);
 
             // Get syntax using language specifier, otherwise use plain text
-            let syntax = if let Some(lang) = self.lang.as_ref() {
+            let syntax = if let Some(lang) = self.language.as_ref() {
                 ss.find_syntax_by_token(lang)
                     .unwrap_or_else(|| ss.find_syntax_plain_text())
             } else {
@@ -579,7 +579,7 @@ impl<'a> Output for CodeBlock<'a> {
             //       may need to be retooled to be just the entire text
             //       including line endings while supporting an iterator over
             //       the lines
-            for line in self.lines.iter() {
+            for line in self {
                 let regions = h.highlight(line, ss);
                 writeln!(
                     f,
@@ -603,7 +603,7 @@ impl<'a> Output for CodeBlock<'a> {
                 write!(f, "<code")?;
 
                 // If provided with a language, fill it in as the class
-                if let Some(lang) = self.lang.as_ref() {
+                if let Some(lang) = self.language.as_ref() {
                     write!(f, r#" class="{}""#, lang)?;
                 }
 
@@ -661,13 +661,31 @@ impl<'a> Output for Paragraph<'a> {
     /// ```
     fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
         let ignore_newlines = f.config().paragraph.ignore_newline;
+        let is_blank = self.is_blank();
 
-        write!(f, "<p>")?;
+        // TODO: CHIP CHIP CHIP -- need to handle situation where a paragraph
+        //       is comprised ONLY of comments inside itself. In that situation,
+        //       we don't want to render the <p></p>, but we do want to
+        //       attempt to render comments in case the <!-- --> happens
+        //
+        //       Add to inline element container a method that checks through
+        //       all of the children to see if they are comments; then, we
+        //       can use this across all lines in a paragraph to do the same
+        //
+        //       We probably also need to support this for definition lists,
+        //       lists, and other places (???) where inline element containers
+        //       can exist
+
+        // Only render opening tag if not blank (meaning comprised of more
+        // than just comments)
+        if !is_blank {
+            write!(f, "<p>")?;
+        }
 
         for (idx, line) in self.lines.iter().enumerate() {
             let is_last_line = idx < self.lines.len() - 1;
 
-            for element in line.elements.iter() {
+            for element in line.iter() {
                 element.fmt(f)?;
             }
 
@@ -682,7 +700,11 @@ impl<'a> Output for Paragraph<'a> {
             }
         }
 
-        writeln!(f, "</p>")?;
+        // Only render closing tag if not blank (meaning comprised of more
+        // than just comments)
+        if !is_blank {
+            writeln!(f, "</p>")?;
+        }
 
         Ok(())
     }
@@ -762,7 +784,7 @@ impl<'a> Output for Table<'a> {
     /// ```
     ///
     fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
-        if self.is_centered() {
+        if self.centered {
             writeln!(f, "<table class=\"center\">")?;
         } else {
             writeln!(f, "<table>")?;
@@ -846,7 +868,7 @@ impl<'a> Output for InlineElementContainer<'a> {
 
     /// Writes a collection of inline elements in HTML
     fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
-        for element in self.elements.iter() {
+        for element in self {
             element.fmt(f)?;
         }
 
@@ -879,7 +901,7 @@ impl<'a> Output for Text<'a> {
 
     /// Writes text in HTML, escaping any HTML-specific characters
     fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
-        write!(f, "{}", escape::escape_html(&self.0))?;
+        write!(f, "{}", escape::escape_html(self.as_str()))?;
         Ok(())
     }
 }
@@ -1180,7 +1202,7 @@ impl<'a> Output for Tags<'a> {
     /// <span id="Header 1-tag1"></span><span class="tag" id="tag1">tag1</span>
     /// ```
     fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
-        for tag in self.iter() {
+        for tag in self {
             let id = escape::escape_html(tag.as_str());
             let complete_id = build_complete_id(
                 f,
@@ -1207,7 +1229,7 @@ impl<'a> Output for CodeInline<'a> {
     /// <code>some code</code>
     /// ```
     fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
-        write!(f, "<code>{}</code>", escape::escape_html(&self.code))?;
+        write!(f, "<code>{}</code>", escape::escape_html(self.as_str()))?;
         Ok(())
     }
 }
@@ -1224,7 +1246,7 @@ impl<'a> Output for MathInline<'a> {
     /// \(some math\)
     /// ```
     fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
-        write!(f, r"\({}\)", escape::escape_html(&self.formula))?;
+        write!(f, r"\({}\)", escape::escape_html(self.as_str()))?;
         Ok(())
     }
 }
@@ -1284,7 +1306,7 @@ impl<'a> Output for MultiLineComment<'a> {
     fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
         if f.config().comment.include {
             writeln!(f, "<!--")?;
-            for line in self.as_lines() {
+            for line in self {
                 writeln!(f, "{}", line)?;
             }
             write!(f, "-->")?;
@@ -1371,6 +1393,12 @@ mod tests {
             name: Some(name.as_ref().to_string()),
             ..Default::default()
         });
+    }
+
+    fn text_to_inline_element_container(s: &str) -> InlineElementContainer {
+        InlineElementContainer::new(vec![Located::from(InlineElement::Text(
+            Text::from(s),
+        ))])
     }
 
     #[test]
@@ -1468,9 +1496,7 @@ mod tests {
     ) {
         // Test no definitions
         let list = DefinitionList::new(vec![(
-            Located::from(DefinitionListValue::new(
-                Located::from(Text::from("term1")).into(),
-            )),
+            Located::from(DefinitionListValue::from("term1")),
             Vec::new(),
         )]);
 
@@ -1488,12 +1514,8 @@ mod tests {
 
         // Test single definition
         let list = DefinitionList::new(vec![(
-            Located::from(DefinitionListValue::new(
-                Located::from(Text::from("term1")).into(),
-            )),
-            vec![Located::from(DefinitionListValue::new(
-                Located::from(Text::from("def1")).into(),
-            ))],
+            Located::from(DefinitionListValue::from("term1")),
+            vec![Located::from(DefinitionListValue::from("def1"))],
         )]);
 
         let mut f = HtmlFormatter::default();
@@ -1511,16 +1533,10 @@ mod tests {
 
         // Test multiple definitions
         let list = DefinitionList::new(vec![(
-            Located::from(DefinitionListValue::new(
-                Located::from(Text::from("term1")).into(),
-            )),
+            Located::from(DefinitionListValue::from("term1")),
             vec![
-                Located::from(DefinitionListValue::new(
-                    Located::from(Text::from("def1")).into(),
-                )),
-                Located::from(DefinitionListValue::new(
-                    Located::from(Text::from("def2")).into(),
-                )),
+                Located::from(DefinitionListValue::from("def1")),
+                Located::from(DefinitionListValue::from("def2")),
             ],
         )]);
 
@@ -1552,10 +1568,8 @@ mod tests {
     #[test]
     fn header_should_output_div_h_and_a_tags() {
         let header = Header::new(
+            text_to_inline_element_container("some header"),
             3,
-            InlineElementContainer::new(vec![Located::from(
-                InlineElement::from(Text::from("some header")),
-            )]),
             false,
         );
 
@@ -1580,15 +1594,9 @@ mod tests {
 
     #[test]
     fn header_should_support_toc_variant() {
-        let header = Header::new(
-            3,
-            InlineElementContainer::new(vec![Located::from(
-                InlineElement::from(Text::from(
-                    HtmlHeaderConfig::default_table_of_contents(),
-                )),
-            )]),
-            false,
-        );
+        let text = HtmlHeaderConfig::default_table_of_contents();
+        let header =
+            Header::new(text_to_inline_element_container(&text), 3, false);
 
         let mut f = HtmlFormatter::default();
 
@@ -1614,13 +1622,8 @@ mod tests {
 
     #[test]
     fn header_should_escape_html_in_ids() {
-        let header = Header::new(
-            3,
-            InlineElementContainer::new(vec![Located::from(
-                InlineElement::from(Text::from("<test>")),
-            )]),
-            false,
-        );
+        let header =
+            Header::new(text_to_inline_element_container("<test>"), 3, false);
 
         // Configure to use a different table of contents string
         // that has characters that should be escaped
@@ -1650,13 +1653,8 @@ mod tests {
 
     #[test]
     fn header_should_escape_html_in_ids_for_toc() {
-        let header = Header::new(
-            3,
-            InlineElementContainer::new(vec![Located::from(
-                InlineElement::from(Text::from("<test>")),
-            )]),
-            false,
-        );
+        let header =
+            Header::new(text_to_inline_element_container("<test>"), 3, false);
 
         // Configure to use a different table of contents string
         // that has characters that should be escaped
@@ -1695,7 +1693,7 @@ mod tests {
             0,
             ListItemContents::new(vec![Located::from(
                 ListItemContent::InlineContent(
-                    Located::from(Text::from("some list item")).into(),
+                    text_to_inline_element_container("some list item"),
                 ),
             )]),
             ListItemAttributes::default(),
@@ -1721,7 +1719,7 @@ mod tests {
             0,
             ListItemContents::new(vec![Located::from(
                 ListItemContent::InlineContent(
-                    Located::from(Text::from("some list item")).into(),
+                    text_to_inline_element_container("some list item"),
                 ),
             )]),
             ListItemAttributes::default(),
@@ -1747,7 +1745,7 @@ mod tests {
             0,
             ListItemContents::new(vec![Located::from(
                 ListItemContent::InlineContent(
-                    Located::from(Text::from("some list item")).into(),
+                    text_to_inline_element_container("some list item"),
                 ),
             )]),
             ListItemAttributes::default(),
@@ -1766,7 +1764,7 @@ mod tests {
             0,
             ListItemContents::new(vec![Located::from(
                 ListItemContent::InlineContent(
-                    Located::from(Text::from("some list item")).into(),
+                    text_to_inline_element_container("some list item"),
                 ),
             )]),
             ListItemAttributes::default(),
@@ -1987,8 +1985,8 @@ mod tests {
     #[test]
     fn paragraph_should_output_p_tag() {
         let paragraph = Paragraph::new(vec![
-            InlineElementContainer::from(Located::from("some text")),
-            InlineElementContainer::from(Located::from("and more text")),
+            text_to_inline_element_container("some text"),
+            text_to_inline_element_container("and more text"),
         ]);
         let mut f = HtmlFormatter::default();
         paragraph.fmt(&mut f).unwrap();
@@ -1999,8 +1997,8 @@ mod tests {
     #[test]
     fn paragraph_should_support_linebreaks_if_configured() {
         let paragraph = Paragraph::new(vec![
-            InlineElementContainer::from(Located::from("some text")),
-            InlineElementContainer::from(Located::from("and more text")),
+            text_to_inline_element_container("some text"),
+            text_to_inline_element_container("and more text"),
         ]);
         let mut f = HtmlFormatter::new(HtmlConfig {
             paragraph: HtmlParagraphConfig {
@@ -2020,7 +2018,7 @@ mod tests {
                 (
                     CellPos { row: 0, col: 0 },
                     Located::from(Cell::Content(
-                        Located::from(Text::from("some header")).into(),
+                        text_to_inline_element_container("some header"),
                     )),
                 ),
                 (
@@ -2030,7 +2028,7 @@ mod tests {
                 (
                     CellPos { row: 2, col: 0 },
                     Located::from(Cell::Content(
-                        Located::from(Text::from("some text")).into(),
+                        text_to_inline_element_container("some text"),
                     )),
                 ),
             ],
@@ -2065,7 +2063,7 @@ mod tests {
                 (
                     CellPos { row: 0, col: 0 },
                     Located::from(Cell::Content(
-                        Located::from(Text::from("some text")).into(),
+                        text_to_inline_element_container("some text"),
                     )),
                 ),
                 (
@@ -2103,7 +2101,7 @@ mod tests {
                 (
                     CellPos { row: 0, col: 0 },
                     Located::from(Cell::Content(
-                        Located::from(Text::from("some text")).into(),
+                        text_to_inline_element_container("some text"),
                     )),
                 ),
                 (
@@ -2145,7 +2143,7 @@ mod tests {
                 (
                     CellPos { row: 0, col: 0 },
                     Located::from(Cell::Content(
-                        Located::from(Text::from("some text")).into(),
+                        text_to_inline_element_container("some text"),
                     )),
                 ),
                 (
@@ -2179,7 +2177,7 @@ mod tests {
                 (
                     CellPos { row: 0, col: 0 },
                     Located::from(Cell::Content(
-                        Located::from(Text::from("some text")).into(),
+                        text_to_inline_element_container("some text"),
                     )),
                 ),
                 (
@@ -2823,9 +2821,9 @@ mod tests {
         comment.fmt(&mut f).unwrap();
         assert_eq!(f.get_content(), "<!-- some comment -->");
 
-        let comment = Comment::from(MultiLineComment::from(vec![
-            "some comment",
-            "on multiple lines",
+        let comment = Comment::from(MultiLineComment::new(vec![
+            Cow::Borrowed("some comment"),
+            Cow::Borrowed("on multiple lines"),
         ]));
         let mut f = HtmlFormatter::new(HtmlConfig {
             comment: HtmlCommentConfig { include: true },
@@ -2858,8 +2856,10 @@ mod tests {
 
     #[test]
     fn multi_line_comment_should_output_html_comment_if_flagged() {
-        let comment =
-            MultiLineComment::from(vec!["some comment", "on multiple lines"]);
+        let comment = MultiLineComment::new(vec![
+            Cow::Borrowed("some comment"),
+            Cow::Borrowed("on multiple lines"),
+        ]);
 
         // By default, no comment will be output
         let mut f = HtmlFormatter::default();

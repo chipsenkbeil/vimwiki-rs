@@ -4,27 +4,49 @@ use crate::{
     },
     StrictEq,
 };
-use derive_more::{Constructor, From};
+use derive_more::{Constructor, From, Index, IndexMut, IntoIterator};
 use numerals::roman::Roman;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 
 /// Represents an item in a list
 #[derive(
-    Constructor, Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize,
+    Constructor,
+    Clone,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    Index,
+    IndexMut,
+    IntoIterator,
+    Serialize,
+    Deserialize,
 )]
 pub struct ListItem<'a> {
-    pub item_type: ListItemType<'a>,
+    /// Represents the type of list item
+    pub ty: ListItemType<'a>,
+
+    /// Represents the suffix of the list
     pub suffix: ListItemSuffix,
+
+    /// Represents the position of the item in the list starting from 0
     pub pos: usize,
+
+    /// Represents the contents of the list item
+    #[index]
+    #[index_mut]
+    #[into_iterator(owned, ref, ref_mut)]
     pub contents: ListItemContents<'a>,
+
+    /// Represents attributes associated with the list item
     pub attributes: ListItemAttributes,
 }
 
 impl ListItem<'_> {
     pub fn to_borrowed(&self) -> ListItem {
         ListItem {
-            item_type: self.item_type.as_borrowed(),
+            ty: self.ty.as_borrowed(),
             suffix: self.suffix,
             pos: self.pos,
             contents: self.contents.to_borrowed(),
@@ -34,7 +56,7 @@ impl ListItem<'_> {
 
     pub fn into_owned(self) -> ListItem<'static> {
         ListItem {
-            item_type: self.item_type.into_owned(),
+            ty: self.ty.into_owned(),
             suffix: self.suffix,
             pos: self.pos,
             contents: self.contents.into_owned(),
@@ -54,7 +76,7 @@ impl<'a> IntoChildren for ListItem<'a> {
 impl<'a> StrictEq for ListItem<'a> {
     /// Performs a strict_eq check against eqivalent variants
     fn strict_eq(&self, other: &Self) -> bool {
-        self.item_type.strict_eq(&other.item_type)
+        self.ty.strict_eq(&other.ty)
             && self.suffix.strict_eq(&other.suffix)
             && self.pos == other.pos
             && self.contents.strict_eq(&other.contents)
@@ -65,17 +87,17 @@ impl<'a> StrictEq for ListItem<'a> {
 impl<'a> ListItem<'a> {
     /// Indicates whether or not this list item represents an unordered item
     pub fn is_unordered(&self) -> bool {
-        self.item_type.is_unordered()
+        self.ty.is_unordered()
     }
 
     /// Indicates whether or not this list item represents an ordered item
     pub fn is_ordered(&self) -> bool {
-        self.item_type.is_ordered()
+        self.ty.is_ordered()
     }
 
     /// Allocates a new string to represent the prefix of this list item
     pub fn to_prefix(&self) -> String {
-        self.item_type.to_prefix(self.pos, self.suffix)
+        self.ty.to_prefix(self.pos, self.suffix)
     }
 
     /// Whether or not this list item has TODO information
@@ -99,7 +121,7 @@ impl<'a> ListItem<'a> {
                 ListItemContent::InlineContent(_) => acc,
                 ListItemContent::List(list) => {
                     let (mut sum, mut count) =
-                        list.items.iter().fold((0.0, 0), |acc, item| {
+                        list.iter().fold((0.0, 0), |acc, item| {
                             // NOTE: This is a recursive call that is NOT
                             //       tail recursive, but I do not want to
                             //       spend the time needed to translate it
@@ -508,7 +530,10 @@ impl StrictEq for ListItemAttributes {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{List, ListItemContent, Located, Text};
+    use crate::{
+        InlineElement, InlineElementContainer, List, ListItemContent, Located,
+        Text,
+    };
 
     macro_rules! unordered_item {
         ($type:ident, $pos:expr, $content:expr) => {
@@ -525,7 +550,7 @@ mod tests {
                 ListItemType::from(UnorderedListItemType::$type),
                 ListItemSuffix::default(),
                 $pos,
-                vec![].into(),
+                ListItemContents::new(vec![]),
                 Default::default(),
             )
         };
@@ -534,7 +559,7 @@ mod tests {
                 ListItemType::from(UnorderedListItemType::$type),
                 ListItemSuffix::default(),
                 0,
-                vec![].into(),
+                ListItemContents::new(vec![]),
                 Default::default(),
             )
         };
@@ -555,7 +580,7 @@ mod tests {
                 ListItemType::from(OrderedListItemType::$type),
                 ListItemSuffix::$suffix,
                 $pos,
-                vec![].into(),
+                ListItemContents::new(vec![]),
                 Default::default(),
             )
         };
@@ -564,7 +589,7 @@ mod tests {
                 ListItemType::from(OrderedListItemType::$type),
                 ListItemSuffix::$suffix,
                 0,
-                vec![].into(),
+                ListItemContents::new(vec![]),
                 Default::default(),
             )
         };
@@ -573,7 +598,7 @@ mod tests {
                 ListItemType::from(OrderedListItemType::$type),
                 ListItemSuffix::Paren,
                 0,
-                vec![].into(),
+                ListItemContents::new(vec![]),
                 Default::default(),
             )
         };
@@ -594,7 +619,7 @@ mod tests {
                 ListItemType::from(UnorderedListItemType::Other($value)),
                 ListItemSuffix::$suffix,
                 $pos,
-                vec![].into(),
+                ListItemContents::new(vec![]),
                 Default::default(),
             )
         };
@@ -603,7 +628,7 @@ mod tests {
                 ListItemType::from(UnorderedListItemType::Other($value)),
                 ListItemSuffix::$suffix,
                 0,
-                vec![].into(),
+                ListItemContents::new(vec![]),
                 Default::default(),
             )
         };
@@ -612,7 +637,7 @@ mod tests {
                 ListItemType::from(UnorderedListItemType::Other($value)),
                 ListItemSuffix::default(),
                 0,
-                vec![].into(),
+                ListItemContents::new(vec![]),
                 Default::default(),
             )
         };
@@ -621,7 +646,7 @@ mod tests {
                 ListItemType::from(UnorderedListItemType::Other(Cow::from(""))),
                 ListItemSuffix::default(),
                 0,
-                vec![].into(),
+                ListItemContents::new(vec![]),
                 Default::default(),
             )
         };
@@ -644,9 +669,9 @@ mod tests {
                 Default::default(),
                 Default::default(),
                 0,
-                vec![From::from(ListItemContent::List(
+                ListItemContents::new(vec![Located::from(ListItemContent::List(
                     List::new(vec![$($child),+])
-                ))].into(),
+                ))]),
                 ListItemAttributes {
                     todo_status: Some(ListItemTodoStatus::$type),
                 }
@@ -654,12 +679,12 @@ mod tests {
         };
     }
 
-    fn make_content(text: &str) -> ListItemContents {
-        let le_text = Located::from(Text::from(text));
-        vec![Located::from(ListItemContent::InlineContent(
-            le_text.into(),
-        ))]
-        .into()
+    fn make_content(s: &str) -> ListItemContents {
+        ListItemContents::new(vec![Located::from(
+            ListItemContent::InlineContent(InlineElementContainer::new(vec![
+                Located::from(InlineElement::Text(Text::from(s))),
+            ])),
+        )])
     }
 
     #[test]

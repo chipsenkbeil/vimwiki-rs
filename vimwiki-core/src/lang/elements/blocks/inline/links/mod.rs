@@ -1,6 +1,6 @@
 use crate::StrictEq;
 use chrono::NaiveDate;
-use derive_more::Display;
+use derive_more::{Display, IsVariant};
 use percent_encoding::percent_decode;
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, collections::HashMap, convert::TryFrom};
@@ -17,7 +17,15 @@ pub use data::LinkData;
 
 /// Represents some kind of link in a document
 #[derive(
-    Clone, Debug, Display, Eq, PartialEq, Hash, Serialize, Deserialize,
+    Clone,
+    Debug,
+    Display,
+    Eq,
+    PartialEq,
+    Hash,
+    IsVariant,
+    Serialize,
+    Deserialize,
 )]
 pub enum Link<'a> {
     /// Represents a traditional link within a wiki
@@ -36,7 +44,7 @@ pub enum Link<'a> {
     },
 
     /// Represents a link to a diary entry within a wiki
-    #[display(fmt = "{}", "data.description().map(ToString::to_string).unwrap_or_else(|| date.to_string())")]
+    #[display(fmt = "{}", "data.description.as_ref().map(ToString::to_string).unwrap_or_else(|| date.to_string())")]
     Diary { date: NaiveDate, data: LinkData<'a> },
 
     /// Represents a raw link without any frills (should only have URI)
@@ -172,12 +180,12 @@ impl<'a> Link<'a> {
 
     /// Returns reference to description associated with link
     pub fn description(&self) -> Option<&Description<'a>> {
-        self.data().description()
+        self.data().description.as_ref()
     }
 
     /// Consumes link and returns the description associated with link
     pub fn into_description(self) -> Option<Description<'a>> {
-        self.into_data().into_description()
+        self.into_data().description
     }
 
     /// Produces a description based on the link, either using the description
@@ -201,7 +209,7 @@ impl<'a> Link<'a> {
             // If not a raw link, we want to make sure to clean up %20 and
             // other percent encoded pieces
             Some(Description::from(
-                percent_decode(self.data().uri_ref().to_string().as_bytes())
+                percent_decode(self.data().uri_ref.to_string().as_bytes())
                     .decode_utf8_lossy()
                     .to_string(),
             ))
@@ -210,14 +218,14 @@ impl<'a> Link<'a> {
 
     /// Returns reference to the properties associated with link
     pub fn properties(&self) -> Option<&HashMap<Cow<'a, str>, Cow<'a, str>>> {
-        self.data().properties()
+        self.data().properties.as_ref()
     }
 
     /// Consumes link and returns the properties associated with link
     pub fn into_properties(
         self,
     ) -> Option<HashMap<Cow<'a, str>, Cow<'a, str>>> {
-        self.into_data().into_properties()
+        self.into_data().properties
     }
 
     /// Returns true if link contains an anchor

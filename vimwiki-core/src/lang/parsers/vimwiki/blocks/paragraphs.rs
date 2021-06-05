@@ -95,14 +95,12 @@ mod tests {
         let input = Span::from(indoc! {"
         Some paragraph with *decorations*, [[links]], $math$, and more
         "});
-        let (input, mut p) = paragraph(input).unwrap();
+        let (input, p) = paragraph(input).unwrap();
         assert!(input.is_empty(), "Did not consume paragraph");
 
         assert_eq!(
-            p.lines[0]
-                .elements
-                .drain(..)
-                .map(|c| c.into_inner())
+            p[0].iter()
+                .map(|c| c.as_inner().clone())
                 .collect::<Vec<InlineElement>>(),
             vec![
                 InlineElement::Text(Text::from("Some paragraph with ")),
@@ -129,14 +127,12 @@ mod tests {
         Some paragraph with *decorations*,
         [[links]], $math$, and more
         "});
-        let (input, mut p) = paragraph(input).unwrap();
+        let (input, p) = paragraph(input).unwrap();
         assert!(input.is_empty(), "Did not consume paragraph");
 
         assert_eq!(
-            p.lines[0]
-                .elements
-                .drain(..)
-                .map(|c| c.into_inner())
+            p[0].iter()
+                .map(|c| c.as_inner().clone())
                 .collect::<Vec<InlineElement>>(),
             vec![
                 InlineElement::Text(Text::from("Some paragraph with ")),
@@ -150,10 +146,8 @@ mod tests {
         );
 
         assert_eq!(
-            p.lines[1]
-                .elements
-                .drain(..)
-                .map(|c| c.into_inner())
+            p[1].iter()
+                .map(|c| c.as_inner().clone())
                 .collect::<Vec<InlineElement>>(),
             vec![
                 InlineElement::Link(Link::new_wiki_link(
@@ -174,14 +168,12 @@ mod tests {
         Some paragraph with *decorations*,
           [[links]], $math$, and more
         "});
-        let (input, mut p) = paragraph(input).unwrap();
+        let (input, p) = paragraph(input).unwrap();
         assert!(input.is_empty(), "Did not consume paragraph");
 
         assert_eq!(
-            p.lines[0]
-                .elements
-                .drain(..)
-                .map(|c| c.into_inner())
+            p[0].iter()
+                .map(|c| c.as_inner().clone())
                 .collect::<Vec<InlineElement>>(),
             vec![
                 InlineElement::Text(Text::from("Some paragraph with ")),
@@ -195,10 +187,8 @@ mod tests {
         );
 
         assert_eq!(
-            p.lines[1]
-                .elements
-                .drain(..)
-                .map(|c| c.into_inner())
+            p[1].iter()
+                .map(|c| c.as_inner().clone())
                 .collect::<Vec<InlineElement>>(),
             vec![
                 InlineElement::Link(Link::new_wiki_link(
@@ -220,7 +210,7 @@ mod tests {
 
         And this would be a second paragraph
         "});
-        let (input, mut p) = paragraph(input).unwrap();
+        let (input, p) = paragraph(input).unwrap();
         assert_eq!(
             input.as_unsafe_remaining_str(),
             "\nAnd this would be a second paragraph\n",
@@ -228,10 +218,8 @@ mod tests {
         );
 
         assert_eq!(
-            p.lines[0]
-                .elements
-                .drain(..)
-                .map(|c| c.into_inner())
+            p[0].iter()
+                .map(|c| c.as_inner().clone())
                 .collect::<Vec<InlineElement>>(),
             vec![
                 InlineElement::Text(Text::from("Some paragraph with ")),
@@ -245,10 +233,8 @@ mod tests {
         );
 
         assert_eq!(
-            p.lines[1]
-                .elements
-                .drain(..)
-                .map(|c| c.into_inner())
+            p[1].iter()
+                .map(|c| c.as_inner().clone())
                 .collect::<Vec<InlineElement>>(),
             vec![
                 InlineElement::Link(Link::new_wiki_link(

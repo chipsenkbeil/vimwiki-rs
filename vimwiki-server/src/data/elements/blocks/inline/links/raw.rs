@@ -45,9 +45,7 @@ impl<'a> FromVimwikiElement<'a> for RawLink {
         GraphqlDatabaseError::wrap(
             Self::build()
                 .region(region)
-                .uri_ref(UriRef::from(
-                    element.into_inner().into_data().into_uri_ref(),
-                ))
+                .uri_ref(UriRef::from(element.into_inner().into_data().uri_ref))
                 .page(page_id)
                 .parent(parent_id)
                 .finish_and_commit(),

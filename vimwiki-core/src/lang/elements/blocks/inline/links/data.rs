@@ -13,20 +13,13 @@ use std::{
 };
 use uriparse::{Fragment, Scheme, URIReference, URIReferenceError};
 
-/// Represents the parts associated with link data
-pub type LinkDataParts<'a> = (
-    URIReference<'a>,
-    Option<Description<'a>>,
-    Option<HashMap<Cow<'a, str>, Cow<'a, str>>>,
-);
-
 /// Represents data for a link to some content, described through a combination
 /// of a URI reference and some arbitrary description
 #[derive(Constructor, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct LinkData<'a> {
-    uri_ref: URIReference<'a>,
-    description: Option<Description<'a>>,
-    properties: Option<HashMap<Cow<'a, str>, Cow<'a, str>>>,
+    pub uri_ref: URIReference<'a>,
+    pub description: Option<Description<'a>>,
+    pub properties: Option<HashMap<Cow<'a, str>, Cow<'a, str>>>,
 }
 
 impl LinkData<'_> {
@@ -106,60 +99,6 @@ impl<'a> LinkData<'a> {
     /// Allocates a new string with percent-encoded characters decoded
     pub fn decode_uri<U: AsRef<[u8]>>(uri: U) -> String {
         percent_decode(uri.as_ref()).decode_utf8_lossy().to_string()
-    }
-
-    /// Returns reference to uri of the link
-    pub fn uri_ref(&self) -> &URIReference<'a> {
-        &self.uri_ref
-    }
-
-    /// Returns mutable reference to uri of the link
-    pub fn mut_uri_ref(&mut self) -> &mut URIReference<'a> {
-        &mut self.uri_ref
-    }
-
-    /// Consumes link and returns its uri
-    pub fn into_uri_ref(self) -> URIReference<'a> {
-        self.uri_ref
-    }
-
-    /// Returns reference to the description of the link
-    pub fn description(&self) -> Option<&Description<'a>> {
-        self.description.as_ref()
-    }
-
-    /// Returns mutable reference to the description of the link
-    pub fn mut_description(&mut self) -> Option<&mut Description<'a>> {
-        self.description.as_mut()
-    }
-
-    /// Consumes link and returns its description
-    pub fn into_description(self) -> Option<Description<'a>> {
-        self.description
-    }
-
-    /// Returns reference to the properties of the link
-    pub fn properties(&self) -> Option<&HashMap<Cow<'a, str>, Cow<'a, str>>> {
-        self.properties.as_ref()
-    }
-
-    /// Returns mutable reference to the properties of the link
-    pub fn mut_properties(
-        &mut self,
-    ) -> Option<&mut HashMap<Cow<'a, str>, Cow<'a, str>>> {
-        self.properties.as_mut()
-    }
-
-    /// Consumes link and returns the properties of the link
-    pub fn into_properties(
-        self,
-    ) -> Option<HashMap<Cow<'a, str>, Cow<'a, str>>> {
-        self.properties
-    }
-
-    /// Consumes link data and returns parts of data individually
-    pub fn into_parts(self) -> LinkDataParts<'a> {
-        (self.uri_ref, self.description, self.properties)
     }
 
     /// Whether or not the link is representing an anchor to the current page
@@ -343,28 +282,28 @@ mod tests {
     fn try_from_str_should_succeed_for_empty_str() {
         let data =
             LinkData::try_from("").expect("Failed to parse str as link data");
-        assert_eq!(data.uri_ref().path(), "");
+        assert_eq!(data.uri_ref.path(), "");
     }
 
     #[test]
     fn try_from_str_should_succeed_for_anchor_only() {
         let data = LinkData::try_from("#some-anchor")
             .expect("Failed to parse str as link data");
-        assert_eq!(data.uri_ref().path(), "#some-anchor");
+        assert_eq!(data.uri_ref.path(), "#some-anchor");
     }
 
     #[test]
     fn try_from_str_should_succeed_for_relative_path() {
         let data = LinkData::try_from("some/path")
             .expect("Failed to parse str as link data");
-        assert_eq!(data.uri_ref().path(), "some/path");
+        assert_eq!(data.uri_ref.path(), "some/path");
     }
 
     #[test]
     fn try_from_str_should_succeed_for_absolute_path() {
         let data = LinkData::try_from("/some/path")
             .expect("Failed to parse str as link data");
-        assert_eq!(data.uri_ref().path(), "/some/path");
+        assert_eq!(data.uri_ref.path(), "/some/path");
     }
 
     #[test]
@@ -372,10 +311,10 @@ mod tests {
         let data = LinkData::try_from("//network/path")
             .expect("Failed to parse str as link data");
         assert_eq!(
-            data.uri_ref().host().map(ToString::to_string),
+            data.uri_ref.host().map(ToString::to_string),
             Some("network".to_string())
         );
-        assert_eq!(data.uri_ref().path(), "/path");
+        assert_eq!(data.uri_ref.path(), "/path");
     }
 
     #[test]

@@ -79,7 +79,7 @@ pub fn tokenize_option<T: Tokenize>(
     o: &Option<T>,
     f: impl Fn(&TokenizeContext, &T) -> TokenStream,
 ) -> TokenStream {
-    if let Some(ref x) = *o {
+    if let Some(x) = o {
         let t = f(ctx, x);
         quote! { ::std::option::Option::Some(#t) }
     } else {

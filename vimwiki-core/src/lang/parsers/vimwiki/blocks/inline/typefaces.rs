@@ -422,7 +422,7 @@ mod tests {
         let (_, dt) = decorated_text(input).unwrap();
 
         assert_eq!(dt.depth(), 0, "Decorated text was at wrong level");
-        for content in dt.as_contents().iter() {
+        for content in dt.iter() {
             assert_eq!(
                 content.depth(),
                 1,
