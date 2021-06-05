@@ -1495,10 +1495,12 @@ mod tests {
     fn definition_list_should_output_list_tag_with_term_and_definition_tags_together(
     ) {
         // Test no definitions
-        let list = DefinitionList::new(vec![(
+        let list: DefinitionList = vec![(
             Located::from(DefinitionListValue::from("term1")),
             Vec::new(),
-        )]);
+        )]
+        .into_iter()
+        .collect();
 
         let mut f = HtmlFormatter::default();
         list.fmt(&mut f).unwrap();
@@ -1513,10 +1515,12 @@ mod tests {
         );
 
         // Test single definition
-        let list = DefinitionList::new(vec![(
+        let list: DefinitionList = vec![(
             Located::from(DefinitionListValue::from("term1")),
             vec![Located::from(DefinitionListValue::from("def1"))],
-        )]);
+        )]
+        .into_iter()
+        .collect();
 
         let mut f = HtmlFormatter::default();
         list.fmt(&mut f).unwrap();
@@ -1532,13 +1536,15 @@ mod tests {
         );
 
         // Test multiple definitions
-        let list = DefinitionList::new(vec![(
+        let list: DefinitionList = vec![(
             Located::from(DefinitionListValue::from("term1")),
             vec![
                 Located::from(DefinitionListValue::from("def1")),
                 Located::from(DefinitionListValue::from("def2")),
             ],
-        )]);
+        )]
+        .into_iter()
+        .collect();
 
         let mut f = HtmlFormatter::default();
         list.fmt(&mut f).unwrap();
@@ -2735,7 +2741,7 @@ mod tests {
 
     #[test]
     fn tags_should_output_two_span_tags_for_each_tag() {
-        let tags = Tags::from(vec!["one", "two"]);
+        let tags: Tags = vec!["one", "two"].into_iter().collect();
         let mut f = HtmlFormatter::default();
         tags.fmt(&mut f).unwrap();
 
@@ -2747,7 +2753,7 @@ mod tests {
 
     #[test]
     fn tags_should_use_id_comprised_of_previous_headers() {
-        let tags = Tags::from(vec!["one", "two"]);
+        let tags: Tags = vec!["one", "two"].into_iter().collect();
         let mut f = HtmlFormatter::default();
         f.insert_header_text(1, "first id");
         f.insert_header_text(3, "third id");
@@ -2762,7 +2768,7 @@ mod tests {
 
     #[test]
     fn tags_should_escape_html() {
-        let tags = Tags::from(vec!["one&", "two>"]);
+        let tags: Tags = vec!["one&", "two>"].into_iter().collect();
         let mut f = HtmlFormatter::default();
         tags.fmt(&mut f).unwrap();
 

@@ -1,0 +1,42 @@
+this is a paragraph
+with carriage returns
+
+%%+this is a comment
+with carriage returns+%%
+
+{{{
+this is a code block
+with carriage returns
+}}}
+
+{{$
+this is a math block
+with carriage returns
+}}$
+
+- this is a list
+    - and a sublist
+  with carriage returns
+- and multiple items
+
+term1::
+:: with carriage returns
+term2:: with carriage returns
+
+=== header with carriage returns ===
+
+----
+
+%title some title
+
+| table                 |
+|-----------------------|
+| with carriage returns |
+
+`inline code with carriage returns`
+$inline math with carriage returns$
+[[wiki link with carriage returns]]
+{{transclusion link with carriage returns}}
+https://raw-link-with-carriage-returns.example.com/
+:tag:with:carriage:returns:
+ending text

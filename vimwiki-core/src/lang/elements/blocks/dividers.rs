@@ -1,7 +1,10 @@
 use crate::StrictEq;
+use derive_more::Constructor;
 use serde::{Deserialize, Serialize};
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(
+    Constructor, Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
+)]
 pub struct Divider;
 
 impl StrictEq for Divider {

@@ -1518,11 +1518,11 @@ impl Tags {
         array: Box<[JsValue]>,
         region: Option<Region>,
     ) -> Result<Tags, JsValue> {
-        let array: Vec<String> =
+        let tags: v::Tags =
             array.iter().filter_map(|x| x.as_string()).collect();
 
         Ok(Self(v::Located::new(
-            v::Tags::from(array),
+            tags,
             region.map(|x| x.0).unwrap_or_default(),
         )))
     }

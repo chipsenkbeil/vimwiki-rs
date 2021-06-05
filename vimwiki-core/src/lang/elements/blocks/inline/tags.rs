@@ -4,7 +4,7 @@ use derive_more::{
     IntoIterator,
 };
 use serde::{Deserialize, Serialize};
-use std::{borrow::Cow, fmt};
+use std::{borrow::Cow, fmt, iter::FromIterator};
 
 /// Represents a sequence of one or more tags
 ///
@@ -78,31 +78,43 @@ impl<'a> fmt::Display for Tags<'a> {
 
 impl<'a> From<Tag<'a>> for Tags<'a> {
     fn from(tag: Tag<'a>) -> Self {
-        Self::new(vec![tag])
+        std::iter::once(tag).collect()
     }
 }
 
 impl From<String> for Tags<'static> {
     fn from(s: String) -> Self {
-        Self::from(vec![s])
+        std::iter::once(s).collect()
     }
 }
 
 impl<'a> From<&'a str> for Tags<'a> {
     fn from(s: &'a str) -> Self {
-        Self::from(vec![s])
+        std::iter::once(s).collect()
     }
 }
 
-impl From<Vec<String>> for Tags<'static> {
-    fn from(list: Vec<String>) -> Self {
-        Self::new(list.into_iter().map(Tag::from).collect())
+impl<'a> FromIterator<&'a str> for Tags<'a> {
+    fn from_iter<I: IntoIterator<Item = &'a str>>(iter: I) -> Self {
+        Self::new(iter.into_iter().map(Tag::from).collect())
     }
 }
 
-impl<'a> From<Vec<&'a str>> for Tags<'a> {
-    fn from(list: Vec<&'a str>) -> Self {
-        Self::new(list.into_iter().map(Tag::from).collect())
+impl FromIterator<String> for Tags<'static> {
+    fn from_iter<I: IntoIterator<Item = String>>(iter: I) -> Self {
+        Self::new(iter.into_iter().map(Tag::from).collect())
+    }
+}
+
+impl<'a> FromIterator<Cow<'a, str>> for Tags<'a> {
+    fn from_iter<I: IntoIterator<Item = Cow<'a, str>>>(iter: I) -> Self {
+        Self::new(iter.into_iter().map(Tag::from).collect())
+    }
+}
+
+impl<'a> FromIterator<Tag<'a>> for Tags<'a> {
+    fn from_iter<I: IntoIterator<Item = Tag<'a>>>(iter: I) -> Self {
+        Self::new(iter.into_iter().collect())
     }
 }
 
