@@ -1398,13 +1398,14 @@ mod tests {
     fn make_path_from_pieces<'a, I: IntoIterator<Item = &'a str>>(
         iter: I,
     ) -> PathBuf {
+        let rel_path: PathBuf = iter.into_iter().collect();
         println!(
             "NEW PATH: {:?}",
             std::path::Path::new(&std::path::Component::RootDir)
-                .join(iter.into_iter().collect::<PathBuf>())
+                .join(rel_path.as_path())
         );
         std::path::Path::new(&std::path::Component::RootDir)
-            .join(iter.into_iter().collect::<PathBuf>())
+            .join(rel_path.as_path())
     }
 
     fn text_to_inline_element_container(s: &str) -> InlineElementContainer {
