@@ -1,7 +1,7 @@
 use directories::ProjectDirs;
 use lazy_static::lazy_static;
 use log::LevelFilter;
-use std::path::PathBuf;
+use std::{net::IpAddr, path::PathBuf};
 use structopt::StructOpt;
 use strum::{EnumString, EnumVariantNames, VariantNames};
 
@@ -27,8 +27,8 @@ pub struct Opt {
     pub mode: Mode,
 
     /// Host/IP address of server in http mode
-    #[structopt(long, default_value = "localhost")]
-    pub host: String,
+    #[structopt(long, default_value = "127.0.0.1")]
+    pub host: IpAddr,
 
     /// Port of the server in http mode
     #[structopt(long, default_value = "8000")]
