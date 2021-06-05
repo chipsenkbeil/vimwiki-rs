@@ -1,0 +1,7 @@
+== comments ==
+
+%% this is a comment
+
+%% this is a comment with embedded:colons:in
+
+%% mark :: 2017-01-04T15:27:39-0700

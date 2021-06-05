@@ -10,7 +10,7 @@ use std::{
     convert::TryFrom,
     fmt::{Display, Formatter, Result as FmtResult},
     iter::Enumerate,
-    ops::{Deref, Range, RangeFrom, RangeFull, RangeTo},
+    ops::{Range, RangeFrom, RangeFull, RangeTo},
     path::Path,
     str::FromStr,
 };
@@ -296,14 +296,6 @@ impl<'a> Span<'a> {
     /// the end at then invoking `self.column()`
     pub fn end_column(&self) -> usize {
         self.at_end().column()
-    }
-}
-
-impl<'a> Deref for Span<'a> {
-    type Target = &'a [u8];
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
     }
 }
 

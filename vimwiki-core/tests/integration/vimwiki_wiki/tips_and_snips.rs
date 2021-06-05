@@ -1,4 +1,4 @@
-use super::{fixtures::VimwikiFile, utils::compare_page_elements};
+use crate::{fixtures::VimwikiFile, utils::compare_page_elements};
 use vimwiki::macros::*;
 use vimwiki::*;
 

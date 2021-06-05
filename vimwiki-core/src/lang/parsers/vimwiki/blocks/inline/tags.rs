@@ -3,6 +3,7 @@ use crate::lang::{
     parsers::{
         utils::{
             capture, context, cow_str, locate, take_line_until_one_of_three1,
+            whole_word,
         },
         IResult, Span,
     },
@@ -22,7 +23,7 @@ pub fn tags(input: Span) -> IResult<Located<Tags>> {
         Ok((input, Tags::new(contents)))
     }
 
-    context("Tags", locate(capture(inner)))(input)
+    context("Tags", locate(capture(map_parser(whole_word, inner))))(input)
 }
 
 fn tag_content(input: Span) -> IResult<Tag> {
@@ -75,11 +76,11 @@ mod tests {
     #[test]
     fn tags_should_yield_a_single_tag_if_one_pair_of_colons_with_trailing_content(
     ) {
-        let input = Span::from(":tag-example:and other text");
+        let input = Span::from(":tag-example: and other text");
         let (input, tags) = tags(input).unwrap();
         assert_eq!(
             input.as_unsafe_remaining_str(),
-            "and other text",
+            " and other text",
             "Unexpected input consumed"
         );
         assert_eq!(

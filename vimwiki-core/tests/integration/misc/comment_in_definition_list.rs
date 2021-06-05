@@ -1,6 +1,6 @@
-use super::fixtures::VimwikiFile;
+use crate::fixtures::VimwikiFile;
 use std::borrow::Cow;
-use vimwiki::*;
+use vimwiki_core::*;
 
 #[test]
 fn test() {

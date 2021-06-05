@@ -9,6 +9,8 @@ pub enum VimwikiFile {
     PandocVimwikiReader,
     MiscCommentInDefinitionList,
     MiscDepthCheck,
+    Issue120,
+    Issue122,
 }
 
 impl VimwikiFile {
@@ -39,6 +41,8 @@ impl VimwikiFile {
                 PathBuf::from("misc/comment-in-definition-list.wiki")
             }
             Self::MiscDepthCheck => PathBuf::from("misc/depth-check.wiki"),
+            Self::Issue120 => PathBuf::from("issue/120.wiki"),
+            Self::Issue122 => PathBuf::from("issue/122.wiki"),
         };
         head.join(tail)
     }

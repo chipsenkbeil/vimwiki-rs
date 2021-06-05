@@ -220,14 +220,14 @@ mod tests {
 
     #[test]
     fn text_should_consume_until_encountering_a_tag() {
-        let input = Span::from("abc123:tag:");
+        let input = Span::from("abc123 :tag:");
         let (input, t) = text(input).unwrap();
         assert_eq!(
             input.as_unsafe_remaining_str(),
             ":tag:",
             "Unexpected input consumption"
         );
-        assert_eq!(t.into_inner(), Text::from("abc123"));
+        assert_eq!(t.into_inner(), Text::from("abc123 "));
     }
 
     #[test]

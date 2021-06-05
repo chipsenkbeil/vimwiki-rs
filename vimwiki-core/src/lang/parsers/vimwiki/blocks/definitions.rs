@@ -61,7 +61,7 @@ fn term_line(
     let (input, term) = locate(capture(terminated(
         map_parser(
             verify(take_line_until1("::"), |span| {
-                !span.trim_start().starts_with(b"%%")
+                !span.trim_start().as_remaining().starts_with(b"%%")
             }),
             map(
                 inline_element_container,
