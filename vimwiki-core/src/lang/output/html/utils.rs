@@ -149,6 +149,10 @@ pub(crate) fn resolve_link(
     target: &Link<'_>,
 ) -> Result<URIReference<'static>, LinkResolutionError> {
     let ext = "html";
+    println!(
+        "resolve_link(_, src_wiki = {:?}, src = {:?}, target = {:?}",
+        src_wiki, src, target
+    );
     let src_out = src_wiki.make_output_path(src, ext);
     println!("src_out: {:?}", src_out);
 
