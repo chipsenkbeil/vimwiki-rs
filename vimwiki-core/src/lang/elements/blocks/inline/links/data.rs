@@ -330,7 +330,14 @@ mod tests {
             "https://example.com/path/to/page.html#some-fragment",
         )
         .expect("Failed to parse str as link data");
-        assert_eq!(data.to_path_buf().to_str(), Some("/path/to/page.html"));
+
+        // NOTE: Have to build path this way to be agnostic of platform
+        let relative_path: PathBuf =
+            ["path", "to", "page.html"].iter().collect();
+        let expected = std::path::Path::new(&std::path::Component::RootDir)
+            .join(relative_path);
+
+        assert_eq!(data.to_path_buf(), expected);
     }
 
     #[test]

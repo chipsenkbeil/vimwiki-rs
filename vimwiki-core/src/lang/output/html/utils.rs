@@ -5,6 +5,7 @@ use derive_more::{Display, Error};
 use relative_path::RelativePathBuf;
 use serde::{de, Deserialize};
 use std::{
+    borrow::Cow,
     convert::TryFrom,
     ffi::OsStr,
     path::{Component, Path, PathBuf},
@@ -85,6 +86,31 @@ pub(crate) fn normalize_path(path: &Path) -> PathBuf {
         }
     }
     ret
+}
+
+/// Converts a path to a string suitable for a uri by converting platform-specific
+/// separators into /
+pub fn path_to_uri_string(path: &Path) -> String {
+    let out = path
+        .components()
+        .filter_map(|c| {
+            match c {
+                // Prefixes like C: are skipped
+                Component::Prefix(_) => None,
+                Component::RootDir => None,
+                Component::CurDir => Some(Cow::Borrowed(".")),
+                Component::ParentDir => Some(Cow::Borrowed("..")),
+                Component::Normal(x) => Some(x.to_string_lossy()),
+            }
+        })
+        .collect::<Vec<Cow<'_, str>>>()
+        .join("/");
+
+    if path.is_absolute() {
+        format!("/{}", out)
+    } else {
+        out
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Display, Error)]

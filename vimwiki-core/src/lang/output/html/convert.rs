@@ -1,4 +1,4 @@
-use super::{HtmlConfig, HtmlFormatter, HtmlOutputError, Output};
+use super::{utils, HtmlConfig, HtmlFormatter, HtmlOutputError, Output};
 use chrono::Local;
 
 pub trait ToHtmlString {
@@ -78,23 +78,26 @@ impl<T: Output<Formatter = HtmlFormatter, Error = HtmlOutputError>> ToHtmlPage
             .replace(
                 "%root_path%",
                 {
-                    let path =
-                        formatter.config().to_active_page_path_to_wiki_root();
-                    if path.as_os_str().is_empty() {
+                    let path_str = utils::path_to_uri_string(
+                        formatter
+                            .config()
+                            .to_active_page_path_to_wiki_root()
+                            .as_path(),
+                    );
+
+                    if path_str.is_empty() {
                         String::new()
                     } else {
-                        format!("{}/", path.to_string_lossy())
+                        format!("{}/", path_str)
                     }
                 }
                 .as_str(),
             )
             .replace(
                 "%wiki_path%",
-                &formatter
-                    .config()
-                    .as_active_page_path_within_wiki()
-                    .to_string_lossy()
-                    .to_string(),
+                &utils::path_to_uri_string(
+                    formatter.config().as_active_page_path_within_wiki(),
+                ),
             )
             .replace(
                 "%css%",
