@@ -1398,6 +1398,11 @@ mod tests {
     fn make_path_from_pieces<'a, I: IntoIterator<Item = &'a str>>(
         iter: I,
     ) -> PathBuf {
+        println!(
+            "NEW PATH: {:?}",
+            std::path::Path::new(&std::path::Component::RootDir)
+                .join(iter.into_iter().collect::<PathBuf>())
+        );
         std::path::Path::new(&std::path::Component::RootDir)
             .join(iter.into_iter().collect::<PathBuf>())
     }
