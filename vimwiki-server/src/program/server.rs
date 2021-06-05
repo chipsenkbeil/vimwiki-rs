@@ -1,5 +1,5 @@
 use crate::{graphql, Opt};
-use log::info;
+use log::*;
 use std::convert::Infallible;
 use warp::{reply::Reply, Filter};
 
@@ -35,10 +35,16 @@ macro_rules! graphiql_endpoint {
 
 pub async fn run(opt: Opt) {
     let graphql_filter = graphql_endpoint!("graphql", program);
-    let graphiql_filter = graphiql_endpoint!("graphiql", "/graphql");
-
-    let routes = warp::any().and(graphiql_filter.or(graphql_filter));
 
     info!("Listening on 0.0.0.0:{}", opt.port);
-    warp::serve(routes).run(([0, 0, 0, 0], opt.port)).await;
+    if !opt.no_graphiql {
+        debug!("Enabling graphiql interface");
+        let graphiql_filter = graphiql_endpoint!("graphiql", "/graphql");
+        let routes = warp::any().and(graphiql_filter.or(graphql_filter));
+        warp::serve(routes).run(([0, 0, 0, 0], opt.port)).await;
+    } else {
+        debug!("Disabling graphiql interface");
+        let routes = warp::any().and(graphql_filter);
+        warp::serve(routes).run(([0, 0, 0, 0], opt.port)).await;
+    };
 }
