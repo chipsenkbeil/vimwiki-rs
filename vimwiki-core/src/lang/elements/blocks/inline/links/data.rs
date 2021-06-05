@@ -152,15 +152,18 @@ impl<'a> LinkData<'a> {
     pub fn to_path_buf(&self) -> PathBuf {
         let mut path = PathBuf::new();
 
-        if self.uri_ref.path().is_absolute() {
-            path.push(std::path::MAIN_SEPARATOR.to_string());
-        }
-
         for seg in self.uri_ref.path().segments() {
             path.push(seg.as_str());
         }
 
-        path
+        // If absolute, we need to make the path absolute
+        if self.uri_ref.path().is_absolute() {
+            std::path::Path::new(&std::path::Component::RootDir).join(path)
+
+        // Otherwise, return the relative path as it is
+        } else {
+            path
+        }
     }
 
     /// Returns a reference to the fragment portion of the link's uri (after
