@@ -1,8 +1,9 @@
 #![allow(clippy::large_enum_variant)]
 
 use crate::StrictEq;
-use derive_more::{Constructor, From};
+use derive_more::{Constructor, From, Index, IndexMut, IntoIterator};
 use serde::{Deserialize, Serialize};
+use std::iter::FromIterator;
 
 mod blocks;
 pub use blocks::*;
@@ -13,10 +14,23 @@ pub use utils::{
 
 /// Represents a full page containing different elements
 #[derive(
-    Constructor, Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize,
+    Constructor,
+    Clone,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    Index,
+    IndexMut,
+    IntoIterator,
+    Serialize,
+    Deserialize,
 )]
 pub struct Page<'a> {
     /// Comprised of the elements within a page
+    #[index]
+    #[index_mut]
+    #[into_iterator(owned, ref, ref_mut)]
     pub elements: Vec<Located<BlockElement<'a>>>,
 }
 
@@ -59,6 +73,16 @@ impl<'a> IntoChildren for Page<'a> {
 
     fn into_children(self) -> Vec<Self::Child> {
         self.elements
+    }
+}
+
+impl<'a> FromIterator<Located<BlockElement<'a>>> for Page<'a> {
+    fn from_iter<I: IntoIterator<Item = Located<BlockElement<'a>>>>(
+        iter: I,
+    ) -> Self {
+        Self {
+            elements: iter.into_iter().collect(),
+        }
     }
 }
 

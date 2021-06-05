@@ -10,7 +10,7 @@ use std::{
     convert::TryFrom,
     fmt::{Display, Formatter, Result as FmtResult},
     iter::Enumerate,
-    ops::{Range, RangeFrom, RangeFull, RangeTo},
+    ops::{Deref, Range, RangeFrom, RangeFull, RangeTo},
     path::Path,
     str::FromStr,
 };
@@ -108,6 +108,18 @@ impl<'a> Span<'a> {
             0
         };
         self.with_depth(depth)
+    }
+
+    /// Returns a copy of the span with leading whitespace removed
+    pub fn trim_start(&self) -> Self {
+        let mut start = self.start;
+        let end = self.end;
+
+        while start < end && self.inner[start].is_ascii_whitespace() {
+            start += 1;
+        }
+
+        self.starting_at(start - self.start)
     }
 
     /// Represents the inner byte slice starting from the original span
@@ -287,6 +299,14 @@ impl<'a> Span<'a> {
     }
 }
 
+impl<'a> Deref for Span<'a> {
+    type Target = &'a [u8];
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
 impl<'a> Display for Span<'a> {
     /// Displays the span's inner byte slice as a UTF-8 str starting from the
     /// span's offset, or if the byte slice is not a UTF-8 str will display
@@ -301,7 +321,7 @@ impl<'a> Display for Span<'a> {
 }
 
 /*****************************************************************************/
-/* BEGIN DEFAULT IMPL   S                                                    */
+/* BEGIN DEFAULT IMPLS                                                       */
 /*****************************************************************************/
 
 impl Default for Span<'_> {
@@ -718,6 +738,30 @@ impl<'a> Slice<RangeFull> for Span<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn trim_start_should_return_exact_copy_if_no_leading_whitespace() {
+        let span = Span::from("some text");
+        assert_eq!(span.trim_start(), span);
+    }
+
+    #[test]
+    fn trim_start_should_return_exact_copy_if_empty_span() {
+        let span = Span::from("");
+        assert_eq!(span.trim_start(), span);
+    }
+
+    #[test]
+    fn trim_start_should_return_empty_span_if_all_whitespace() {
+        let span = Span::from(" \t\n\r");
+        assert_eq!(span.trim_start(), "");
+    }
+
+    #[test]
+    fn trim_start_should_return_span_with_leading_whitespace_trimmed() {
+        let span = Span::from(" \t\n\rsome text");
+        assert_eq!(span.trim_start(), "some text");
+    }
 
     mod nom_traits {
         use super::*;

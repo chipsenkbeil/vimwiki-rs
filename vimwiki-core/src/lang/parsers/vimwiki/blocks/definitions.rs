@@ -60,7 +60,9 @@ fn term_line(
     // Parse our term and provide location information for it
     let (input, term) = locate(capture(terminated(
         map_parser(
-            take_line_until1("::"),
+            verify(take_line_until1("::"), |span| {
+                !span.trim_start().starts_with(b"%%")
+            }),
             map(
                 inline_element_container,
                 |l: Located<InlineElementContainer>| Term::new(l.into_inner()),
@@ -174,6 +176,15 @@ mod tests {
             term 1::
             term 2::
         "#});
+        assert!(definition_list(input).is_err());
+    }
+
+    #[test]
+    fn definition_list_should_fail_if_term_is_commented_out() {
+        let input = Span::from("%%term1:: def1");
+        assert!(definition_list(input).is_err());
+
+        let input = Span::from("%%+term1:: def1+%%");
         assert!(definition_list(input).is_err());
     }
 

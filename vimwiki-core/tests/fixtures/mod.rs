@@ -7,13 +7,13 @@ pub enum VimwikiFile {
     VimwikiWikiTipsAndSnips,
     VimwikiWikiRelatedTools,
     PandocVimwikiReader,
+    MiscCommentInDefinitionList,
     MiscDepthCheck,
 }
 
 impl VimwikiFile {
     /// Loads and returns the file represented by the fixture
     pub fn load(&self) -> io::Result<String> {
-        println!("{:?}", self.to_path());
         fs::read_to_string(self.to_path())
     }
 
@@ -34,6 +34,9 @@ impl VimwikiFile {
             }
             Self::PandocVimwikiReader => {
                 PathBuf::from("pandoc/vimwiki-reader.wiki")
+            }
+            Self::MiscCommentInDefinitionList => {
+                PathBuf::from("misc/comment-in-definition-list.wiki")
             }
             Self::MiscDepthCheck => PathBuf::from("misc/depth-check.wiki"),
         };
