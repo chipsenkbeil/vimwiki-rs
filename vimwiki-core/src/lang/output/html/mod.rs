@@ -1337,7 +1337,10 @@ mod tests {
     use chrono::NaiveDate;
     use indoc::indoc;
     use std::{
-        borrow::Cow, collections::HashMap, convert::TryFrom, path::Path,
+        borrow::Cow,
+        collections::HashMap,
+        convert::TryFrom,
+        path::{Path, PathBuf},
     };
     use uriparse::URIReference;
 
@@ -1349,20 +1352,19 @@ mod tests {
     ) -> HtmlConfig {
         let wiki = wiki.as_ref().to_string_lossy();
         let page = page.as_ref().to_string_lossy();
-        let sep = std::path::MAIN_SEPARATOR.to_string();
         HtmlConfig {
             wikis: vec![HtmlWikiConfig {
-                path: [sep.as_str(), "wiki", wiki.as_ref()].iter().collect(),
-                path_html: [sep.as_str(), "html", wiki.as_ref()]
-                    .iter()
-                    .collect(),
+                path: make_path_from_pieces(vec!["wiki", wiki.as_ref()]),
+                path_html: make_path_from_pieces(vec!["html", wiki.as_ref()]),
                 ..Default::default()
             }],
             runtime: HtmlRuntimeConfig {
                 wiki_index: Some(0),
-                page: [sep.as_str(), "wiki", wiki.as_ref(), page.as_ref()]
-                    .iter()
-                    .collect(),
+                page: make_path_from_pieces(vec![
+                    "wiki",
+                    wiki.as_ref(),
+                    page.as_ref(),
+                ]),
             },
             ..Default::default()
         }
@@ -1371,10 +1373,9 @@ mod tests {
     /// Adds a wiki to the config for interwiki testing
     fn add_wiki<P: AsRef<Path>>(c: &mut HtmlConfig, wiki: P) {
         let wiki = wiki.as_ref().to_string_lossy();
-        let sep = std::path::MAIN_SEPARATOR.to_string();
         c.wikis.push(HtmlWikiConfig {
-            path: [sep.as_str(), "wiki", wiki.as_ref()].iter().collect(),
-            path_html: [sep.as_str(), "html", wiki.as_ref()].iter().collect(),
+            path: make_path_from_pieces(vec!["wiki", wiki.as_ref()]),
+            path_html: make_path_from_pieces(vec!["html", wiki.as_ref()]),
             ..Default::default()
         });
     }
@@ -1386,13 +1387,19 @@ mod tests {
         name: N,
     ) {
         let wiki = wiki.as_ref().to_string_lossy();
-        let sep = std::path::MAIN_SEPARATOR.to_string();
         c.wikis.push(HtmlWikiConfig {
-            path: [sep.as_str(), "wiki", wiki.as_ref()].iter().collect(),
-            path_html: [sep.as_str(), "html", wiki.as_ref()].iter().collect(),
+            path: make_path_from_pieces(vec!["wiki", wiki.as_ref()]),
+            path_html: make_path_from_pieces(vec!["html", wiki.as_ref()]),
             name: Some(name.as_ref().to_string()),
             ..Default::default()
         });
+    }
+
+    fn make_path_from_pieces<'a, I: IntoIterator<Item = &'a str>>(
+        iter: I,
+    ) -> PathBuf {
+        std::path::Path::new(&std::path::Component::RootDir)
+            .join(iter.into_iter().collect::<PathBuf>())
     }
 
     fn text_to_inline_element_container(s: &str) -> InlineElementContainer {
