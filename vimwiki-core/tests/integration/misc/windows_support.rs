@@ -24,7 +24,7 @@ fn test() {
             InlineElementContainer::new(vec![Located::from(
                 InlineElement::from(Comment::from(MultiLineComment::new(
                     vec![
-                        Cow::Borrowed("this is a paragraph"),
+                        Cow::Borrowed("this is a comment"),
                         Cow::Borrowed("with carriage returns"),
                     ]
                 )))
@@ -158,7 +158,7 @@ fn test() {
                     CellPos::new(0, 0),
                     Located::from(Cell::Content(InlineElementContainer::new(
                         vec![Located::from(InlineElement::from(Text::from(
-                            "table"
+                            " table                 "
                         )))]
                     )))
                 ),
@@ -170,7 +170,7 @@ fn test() {
                     CellPos::new(2, 0),
                     Located::from(Cell::Content(InlineElementContainer::new(
                         vec![Located::from(InlineElement::from(Text::from(
-                            "with carriage returns"
+                            " with carriage returns "
                         )))]
                     )))
                 )

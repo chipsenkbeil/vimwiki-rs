@@ -18,7 +18,7 @@ use crate::lang::{
 use nom::{
     branch::alt,
     bytes::complete::{tag, take},
-    character::complete::newline,
+    character::complete::{crlf, newline},
     combinator::{map, map_parser, not, recognize},
     multi::many1,
     sequence::preceded,
@@ -29,7 +29,11 @@ pub fn text(input: Span) -> IResult<Located<Text>> {
     // Uses combination of short-circuiting and full checks to ensure we
     // can continue consuming text
     fn is_text(input: Span) -> IResult<()> {
+        // Check for \n and \r\n
         let (input, _) = not(newline)(input)?;
+        let (input, _) = not(crlf)(input)?;
+
+        // Check for all other inline element types
         let (input, _) = not(comment)(input)?;
         let (input, _) = not(code_inline)(input)?;
         let (input, _) = not(math_inline)(input)?;
@@ -37,6 +41,7 @@ pub fn text(input: Span) -> IResult<Located<Text>> {
         let (input, _) = not(link)(input)?;
         let (input, _) = not(decorated_text)(input)?;
         let (input, _) = not(keyword)(input)?;
+
         Ok((input, ()))
     }
 
@@ -267,11 +272,22 @@ mod tests {
 
     #[test]
     fn text_should_consume_until_reaching_end_of_line() {
+        // Support \n line termination
         let input = Span::from("abc123\nsome other text");
         let (input, t) = text(input).unwrap();
         assert_eq!(
             input.as_unsafe_remaining_str(),
             "\nsome other text",
+            "Unexpected input consumption"
+        );
+        assert_eq!(t.into_inner(), Text::from("abc123"));
+
+        // Support \r\n line termination
+        let input = Span::from("abc123\r\nsome other text");
+        let (input, t) = text(input).unwrap();
+        assert_eq!(
+            input.as_unsafe_remaining_str(),
+            "\r\nsome other text",
             "Unexpected input consumption"
         );
         assert_eq!(t.into_inner(), Text::from("abc123"));

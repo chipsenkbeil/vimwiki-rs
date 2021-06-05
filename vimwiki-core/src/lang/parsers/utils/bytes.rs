@@ -154,9 +154,13 @@ pub fn take_line_until<'a>(
         let bytes = input.as_bytes();
         for pos in memchr2_iter(b'\n', pattern.as_bytes()[0], bytes) {
             // If we have reached the end of line, return with everything
-            // but the end of line
+            // but the end of line (and \r if it preceeds)
             if bytes[pos] == b'\n' {
-                return Ok(input.take_split(pos));
+                if pos > 0 && bytes[pos - 1] == b'\r' {
+                    return Ok(input.take_split(pos - 1));
+                } else {
+                    return Ok(input.take_split(pos));
+                }
             }
 
             // Grab everything but the possible pattern
@@ -205,10 +209,14 @@ pub fn take_line_until_one_of_two<'a>(
         let p2_bytes = pattern2.as_bytes();
 
         for pos in memchr3_iter(b'\n', p1_bytes[0], p2_bytes[0], bytes) {
-            // If we have reached the end of line, return everything
-            // before the line position
+            // If we have reached the end of line, return with everything
+            // but the end of line (and \r if it preceeds)
             if bytes[pos] == b'\n' {
-                return Ok(input.take_split(pos));
+                if pos > 0 && bytes[pos - 1] == b'\r' {
+                    return Ok(input.take_split(pos - 1));
+                } else {
+                    return Ok(input.take_split(pos));
+                }
             }
 
             // Grab everything but the possible pattern
@@ -258,7 +266,15 @@ pub fn take_line_until_one_of_three<'a>(
     context("Take Line Until One of Three", move |input: Span<'a>| {
         let bytes = input.as_bytes();
 
-        let maybe_line_pos = memchr(b'\n', bytes);
+        // Translate line pos to be start of \r\n if it exists, otherwise
+        // keep it at start of \n
+        let maybe_line_pos = memchr(b'\n', bytes).map(|pos| {
+            if pos > 0 && bytes[pos - 1] == b'\r' {
+                pos - 1
+            } else {
+                pos
+            }
+        });
         let p1_bytes = pattern1.as_bytes();
         let p1_start = p1_bytes[0];
         let p2_bytes = pattern2.as_bytes();
@@ -268,7 +284,7 @@ pub fn take_line_until_one_of_three<'a>(
 
         for pos in memchr3_iter(p1_start, p2_start, p3_start, bytes) {
             // If we have reached or passed the end of line, return everything
-            // before the line position
+            // before the line position (and \r if it preceeds)
             match maybe_line_pos {
                 Some(line_pos) if line_pos <= pos => {
                     return Ok(input.take_split(line_pos));
@@ -323,8 +339,16 @@ pub fn take_line_until_one_of_three1<'a>(
 /// Parser that will consume the remainder of a line (or end of input)
 pub fn take_until_end_of_line_or_input(input: Span) -> IResult<Span> {
     fn inner(input: Span) -> IResult<Span> {
-        match memchr(b'\n', input.as_bytes()) {
+        let bytes = input.as_bytes();
+        match memchr(b'\n', bytes) {
+            // If \r\n
+            Some(pos) if pos > 0 && bytes[pos - 1] == b'\r' => {
+                Ok(input.take_split(pos - 1))
+            }
+
+            // If \n
             Some(pos) => Ok(input.take_split(pos)),
+
             _ => rest(input),
         }
     }
