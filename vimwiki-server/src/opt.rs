@@ -34,9 +34,9 @@ pub struct Opt {
     #[structopt(long, default_value = "8000")]
     pub port: u16,
 
-    /// If provided, will disable hosting of /graphiql endpoint
+    /// If provided, will include hosting of /graphiql endpoint
     #[structopt(long)]
-    pub no_graphiql: bool,
+    pub include_graphiql: bool,
 
     /// Directory where cache information for use with server will be stored
     #[structopt(long, default_value = &DEFAULT_CACHE_DIR)]

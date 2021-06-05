@@ -37,7 +37,7 @@ pub async fn run(opt: Opt) {
     let graphql_filter = graphql_endpoint!("graphql", program);
 
     info!("Listening on {}:{}", opt.host, opt.port);
-    if !opt.no_graphiql {
+    if opt.include_graphiql {
         debug!("Enabling graphiql interface");
         let graphiql_filter = graphiql_endpoint!("graphiql", "/graphql");
         let routes = warp::any().and(graphiql_filter.or(graphql_filter));
