@@ -17,7 +17,7 @@ use crate::lang::{
 
 use nom::{
     branch::alt,
-    bytes::complete::{tag, take, take_till1},
+    bytes::complete::{tag, take},
     character::complete::newline,
     combinator::{map, map_parser, not, recognize},
     multi::many1,
@@ -40,33 +40,8 @@ pub fn text(input: Span) -> IResult<Located<Text>> {
         Ok((input, ()))
     }
 
-    /// Checks for a byte that is the start of anything inline that would not
-    /// be regular text
-    #[inline]
-    fn start_of_non_text(b: u8) -> bool {
-        b == b'\n'
-            || b == b'%'
-            || b == b'`'
-            || b == b'$'
-            || b == b':'
-            || b == b'['
-            || b == b'*'
-            || b == b'_'
-            || b == b'~'
-            || b == b'^'
-            || b == b','
-            || b == b'D'
-            || b == b'F'
-            || b == b'S'
-            || b == b'T'
-            || b == b'X'
-    }
-
     fn text_line(input: Span) -> IResult<Span> {
-        recognize(many1(alt((
-            take_till1(start_of_non_text),
-            preceded(is_text, take(1usize)),
-        ))))(input)
+        recognize(many1(preceded(is_text, take(1usize))))(input)
     }
 
     context(
@@ -231,7 +206,7 @@ mod tests {
     }
 
     #[test]
-    fn text_should_consume_until_encountering_a_link() {
+    fn text_should_consume_until_encountering_a_wiki_link() {
         let input = Span::from("abc123[[some link]]");
         let (input, t) = text(input).unwrap();
         assert_eq!(
@@ -240,6 +215,30 @@ mod tests {
             "Unexpected input consumption"
         );
         assert_eq!(t.into_inner(), Text::from("abc123"));
+    }
+
+    #[test]
+    fn text_should_consume_until_encountering_a_transclusion_link() {
+        let input = Span::from("abc123{{some link}}");
+        let (input, t) = text(input).unwrap();
+        assert_eq!(
+            input.as_unsafe_remaining_str(),
+            "{{some link}}",
+            "Unexpected input consumption"
+        );
+        assert_eq!(t.into_inner(), Text::from("abc123"));
+    }
+
+    #[test]
+    fn text_should_consume_until_encountering_a_raw_link() {
+        let input = Span::from("abc123 https://example.com/");
+        let (input, t) = text(input).unwrap();
+        assert_eq!(
+            input.as_unsafe_remaining_str(),
+            "https://example.com/",
+            "Unexpected input consumption"
+        );
+        assert_eq!(t.into_inner(), Text::from("abc123 "));
     }
 
     #[test]

@@ -1,5 +1,29 @@
 use crate::fixtures::VimwikiFile;
+use std::convert::TryFrom;
+use uriparse::URIReference;
 use vimwiki_core::*;
+
+/// https://github.com/chipsenkbeil/vimwiki-rs/issues/119
+#[test]
+fn issue_119() {
+    let contents = VimwikiFile::Issue119.load().unwrap();
+    let page: Page = Language::from_vimwiki_str(&contents).parse().unwrap();
+
+    // some words in front: https://example.com/
+    assert_eq!(
+        page[0],
+        Located::from(BlockElement::from(Paragraph::new(vec![
+            InlineElementContainer::new(vec![
+                Located::from(InlineElement::from(Text::from(
+                    "some words in front: "
+                ))),
+                Located::from(InlineElement::from(Link::new_raw_link(
+                    URIReference::try_from("https://example.com/").unwrap()
+                )))
+            ]),
+        ])))
+    );
+}
 
 /// https://github.com/chipsenkbeil/vimwiki-rs/issues/120
 #[test]
