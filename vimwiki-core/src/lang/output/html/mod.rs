@@ -232,13 +232,16 @@ impl<'a> Output for Header<'a> {
     /// ```
     fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
         let raw_content = self.content.to_string();
-        let header_id = escape::escape_html(&raw_content);
+        let header_id = utils::normalize_id(&raw_content);
+        let unique_header_id = f.make_unique_id(&header_id);
         f.insert_header_text(self.level, header_id.clone());
 
-        let is_toc = raw_content.trim() == f.config().header.table_of_contents;
+        // ToC is only available for a top-level header
+        let is_toc = self.level == 1
+            && raw_content.trim() == f.config().header.table_of_contents;
         if is_toc {
-            write!(f, r#"<div id="{}" class="toc">"#, header_id)?;
-            write!(f, r#"<h{} id="{}">"#, self.level, header_id)?;
+            write!(f, r#"<div class="toc">"#)?;
+            write!(f, r#"<h{} id="{}">"#, self.level, unique_header_id)?;
             self.content.fmt(f)?;
             writeln!(f, "</h{}></div>", self.level)?;
         } else {
@@ -246,16 +249,36 @@ impl<'a> Output for Header<'a> {
             // contents (earlier levels) up to and including the current header
             let complete_header_id =
                 build_complete_id(f, self.level, &header_id)?;
+            let unique_complete_header_id =
+                f.make_unique_id(&complete_header_id);
 
-            write!(f, r#"<div id="{}">"#, complete_header_id)?;
+            // If we have a nested header, then we need to provide a div
+            // that has a full id to it alongside the existing single unique
+            // id
+            if self.level > 1 {
+                write!(f, r#"<div id="{}">"#, unique_complete_header_id)?;
+            }
+
             write!(
                 f,
                 r#"<h{} id="{}" class="header">"#,
-                self.level, header_id
+                self.level, unique_header_id
             )?;
-            write!(f, r##"<a href="#{}">"##, complete_header_id)?;
+
+            // NOTE: It's fine to use the unique complete header here as if
+            //       we are a top-level header then this would be the same
+            //       as unique_header_id
+            write!(f, r##"<a href="#{}">"##, unique_complete_header_id)?;
             self.content.fmt(f)?;
-            writeln!(f, "</a></h{}></div>", self.level)?;
+            writeln!(f, "</a></h{}>", self.level)?;
+
+            // If we have a nested header, then we produced a div with a
+            // complete id and we need to close it
+            if self.level > 1 {
+                writeln!(f, "</div>")?;
+            } else {
+                writeln!(f)?;
+            }
         }
 
         Ok(())
@@ -921,7 +944,7 @@ impl<'a> Output for DecoratedText<'a> {
                 for content in contents {
                     write!(&mut id, "{}", content.to_string())?;
                 }
-                id = escape::escape_html(&id);
+                id = utils::normalize_id(&id);
 
                 // Second, build up the full id using all headers leading up
                 // to this bold text
@@ -930,10 +953,15 @@ impl<'a> Output for DecoratedText<'a> {
                     f.max_header_level().unwrap_or_default() + 1,
                     &id,
                 )?;
+                let unique_complete_id = f.make_unique_id(&complete_id);
 
                 // Third, produce HTML span (anchor) in front of <strong> tag
                 // using the complete id produced
-                write!(f, r#"<span id="{}"></span><strong>"#, complete_id)?;
+                write!(
+                    f,
+                    r#"<span id="{}"></span><strong>"#,
+                    unique_complete_id
+                )?;
 
                 // Fourth, write out all of the contents and then close the
                 // <strong> tag
@@ -1203,14 +1231,20 @@ impl<'a> Output for Tags<'a> {
     /// ```
     fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
         for tag in self {
-            let id = escape::escape_html(tag.as_str());
+            let id = utils::normalize_id(tag.as_str());
+            let unique_id = f.make_unique_id(&id);
             let complete_id = build_complete_id(
                 f,
                 f.max_header_level().unwrap_or_default() + 1,
                 id.as_str(),
             )?;
-            write!(f, "<span id=\"{}\"></span>", complete_id)?;
-            write!(f, "<span class=\"tag\" id=\"{}\">{}</span>", id, id)?;
+            let unique_complete_id = f.make_unique_id(&complete_id);
+            write!(f, "<span id=\"{}\"></span>", unique_complete_id)?;
+            write!(
+                f,
+                "<span class=\"tag\" id=\"{}\">{}</span>",
+                unique_id, id
+            )?;
         }
 
         Ok(())
@@ -1321,6 +1355,9 @@ fn build_complete_id(
     id: &str,
 ) -> Result<String, HtmlOutputError> {
     let mut complete_id = String::new();
+
+    // Add all of the header text up to (not including) the level specified
+    // to form the complete id
     for i in 1..max_level {
         if let Some(id) = f.get_header_text(i) {
             write!(&mut complete_id, "{}-", id)?;

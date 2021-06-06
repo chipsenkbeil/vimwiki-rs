@@ -13,12 +13,11 @@ use std::{
 use uriparse::{
     Fragment, RelativeReference, RelativeReferenceError, URIReference,
 };
+use voca_rs::{escape, split};
 
 /// For use with serde's deserialize_with when deseriaizing to a path that
 /// we also want to validate is an absolute path
-pub(crate) fn deserialize_absolute_path<'de, D>(
-    d: D,
-) -> Result<PathBuf, D::Error>
+pub fn deserialize_absolute_path<'de, D>(d: D) -> Result<PathBuf, D::Error>
 where
     D: de::Deserializer<'de>,
 {
@@ -50,6 +49,14 @@ where
     Ok(value)
 }
 
+/// Normalizes text as an id by replacing whitespace with dashes and then
+/// escaping common html
+pub fn normalize_id(id: &str) -> String {
+    escape::escape_html(
+        split::words(id.to_lowercase().as_str()).join("-").as_str(),
+    )
+}
+
 /// Normalize a path, removing things like `.` and `..`.
 ///
 /// CAUTION: This does not resolve symlinks (unlike
@@ -60,7 +67,7 @@ where
 /// needs to improve on.
 ///
 /// From https://github.com/rust-lang/cargo/blob/070e459c2d8b79c5b2ac5218064e7603329c92ae/crates/cargo-util/src/paths.rs#L81
-pub(crate) fn normalize_path(path: &Path) -> PathBuf {
+pub fn normalize_path(path: &Path) -> PathBuf {
     let mut components = path.components().peekable();
     let mut ret =
         if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
@@ -142,7 +149,7 @@ pub enum LinkResolutionError {
 /// Performs link resolution to figure out the resulting URI or relative path
 /// based on the file containing the link, the destination wiki, and the
 /// outgoing link
-pub(crate) fn resolve_link(
+pub fn resolve_link(
     config: &HtmlConfig,
     src_wiki: &HtmlWikiConfig,
     src: &Path,

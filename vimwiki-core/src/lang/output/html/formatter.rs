@@ -1,6 +1,7 @@
 use super::HtmlConfig;
 use chrono::NaiveDate;
 use std::{
+    borrow::Cow,
     collections::HashMap,
     fmt::{self, Write},
     path::{Path, PathBuf},
@@ -15,6 +16,9 @@ pub struct HtmlFormatter {
 
     /// Mapping of header level -> text (with details stripped)
     last_seen_headers: HashMap<usize, String>,
+
+    /// Cache of all ids used and total times used thus far
+    id_cache: HashMap<String, usize>,
 
     /// Contains the title to be used for the page
     title: Option<String>,
@@ -40,6 +44,7 @@ impl HtmlFormatter {
         Self {
             config,
             last_seen_headers: HashMap::new(),
+            id_cache: HashMap::new(),
             title: None,
             date: None,
             template: None,
@@ -71,6 +76,31 @@ impl HtmlFormatter {
     /// Returns the level of the biggest header (level) stored at the moment
     pub fn max_header_level(&self) -> Option<usize> {
         self.last_seen_headers.keys().max().copied()
+    }
+
+    /// Given some input id, will output an id that is guaranteed to be unique
+    pub fn make_unique_id<'a>(&mut self, id: &'a str) -> Cow<'a, str> {
+        let unique_id = if self.id_cache.contains_key(id) {
+            let mut id = Cow::Borrowed(id);
+
+            while let Some(count) = self.id_cache.get(id.as_ref()).copied() {
+                let tmp = format!("{}-{}", id, count + 1);
+
+                if !self.id_cache.contains_key(&tmp) {
+                    self.id_cache.insert(id.to_string(), count + 1);
+                    id = Cow::Owned(tmp);
+                } else {
+                    id = Cow::Owned(format!("{}-1", tmp));
+                }
+            }
+
+            id
+        } else {
+            self.id_cache.insert(id.to_string(), 0);
+            Cow::Borrowed(id)
+        };
+
+        unique_id
     }
 
     pub fn set_title(&mut self, title: &str) {
@@ -115,5 +145,20 @@ impl HtmlFormatter {
 
     pub fn into_content(self) -> String {
         self.content
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn make_unique_id_should_return_existing_id_if_not_already_used() {
+        todo!();
+    }
+
+    #[test]
+    fn make_unique_id_should_return_id_with_numeric_suffix_if_already_used() {
+        todo!();
     }
 }
