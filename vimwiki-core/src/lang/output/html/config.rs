@@ -418,7 +418,7 @@ impl HtmlWikiConfig {
         // absolute and contained in the wiki or treating the input path as
         // relative to the wiki's root path
         let input =
-            if input.is_relative() || !input.starts_with(self.path.as_path()) {
+            if !input.has_root() || !input.starts_with(self.path.as_path()) {
                 println!("relative mode -- {:?}", make_path_relative(input));
                 self.path.join(make_path_relative(input))
             } else {
