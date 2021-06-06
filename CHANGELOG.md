@@ -4,6 +4,8 @@
 
 ## [Unreleased] - ReleaseDate
 
+## [0.1.0] - 2021-06-06
+
 ### Added
 
 - `vimwiki-cli` crate that exposes a cli interface to convert vimwiki to html
