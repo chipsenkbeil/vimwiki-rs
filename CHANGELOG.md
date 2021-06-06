@@ -4,6 +4,29 @@
 
 ## [Unreleased] - ReleaseDate
 
+### Added
+
+- `vimwiki-cli` crate that exposes a cli interface to convert vimwiki to html
+  and inspect vimwiki using **jsonpath** queries
+- `vimwiki-wasm` crate that exposes a wasm version of `vimwiki` to enable
+  parsing and manipulation in the browser
+- `vimvar` dependency to support loading **g:vimwiki_list** directly from
+  neovim/vim config files, used both by `vimwiki-cli` and `vimwiki-server`
+- `--quiet` option added to `vimwiki-server` to support only showing
+  error-level log messages
+- `vimwiki` now supports optional feature **html** to render vimwiki as html
+
+### Changed
+
+- `vimwiki` crate renamed to `vimwiki-core` in order to provide a `vimwiki`
+  crate that contains both core and macros to simplify usage
+- `vimwiki-server` now supports colored output of logging and defaults to
+  info-level logging
+
+### Fixed
+
+- Raw links weren't captured if preceded by text on a line ([#119](https://github.com/chipsenkbeil/vimwiki-rs/issues/119))
+
 ## [0.1.0-alpha.6] - 2021-05-28
 
 ### Added
