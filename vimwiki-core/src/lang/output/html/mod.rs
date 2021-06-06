@@ -1399,11 +1399,6 @@ mod tests {
         iter: I,
     ) -> PathBuf {
         let rel_path: PathBuf = iter.into_iter().collect();
-        println!(
-            "NEW PATH: {:?}",
-            std::path::Path::new(&std::path::Component::RootDir)
-                .join(rel_path.as_path())
-        );
         std::path::Path::new(&std::path::Component::RootDir)
             .join(rel_path.as_path())
     }

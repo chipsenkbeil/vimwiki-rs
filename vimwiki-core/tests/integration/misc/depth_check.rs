@@ -4,9 +4,19 @@ use vimwiki_core::{vendor::uriparse::URIReference, *};
 
 #[test]
 fn test() {
-    let contents = VimwikiFile::MiscDepthCheck.load().unwrap();
+    // NOTE: On windows, loading the file into a string will yield \r\n for
+    //       the line terminations regardless of what the file actually
+    //       contains; so, we need to remove \r to handle this test
+    let contents: String = VimwikiFile::MiscDepthCheck
+        .load()
+        .unwrap()
+        .chars()
+        .filter(|c| *c != '\r')
+        .collect();
+
     let page: Page = Language::from_vimwiki_str(&contents).parse().unwrap();
 
+    // NOTE: Regions are based on \n only and not \r\n
     let expected_page = Page::new(vec![
         Located::new(
             BlockElement::from(Header::new(

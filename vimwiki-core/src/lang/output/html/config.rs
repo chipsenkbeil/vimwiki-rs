@@ -407,39 +407,20 @@ impl HtmlWikiConfig {
     ///    the wiki's path and thereby follow step 1 above
     ///
     pub fn make_output_path(&self, input: &Path, ext: &str) -> PathBuf {
-        println!("make_output_path(input = {:?}), ext = {:?})", input, ext);
-        println!("is_relative = {}", input.is_relative());
-        println!(
-            "input starts_with {:?} = {}",
-            self.path,
-            input.starts_with(self.path.as_path())
-        );
         // First, make an absolute path by either using the input if it is
         // absolute and contained in the wiki or treating the input path as
         // relative to the wiki's root path
         let input =
             if !input.has_root() || !input.starts_with(self.path.as_path()) {
-                println!("relative mode -- {:?}", make_path_relative(input));
                 self.path.join(make_path_relative(input))
             } else {
-                println!("other mode -- {:?}", input);
                 input.to_path_buf()
             };
-        println!(
-            "input.strip_prefix({:?}) = {:?}",
-            self.path,
-            input.strip_prefix(self.path.as_path()).unwrap()
-        );
 
         // Second, figure out the relative path of the input
         let input = input
             .strip_prefix(self.path.as_path())
             .expect("Impossible: file should always be within wiki");
-        println!(
-            "self.path_html.join({:?}) = {:?}",
-            input,
-            self.path_html.join(input)
-        );
 
         // Third, take the relative path of the input and append it to the base
         // html output path of the wiki, replacing the extension with html

@@ -149,17 +149,11 @@ pub(crate) fn resolve_link(
     target: &Link<'_>,
 ) -> Result<URIReference<'static>, LinkResolutionError> {
     let ext = "html";
-    println!(
-        "resolve_link(_, src_wiki = {:?}, src = {:?}, target = {:?}",
-        src_wiki, src, target
-    );
     let src_out = src_wiki.make_output_path(src, ext);
-    println!("src_out: {:?}", src_out);
 
     // We want to figure out if the target uri is a directory to ensure that
     // certain links account for that
     let target_is_dir = is_directory_uri(&target.data().uri_ref);
-    println!("target_is_dir: {}", target_is_dir);
 
     // First, build our raw uri WITHOUT anchors
     let uri_ref = match target {
@@ -275,7 +269,6 @@ pub(crate) fn resolve_link(
         Link::Diary { date, data } => {
             let diary_out =
                 make_diary_absolute_output_path(src_wiki, *date, ext);
-            println!("diary_out: {:?}", diary_out);
 
             let mut uri_ref = make_relative_link(src_out, diary_out)
                 .map(URIReference::from)
@@ -287,7 +280,6 @@ pub(crate) fn resolve_link(
                 uri_ref.map_fragment(|_| Fragment::try_from(anchor).ok());
             }
 
-            println!("uri_ref: {}", uri_ref.to_string());
             uri_ref
         }
         Link::Raw { data } => data.uri_ref.clone(),
@@ -353,7 +345,6 @@ fn make_diary_absolute_output_path(
         .path
         .join(config.diary_rel_path.as_path())
         .join(date.format("%Y-%m-%d").to_string());
-    println!("make_diary_absolute_output_path :: input = {:?}", input);
     config.make_output_path(input.as_path(), ext)
 }
 
