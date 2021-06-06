@@ -233,7 +233,7 @@ impl<'a> Output for Header<'a> {
     fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
         let raw_content = self.content.to_string();
         let header_id = utils::normalize_id(&raw_content);
-        let unique_header_id = f.make_unique_id(&header_id);
+        let unique_header_id = f.ensure_unique_id(&header_id);
         f.insert_header_text(self.level, header_id.clone());
 
         // ToC is only available for a top-level header
@@ -249,13 +249,18 @@ impl<'a> Output for Header<'a> {
             // contents (earlier levels) up to and including the current header
             let complete_header_id =
                 build_complete_id(f, self.level, &header_id)?;
-            let unique_complete_header_id =
-                f.make_unique_id(&complete_header_id);
+
+            let has_different_complete_id = complete_header_id != header_id;
+            let unique_complete_header_id = if has_different_complete_id {
+                Cow::Owned(f.ensure_unique_id(&complete_header_id))
+            } else {
+                Cow::Borrowed(&unique_header_id)
+            };
 
             // If we have a nested header, then we need to provide a div
             // that has a full id to it alongside the existing single unique
             // id
-            if self.level > 1 {
+            if has_different_complete_id {
                 write!(f, r#"<div id="{}">"#, unique_complete_header_id)?;
             }
 
@@ -270,11 +275,11 @@ impl<'a> Output for Header<'a> {
             //       as unique_header_id
             write!(f, r##"<a href="#{}">"##, unique_complete_header_id)?;
             self.content.fmt(f)?;
-            writeln!(f, "</a></h{}>", self.level)?;
+            write!(f, "</a></h{}>", self.level)?;
 
             // If we have a nested header, then we produced a div with a
             // complete id and we need to close it
-            if self.level > 1 {
+            if has_different_complete_id {
                 writeln!(f, "</div>")?;
             } else {
                 writeln!(f)?;
@@ -945,26 +950,23 @@ impl<'a> Output for DecoratedText<'a> {
                     write!(&mut id, "{}", content.to_string())?;
                 }
                 id = utils::normalize_id(&id);
+                let unique_id = f.ensure_unique_id(&id);
 
-                // Second, build up the full id using all headers leading up
-                // to this bold text
-                let complete_id = build_complete_id(
-                    f,
-                    f.max_header_level().unwrap_or_default() + 1,
-                    &id,
-                )?;
-                let unique_complete_id = f.make_unique_id(&complete_id);
+                // Second, produce a span in front if we are nested at some
+                // level when it comes to previous ids
+                if f.max_header_level().is_some() {
+                    let complete_id = build_complete_id(
+                        f,
+                        f.max_header_level().unwrap_or_default() + 1,
+                        id.as_str(),
+                    )?;
+                    let unique_complete_id = f.ensure_unique_id(&complete_id);
+                    write!(f, "<span id=\"{}\"></span>", unique_complete_id)?;
+                }
 
-                // Third, produce HTML span (anchor) in front of <strong> tag
-                // using the complete id produced
-                write!(
-                    f,
-                    r#"<span id="{}"></span><strong>"#,
-                    unique_complete_id
-                )?;
-
-                // Fourth, write out all of the contents and then close the
-                // <strong> tag
+                // Third, write out all of the contents inbetween <strong> tag
+                // with the strong tag having a unique bold id
+                write!(f, "<strong id=\"{}\">", unique_id)?;
                 for content in contents {
                     content.fmt(f)?;
                 }
@@ -1232,14 +1234,20 @@ impl<'a> Output for Tags<'a> {
     fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
         for tag in self {
             let id = utils::normalize_id(tag.as_str());
-            let unique_id = f.make_unique_id(&id);
-            let complete_id = build_complete_id(
-                f,
-                f.max_header_level().unwrap_or_default() + 1,
-                id.as_str(),
-            )?;
-            let unique_complete_id = f.make_unique_id(&complete_id);
-            write!(f, "<span id=\"{}\"></span>", unique_complete_id)?;
+            let unique_id = f.ensure_unique_id(&id);
+
+            // Only produce a span in front if we are nested at some level
+            // when it comes to previous ids
+            if f.max_header_level().is_some() {
+                let complete_id = build_complete_id(
+                    f,
+                    f.max_header_level().unwrap_or_default() + 1,
+                    id.as_str(),
+                )?;
+                let unique_complete_id = f.ensure_unique_id(&complete_id);
+                write!(f, "<span id=\"{}\"></span>", unique_complete_id)?;
+            }
+
             write!(
                 f,
                 "<span class=\"tag\" id=\"{}\">{}</span>",
@@ -1617,7 +1625,7 @@ mod tests {
     }
 
     #[test]
-    fn header_should_output_div_h_and_a_tags() {
+    fn header_should_output_h_and_a_tags() {
         let header = Header::new(
             text_to_inline_element_container("some header"),
             3,
@@ -1630,13 +1638,11 @@ mod tests {
         assert_eq!(
             f.get_content(),
             [
-                "<div id=\"some header\">",
-                "<h3 id=\"some header\" class=\"header\">",
-                "<a href=\"#some header\">",
+                "<h3 id=\"some-header\" class=\"header\">",
+                "<a href=\"#some-header\">",
                 "some header",
                 "</a>",
                 "</h3>",
-                "</div>",
                 "\n",
             ]
             .join(""),
@@ -1647,23 +1653,18 @@ mod tests {
     fn header_should_support_toc_variant() {
         let text = HtmlHeaderConfig::default_table_of_contents();
         let header =
-            Header::new(text_to_inline_element_container(&text), 3, false);
+            Header::new(text_to_inline_element_container(&text), 1, false);
 
         let mut f = HtmlFormatter::default();
-
-        // Add some header ids prior to this one to verify that they aren't used
-        f.insert_header_text(1, "h1");
-        f.insert_header_text(2, "h2");
-
         header.fmt(&mut f).unwrap();
 
         assert_eq!(
             f.get_content(),
             [
-                "<div id=\"Contents\" class=\"toc\">",
-                "<h3 id=\"Contents\">",
+                "<div class=\"toc\">",
+                "<h1 id=\"contents\">",
                 "Contents",
-                "</h3>",
+                "</h1>",
                 "</div>",
                 "\n",
             ]
@@ -1705,7 +1706,7 @@ mod tests {
     #[test]
     fn header_should_escape_html_in_ids_for_toc() {
         let header =
-            Header::new(text_to_inline_element_container("<test>"), 3, false);
+            Header::new(text_to_inline_element_container("<test>"), 1, false);
 
         // Configure to use a different table of contents string
         // that has characters that should be escaped
@@ -1716,23 +1717,11 @@ mod tests {
             ..Default::default()
         });
 
-        // Add some header ids prior to this one to verify that they aren't used
-        f.insert_header_text(1, "h1");
-        f.insert_header_text(2, "h2");
-
         header.fmt(&mut f).unwrap();
 
         assert_eq!(
             f.get_content(),
-            [
-                "<div id=\"&lt;test&gt;\" class=\"toc\">",
-                "<h3 id=\"&lt;test&gt;\">",
-                "&lt;test&gt;",
-                "</h3>",
-                "</div>",
-                "\n",
-            ]
-            .join(""),
+            "<div class=\"toc\"><h1 id=\"&lt;test&gt;\">&lt;test&gt;</h1></div>\n",
         );
     }
 
@@ -2292,16 +2281,13 @@ mod tests {
 
         assert_eq!(
             f.get_content(),
-            [
-                r#"<span id="some text"></span>"#,
-                r#"<strong>some text</strong>"#,
-            ]
-            .join(""),
+            r#"<strong id="some-text">some text</strong>"#,
         );
     }
 
     #[test]
-    fn decorated_text_should_leverage_previous_headers_in_anchor_id() {
+    fn decorated_text_should_include_extra_span_with_id_comprised_of_previous_headers_for_bold_text(
+    ) {
         let decorated_text = DecoratedText::Bold(vec![Located::from(
             DecoratedTextContent::Text(Text::from("some text")),
         )]);
@@ -2314,8 +2300,8 @@ mod tests {
         assert_eq!(
             f.get_content(),
             [
-                r#"<span id="one-two-three-some text"></span>"#,
-                r#"<strong>some text</strong>"#,
+                r#"<span id="one-two-three-some-text"></span>"#,
+                r#"<strong id="some-text">some text</strong>"#,
             ]
             .join(""),
         );
@@ -2331,11 +2317,63 @@ mod tests {
 
         assert_eq!(
             f.get_content(),
+            r#"<strong id="some-&lt;test&gt;-text">some &lt;test&gt; text</strong>"#,
+        );
+    }
+
+    #[test]
+    fn decorated_text_should_produce_unique_ids_from_repeated_bold_text() {
+        let bold1 = DecoratedText::Bold(vec![Located::from(
+            DecoratedTextContent::Text(Text::from("bold")),
+        )]);
+        let bold2 = DecoratedText::Bold(vec![Located::from(
+            DecoratedTextContent::Text(Text::from("bold")),
+        )]);
+
+        let mut f = HtmlFormatter::default();
+        bold1.fmt(&mut f).unwrap();
+        bold2.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
             [
-                r#"<span id="some &lt;test&gt; text"></span>"#,
-                r#"<strong>some &lt;test&gt; text</strong>"#,
+                r#"<strong id="bold">bold</strong>"#,
+                r#"<strong id="bold-1">bold</strong>"#,
             ]
-            .join(""),
+            .join("")
+        );
+    }
+
+    #[test]
+    fn decorated_text_should_produce_unique_ids_from_repeated_bold_text_with_nested_headers(
+    ) {
+        let bold1 = DecoratedText::Bold(vec![Located::from(
+            DecoratedTextContent::Text(Text::from("bold")),
+        )]);
+        let bold2 = DecoratedText::Bold(vec![Located::from(
+            DecoratedTextContent::Text(Text::from("bold")),
+        )]);
+        let bold3 = DecoratedText::Bold(vec![Located::from(
+            DecoratedTextContent::Text(Text::from("bold")),
+        )]);
+
+        let mut f = HtmlFormatter::default();
+        f.insert_header_text(1, "a");
+        f.insert_header_text(2, "b");
+        bold1.fmt(&mut f).unwrap();
+        bold2.fmt(&mut f).unwrap();
+
+        f.insert_header_text(2, "c");
+        bold3.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            [
+                r#"<span id="a-b-bold"></span><strong id="bold">bold</strong>"#,
+                r#"<span id="a-b-bold-1"></span><strong id="bold-1">bold</strong>"#,
+                r#"<span id="a-c-bold"></span><strong id="bold-2">bold</strong>"#,
+            ]
+            .join("")
         );
     }
 
@@ -2785,29 +2823,33 @@ mod tests {
     }
 
     #[test]
-    fn tags_should_output_two_span_tags_for_each_tag() {
+    fn tags_should_output_span_per_tag() {
         let tags: Tags = vec!["one", "two"].into_iter().collect();
         let mut f = HtmlFormatter::default();
         tags.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), [
-            r#"<span id="one"></span><span class="tag" id="one">one</span>"#,
-            r#"<span id="two"></span><span class="tag" id="two">two</span>"#,
-        ].join(""));
+        assert_eq!(
+            f.get_content(),
+            [
+                r#"<span class="tag" id="one">one</span>"#,
+                r#"<span class="tag" id="two">two</span>"#,
+            ]
+            .join("")
+        );
     }
 
     #[test]
-    fn tags_should_use_id_comprised_of_previous_headers() {
+    fn tags_should_include_extra_span_with_id_comprised_of_previous_headers() {
         let tags: Tags = vec!["one", "two"].into_iter().collect();
         let mut f = HtmlFormatter::default();
-        f.insert_header_text(1, "first id");
-        f.insert_header_text(3, "third id");
+        f.insert_header_text(1, "first-id");
+        f.insert_header_text(3, "third-id");
 
         tags.fmt(&mut f).unwrap();
 
         assert_eq!(f.get_content(), [
-            r#"<span id="first id-third id-one"></span><span class="tag" id="one">one</span>"#,
-            r#"<span id="first id-third id-two"></span><span class="tag" id="two">two</span>"#,
+            r#"<span id="first-id-third-id-one"></span><span class="tag" id="one">one</span>"#,
+            r#"<span id="first-id-third-id-two"></span><span class="tag" id="two">two</span>"#,
         ].join(""));
     }
 
@@ -2817,10 +2859,65 @@ mod tests {
         let mut f = HtmlFormatter::default();
         tags.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), [
-            r#"<span id="one&amp;"></span><span class="tag" id="one&amp;">one&amp;</span>"#,
-            r#"<span id="two&gt;"></span><span class="tag" id="two&gt;">two&gt;</span>"#,
-        ].join(""));
+        assert_eq!(
+            f.get_content(),
+            [
+                r#"<span class="tag" id="one&amp;">one&amp;</span>"#,
+                r#"<span class="tag" id="two&gt;">two&gt;</span>"#,
+            ]
+            .join("")
+        );
+    }
+
+    #[test]
+    fn tags_should_produce_unique_ids_from_repeated_same_tags() {
+        let tags1: Tags = vec!["one", "two"].into_iter().collect();
+        let tags2: Tags = vec!["one", "two"].into_iter().collect();
+
+        let mut f = HtmlFormatter::default();
+        tags1.fmt(&mut f).unwrap();
+        tags2.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            [
+                r#"<span class="tag" id="one">one</span>"#,
+                r#"<span class="tag" id="two">two</span>"#,
+                r#"<span class="tag" id="one-1">one</span>"#,
+                r#"<span class="tag" id="two-1">two</span>"#,
+            ]
+            .join("")
+        );
+    }
+
+    #[test]
+    fn tags_should_produce_unique_ids_from_repeated_same_tags_with_nested_headers(
+    ) {
+        let tags1: Tags = vec!["one", "two"].into_iter().collect();
+        let tags2: Tags = vec!["one", "two"].into_iter().collect();
+        let tags3: Tags = vec!["one", "two"].into_iter().collect();
+
+        let mut f = HtmlFormatter::default();
+        f.insert_header_text(1, "a");
+        f.insert_header_text(2, "b");
+        tags1.fmt(&mut f).unwrap();
+        tags2.fmt(&mut f).unwrap();
+
+        f.insert_header_text(2, "c");
+        tags3.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            [
+                r#"<span id="a-b-one"></span><span class="tag" id="one">one</span>"#,
+                r#"<span id="a-b-two"></span><span class="tag" id="two">two</span>"#,
+                r#"<span id="a-b-one-1"></span><span class="tag" id="one-1">one</span>"#,
+                r#"<span id="a-b-two-1"></span><span class="tag" id="two-1">two</span>"#,
+                r#"<span id="a-c-one"></span><span class="tag" id="one-2">one</span>"#,
+                r#"<span id="a-c-two"></span><span class="tag" id="two-2">two</span>"#,
+            ]
+            .join("")
+        );
     }
 
     #[test]

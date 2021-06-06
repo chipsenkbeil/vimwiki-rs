@@ -13,7 +13,7 @@ use std::{
 use uriparse::{
     Fragment, RelativeReference, RelativeReferenceError, URIReference,
 };
-use voca_rs::{escape, split};
+use voca_rs::escape;
 
 /// For use with serde's deserialize_with when deseriaizing to a path that
 /// we also want to validate is an absolute path
@@ -53,7 +53,12 @@ where
 /// escaping common html
 pub fn normalize_id(id: &str) -> String {
     escape::escape_html(
-        split::words(id.to_lowercase().as_str()).join("-").as_str(),
+        id.to_lowercase()
+            .split(|c: char| c.is_whitespace())
+            .filter(|s| !s.is_empty())
+            .collect::<Vec<&str>>()
+            .join("-")
+            .as_str(),
     )
 }
 

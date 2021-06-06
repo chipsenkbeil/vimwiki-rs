@@ -79,7 +79,8 @@ impl HtmlFormatter {
     }
 
     /// Given some input id, will output an id that is guaranteed to be unique
-    pub fn make_unique_id<'a>(&mut self, id: &'a str) -> Cow<'a, str> {
+    /// through a format of {ID}-{NUMBER}
+    pub fn ensure_unique_id<'a>(&mut self, id: &'a str) -> Cow<'a, str> {
         let unique_id = if self.id_cache.contains_key(id) {
             let mut id = Cow::Borrowed(id);
 
@@ -90,7 +91,7 @@ impl HtmlFormatter {
                     self.id_cache.insert(id.to_string(), count + 1);
                     id = Cow::Owned(tmp);
                 } else {
-                    id = Cow::Owned(format!("{}-1", tmp));
+                    id = Cow::Owned(format!("{}-1", id));
                 }
             }
 
@@ -153,12 +154,50 @@ mod tests {
     use super::*;
 
     #[test]
-    fn make_unique_id_should_return_existing_id_if_not_already_used() {
-        todo!();
+    fn ensure_unique_id_should_return_existing_id_if_not_already_used() {
+        let mut f = HtmlFormatter::default();
+        assert_eq!(f.ensure_unique_id("id"), "id");
     }
 
     #[test]
-    fn make_unique_id_should_return_id_with_numeric_suffix_if_already_used() {
-        todo!();
+    fn ensure_unique_id_should_return_id_with_numeric_suffix_if_already_used() {
+        let mut f = HtmlFormatter::default();
+
+        f.ensure_unique_id("id");
+        assert_eq!(f.ensure_unique_id("id"), "id-1");
+    }
+
+    #[test]
+    fn ensure_unique_id_should_return_id_with_numeric_suffix_incremented_if_already_exists(
+    ) {
+        let mut f = HtmlFormatter::default();
+
+        assert_eq!(f.ensure_unique_id("id"), "id");
+        assert_eq!(f.ensure_unique_id("id"), "id-1");
+        assert_eq!(f.ensure_unique_id("id"), "id-2");
+    }
+
+    #[test]
+    fn ensure_unique_id_should_return_id_with_extra_suffix_if_increment_already_exists(
+    ) {
+        let mut f = HtmlFormatter::default();
+
+        assert_eq!(f.ensure_unique_id("id"), "id");
+        assert_eq!(f.ensure_unique_id("id-1"), "id-1");
+        assert_eq!(f.ensure_unique_id("id"), "id-1-1");
+        assert_eq!(f.ensure_unique_id("id"), "id-1-2");
+        assert_eq!(f.ensure_unique_id("id-1"), "id-1-3");
+    }
+
+    #[test]
+    fn ensure_unique_id_should_not_cache_generated_ids() {
+        let mut f = HtmlFormatter::default();
+
+        // Notice that even though id -> id-1 is produced, id-1 -> id-1 is
+        // the next result; this mirrors what blackfriday (markdown) does
+        assert_eq!(f.ensure_unique_id("id"), "id");
+        assert_eq!(f.ensure_unique_id("id"), "id-1");
+        assert_eq!(f.ensure_unique_id("id-1"), "id-1");
+        assert_eq!(f.ensure_unique_id("id"), "id-2");
     }
 }
