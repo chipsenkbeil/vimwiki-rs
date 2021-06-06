@@ -4,10 +4,7 @@ use crate::{database::gql_db, utils, Config};
 use entity::{TypedPredicate as P, *};
 use entity_async_graphql::*;
 use sha1::{Digest, Sha1};
-use std::{
-    convert::TryFrom,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 use vimwiki::{self as v, Language, ParseError};
 
 mod errors;
@@ -79,15 +76,9 @@ impl Wiki {
         let paths = utils::walk_and_resolve_paths(c_path.as_path(), ext);
         let tracker = before_loading_files(paths.len());
 
-        let mut file_ids = Vec::new();
-        for (i, path) in paths.into_iter().enumerate() {
-            file_ids.push(ParsedFile::load(path.as_path()).await?.id());
-            on_file_loaded(&tracker, i, path.as_path());
-        }
-        after_loading_files(tracker);
-
-        // Check if the wiki already exists, and if so update its files
-        let maybe_wiki = gql_db()?
+        // Check if the wiki already exists, otherwise create a new one
+        // with no files
+        let existing_wiki = gql_db()?
             .find_all_typed::<Wiki>(
                 Wiki::query()
                     .where_path(P::equals(c_path.to_string_lossy().to_string()))
@@ -97,23 +88,38 @@ impl Wiki {
             .into_iter()
             .next();
 
-        if let Some(mut wiki) = maybe_wiki {
-            wiki.set_files_ids(file_ids);
-            let _ = wiki
-                .commit()
-                .map_err(|x| async_graphql::Error::new(x.to_string()))?;
-            Ok(wiki)
+        let mut wiki = if let Some(wiki) = existing_wiki {
+            wiki
         } else {
             GraphqlDatabaseError::wrap(
                 Self::build()
                     .index(index)
                     .name(name.map(|x| x.as_ref().to_string()))
                     .path(c_path.to_string_lossy().to_string())
-                    .files(file_ids)
+                    .files(Vec::new())
                     .finish_and_commit(),
             )
-            .map_err(|x| async_graphql::Error::new(x.to_string()))
+            .map_err(|x| async_graphql::Error::new(x.to_string()))?
+        };
+
+        let mut file_ids = Vec::new();
+        for (i, path) in paths.into_iter().enumerate() {
+            file_ids.push(
+                ParsedFile::load(Some(wiki.id()), path.as_path())
+                    .await?
+                    .id(),
+            );
+            on_file_loaded(&tracker, i, path.as_path());
         }
+        after_loading_files(tracker);
+
+        // Update the wiki's files edge
+        wiki.set_files_ids(file_ids);
+        let _ = wiki
+            .commit()
+            .map_err(|x| async_graphql::Error::new(x.to_string()))?;
+
+        Ok(wiki)
     }
 }
 
@@ -123,12 +129,16 @@ pub struct ParsedFile {
     path: String,
     checksum: String,
 
+    #[ent(edge)]
+    wiki: Option<Wiki>,
+
     #[ent(edge(policy = "deep"))]
     page: Page,
 }
 
 impl ParsedFile {
     pub async fn create(
+        wiki_id: impl Into<Option<Id>>,
         path: impl AsRef<Path>,
         contents: impl AsRef<[u8]>,
         overwrite: bool,
@@ -148,20 +158,24 @@ impl ParsedFile {
             .await
             .map_err(|x| async_graphql::Error::new(x.to_string()))?;
 
-        Self::load(path).await
+        Self::load(wiki_id, path).await
     }
 
     pub async fn load_all<P: AsRef<Path>>(
+        wiki_id: Option<Id>,
         paths: &[P],
     ) -> async_graphql::Result<Vec<Self>> {
         let mut files = Vec::new();
         for p in paths {
-            files.push(Self::load(p).await?);
+            files.push(Self::load(wiki_id, p).await?);
         }
         Ok(files)
     }
 
-    pub async fn load(path: impl AsRef<Path>) -> async_graphql::Result<Self> {
+    pub async fn load(
+        wiki_id: impl Into<Option<Id>>,
+        path: impl AsRef<Path>,
+    ) -> async_graphql::Result<Self> {
         let c_path: PathBuf = tokio::fs::canonicalize(path)
             .await
             .map_err(|x| async_graphql::Error::new(x.to_string()))?;
@@ -184,33 +198,45 @@ impl ParsedFile {
         let checksum = format!("{:x}", Sha1::digest(text.as_bytes()));
 
         // Third, determine if the content has changed from what we know. If it
-        // has, we remove the old ent in preparation for creating a new one. If
-        // it hasn't, we return the current ent.
-        if let Some(ent) = maybe_ent {
+        // hasn't, we return the current ent; otherwise, we continue with the
+        // intention of replacing the ent by returning its old wiki and removing
+        // it from the database
+        let old_wiki_id = if let Some(ent) = maybe_ent {
             if ent.checksum() == &checksum {
                 return Ok(ent);
             } else {
+                let id = ent.wiki_id();
                 let _ = ent.remove()?;
+                id
             }
-        }
+        } else {
+            None
+        };
 
         // Fourth, convert file contents into a vimwiki page
         let page: v::Page = Language::from_vimwiki_str(&text).parse().map_err(
             |x: ParseError| async_graphql::Error::new(x.to_string()),
         )?;
 
-        // Fifth, save the vimwiki page as a graphql page
-        let page_id = Page::try_from(page)?.id();
-
-        // Sixth, save the parsed file and return it
-        GraphqlDatabaseError::wrap(
+        // Fifth, save the parsed file with a temporary page id
+        let mut parsed_file = GraphqlDatabaseError::wrap(
             Self::build()
                 .path(c_path.to_string_lossy().to_string())
                 .checksum(checksum)
-                .page(page_id)
+                .wiki(wiki_id.into().or(old_wiki_id))
+                .page(EPHEMERAL_ID)
                 .finish_and_commit(),
         )
-        .map_err(|x| async_graphql::Error::new(x.to_string()))
+        .map_err(|x| async_graphql::Error::new(x.to_string()))?;
+
+        // Sixth, save the vimwiki page as a graphql page
+        let page_id = Page::create_from_vimwiki(parsed_file.id(), page)?.id();
+
+        // Seventh, update the parsed file's page id
+        parsed_file.set_page_id(page_id);
+        parsed_file.commit()?;
+
+        Ok(parsed_file)
     }
 
     pub async fn rename<P1: AsRef<Path>, P2: AsRef<Path>>(

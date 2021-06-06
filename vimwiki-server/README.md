@@ -23,17 +23,18 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-vimwiki-server = "0.1.0-alpha.5"
+vimwiki-server = "0.1"
 ```
 
 ## Examples
 
 ### Binary
 
-Running the binary from the command line with a single wiki:
+Running the binary from the command line with **http://127.0.0.1/graphiql**
+enabled:
 
 ```bash
-vimwiki-server --wiki 0:$HOME/vimwiki
+vimwiki-server --graphiql
 ```
 
 ### Library
@@ -41,15 +42,20 @@ vimwiki-server --wiki 0:$HOME/vimwiki
 Embedding and running the server from your own binary:
 
 ```rust
-use vimwiki_server::{Program, Config};
+use vimwiki_server::{Config, Opt, Program};
 
 #[tokio::main]
 async fn main() {
     // Load configuration for the server from the CLI arguments
-    let config = Config::load();
+    let opt = Opt::load();
+
+    // Read in a config file (or default config) for use by server
+    let config = Config::load(&opt).unwrap();
 
     // Start the server program
-    Program::run(config).await.expect("Server failed unexpectedly");
+    Program::run(opt, config)
+        .await
+        .expect("Server failed unexpectedly");
 }
 ```
 

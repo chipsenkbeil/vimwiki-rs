@@ -7,7 +7,6 @@ use std::{
     fs, io,
     path::{Component, Path, PathBuf},
 };
-use vimvar::VimVar;
 
 /// Builds a new progress bar for n items
 pub fn new_progress_bar(n: u64) -> ProgressBar {
@@ -144,7 +143,7 @@ pub fn load_config<'a, I: Into<Option<&'a Path>>>(
 fn load_vimwiki_list() -> std::io::Result<Vec<WikiConfig>> {
     trace!("load_vimwiki_list()");
 
-    let vimwiki_list_json = VimVar::load_global_var("vimwiki_list", false)?;
+    let vimwiki_list_json = vimvar::load_global_var("vimwiki_list", false)?;
     trace!("g:vimwiki_list == {:?}", vimwiki_list_json);
 
     if let Some(json) = vimwiki_list_json {

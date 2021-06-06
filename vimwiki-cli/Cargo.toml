@@ -27,5 +27,5 @@ stderrlog = "0.5.1"
 structopt = "0.3.21"
 toml = "0.5.8"
 walkdir = "2.3.2"
-vimvar = "0.2.0"
+vimvar = "0.2"
 vimwiki = { version = "=0.1.0", path = "../vimwiki", features = ["html"] }

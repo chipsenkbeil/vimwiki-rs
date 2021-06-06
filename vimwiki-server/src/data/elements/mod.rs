@@ -4,24 +4,32 @@ pub use blocks::*;
 mod utils;
 pub use utils::*;
 
-use crate::data::GraphqlDatabaseError;
+use crate::data::{
+    GqlParsedFileFilter, GraphqlDatabaseError, ParsedFile, ParsedFileQuery,
+};
 use entity::*;
 use entity_async_graphql::*;
-use std::convert::TryFrom;
 use vimwiki::{self as v, Located};
 
 #[gql_ent]
 pub struct Page {
+    #[ent(edge)]
+    file: ParsedFile,
+
     #[ent(edge(policy = "deep", wrap, graphql(filter_untyped)))]
     contents: Vec<BlockElement>,
 }
 
-impl<'a> TryFrom<v::Page<'a>> for Page {
-    type Error = GraphqlDatabaseError;
-
-    fn try_from(page: v::Page<'a>) -> Result<Self, Self::Error> {
+impl Page {
+    pub fn create_from_vimwiki(
+        file_id: Id,
+        page: v::Page<'_>,
+    ) -> Result<Self, GraphqlDatabaseError> {
         let mut ent = GraphqlDatabaseError::wrap(
-            Self::build().contents(Vec::new()).finish_and_commit(),
+            Self::build()
+                .file(file_id)
+                .contents(Vec::new())
+                .finish_and_commit(),
         )?;
 
         let mut contents = Vec::new();

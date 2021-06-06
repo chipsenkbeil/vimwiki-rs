@@ -26,7 +26,7 @@ directories = "3.0.2"
 entity = { version = "0.3.2", features = ["global", "macros", "serde-1"] }
 entity-inmemory = { version = "0.3.2", features = ["serde-1"] }
 entity-async-graphql = { version = "0.3.2", features = ["macros"] }
-flexi_logger = "0.16.1"
+flexi_logger = { version = "0.17.1", features = ["colors"] }
 indicatif = "0.15.0"
 lazy_static = "1.4.0"
 log = "0.4.11"
@@ -42,7 +42,7 @@ structopt = "0.3.21"
 strum = { version = "0.20.0", features = ["derive"] }
 tokio = { version = "1.4.0", features = ["full"] }
 toml = "0.5.8"
-vimvar = "0.1.1"
+vimvar = "0.2"
 vimwiki = { version = "=0.1.0", path = "../vimwiki", features = ["macros"] }
 walkdir = "2.3.1"
 warp = "0.3.1"

@@ -18,6 +18,10 @@ pub struct Opt {
     #[structopt(short, long, parse(from_occurrences))]
     pub verbose: u8,
 
+    /// Quiet mode
+    #[structopt(short, long)]
+    pub quiet: bool,
+
     /// Specify a directory to store log output as files rather than stdout/stderr
     #[structopt(long)]
     pub log_dir: Option<PathBuf>,
@@ -36,7 +40,7 @@ pub struct Opt {
 
     /// If provided, will include hosting of /graphiql endpoint
     #[structopt(long)]
-    pub include_graphiql: bool,
+    pub graphiql: bool,
 
     /// Directory where cache information for use with server will be stored
     #[structopt(long, default_value = &DEFAULT_CACHE_DIR)]
@@ -64,10 +68,14 @@ impl Opt {
 
     /// The level to use for logging throughout the server
     pub fn log_level(&self) -> LevelFilter {
+        // Quiet mode should still show errors
+        if self.quiet {
+            return LevelFilter::Error;
+        }
+
         match self.verbose {
-            0 => LevelFilter::Warn,
-            1 => LevelFilter::Info,
-            2 => LevelFilter::Debug,
+            0 => LevelFilter::Info,
+            1 => LevelFilter::Debug,
             _ => LevelFilter::Trace,
         }
     }

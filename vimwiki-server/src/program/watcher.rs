@@ -252,7 +252,8 @@ impl Watcher {
                 match event.kind {
                     EventKind::Create(CreateKind::File)
                     | EventKind::Modify(ModifyKind::Data(_)) => {
-                        if let Err(x) = ParsedFile::load_all(&event.paths).await
+                        if let Err(x) =
+                            ParsedFile::load_all(None, &event.paths).await
                         {
                             error!("{}", x.into_server_error());
                         }

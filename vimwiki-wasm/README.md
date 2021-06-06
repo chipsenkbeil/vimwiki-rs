@@ -17,18 +17,40 @@ TODO - publish npm package and provide guidance
         // If building as web, need to do this
         await init();
 
-        // Parse some vimwiki into an object
-        const obj = parse_vimwiki_str("= my header =");
+        // Load the code snippet from a dom element
+        const code = document.getElementById("vimwiki-snippet");
 
-        // Entire object can be converted to JavaScript object
-        console.log("vimwiki obj", obj.to_js());
+        // Parse the code into an object
+        const page = parse_vimwiki_str(code.innerText);
 
-        // Object can be converted into HTML to be injected into DOM
-        const html_str = obj.to_html_str();
+        // Find regions in code that contain headers and highlight them by
+        // transforming that text into spans with colors
+        const regions = page.descendants
+          .filter(e => e.is_block())
+          .map(e => e.into_block())
+          .filter(e => e.is_header())
+          .map(e => e.into_header().region);
 
-        // Load some random dom element and add the vimwiki HTML output as
-        // the first node within its children
-        document.getElementById("some-element").insertAdjacentHTML("afterbegin", html_str);
+        // For each header's region in the loaded text...
+        Object.values(regions).forEach(region => {
+            // Select the header
+            const range = new Range();
+            range.setStart(code.firstChild, region.offset);
+            range.setEnd(code.firstChild, region.len);
+
+            // Build a colored version
+            const colored = document.createElement("span");
+            colored.style.color = "red";
+            colored.innerText = range.toString();
+
+            // Swap the contents with the colored version
+            range.deleteContents();
+            range.insertNode(colored);
+        });
+
+        // Render vimwiki as HTML and inject into output destination
+        const output = document.getElementById("vimwiki-output");
+        output.insertAdjacentHTML("afterbegin", page.to_html_str());
     }
 
     run();

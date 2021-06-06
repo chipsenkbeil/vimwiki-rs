@@ -1,4 +1,5 @@
 use crate::data::*;
+use entity::Id;
 use log::trace;
 
 pub struct Mutation;
@@ -34,10 +35,11 @@ impl Mutation {
     /// Imports/re-imports a standalone wiki file from the specified path
     async fn import_file(
         &self,
+        wiki: Option<Id>,
         path: String,
     ) -> async_graphql::Result<ParsedFile> {
         trace!("import_file(path: {:?})", path);
-        ParsedFile::load(path).await
+        ParsedFile::load(wiki, path).await
     }
 
     /// Creates a new vimwiki file at the specified path using the given text
@@ -46,6 +48,7 @@ impl Mutation {
     /// be overwritten and instead will return an error.
     async fn create_file(
         &self,
+        wiki: Option<Id>,
         path: String,
         contents: String,
         #[graphql(default)] overwrite: bool,
@@ -56,6 +59,6 @@ impl Mutation {
             contents,
             overwrite
         );
-        ParsedFile::create(path, contents, overwrite).await
+        ParsedFile::create(wiki, path, contents, overwrite).await
     }
 }
