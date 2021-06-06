@@ -1726,6 +1726,121 @@ mod tests {
     }
 
     #[test]
+    fn header_should_produce_unique_ids_from_repeated_same_header() {
+        let header1 = Header::new(
+            text_to_inline_element_container("some header"),
+            3,
+            false,
+        );
+        let header2 = Header::new(
+            text_to_inline_element_container("some header"),
+            3,
+            false,
+        );
+        let header3 = Header::new(
+            text_to_inline_element_container("some header"),
+            3,
+            false,
+        );
+
+        let mut f = HtmlFormatter::default();
+        header1.fmt(&mut f).unwrap();
+        header2.fmt(&mut f).unwrap();
+        header3.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            [
+                // First header
+                "<h3 id=\"some-header\" class=\"header\">",
+                "<a href=\"#some-header\">",
+                "some header",
+                "</a>",
+                "</h3>",
+                "\n",
+                // Second header
+                "<h3 id=\"some-header-1\" class=\"header\">",
+                "<a href=\"#some-header-1\">",
+                "some header",
+                "</a>",
+                "</h3>",
+                "\n",
+                // Third header
+                "<h3 id=\"some-header-2\" class=\"header\">",
+                "<a href=\"#some-header-2\">",
+                "some header",
+                "</a>",
+                "</h3>",
+                "\n",
+            ]
+            .join(""),
+        );
+    }
+
+    #[test]
+    fn header_should_produce_unique_ids_from_repeated_same_header_with_nested_headers(
+    ) {
+        let header1 = Header::new(
+            text_to_inline_element_container("some header"),
+            3,
+            false,
+        );
+        let header2 = Header::new(
+            text_to_inline_element_container("some header"),
+            3,
+            false,
+        );
+        let header3 = Header::new(
+            text_to_inline_element_container("some header"),
+            3,
+            false,
+        );
+
+        let mut f = HtmlFormatter::default();
+        f.insert_header_text(1, "a");
+        f.insert_header_text(2, "b");
+        header1.fmt(&mut f).unwrap();
+        header2.fmt(&mut f).unwrap();
+
+        f.insert_header_text(2, "c");
+        header3.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            [
+                // First header
+                "<div id=\"a-b-some-header\">",
+                "<h3 id=\"some-header\" class=\"header\">",
+                "<a href=\"#a-b-some-header\">",
+                "some header",
+                "</a>",
+                "</h3>",
+                "</div>",
+                "\n",
+                // Second header
+                "<div id=\"a-b-some-header-1\">",
+                "<h3 id=\"some-header-1\" class=\"header\">",
+                "<a href=\"#a-b-some-header-1\">",
+                "some header",
+                "</a>",
+                "</h3>",
+                "</div>",
+                "\n",
+                // Third header
+                "<div id=\"a-c-some-header\">",
+                "<h3 id=\"some-header-2\" class=\"header\">",
+                "<a href=\"#a-c-some-header\">",
+                "some header",
+                "</a>",
+                "</h3>",
+                "</div>",
+                "\n",
+            ]
+            .join(""),
+        );
+    }
+
+    #[test]
     fn list_should_output_ordered_list_if_ordered_type() {
         let list = List::new(vec![Located::from(ListItem::new(
             ListItemType::Ordered(OrderedListItemType::Number),
