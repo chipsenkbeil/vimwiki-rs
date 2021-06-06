@@ -353,6 +353,7 @@ fn make_diary_absolute_output_path(
         .path
         .join(config.diary_rel_path.as_path())
         .join(date.format("%Y-%m-%d").to_string());
+    println!("make_diary_absolute_output_path :: input = {:?}", input);
     config.make_output_path(input.as_path(), ext)
 }
 
