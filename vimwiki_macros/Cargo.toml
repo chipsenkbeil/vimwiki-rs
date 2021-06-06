@@ -2,7 +2,7 @@
 name = "vimwiki_macros"
 description = "Macro library that provides macros to generate vimwiki language at compile time."
 categories = ["parser-implementations"]
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Chip Senkbeil <chip@senkbeil.org>"]
 edition = "2018"
 homepage = "https://github.com/chipsenkbeil/vimwiki-rs"
@@ -22,4 +22,4 @@ proc-macro-crate = "1.0.0"
 quote = "1.0"
 regex = "1.4.6"
 syn = "1.0.70"
-vimwiki-core = { version = "=0.1.0", path = "../vimwiki-core" }
+vimwiki-core = { version = "=0.1.1", path = "../vimwiki-core" }

@@ -2,7 +2,7 @@
 name = "vimwiki"
 description = "Library that provides support to parse, generate, and manipulate vimwiki language."
 categories = ["parser-implementations", "template-engine"]
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Chip Senkbeil <chip@senkbeil.org>"]
 edition = "2018"
 homepage = "https://github.com/chipsenkbeil/vimwiki-rs"
@@ -17,5 +17,5 @@ macros = ["vimwiki_macros"]
 timekeeper = ["vimwiki-core/timekeeper"]
 
 [dependencies]
-vimwiki-core = { version = "=0.1.0", path = "../vimwiki-core" }
-vimwiki_macros = { version = "=0.1.0", path = "../vimwiki_macros", optional = true }
+vimwiki-core = { version = "=0.1.1", path = "../vimwiki-core" }
+vimwiki_macros = { version = "=0.1.1", path = "../vimwiki_macros", optional = true }

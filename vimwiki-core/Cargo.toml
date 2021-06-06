@@ -2,7 +2,7 @@
 name = "vimwiki-core"
 description = "Core library elements for vimwiki data structures, parsing, and more"
 categories = ["parser-implementations", "template-engine"]
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Chip Senkbeil <chip@senkbeil.org>"]
 edition = "2018"
 homepage = "https://github.com/chipsenkbeil/vimwiki-rs"
@@ -72,4 +72,4 @@ voca_rs = { version = "1.13.0", optional = true }
 [dev-dependencies]
 criterion = "0.3.3"
 indoc = "1.0.2"
-vimwiki = { version = "=0.1.0", path = "../vimwiki", features = ["macros"] }
+vimwiki = { version = "=0.1.1", path = "../vimwiki", features = ["macros"] }
