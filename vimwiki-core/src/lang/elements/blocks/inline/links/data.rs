@@ -152,15 +152,18 @@ impl<'a> LinkData<'a> {
     pub fn to_path_buf(&self) -> PathBuf {
         let mut path = PathBuf::new();
 
-        if self.uri_ref.path().is_absolute() {
-            path.push(std::path::MAIN_SEPARATOR.to_string());
-        }
-
         for seg in self.uri_ref.path().segments() {
             path.push(seg.as_str());
         }
 
-        path
+        // If absolute, we need to make the path absolute
+        if self.uri_ref.path().is_absolute() {
+            std::path::Path::new(&std::path::Component::RootDir).join(path)
+
+        // Otherwise, return the relative path as it is
+        } else {
+            path
+        }
     }
 
     /// Returns a reference to the fragment portion of the link's uri (after
@@ -330,7 +333,14 @@ mod tests {
             "https://example.com/path/to/page.html#some-fragment",
         )
         .expect("Failed to parse str as link data");
-        assert_eq!(data.to_path_buf().to_str(), Some("/path/to/page.html"));
+
+        // NOTE: Have to build path this way to be agnostic of platform
+        let relative_path: PathBuf =
+            ["path", "to", "page.html"].iter().collect();
+        let expected = std::path::Path::new(&std::path::Component::RootDir)
+            .join(relative_path);
+
+        assert_eq!(data.to_path_buf(), expected);
     }
 
     #[test]

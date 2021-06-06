@@ -3,8 +3,12 @@ use chrono::NaiveDate;
 use derive_more::{Display, IsVariant};
 use percent_encoding::percent_decode;
 use serde::{Deserialize, Serialize};
-use std::{borrow::Cow, collections::HashMap, convert::TryFrom};
-use uriparse::{Scheme, URIReference};
+use std::{
+    borrow::Cow,
+    collections::HashMap,
+    convert::{TryFrom, TryInto},
+};
+use uriparse::{Scheme, URIReference, URIReferenceError};
 
 mod anchor;
 pub use anchor::Anchor;
@@ -71,6 +75,17 @@ impl<'a> Link<'a> {
         }
     }
 
+    /// Tries to create a new wiki link
+    pub fn try_new_wiki_link<
+        U: TryInto<URIReference<'a>, Error = URIReferenceError>,
+        D: Into<Option<Description<'a>>>,
+    >(
+        uri_ref: U,
+        description: D,
+    ) -> Result<Self, URIReferenceError> {
+        Ok(Self::new_wiki_link(uri_ref.try_into()?, description))
+    }
+
     /// Creates a new indexed interwiki link
     pub fn new_indexed_interwiki_link<
         U: Into<URIReference<'a>>,
@@ -84,6 +99,22 @@ impl<'a> Link<'a> {
             index,
             data: LinkData::new(uri_ref.into(), description.into(), None),
         }
+    }
+
+    /// Tries to create a new indexed interwiki link
+    pub fn try_new_indexed_interwiki_link<
+        U: TryInto<URIReference<'a>, Error = URIReferenceError>,
+        D: Into<Option<Description<'a>>>,
+    >(
+        index: u32,
+        uri_ref: U,
+        description: D,
+    ) -> Result<Self, URIReferenceError> {
+        Ok(Self::new_indexed_interwiki_link(
+            index,
+            uri_ref.try_into()?,
+            description,
+        ))
     }
 
     /// Creates a new named interwiki link
@@ -100,6 +131,23 @@ impl<'a> Link<'a> {
             name: name.into(),
             data: LinkData::new(uri_ref.into(), description.into(), None),
         }
+    }
+
+    /// Trys to create a new named interwiki link
+    pub fn try_new_named_interwiki_link<
+        S: Into<Cow<'a, str>>,
+        U: TryInto<URIReference<'a>, Error = URIReferenceError>,
+        D: Into<Option<Description<'a>>>,
+    >(
+        name: S,
+        uri_ref: U,
+        description: D,
+    ) -> Result<Self, URIReferenceError> {
+        Ok(Self::new_named_interwiki_link(
+            name,
+            uri_ref.try_into()?,
+            description,
+        ))
     }
 
     /// Creates a new diary link
@@ -135,6 +183,15 @@ impl<'a> Link<'a> {
         }
     }
 
+    /// Tries to create a new raw link
+    pub fn try_new_raw_link<
+        U: TryInto<URIReference<'a>, Error = URIReferenceError>,
+    >(
+        uri_ref: U,
+    ) -> Result<Self, URIReferenceError> {
+        Ok(Self::new_raw_link(uri_ref.try_into()?))
+    }
+
     /// Creates a new transclusion link
     pub fn new_transclusion_link<
         U: Into<URIReference<'a>>,
@@ -152,6 +209,23 @@ impl<'a> Link<'a> {
                 properties.into(),
             ),
         }
+    }
+
+    /// Tries to create a new transclusion link
+    pub fn try_new_transclusion_link<
+        U: TryInto<URIReference<'a>, Error = URIReferenceError>,
+        D: Into<Option<Description<'a>>>,
+        P: Into<Option<HashMap<Cow<'a, str>, Cow<'a, str>>>>,
+    >(
+        uri_ref: U,
+        description: D,
+        properties: P,
+    ) -> Result<Self, URIReferenceError> {
+        Ok(Self::new_transclusion_link(
+            uri_ref.try_into()?,
+            description,
+            properties,
+        ))
     }
 
     /// Returns reference to data associated with link

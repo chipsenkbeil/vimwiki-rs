@@ -1337,7 +1337,10 @@ mod tests {
     use chrono::NaiveDate;
     use indoc::indoc;
     use std::{
-        borrow::Cow, collections::HashMap, convert::TryFrom, path::Path,
+        borrow::Cow,
+        collections::HashMap,
+        convert::TryFrom,
+        path::{Path, PathBuf},
     };
     use uriparse::URIReference;
 
@@ -1349,20 +1352,19 @@ mod tests {
     ) -> HtmlConfig {
         let wiki = wiki.as_ref().to_string_lossy();
         let page = page.as_ref().to_string_lossy();
-        let sep = std::path::MAIN_SEPARATOR.to_string();
         HtmlConfig {
             wikis: vec![HtmlWikiConfig {
-                path: [sep.as_str(), "wiki", wiki.as_ref()].iter().collect(),
-                path_html: [sep.as_str(), "html", wiki.as_ref()]
-                    .iter()
-                    .collect(),
+                path: make_path_from_pieces(vec!["wiki", wiki.as_ref()]),
+                path_html: make_path_from_pieces(vec!["html", wiki.as_ref()]),
                 ..Default::default()
             }],
             runtime: HtmlRuntimeConfig {
                 wiki_index: Some(0),
-                page: [sep.as_str(), "wiki", wiki.as_ref(), page.as_ref()]
-                    .iter()
-                    .collect(),
+                page: make_path_from_pieces(vec![
+                    "wiki",
+                    wiki.as_ref(),
+                    page.as_ref(),
+                ]),
             },
             ..Default::default()
         }
@@ -1371,10 +1373,9 @@ mod tests {
     /// Adds a wiki to the config for interwiki testing
     fn add_wiki<P: AsRef<Path>>(c: &mut HtmlConfig, wiki: P) {
         let wiki = wiki.as_ref().to_string_lossy();
-        let sep = std::path::MAIN_SEPARATOR.to_string();
         c.wikis.push(HtmlWikiConfig {
-            path: [sep.as_str(), "wiki", wiki.as_ref()].iter().collect(),
-            path_html: [sep.as_str(), "html", wiki.as_ref()].iter().collect(),
+            path: make_path_from_pieces(vec!["wiki", wiki.as_ref()]),
+            path_html: make_path_from_pieces(vec!["html", wiki.as_ref()]),
             ..Default::default()
         });
     }
@@ -1386,13 +1387,20 @@ mod tests {
         name: N,
     ) {
         let wiki = wiki.as_ref().to_string_lossy();
-        let sep = std::path::MAIN_SEPARATOR.to_string();
         c.wikis.push(HtmlWikiConfig {
-            path: [sep.as_str(), "wiki", wiki.as_ref()].iter().collect(),
-            path_html: [sep.as_str(), "html", wiki.as_ref()].iter().collect(),
+            path: make_path_from_pieces(vec!["wiki", wiki.as_ref()]),
+            path_html: make_path_from_pieces(vec!["html", wiki.as_ref()]),
             name: Some(name.as_ref().to_string()),
             ..Default::default()
         });
+    }
+
+    fn make_path_from_pieces<'a, I: IntoIterator<Item = &'a str>>(
+        iter: I,
+    ) -> PathBuf {
+        let rel_path: PathBuf = iter.into_iter().collect();
+        std::path::Path::new(&std::path::Component::RootDir)
+            .join(rel_path.as_path())
     }
 
     fn text_to_inline_element_container(s: &str) -> InlineElementContainer {
@@ -1495,10 +1503,12 @@ mod tests {
     fn definition_list_should_output_list_tag_with_term_and_definition_tags_together(
     ) {
         // Test no definitions
-        let list = DefinitionList::new(vec![(
+        let list: DefinitionList = vec![(
             Located::from(DefinitionListValue::from("term1")),
             Vec::new(),
-        )]);
+        )]
+        .into_iter()
+        .collect();
 
         let mut f = HtmlFormatter::default();
         list.fmt(&mut f).unwrap();
@@ -1513,10 +1523,12 @@ mod tests {
         );
 
         // Test single definition
-        let list = DefinitionList::new(vec![(
+        let list: DefinitionList = vec![(
             Located::from(DefinitionListValue::from("term1")),
             vec![Located::from(DefinitionListValue::from("def1"))],
-        )]);
+        )]
+        .into_iter()
+        .collect();
 
         let mut f = HtmlFormatter::default();
         list.fmt(&mut f).unwrap();
@@ -1532,13 +1544,15 @@ mod tests {
         );
 
         // Test multiple definitions
-        let list = DefinitionList::new(vec![(
+        let list: DefinitionList = vec![(
             Located::from(DefinitionListValue::from("term1")),
             vec![
                 Located::from(DefinitionListValue::from("def1")),
                 Located::from(DefinitionListValue::from("def2")),
             ],
-        )]);
+        )]
+        .into_iter()
+        .collect();
 
         let mut f = HtmlFormatter::default();
         list.fmt(&mut f).unwrap();
@@ -2735,7 +2749,7 @@ mod tests {
 
     #[test]
     fn tags_should_output_two_span_tags_for_each_tag() {
-        let tags = Tags::from(vec!["one", "two"]);
+        let tags: Tags = vec!["one", "two"].into_iter().collect();
         let mut f = HtmlFormatter::default();
         tags.fmt(&mut f).unwrap();
 
@@ -2747,7 +2761,7 @@ mod tests {
 
     #[test]
     fn tags_should_use_id_comprised_of_previous_headers() {
-        let tags = Tags::from(vec!["one", "two"]);
+        let tags: Tags = vec!["one", "two"].into_iter().collect();
         let mut f = HtmlFormatter::default();
         f.insert_header_text(1, "first id");
         f.insert_header_text(3, "third id");
@@ -2762,7 +2776,7 @@ mod tests {
 
     #[test]
     fn tags_should_escape_html() {
-        let tags = Tags::from(vec!["one&", "two>"]);
+        let tags: Tags = vec!["one&", "two>"].into_iter().collect();
         let mut f = HtmlFormatter::default();
         tags.fmt(&mut f).unwrap();
 

@@ -134,7 +134,15 @@ pub type Definition<'a> = DefinitionListValue<'a>;
 /// Represents a list of terms and definitions, where a term can have multiple
 /// definitions associated with it
 #[derive(
-    Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize, IntoIterator,
+    Constructor,
+    Clone,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    IntoIterator,
 )]
 pub struct DefinitionList<'a> {
     /// Represents the inner mapping of terms to definitions
@@ -182,16 +190,6 @@ impl DefinitionList<'_> {
 }
 
 impl<'a> DefinitionList<'a> {
-    pub fn new<
-        I: IntoIterator<Item = (Located<Term<'a>>, Vec<Located<Definition<'a>>>)>,
-    >(
-        iter: I,
-    ) -> Self {
-        Self {
-            mapping: iter.into_iter().collect(),
-        }
-    }
-
     /// Retrieves definitions for an specific term
     pub fn get(
         &'a self,
@@ -326,10 +324,12 @@ mod tests {
 
     #[test]
     fn definition_list_should_be_able_to_iterate_through_terms() {
-        let dl = DefinitionList::new(vec![
+        let dl: DefinitionList = vec![
             (Located::from(Term::from("term1")), vec![]),
             (Located::from(Term::from("term2")), vec![]),
-        ]);
+        ]
+        .into_iter()
+        .collect();
 
         let term_names =
             dl.terms().map(|t| t.to_string()).collect::<Vec<String>>();
@@ -341,13 +341,15 @@ mod tests {
     #[test]
     fn definition_list_should_be_able_to_iterate_through_definitions_for_term()
     {
-        let dl = DefinitionList::new(vec![
+        let dl: DefinitionList = vec![
             (
                 Located::from(Term::from("term1")),
                 vec![Located::from(Definition::from("definition"))],
             ),
             (Located::from(Term::from("term2")), vec![]),
-        ]);
+        ]
+        .into_iter()
+        .collect();
 
         let defs = dl
             .get("term1")
@@ -372,7 +374,7 @@ mod tests {
     #[test]
     fn definition_list_should_support_lookup_with_terms_containing_other_inline_elements(
     ) {
-        let dl = DefinitionList::new(vec![
+        let dl: DefinitionList = vec![
             (
                 Located::from(Term::from("term1")),
                 vec![
@@ -381,7 +383,9 @@ mod tests {
                 ],
             ),
             (Located::from(Term::from("term2")), vec![]),
-        ]);
+        ]
+        .into_iter()
+        .collect();
         assert!(dl.get("term1").is_some());
     }
 }
