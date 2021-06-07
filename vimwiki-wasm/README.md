@@ -4,7 +4,9 @@ Provides wasm bindings for vimwiki library.
 
 ## Usage
 
-TODO - publish npm package and provide guidance
+```
+npm install vimwiki-wasm
+```
 
 ## Examples
 
@@ -59,9 +61,13 @@ TODO - publish npm package and provide guidance
 
 ## Building from source
 
-Compiling without webpack bundler:
+Compiling for webpack bundler:
 
-`wasm-pack build --target web`
+`wasm-pack build --target bundler`
+
+Compiling for nodejs:
+
+`wasm-pack build --target nodejs`
 
 ## License
 
