@@ -4,7 +4,7 @@
     "Chip Senkbeil <chip@senkbeil.org>"
   ],
   "description": "Wasm binding for vimwiki library",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "MIT OR Apache-2.0",
   "homepage": "https://github.com/chipsenkbeil/vimwiki-rs",
   "repository": {
@@ -12,16 +12,18 @@
     "url": "https://github.com/chipsenkbeil/vimwiki-rs"
   },
   "files": [
-    "pkg.bundle/vimwiki_bg.wasm",
-    "pkg.bundle/vimwiki.js",
-    "pkg.bundle/vimwiki.d.ts",
-    "pkg.node/vimwiki_bg.wasm",
-    "pkg.node/vimwiki.js",
-    "pkg.node/vimwiki_bg.js",
-    "pkg.node/vimwiki.d.ts"
+    "pkg.bundle/vimwiki_wasm.js",
+    "pkg.bundle/vimwiki_wasm.d.ts",
+    "pkg.bundle/vimwiki_wasm_bg.js",
+    "pkg.bundle/vimwiki_wasm_bg.wasm",
+    "pkg.bundle/vimwiki_wasm_bg.wasm.d.ts",
+    "pkg.node/vimwiki_wasm.js",
+    "pkg.node/vimwiki_wasm.d.ts",
+    "pkg.node/vimwiki_wasm_bg.wasm",
+    "pkg.node/vimwiki_wasm_bg.wasm.d.ts"
   ],
-  "main": "pkg.node/vimwiki.js",
-  "module": "pkg.bundle/vimwiki.js",
-  "types": "pkg.bundle/vimwiki.d.ts",
+  "main": "pkg.node/vimwiki_wasm.js",
+  "module": "pkg.bundle/vimwiki_wasm.js",
+  "types": "pkg.bundle/vimwiki_wasm.d.ts",
   "sideEffects": false
 }
