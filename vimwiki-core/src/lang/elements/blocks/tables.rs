@@ -140,15 +140,15 @@ impl<'a> Table<'a> {
     /// Returns an iterator over all rows that are considered header rows,
     /// which is all rows leading up to a divider row. If there is no divider
     /// row, then there are no header rows
-    pub fn header_rows(&self) -> iter::HeaderRows<'_, 'a> {
-        iter::HeaderRows::new(self)
+    pub fn header_rows(&self) -> HeaderRows<'_, 'a> {
+        HeaderRows::new(self)
     }
 
     /// Returns an iterator over all rows that are considered body rows,
     /// which is all rows following a divider row. If there is no divider
     /// row in the table, then all rows are considered body rows
-    pub fn body_rows(&self) -> iter::BodyRows<'_, 'a> {
-        iter::BodyRows::new(self)
+    pub fn body_rows(&self) -> BodyRows<'_, 'a> {
+        BodyRows::new(self)
     }
 
     /// Returns true if contains header rows
@@ -221,47 +221,47 @@ impl<'a> Table<'a> {
     }
 
     /// Returns an iterator of refs through all rows in the table
-    pub fn rows(&self) -> iter::Rows<'_, 'a> {
-        iter::Rows::new(self)
+    pub fn rows(&self) -> Rows<'_, 'a> {
+        Rows::new(self)
     }
 
     /// Returns an iterator of refs through a specific row in the table
-    pub fn row(&self, idx: usize) -> iter::Row<'_, 'a> {
-        iter::Row::new(self, idx, 0)
+    pub fn row(&self, idx: usize) -> Row<'_, 'a> {
+        Row::new(self, idx, 0)
     }
 
     /// Consumes the table and returns an iterator through a specific row in the table
-    pub fn into_row(self, idx: usize) -> iter::IntoRow<'a> {
-        iter::IntoRow::new(self, idx, 0)
+    pub fn into_row(self, idx: usize) -> IntoRow<'a> {
+        IntoRow::new(self, idx, 0)
     }
 
     /// Returns an iterator of refs through all columns in the table
-    pub fn columns(&self) -> iter::Columns<'_, 'a> {
-        iter::Columns::new(self)
+    pub fn columns(&self) -> Columns<'_, 'a> {
+        Columns::new(self)
     }
 
     /// Returns an iterator of refs through a specific column in the table
-    pub fn column(&self, idx: usize) -> iter::Column<'_, 'a> {
-        iter::Column::new(self, 0, idx)
+    pub fn column(&self, idx: usize) -> Column<'_, 'a> {
+        Column::new(self, 0, idx)
     }
 
     /// Consumes the table and returns an iterator through a specific column in the table
-    pub fn into_column(self, idx: usize) -> iter::IntoColumn<'a> {
-        iter::IntoColumn::new(self, 0, idx)
+    pub fn into_column(self, idx: usize) -> IntoColumn<'a> {
+        IntoColumn::new(self, 0, idx)
     }
 
     /// Returns an iterator of refs through all cells in the table, starting
     /// from the first row, iterating through all cells from beginning to end,
     /// and then moving on to the next row
-    pub fn cells(&self) -> iter::Cells<'_, 'a> {
-        iter::Cells::new(self)
+    pub fn cells(&self) -> Cells<'_, 'a> {
+        Cells::new(self)
     }
 
     /// Consumes the table and returns an iterator through all cells in the
     /// table, starting from the first row, iterating through all cells from
     /// beginning to end, and then moving on to the next row
-    pub fn into_cells(self) -> iter::IntoCells<'a> {
-        iter::IntoCells::new(self)
+    pub fn into_cells(self) -> IntoCells<'a> {
+        IntoCells::new(self)
     }
 
     /// Returns reference to the cell found at the specified row and column
@@ -483,7 +483,9 @@ impl StrictEq for ColumnAlign {
     }
 }
 
-pub mod iter {
+pub use iter::*;
+
+mod iter {
     use super::{Cell, CellPos, Located, Table};
     use derive_more::Constructor;
 

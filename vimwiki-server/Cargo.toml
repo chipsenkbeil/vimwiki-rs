@@ -19,8 +19,8 @@ name = "vimwiki-server"
 path = "src/main.rs"
 
 [dependencies]
-async-graphql = "2.8.4"
-async-graphql-warp = "2.8.4"
+async-graphql = "2.9.2"
+async-graphql-warp = "2.9.2"
 derive_more = { version = "0.99.0", default-features = false, features = [ "display", "error", "from" ] }
 directories = "3.0.2"
 entity = { version = "0.3.2", features = ["global", "macros", "serde-1"] }

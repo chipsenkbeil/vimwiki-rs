@@ -2,6 +2,7 @@ use crate::{
     data::{ParsedFile, Wiki},
     Config,
 };
+use async_graphql::Pos;
 use entity::{TypedPredicate as P, *};
 use log::{error, trace};
 use notify::{
@@ -255,14 +256,14 @@ impl Watcher {
                         if let Err(x) =
                             ParsedFile::load_all(None, &event.paths).await
                         {
-                            error!("{}", x.into_server_error());
+                            error!("{}", x.into_server_error(Pos::default()));
                         }
                     }
                     EventKind::Remove(RemoveKind::File) => {
                         if let Err(x) =
                             ParsedFile::remove_all(&event.paths).await
                         {
-                            error!("{}", x.into_server_error());
+                            error!("{}", x.into_server_error(Pos::default()));
                         }
                     }
                     EventKind::Modify(ModifyKind::Name(RenameMode::Both)) => {
@@ -273,7 +274,10 @@ impl Watcher {
                                 if let Err(x) =
                                     ParsedFile::rename(from, to).await
                                 {
-                                    error!("{}", x.into_server_error());
+                                    error!(
+                                        "{}",
+                                        x.into_server_error(Pos::default())
+                                    );
                                 }
                             }
                         } else {
