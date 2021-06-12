@@ -4,6 +4,10 @@
 
 ## [Unreleased] - ReleaseDate
 
+### Changed
+
+- Moved `iter::*` to root level of `vimwiki-core` crate
+
 ## [0.1.0] - 2021-06-06
 
 ### Added
