@@ -9,9 +9,7 @@ pub trait ToHtmlString {
     ) -> Result<String, HtmlOutputError>;
 }
 
-impl<T: Output<Formatter = HtmlFormatter, Error = HtmlOutputError>> ToHtmlString
-    for T
-{
+impl<T: Output<HtmlFormatter>> ToHtmlString for T {
     fn to_html_string(
         &self,
         config: HtmlConfig,
@@ -30,9 +28,7 @@ pub trait ToHtmlPage {
     ) -> Result<String, HtmlOutputError>;
 }
 
-impl<T: Output<Formatter = HtmlFormatter, Error = HtmlOutputError>> ToHtmlPage
-    for T
-{
+impl<T: Output<HtmlFormatter>> ToHtmlPage for T {
     fn to_html_page(
         &self,
         config: HtmlConfig,
@@ -120,11 +116,10 @@ mod tests {
     use std::path::PathBuf;
 
     struct TestOutput<F: Fn(&mut HtmlFormatter) -> HtmlOutputResult>(F);
-    impl<F: Fn(&mut HtmlFormatter) -> HtmlOutputResult> Output for TestOutput<F> {
-        type Formatter = HtmlFormatter;
-        type Error = HtmlOutputError;
-
-        fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
+    impl<F: Fn(&mut HtmlFormatter) -> HtmlOutputResult> Output<HtmlFormatter>
+        for TestOutput<F>
+    {
+        fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
             self.0(f)?;
             Ok(())
         }

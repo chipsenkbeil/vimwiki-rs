@@ -2,43 +2,23 @@ mod config;
 pub use config::*;
 
 mod formatter;
-pub use formatter::HtmlFormatter;
+pub use formatter::VimwikiFormatter;
 
 mod convert;
-pub use convert::{ToHtmlPage, ToHtmlString};
+pub use convert::ToVimwikiString;
 
 mod error;
-pub use error::{HtmlOutputError, HtmlOutputResult};
-
-mod utils;
-pub use utils::LinkResolutionError;
+pub use error::{VimwikiOutputError, VimwikiOutputResult};
 
 use crate::lang::{
     elements::*,
     output::{Output, OutputFormatter},
 };
-use lazy_static::lazy_static;
 use std::{borrow::Cow, collections::HashMap, fmt::Write};
-use syntect::{
-    easy::HighlightLines,
-    highlighting::ThemeSet,
-    html::{self, IncludeBackground},
-    parsing::SyntaxSet,
-};
 use uriparse::URIReference;
-use voca_rs::escape;
 
-lazy_static! {
-    /// Default syntax set for languages
-    static ref DEFAULT_SYNTAX_SET: SyntaxSet =
-        SyntaxSet::load_defaults_nonewlines();
-
-    /// Default theme highlight set for languages
-    static ref DEFAULT_THEME_SET: ThemeSet = ThemeSet::load_defaults();
-}
-
-impl<'a> Output<HtmlFormatter> for Page<'a> {
-    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
+impl<'a> Output<VimwikiFormatter> for Page<'a> {
+    fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
         for element in self.elements.iter() {
             element.fmt(f)?;
         }
@@ -47,8 +27,8 @@ impl<'a> Output<HtmlFormatter> for Page<'a> {
     }
 }
 
-impl<'a> Output<HtmlFormatter> for Element<'a> {
-    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
+impl<'a> Output<VimwikiFormatter> for Element<'a> {
+    fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
         match self {
             Self::Block(x) => x.fmt(f),
             Self::Inline(x) => x.fmt(f),
@@ -57,8 +37,8 @@ impl<'a> Output<HtmlFormatter> for Element<'a> {
     }
 }
 
-impl<'a> Output<HtmlFormatter> for InlineBlockElement<'a> {
-    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
+impl<'a> Output<VimwikiFormatter> for InlineBlockElement<'a> {
+    fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
         match self {
             Self::ListItem(x) => x.fmt(f),
             Self::Term(x) => x.fmt(f),
@@ -67,8 +47,8 @@ impl<'a> Output<HtmlFormatter> for InlineBlockElement<'a> {
     }
 }
 
-impl<'a> Output<HtmlFormatter> for BlockElement<'a> {
-    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
+impl<'a> Output<VimwikiFormatter> for BlockElement<'a> {
+    fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
         match self {
             Self::Blockquote(x) => x.fmt(f),
             Self::DefinitionList(x) => x.fmt(f),
@@ -84,194 +64,162 @@ impl<'a> Output<HtmlFormatter> for BlockElement<'a> {
     }
 }
 
-impl<'a> Output<HtmlFormatter> for Blockquote<'a> {
-    /// Writes a blockquote in HTML
+impl<'a> Output<VimwikiFormatter> for Blockquote<'a> {
+    /// Writes a blockquote in vimwiki
     ///
     /// ### Example
     ///
-    /// ```html
-    /// <blockquote>
-    ///     <p>First line in blockquote</p>
-    ///     <p>Second line in blockquote</p>
-    /// </blockquote>
+    /// ```vimwiki
+    /// > some blockquote
+    /// > on multiple lines
     /// ```
-    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
-        writeln!(f, "<blockquote>")?;
+    fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
+        let VimwikiBlockquoteConfig {
+            prefer_indented_blockquote,
+            trim_lines,
+        } = f.config().blockquote;
 
-        // If we have more than one group of lines, then we want a paragraph
-        // wrapping each group
-        if self.line_groups().count() > 1 {
-            for lines in self.line_groups() {
-                writeln!(
-                    f,
-                    "<p>{}</p>",
-                    escape::escape_html(
-                        lines
-                            .iter()
-                            .map(|line| line.trim())
-                            .collect::<Vec<&str>>()
-                            .join(" ")
-                            .as_str()
-                    )
-                )?;
+        for line in self {
+            // TODO: Support determining when to use each type of blockquote
+            //       as default instead of forcing one type or another
+            // TODO: Support spacing on multiple >>> for nested blockquotes
+            //       once those are implemented
+            if prefer_indented_blockquote {
+                write!(f, "    ")?;
+            } else {
+                write!(f, "> ")?;
             }
 
-        // Otherwise, we want to just drop in the lines verbatim
-        } else {
-            for line in self {
-                writeln!(f, "{}", escape::escape_html(&line))?;
+            if trim_lines {
+                f.skip_whitespace(|f| line.fmt(f))?;
+                f.trim_end();
+            } else {
+                line.fmt(f)?;
             }
+            writeln!(f)?;
         }
-
-        writeln!(f, "</blockquote>")?;
         Ok(())
     }
 }
 
-impl<'a> Output<HtmlFormatter> for DefinitionList<'a> {
-    /// Writes a definition list in HTML
+impl<'a> Output<VimwikiFormatter> for DefinitionList<'a> {
+    /// Writes a definition list in vimwiki
     ///
     /// ### Example
     ///
-    /// ```html
-    /// <dl>
-    ///     <dt>Term 1</dt>
-    ///     <dd>First definition</dd>
-    ///     <dd>Second definition</dd>
-    ///
-    ///     <dt>Term 2</dt>
-    ///     <dd>Another definition</dd>
-    /// </dl>
+    /// ```vimwiki
+    /// term1:: def1
+    /// term2:: def2
+    /// :: def3
     /// ```
-    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
-        writeln!(f, "<dl>")?;
+    fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
+        let VimwikiDefinitionListConfig {
+            term_on_line_by_itself,
+            trim_terms,
+            trim_definitions,
+        } = f.config().definition_list;
+
         for (term, defs) in self {
-            // Write our term in the form <dt>{term}</dt>
-            write!(f, "<dt>")?;
-            term.fmt(f)?;
-            writeln!(f, "</dt>")?;
+            if trim_terms {
+                f.skip_whitespace(|f| term.fmt(f))?;
+                f.trim_end();
+            } else {
+                term.fmt(f)?;
+            }
+            write!(f, "::")?;
 
-            // Write our defs in the form <dd>{def}</dd>
-            for def in defs.iter() {
-                write!(f, "<dd>")?;
-                def.fmt(f)?;
-                writeln!(f, "</dd>")?;
+            for (idx, def) in defs.iter().enumerate() {
+                if idx == 0 && !term_on_line_by_itself {
+                    write!(f, " ")?;
+                } else {
+                    writeln!(f);
+                    write!(f, ":: ")?;
+                }
+
+                if trim_definitions {
+                    f.skip_whitespace(|f| def.fmt(f))?;
+                    f.trim_end();
+                } else {
+                    def.fmt(f)?;
+                }
+                writeln!(f)?;
             }
         }
-        writeln!(f, "</dl>")?;
         Ok(())
     }
 }
 
-impl<'a> Output<HtmlFormatter> for DefinitionListValue<'a> {
-    /// Writes a definition list value in HTML
-    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
+impl<'a> Output<VimwikiFormatter> for DefinitionListValue<'a> {
+    /// Writes a definition list value in vimwiki
+    fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
         self.as_inner().fmt(f)
     }
 }
 
-impl Output<HtmlFormatter> for Divider {
-    /// Writes a divider in HTML
+impl Output<VimwikiFormatter> for Divider {
+    /// Writes a divider in vimwiki
     ///
-    /// ```html
-    /// <hr />
+    /// ```vimwiki
+    /// ----
     /// ```
-    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
-        writeln!(f, "<hr />")?;
+    fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
+        writeln!(f, "----")?;
         Ok(())
     }
 }
 
-impl<'a> Output<HtmlFormatter> for Header<'a> {
-    /// Writes a header in HTML
+impl<'a> Output<VimwikiFormatter> for Header<'a> {
+    /// Writes a header in vimwiki
     ///
-    /// ### Standard header
+    /// ### Example
     ///
-    /// ```html
-    /// <div id="{first level text}-{second level text}-{third level text}">
-    ///     <h3 id="{third level text}" class="header">
-    ///         <a href="#{id-from-above-div}" class="justcenter">
-    ///             <!-- third level header text -->
-    ///         </a>
-    ///     </h3>
-    /// </div>
+    /// ```vimwiki
+    /// = some header =
     /// ```
-    ///
-    /// ### Table of Contents
-    ///
-    /// ```html
-    /// <div id="{toc text}">
-    ///     <h3 id="{toc text}" class="header">
-    ///         <!-- toc header text -->
-    ///     </h3>
-    /// </div>
-    /// ```
-    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
-        let raw_content = self.content.to_string();
-        let header_id = utils::normalize_id(&raw_content);
-        let unique_header_id = f.ensure_unique_id(&header_id);
-        f.insert_header_text(self.level, header_id.clone());
+    fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
+        let VimwikiHeaderConfig {
+            no_padding,
+            trim_content,
+        } = f.config().header;
 
-        // ToC is only available for a top-level header
-        let is_toc = self.level == 1
-            && raw_content.trim() == f.config().header.table_of_contents;
-        if is_toc {
-            write!(f, r#"<div class="toc">"#)?;
-            write!(f, r#"<h{} id="{}">"#, self.level, unique_header_id)?;
-            self.content.fmt(f)?;
-            writeln!(f, "</h{}></div>", self.level)?;
+        // Beginning portion of header
+        for _ in 0..self.level {
+            write!(f, "=")?;
+        }
+
+        // Padding after beginning portion of header
+        if !no_padding {
+            write!(f, " ")?;
+        }
+
+        // Write the header's content, trimming whitespace if specified
+        if trim_content {
+            f.skip_whitespace(|f| self.content.fmt(f))?;
+            f.trim_end();
         } else {
-            // Build our full id using each of the most recent header's
-            // contents (earlier levels) up to and including the current header
-            let complete_header_id =
-                build_complete_id(f, self.level, &header_id)?;
-
-            let has_different_complete_id = complete_header_id != header_id;
-            let unique_complete_header_id = if has_different_complete_id {
-                Cow::Owned(f.ensure_unique_id(&complete_header_id))
-            } else {
-                Cow::Borrowed(&unique_header_id)
-            };
-
-            // If we have a nested header, then we need to provide a div
-            // that has a full id to it alongside the existing single unique
-            // id
-            if has_different_complete_id {
-                write!(f, r#"<div id="{}">"#, unique_complete_header_id)?;
-            }
-
-            write!(
-                f,
-                r#"<h{} id="{}" class="header">"#,
-                self.level, unique_header_id
-            )?;
-
-            // NOTE: It's fine to use the unique complete header here as if
-            //       we are a top-level header then this would be the same
-            //       as unique_header_id
-            write!(f, r##"<a href="#{}">"##, unique_complete_header_id)?;
             self.content.fmt(f)?;
-            write!(f, "</a></h{}>", self.level)?;
+        }
 
-            // If we have a nested header, then we produced a div with a
-            // complete id and we need to close it
-            if has_different_complete_id {
-                writeln!(f, "</div>")?;
-            } else {
-                writeln!(f)?;
-            }
+        // Padding after ending portion of header
+        if !no_padding {
+            write!(f, " ")?;
+        }
+
+        // Ending portion of header
+        for _ in 0..self.level {
+            write!(f, "=")?;
         }
 
         Ok(())
     }
 }
 
-impl<'a> Output<HtmlFormatter> for List<'a> {
-    /// Writes a list in HTML
+impl<'a> Output<VimwikiFormatter> for List<'a> {
+    /// Writes a list in vimwiki
     ///
     /// ### Unordered list
     ///
-    /// ```html
+    /// ```vimwiki
     /// <ul>
     ///     <li>...</li>
     ///     <li>...</li>
@@ -280,22 +228,22 @@ impl<'a> Output<HtmlFormatter> for List<'a> {
     ///
     /// ### Ordered list
     ///
-    /// ```html
+    /// ```vimwiki
     /// <ol>
     ///     <li>...</li>
     ///     <li>...</li>
     /// </ol>
     /// ```
-    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
+    fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
         // TODO: This should be used for list items... how?
         let _ignore_newlines = f.config().list.ignore_newline;
 
-        // If the list is ordered, we use an ordered HTML list
+        // If the list is ordered, we use an ordered vimwiki list
         if self.is_ordered() {
             writeln!(f, "<ol>")?;
 
         // Otherwise, if the list is unordered (or has nothing) we use
-        // an unordered HTML list
+        // an unordered vimwiki list
         } else {
             writeln!(f, "<ul>")?;
         }
@@ -314,24 +262,24 @@ impl<'a> Output<HtmlFormatter> for List<'a> {
     }
 }
 
-impl<'a> Output<HtmlFormatter> for ListItem<'a> {
-    /// Writes a list item in HTML
+impl<'a> Output<VimwikiFormatter> for ListItem<'a> {
+    /// Writes a list item in vimwiki
     ///
     /// ### Plain item
     ///
-    /// ```html
+    /// ```vimwiki
     /// <li>...</li>
     /// ```
     ///
     /// ### Incomplete todo item
     ///
-    /// ```html
+    /// ```vimwiki
     /// <li class="done0">...</li>
     /// ```
     ///
     /// ### Partially completed todo items
     ///
-    /// ```html
+    /// ```vimwiki
     /// <li class="done1">...</li>
     /// <li class="done2">...</li>
     /// <li class="done3">...</li>
@@ -339,16 +287,16 @@ impl<'a> Output<HtmlFormatter> for ListItem<'a> {
     ///
     /// ### Completed todo item
     ///
-    /// ```html
+    /// ```vimwiki
     /// <li class="done4">...</li>
     /// ```
     ///
     /// ### Rejected todo item
     ///
-    /// ```html
+    /// ```vimwiki
     /// <li class="rejected">...</li>
     /// ```
-    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
+    fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
         // TODO: This should be used for list items... how?
         let _ignore_newlines = f.config().list.ignore_newline;
 
@@ -384,9 +332,9 @@ impl<'a> Output<HtmlFormatter> for ListItem<'a> {
     }
 }
 
-impl<'a> Output<HtmlFormatter> for ListItemContents<'a> {
-    /// Writes a list item's contents in HTML
-    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
+impl<'a> Output<VimwikiFormatter> for ListItemContents<'a> {
+    /// Writes a list item's contents in vimwiki
+    fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
         for content in self {
             content.fmt(f)?;
         }
@@ -395,9 +343,9 @@ impl<'a> Output<HtmlFormatter> for ListItemContents<'a> {
     }
 }
 
-impl<'a> Output<HtmlFormatter> for ListItemContent<'a> {
-    /// Writes one piece of content within a list item in HTML
-    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
+impl<'a> Output<VimwikiFormatter> for ListItemContent<'a> {
+    /// Writes one piece of content within a list item in vimwiki
+    fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
         match self {
             Self::List(x) => x.fmt(f)?,
             Self::InlineContent(x) => x.fmt(f)?,
@@ -407,28 +355,28 @@ impl<'a> Output<HtmlFormatter> for ListItemContent<'a> {
     }
 }
 
-impl<'a> Output<HtmlFormatter> for MathBlock<'a> {
-    /// Writes a math block in HTML
+impl<'a> Output<VimwikiFormatter> for MathBlock<'a> {
+    /// Writes a math block in vimwiki
     ///
     /// This leverages MathJAX to transform the dom, and MathJAX expects
     /// block-level math to look like the following:
     ///
-    /// ```html
+    /// ```vimwiki
     /// \[some math enclosed in block notation\]
     /// ```
     ///
     /// ### With environment
     ///
-    /// ```html
+    /// ```vimwiki
     /// \begin{environment}
     /// some math enclosed in block notation
     /// \end{environment}
     /// ```
-    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
+    fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
         if let Some(env) = self.environment.as_deref() {
             writeln!(f, r"\begin{{{}}}", env)?;
             for line in self {
-                writeln!(f, "{}", escape::escape_html(line))?;
+                writeln!(f, "{}", escape::escape_vimwiki(line))?;
             }
             writeln!(f, r"\end{{{}}}", env)?;
         } else {
@@ -438,7 +386,7 @@ impl<'a> Output<HtmlFormatter> for MathBlock<'a> {
             //       starting notation \[<CLASS>
             writeln!(f, r"\[")?;
             for line in self {
-                writeln!(f, "{}", escape::escape_html(line))?;
+                writeln!(f, "{}", escape::escape_vimwiki(line))?;
             }
             writeln!(f, r"\]")?;
         }
@@ -447,14 +395,14 @@ impl<'a> Output<HtmlFormatter> for MathBlock<'a> {
     }
 }
 
-impl<'a> Output<HtmlFormatter> for Placeholder<'a> {
-    /// Writes placeholders in HTML
+impl<'a> Output<VimwikiFormatter> for Placeholder<'a> {
+    /// Writes placeholders in vimwiki
     ///
     /// Note that this doesn't actually do any writing, but instead updates
     /// settings in the formatter with specific details such as a title, date,
     /// or alternative template to use
     /// ```
-    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
+    fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
         match self {
             Self::Title(x) => f.set_title(x),
             Self::Date(x) => f.set_date(x),
@@ -466,15 +414,15 @@ impl<'a> Output<HtmlFormatter> for Placeholder<'a> {
     }
 }
 
-impl<'a> Output<HtmlFormatter> for CodeBlock<'a> {
-    /// Writes a code block block in HTML
+impl<'a> Output<VimwikiFormatter> for CodeBlock<'a> {
+    /// Writes a code block block in vimwiki
     ///
     /// ### Client-side
     ///
     /// Supporting browser highlighters written in JavaScript such as
     /// `highlight.js`:
     ///
-    /// ```html
+    /// ```vimwiki
     /// <pre>
     ///     <code class="{language}">
     ///         // Rust source
@@ -489,7 +437,7 @@ impl<'a> Output<HtmlFormatter> for CodeBlock<'a> {
     ///
     /// When supporting CSS classes:
     ///
-    /// ```html
+    /// ```vimwiki
     /// <pre class="code">
     ///     <span class="source rust">
     ///         <span class="comment line double-slash rust">
@@ -500,13 +448,13 @@ impl<'a> Output<HtmlFormatter> for CodeBlock<'a> {
     ///
     /// When inlining all stylings:
     ///
-    /// ```html
+    /// ```vimwiki
     /// <pre style="background-color:#2b303b;">
     ///     <span style="color:#c0c5ce;">// Rust source</span>
     ///     ...
     /// </pre>
     /// ```
-    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
+    fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
         // If we are told to perform a server-side render of styles, we
         // build out the <pre> tag and then inject a variety of <span> wrapping
         // individual text elements with associated stylings
@@ -520,7 +468,7 @@ impl<'a> Output<HtmlFormatter> for CodeBlock<'a> {
                 .as_ref()
                 .map(SyntaxSet::load_from_folder)
                 .transpose()
-                .map_err(HtmlOutputError::from)?;
+                .map_err(VimwikiOutputError::from)?;
             let ss = custom_ss.as_ref().unwrap_or(&DEFAULT_SYNTAX_SET);
 
             // Load and use the theme set from the specified directory if
@@ -532,7 +480,7 @@ impl<'a> Output<HtmlFormatter> for CodeBlock<'a> {
                 .as_ref()
                 .map(ThemeSet::load_from_folder)
                 .transpose()
-                .map_err(HtmlOutputError::from)?;
+                .map_err(VimwikiOutputError::from)?;
             let ts = custom_ts.as_ref().unwrap_or(&DEFAULT_THEME_SET);
 
             // Get syntax using language specifier, otherwise use plain text
@@ -546,7 +494,7 @@ impl<'a> Output<HtmlFormatter> for CodeBlock<'a> {
             // Load the specified theme, reporting an error if missing
             let theme =
                 ts.themes.get(&f.config().code.theme).ok_or_else(|| {
-                    HtmlOutputError::ThemeMissing(
+                    VimwikiOutputError::ThemeMissing(
                         f.config().code.theme.to_string(),
                     )
                 })?;
@@ -554,7 +502,11 @@ impl<'a> Output<HtmlFormatter> for CodeBlock<'a> {
 
             // NOTE: The function to create the <pre> tag includes a newline
             //       at the end, which is why we use write! instead of writeln!
-            write!(f, "{}", html::start_highlighted_html_snippet(theme).0)?;
+            write!(
+                f,
+                "{}",
+                vimwiki::start_highlighted_vimwiki_snippet(theme).0
+            )?;
 
             // TODO: The preferred way is to iterate with line endings
             //       included, which we don't have. Want to avoid allocating
@@ -567,7 +519,7 @@ impl<'a> Output<HtmlFormatter> for CodeBlock<'a> {
                 writeln!(
                     f,
                     "{}",
-                    html::styled_line_to_highlighted_html(
+                    vimwiki::styled_line_to_highlighted_vimwiki(
                         &regions[..],
                         IncludeBackground::No,
                     )
@@ -590,7 +542,7 @@ impl<'a> Output<HtmlFormatter> for CodeBlock<'a> {
                     write!(f, r#" class="{}""#, lang)?;
                 }
 
-                // For each metadata assignment, treat it as an HTML attribute
+                // For each metadata assignment, treat it as an vimwiki attribute
                 for (attr, value) in self.metadata.iter() {
                     write!(f, r#" {}="{}""#, attr, value)?;
                 }
@@ -603,7 +555,7 @@ impl<'a> Output<HtmlFormatter> for CodeBlock<'a> {
 
             for (idx, line) in self.lines.iter().enumerate() {
                 let is_last_line = idx == self.lines.len() - 1;
-                let line = escape::escape_html(&line);
+                let line = escape::escape_vimwiki(&line);
 
                 if is_last_line {
                     write!(f, "{}", line)?;
@@ -620,14 +572,14 @@ impl<'a> Output<HtmlFormatter> for CodeBlock<'a> {
     }
 }
 
-impl<'a> Output<HtmlFormatter> for Paragraph<'a> {
-    /// Writes a paragraph in HTML
+impl<'a> Output<VimwikiFormatter> for Paragraph<'a> {
+    /// Writes a paragraph in vimwiki
     ///
     /// ### Ignoring newlines
     ///
     /// This will trim lines and join them together using a single space
     ///
-    /// ```html
+    /// ```vimwiki
     /// <p>Some paragraph text on multiple lines</p>
     /// ```
     ///
@@ -636,10 +588,10 @@ impl<'a> Output<HtmlFormatter> for Paragraph<'a> {
     /// This will trim lines and join them together using a <br> tag
     /// to respect line breaks
     ///
-    /// ```html
+    /// ```vimwiki
     /// <p>Some paragraph text<br />on multiple lines</p>
     /// ```
-    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
+    fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
         let ignore_newlines = f.config().paragraph.ignore_newline;
         let is_blank = self.is_blank();
 
@@ -690,12 +642,12 @@ impl<'a> Output<HtmlFormatter> for Paragraph<'a> {
     }
 }
 
-impl<'a> Output<HtmlFormatter> for Table<'a> {
-    /// Writes a table in HTML
+impl<'a> Output<VimwikiFormatter> for Table<'a> {
+    /// Writes a table in vimwiki
     ///
     /// ### Normal
     ///
-    /// ```html
+    /// ```vimwiki
     /// <table>
     ///     <tbody>
     ///         <tr>
@@ -712,7 +664,7 @@ impl<'a> Output<HtmlFormatter> for Table<'a> {
     ///
     /// ### With a header
     ///
-    /// ```html
+    /// ```vimwiki
     /// <table>
     ///     <thead>
     ///         <tr>
@@ -737,7 +689,7 @@ impl<'a> Output<HtmlFormatter> for Table<'a> {
     ///
     /// If the table is considered centered, it will add a **center** class:
     ///
-    /// ```html
+    /// ```vimwiki
     /// <table class="center">
     ///     <!-- ... -->
     /// </table>
@@ -748,7 +700,7 @@ impl<'a> Output<HtmlFormatter> for Table<'a> {
     /// If `>` or `\/` is used, the cells to the left or above will have
     /// a `rowspan` or `colspan` attribute added:
     ///
-    /// ```html
+    /// ```vimwiki
     /// <table>
     ///     <tbody>
     ///         <tr>
@@ -760,7 +712,7 @@ impl<'a> Output<HtmlFormatter> for Table<'a> {
     /// </table>
     /// ```
     ///
-    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
+    fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
         if self.centered {
             writeln!(f, "<table class=\"center\">")?;
         } else {
@@ -839,9 +791,9 @@ impl<'a> Output<HtmlFormatter> for Table<'a> {
     }
 }
 
-impl<'a> Output<HtmlFormatter> for InlineElementContainer<'a> {
-    /// Writes a collection of inline elements in HTML
-    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
+impl<'a> Output<VimwikiFormatter> for InlineElementContainer<'a> {
+    /// Writes a collection of inline elements in vimwiki
+    fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
         for element in self {
             element.fmt(f)?;
         }
@@ -850,9 +802,9 @@ impl<'a> Output<HtmlFormatter> for InlineElementContainer<'a> {
     }
 }
 
-impl<'a> Output<HtmlFormatter> for InlineElement<'a> {
-    /// Writes an inline element in HTML
-    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
+impl<'a> Output<VimwikiFormatter> for InlineElement<'a> {
+    /// Writes an inline element in vimwiki
+    fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
         match self {
             Self::Text(x) => x.fmt(f),
             Self::DecoratedText(x) => x.fmt(f),
@@ -866,17 +818,17 @@ impl<'a> Output<HtmlFormatter> for InlineElement<'a> {
     }
 }
 
-impl<'a> Output<HtmlFormatter> for Text<'a> {
-    /// Writes text in HTML, escaping any HTML-specific characters
-    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
-        write!(f, "{}", escape::escape_html(self.as_str()))?;
+impl<'a> Output<VimwikiFormatter> for Text<'a> {
+    /// Writes text in vimwiki, escaping any vimwiki-specific characters
+    fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
+        write!(f, "{}", escape::escape_vimwiki(self.as_str()))?;
         Ok(())
     }
 }
 
-impl<'a> Output<HtmlFormatter> for DecoratedText<'a> {
-    /// Writes decorated text in HTML
-    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
+impl<'a> Output<VimwikiFormatter> for DecoratedText<'a> {
+    /// Writes decorated text in vimwiki
+    fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
         // First, we figure out the type of decoration to apply with bold
         // having the most unique situation as it can also act as an anchor
         match self {
@@ -943,9 +895,9 @@ impl<'a> Output<HtmlFormatter> for DecoratedText<'a> {
     }
 }
 
-impl<'a> Output<HtmlFormatter> for DecoratedTextContent<'a> {
-    /// Writes decorated text content in HTML
-    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
+impl<'a> Output<VimwikiFormatter> for DecoratedTextContent<'a> {
+    /// Writes decorated text content in vimwiki
+    fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
         match self {
             Self::Text(x) => x.fmt(f),
             Self::DecoratedText(x) => x.fmt(f),
@@ -955,14 +907,14 @@ impl<'a> Output<HtmlFormatter> for DecoratedTextContent<'a> {
     }
 }
 
-impl Output<HtmlFormatter> for Keyword {
-    /// Writes keyword in HTML
+impl Output<VimwikiFormatter> for Keyword {
+    /// Writes keyword in vimwiki
     ///
-    /// Unable to be implemented via Output<HtmlFormatter> trait as generic associated types
+    /// Unable to be implemented via Output<VimwikiFormatter> trait as generic associated types
     /// would be required.
-    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
+    fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
         // For all keywords other than todo, they are treated as plain output
-        // for HTML. For todo, it is wrapped in a span with a todo class
+        // for vimwiki. For todo, it is wrapped in a span with a todo class
         match self {
             Self::Todo => write!(f, "<span class=\"todo\">TODO</span>")?,
             Self::Done => write!(f, "DONE")?,
@@ -976,8 +928,8 @@ impl Output<HtmlFormatter> for Keyword {
     }
 }
 
-impl<'a> Output<HtmlFormatter> for Link<'a> {
-    /// Writes a link in HTML
+impl<'a> Output<VimwikiFormatter> for Link<'a> {
+    /// Writes a link in vimwiki
     ///
     /// ### Wiki/Interwiki Link
     ///
@@ -985,39 +937,39 @@ impl<'a> Output<HtmlFormatter> for Link<'a> {
     ///
     ///    For `[[url]]` in vimwiki:
     ///
-    ///    ```html
-    ///    <a href="url.html">url</a>
+    ///    ```vimwiki
+    ///    <a href="url.vimwiki">url</a>
     ///    ```
     ///
     /// 2. Link with description
     ///
     ///    For `[[url|descr]]` in vimwiki:
     ///
-    ///    ```html
-    ///    <a href="url.html">descr</a>
+    ///    ```vimwiki
+    ///    <a href="url.vimwiki">descr</a>
     ///    ```
     ///
     /// 3. Link with embedded image
     ///
     ///    For `[[url|{{...}}]]` in vimwiki:
     ///
-    ///    ```html
-    ///    <a href="url.html"> ... </a>
+    ///    ```vimwiki
+    ///    <a href="url.vimwiki"> ... </a>
     ///    ```
     ///
     /// 4. Link with anchors
     ///
     ///    For `[[url#a1#a2]]` in vimwiki:
     ///
-    ///    ```html
-    ///    <a href="url.html#a1-a2">url#a1#a2</a>
+    ///    ```vimwiki
+    ///    <a href="url.vimwiki#a1-a2">url#a1#a2</a>
     ///    ```
     ///
     /// 5. Only anchors
     ///
     ///    For `[[#a1#a2]]` in vimwiki:
     ///
-    ///    ```html
+    ///    ```vimwiki
     ///    <a href="#a1-a2">#a1#a2</a>
     ///    ```
     ///
@@ -1025,16 +977,16 @@ impl<'a> Output<HtmlFormatter> for Link<'a> {
     ///
     /// For `[[diary:2021-03-05]]` and `[[diary:2021-03-05|description]]`:
     ///
-    /// ```html
-    /// <a href="diary/2021-03-05.html">diary:2021-03-05</a>
-    /// <a href="diary/2021-03-05.html">description</a>
+    /// ```vimwiki
+    /// <a href="diary/2021-03-05.vimwiki">diary:2021-03-05</a>
+    /// <a href="diary/2021-03-05.vimwiki">description</a>
     /// ```
     ///
     /// ### Raw Link
     ///
     /// For `https://example.com`:
     ///
-    /// ```html
+    /// ```vimwiki
     /// <a href="https://example.com">https://example.com</a>
     /// ```
     ///
@@ -1042,7 +994,7 @@ impl<'a> Output<HtmlFormatter> for Link<'a> {
     ///
     /// For `[[fileurl.ext|descr]]` in vimwiki:
     ///
-    /// ```html
+    /// ```vimwiki
     /// <a href="fileurl.ext">descr</a>
     /// ```
     ///
@@ -1050,8 +1002,8 @@ impl<'a> Output<HtmlFormatter> for Link<'a> {
     ///
     /// For `[[dirurl/|descr]]` in vimwiki:
     ///
-    /// ```html
-    /// <a href="dirurl/index.html">descr</a>
+    /// ```vimwiki
+    /// <a href="dirurl/index.vimwiki">descr</a>
     /// ```
     ///
     /// ### Transclusion Link
@@ -1059,22 +1011,22 @@ impl<'a> Output<HtmlFormatter> for Link<'a> {
     /// For `{{path/to/img.png}}`, `{{path/to/img.png|descr}}`, and
     /// `{{path/to/img.png|descr|style="A"}}`:
     ///
-    /// ```html
+    /// ```vimwiki
     /// <img src="path/to/img.png" />
     /// <img src="path/to/img.png" alt="descr" />
     /// <img src="path/to/img.png" alt="descr" style="A" />
     /// ```
-    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
+    fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
         // Produces a link tag of <a href=".." ...>link/description</a>
         // based on the link data and a given base url representing the root
         // of the wiki if needed
         fn write_link(
-            f: &mut HtmlFormatter,
+            f: &mut VimwikiFormatter,
             href: &URIReference<'_>,
             description: Option<&Description>,
             properties: Option<&HashMap<Cow<'_, str>, Cow<'_, str>>>,
             use_img_tag: bool,
-        ) -> HtmlOutputResult {
+        ) -> VimwikiOutputResult {
             if use_img_tag {
                 write!(f, "<img src=\"{}\"", href)?;
 
@@ -1082,13 +1034,13 @@ impl<'a> Output<HtmlFormatter> for Link<'a> {
                     write!(
                         f,
                         " alt=\"{}\"",
-                        escape::escape_html(desc.to_string().as_str())
+                        escape::escape_vimwiki(desc.to_string().as_str())
                     )?;
                 }
 
                 if let Some(properties) = properties {
                     for (k, v) in properties.iter() {
-                        write!(f, " {}=\"{}\"", k, escape::escape_html(v))?;
+                        write!(f, " {}=\"{}\"", k, escape::escape_vimwiki(v))?;
                     }
                 }
 
@@ -1098,7 +1050,7 @@ impl<'a> Output<HtmlFormatter> for Link<'a> {
 
                 if let Some(properties) = properties {
                     for (k, v) in properties.iter() {
-                        write!(f, " {}=\"{}\"", k, escape::escape_html(v))?;
+                        write!(f, " {}=\"{}\"", k, escape::escape_vimwiki(v))?;
                     }
                 }
 
@@ -1106,7 +1058,7 @@ impl<'a> Output<HtmlFormatter> for Link<'a> {
 
                 match description {
                     Some(Description::Text(x)) => {
-                        write!(f, "{}", escape::escape_html(x))?
+                        write!(f, "{}", escape::escape_vimwiki(x))?
                     }
 
                     // TODO: Figure out more optimal way to perform nested
@@ -1133,7 +1085,7 @@ impl<'a> Output<HtmlFormatter> for Link<'a> {
             f.config().as_active_page_path_within_wiki(),
             &self,
         )
-        .map_err(HtmlOutputError::from)?;
+        .map_err(VimwikiOutputError::from)?;
 
         write_link(
             f,
@@ -1145,18 +1097,18 @@ impl<'a> Output<HtmlFormatter> for Link<'a> {
     }
 }
 
-impl<'a> Output<HtmlFormatter> for Tags<'a> {
-    /// Writes tags in HTML
+impl<'a> Output<VimwikiFormatter> for Tags<'a> {
+    /// Writes tags in vimwiki
     ///
     /// ### Example
     ///
     /// If placed after a header called *Header 1*, the tag will inject a span
     /// in front of itself that acts as an anchor to itself:
     ///
-    /// ```html
+    /// ```vimwiki
     /// <span id="Header 1-tag1"></span><span class="tag" id="tag1">tag1</span>
     /// ```
-    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
+    fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
         for tag in self {
             let id = utils::normalize_id(tag.as_str());
             let unique_id = f.ensure_unique_id(&id);
@@ -1184,37 +1136,37 @@ impl<'a> Output<HtmlFormatter> for Tags<'a> {
     }
 }
 
-impl<'a> Output<HtmlFormatter> for CodeInline<'a> {
-    /// Writes inline code in HTML
+impl<'a> Output<VimwikiFormatter> for CodeInline<'a> {
+    /// Writes inline code in vimwiki
     ///
     /// ### Example
     ///
-    /// ```html
+    /// ```vimwiki
     /// <code>some code</code>
     /// ```
-    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
-        write!(f, "<code>{}</code>", escape::escape_html(self.as_str()))?;
+    fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
+        write!(f, "<code>{}</code>", escape::escape_vimwiki(self.as_str()))?;
         Ok(())
     }
 }
 
-impl<'a> Output<HtmlFormatter> for MathInline<'a> {
-    /// Writes inline math in HTML
+impl<'a> Output<VimwikiFormatter> for MathInline<'a> {
+    /// Writes inline math in vimwiki
     ///
     /// ### Example
     ///
-    /// ```html
+    /// ```vimwiki
     /// \(some math\)
     /// ```
-    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
-        write!(f, r"\({}\)", escape::escape_html(self.as_str()))?;
+    fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
+        write!(f, r"\({}\)", escape::escape_vimwiki(self.as_str()))?;
         Ok(())
     }
 }
 
-impl<'a> Output<HtmlFormatter> for Comment<'a> {
-    /// Writes a comment in HTML
-    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
+impl<'a> Output<VimwikiFormatter> for Comment<'a> {
+    /// Writes a comment in vimwiki
+    fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
         match self {
             Self::Line(x) => x.fmt(f),
             Self::MultiLine(x) => x.fmt(f),
@@ -1222,17 +1174,17 @@ impl<'a> Output<HtmlFormatter> for Comment<'a> {
     }
 }
 
-impl<'a> Output<HtmlFormatter> for LineComment<'a> {
-    /// Writes a line comment in HTML
+impl<'a> Output<VimwikiFormatter> for LineComment<'a> {
+    /// Writes a line comment in vimwiki
     ///
     /// ### Example
     ///
     /// If `config.comment.include` is true, will output the following:
     ///
-    /// ```html
+    /// ```vimwiki
     /// <!-- {line} -->
     /// ```
-    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
+    fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
         if f.config().comment.include {
             write!(f, "<!-- {} -->", self.as_str())?;
         }
@@ -1240,14 +1192,14 @@ impl<'a> Output<HtmlFormatter> for LineComment<'a> {
     }
 }
 
-impl<'a> Output<HtmlFormatter> for MultiLineComment<'a> {
-    /// Writes a multiline comment in HTML
+impl<'a> Output<VimwikiFormatter> for MultiLineComment<'a> {
+    /// Writes a multiline comment in vimwiki
     ///
     /// ### Example
     ///
     /// If `config.comment.include` is true, will output the following:
     ///
-    /// ```html
+    /// ```vimwiki
     /// <!--
     /// {line1}
     /// {line2}
@@ -1255,7 +1207,7 @@ impl<'a> Output<HtmlFormatter> for MultiLineComment<'a> {
     /// {lineN}
     /// -->
     /// ```
-    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
+    fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
         if f.config().comment.include {
             writeln!(f, "<!--")?;
             for line in self {
@@ -1268,10 +1220,10 @@ impl<'a> Output<HtmlFormatter> for MultiLineComment<'a> {
 }
 
 fn build_complete_id(
-    f: &mut HtmlFormatter,
+    f: &mut VimwikiFormatter,
     max_level: usize,
     id: &str,
-) -> Result<String, HtmlOutputError> {
+) -> Result<String, VimwikiOutputError> {
     let mut complete_id = String::new();
 
     // Add all of the header text up to (not including) the level specified
@@ -1299,21 +1251,24 @@ mod tests {
     };
     use uriparse::URIReference;
 
-    /// Produces an html config with a singular wiki for some test page
+    /// Produces an vimwiki config with a singular wiki for some test page
     /// provided
-    fn test_html_config<P1: AsRef<Path>, P2: AsRef<Path>>(
+    fn test_vimwiki_config<P1: AsRef<Path>, P2: AsRef<Path>>(
         wiki: P1,
         page: P2,
-    ) -> HtmlConfig {
+    ) -> VimwikiConfig {
         let wiki = wiki.as_ref().to_string_lossy();
         let page = page.as_ref().to_string_lossy();
-        HtmlConfig {
-            wikis: vec![HtmlWikiConfig {
+        VimwikiConfig {
+            wikis: vec![VimwikiWikiConfig {
                 path: make_path_from_pieces(vec!["wiki", wiki.as_ref()]),
-                path_html: make_path_from_pieces(vec!["html", wiki.as_ref()]),
+                path_vimwiki: make_path_from_pieces(vec![
+                    "vimwiki",
+                    wiki.as_ref(),
+                ]),
                 ..Default::default()
             }],
-            runtime: HtmlRuntimeConfig {
+            runtime: VimwikiRuntimeConfig {
                 wiki_index: Some(0),
                 page: make_path_from_pieces(vec![
                     "wiki",
@@ -1326,25 +1281,25 @@ mod tests {
     }
 
     /// Adds a wiki to the config for interwiki testing
-    fn add_wiki<P: AsRef<Path>>(c: &mut HtmlConfig, wiki: P) {
+    fn add_wiki<P: AsRef<Path>>(c: &mut VimwikiConfig, wiki: P) {
         let wiki = wiki.as_ref().to_string_lossy();
-        c.wikis.push(HtmlWikiConfig {
+        c.wikis.push(VimwikiWikiConfig {
             path: make_path_from_pieces(vec!["wiki", wiki.as_ref()]),
-            path_html: make_path_from_pieces(vec!["html", wiki.as_ref()]),
+            path_vimwiki: make_path_from_pieces(vec!["vimwiki", wiki.as_ref()]),
             ..Default::default()
         });
     }
 
     /// Adds a wiki to the config for interwiki testing
     fn add_wiki_with_name<P: AsRef<Path>, N: AsRef<str>>(
-        c: &mut HtmlConfig,
+        c: &mut VimwikiConfig,
         wiki: P,
         name: N,
     ) {
         let wiki = wiki.as_ref().to_string_lossy();
-        c.wikis.push(HtmlWikiConfig {
+        c.wikis.push(VimwikiWikiConfig {
             path: make_path_from_pieces(vec!["wiki", wiki.as_ref()]),
-            path_html: make_path_from_pieces(vec!["html", wiki.as_ref()]),
+            path_vimwiki: make_path_from_pieces(vec!["vimwiki", wiki.as_ref()]),
             name: Some(name.as_ref().to_string()),
             ..Default::default()
         });
@@ -1373,7 +1328,7 @@ mod tests {
             Cow::from(""),
             Cow::from("line3"),
         ]);
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         blockquote.fmt(&mut f).unwrap();
 
         assert_eq!(
@@ -1395,7 +1350,7 @@ mod tests {
             Cow::from("line2"),
             Cow::from("line3"),
         ]);
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         blockquote.fmt(&mut f).unwrap();
 
         assert_eq!(
@@ -1411,13 +1366,14 @@ mod tests {
     }
 
     #[test]
-    fn blockquote_should_escape_html_in_each_line_of_a_singular_line_group() {
+    fn blockquote_should_escape_vimwiki_in_each_line_of_a_singular_line_group()
+    {
         let blockquote = Blockquote::new(vec![
             Cow::from("<test1>"),
             Cow::from("<test2>"),
             Cow::from("<test3>"),
         ]);
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         blockquote.fmt(&mut f).unwrap();
 
         assert_eq!(
@@ -1433,14 +1389,14 @@ mod tests {
     }
 
     #[test]
-    fn blockquote_should_escape_html_in_each_line_of_multiple_line_groups() {
+    fn blockquote_should_escape_vimwiki_in_each_line_of_multiple_line_groups() {
         let blockquote = Blockquote::new(vec![
             Cow::from("<test1>"),
             Cow::from("<test2>"),
             Cow::from(""),
             Cow::from("<test3>"),
         ]);
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         blockquote.fmt(&mut f).unwrap();
 
         assert_eq!(
@@ -1465,7 +1421,7 @@ mod tests {
         .into_iter()
         .collect();
 
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         list.fmt(&mut f).unwrap();
 
         assert_eq!(
@@ -1485,7 +1441,7 @@ mod tests {
         .into_iter()
         .collect();
 
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         list.fmt(&mut f).unwrap();
 
         assert_eq!(
@@ -1509,7 +1465,7 @@ mod tests {
         .into_iter()
         .collect();
 
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         list.fmt(&mut f).unwrap();
 
         assert_eq!(
@@ -1528,7 +1484,7 @@ mod tests {
     fn divider_should_output_hr_tag() {
         let divider = Divider;
 
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         divider.fmt(&mut f).unwrap();
 
         assert_eq!(f.get_content(), "<hr />\n");
@@ -1542,7 +1498,7 @@ mod tests {
             false,
         );
 
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         header.fmt(&mut f).unwrap();
 
         assert_eq!(
@@ -1561,11 +1517,11 @@ mod tests {
 
     #[test]
     fn header_should_support_toc_variant() {
-        let text = HtmlHeaderConfig::default_table_of_contents();
+        let text = VimwikiHeaderConfig::default_table_of_contents();
         let header =
             Header::new(text_to_inline_element_container(&text), 1, false);
 
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         header.fmt(&mut f).unwrap();
 
         assert_eq!(
@@ -1583,13 +1539,13 @@ mod tests {
     }
 
     #[test]
-    fn header_should_escape_html_in_ids() {
+    fn header_should_escape_vimwiki_in_ids() {
         let header =
             Header::new(text_to_inline_element_container("<test>"), 3, false);
 
         // Configure to use a different table of contents string
         // that has characters that should be escaped
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
 
         // Add some header ids prior to this one to verify that they aren't used
         f.insert_header_text(1, "h1");
@@ -1614,14 +1570,14 @@ mod tests {
     }
 
     #[test]
-    fn header_should_escape_html_in_ids_for_toc() {
+    fn header_should_escape_vimwiki_in_ids_for_toc() {
         let header =
             Header::new(text_to_inline_element_container("<test>"), 1, false);
 
         // Configure to use a different table of contents string
         // that has characters that should be escaped
-        let mut f = HtmlFormatter::new(HtmlConfig {
-            header: HtmlHeaderConfig {
+        let mut f = VimwikiFormatter::new(VimwikiConfig {
+            header: VimwikiHeaderConfig {
                 table_of_contents: String::from("<test>"),
             },
             ..Default::default()
@@ -1653,7 +1609,7 @@ mod tests {
             false,
         );
 
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         header1.fmt(&mut f).unwrap();
         header2.fmt(&mut f).unwrap();
         header3.fmt(&mut f).unwrap();
@@ -1706,7 +1662,7 @@ mod tests {
             false,
         );
 
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         f.insert_header_text(1, "a");
         f.insert_header_text(2, "b");
         header1.fmt(&mut f).unwrap();
@@ -1763,7 +1719,7 @@ mod tests {
             )]),
             ListItemAttributes::default(),
         ))]);
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         list.fmt(&mut f).unwrap();
 
         assert_eq!(
@@ -1789,7 +1745,7 @@ mod tests {
             )]),
             ListItemAttributes::default(),
         ))]);
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         list.fmt(&mut f).unwrap();
 
         assert_eq!(
@@ -1815,7 +1771,7 @@ mod tests {
             )]),
             ListItemAttributes::default(),
         );
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         item.fmt(&mut f).unwrap();
 
         assert_eq!(f.get_content(), "<li>some list item</li>\n");
@@ -1835,7 +1791,7 @@ mod tests {
             ListItemAttributes::default(),
         );
 
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         item.attributes.todo_status = Some(ListItemTodoStatus::Incomplete);
         item.fmt(&mut f).unwrap();
         assert_eq!(
@@ -1843,7 +1799,7 @@ mod tests {
             "<li class=\"done0\">some list item</li>\n"
         );
 
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         item.attributes.todo_status =
             Some(ListItemTodoStatus::PartiallyComplete1);
         item.fmt(&mut f).unwrap();
@@ -1852,7 +1808,7 @@ mod tests {
             "<li class=\"done1\">some list item</li>\n"
         );
 
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         item.attributes.todo_status =
             Some(ListItemTodoStatus::PartiallyComplete2);
         item.fmt(&mut f).unwrap();
@@ -1861,7 +1817,7 @@ mod tests {
             "<li class=\"done2\">some list item</li>\n"
         );
 
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         item.attributes.todo_status =
             Some(ListItemTodoStatus::PartiallyComplete3);
         item.fmt(&mut f).unwrap();
@@ -1870,7 +1826,7 @@ mod tests {
             "<li class=\"done3\">some list item</li>\n"
         );
 
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         item.attributes.todo_status = Some(ListItemTodoStatus::Complete);
         item.fmt(&mut f).unwrap();
         assert_eq!(
@@ -1878,7 +1834,7 @@ mod tests {
             "<li class=\"done4\">some list item</li>\n"
         );
 
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         item.attributes.todo_status = Some(ListItemTodoStatus::Rejected);
         item.fmt(&mut f).unwrap();
         assert_eq!(
@@ -1890,7 +1846,7 @@ mod tests {
     #[test]
     fn math_block_should_output_a_mathjax_notation() {
         let math = MathBlock::from_lines(vec!["some lines", "of math"]);
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         math.fmt(&mut f).unwrap();
 
         assert_eq!(
@@ -1910,7 +1866,7 @@ mod tests {
             vec![Cow::from("some lines"), Cow::from("of math")],
             Some(Cow::from("test environment")),
         );
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         math.fmt(&mut f).unwrap();
 
         assert_eq!(
@@ -1927,7 +1883,7 @@ mod tests {
     #[test]
     fn placeholder_should_set_title_if_specified() {
         let placeholder = Placeholder::title_from_str("test title");
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         placeholder.fmt(&mut f).unwrap();
 
         assert_eq!(f.get_title(), Some("test title"));
@@ -1936,7 +1892,7 @@ mod tests {
     #[test]
     fn placeholder_should_set_date_if_specified() {
         let placeholder = Placeholder::Date(NaiveDate::from_ymd(2021, 4, 27));
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         placeholder.fmt(&mut f).unwrap();
 
         assert_eq!(f.get_date(), Some(&NaiveDate::from_ymd(2021, 4, 27)));
@@ -1945,7 +1901,7 @@ mod tests {
     #[test]
     fn placeholder_should_set_template_if_specified() {
         let placeholder = Placeholder::template_from_str("template file");
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         placeholder.fmt(&mut f).unwrap();
 
         assert_eq!(f.get_template(), Some(Path::new("template file")));
@@ -1954,7 +1910,7 @@ mod tests {
     #[test]
     fn code_block_should_output_pre_code_tags_for_clientside_render() {
         let code = CodeBlock::from_lines(vec!["some lines", "of code"]);
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         code.fmt(&mut f).unwrap();
 
         assert_eq!(
@@ -1969,7 +1925,7 @@ mod tests {
     #[test]
     fn code_block_should_escape_output_clientside() {
         let code = CodeBlock::from_lines(vec!["<test>"]);
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         code.fmt(&mut f).unwrap();
 
         assert_eq!(
@@ -1987,8 +1943,8 @@ mod tests {
             HashMap::new(),
             vec![Cow::from("fn my_func() -> String { String::new() }")],
         );
-        let mut f = HtmlFormatter::new(HtmlConfig {
-            code: HtmlCodeConfig {
+        let mut f = VimwikiFormatter::new(VimwikiConfig {
+            code: VimwikiCodeConfig {
                 server_side: true,
                 ..Default::default()
             },
@@ -2015,8 +1971,8 @@ mod tests {
     #[test]
     fn code_block_should_support_serverside_render_with_no_language() {
         let code = CodeBlock::from_lines(vec!["some lines", "of code"]);
-        let mut f = HtmlFormatter::new(HtmlConfig {
-            code: HtmlCodeConfig {
+        let mut f = VimwikiFormatter::new(VimwikiConfig {
+            code: VimwikiCodeConfig {
                 server_side: true,
                 ..Default::default()
             },
@@ -2053,7 +2009,7 @@ mod tests {
             text_to_inline_element_container("some text"),
             text_to_inline_element_container("and more text"),
         ]);
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         paragraph.fmt(&mut f).unwrap();
 
         assert_eq!(f.get_content(), "<p>some text and more text</p>\n");
@@ -2065,8 +2021,8 @@ mod tests {
             text_to_inline_element_container("some text"),
             text_to_inline_element_container("and more text"),
         ]);
-        let mut f = HtmlFormatter::new(HtmlConfig {
-            paragraph: HtmlParagraphConfig {
+        let mut f = VimwikiFormatter::new(VimwikiConfig {
+            paragraph: VimwikiParagraphConfig {
                 ignore_newline: false,
             },
             ..Default::default()
@@ -2099,7 +2055,7 @@ mod tests {
             ],
             false,
         );
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         table.fmt(&mut f).unwrap();
 
         assert_eq!(
@@ -2142,7 +2098,7 @@ mod tests {
             ],
             false,
         );
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         table.fmt(&mut f).unwrap();
 
         assert_eq!(
@@ -2184,7 +2140,7 @@ mod tests {
             ],
             false,
         );
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         table.fmt(&mut f).unwrap();
 
         assert_eq!(
@@ -2218,7 +2174,7 @@ mod tests {
             ],
             false,
         );
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         table.fmt(&mut f).unwrap();
 
         assert_eq!(
@@ -2252,7 +2208,7 @@ mod tests {
             ],
             false,
         );
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         table.fmt(&mut f).unwrap();
 
         assert_eq!(
@@ -2272,7 +2228,7 @@ mod tests {
     #[test]
     fn table_should_support_being_centered() {
         let table = Table::new(Vec::new(), true);
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         table.fmt(&mut f).unwrap();
 
         assert_eq!(f.get_content(), "<table class=\"center\">\n</table>\n");
@@ -2281,19 +2237,19 @@ mod tests {
     #[test]
     fn text_should_output_inner_str() {
         let text = Text::from("some text");
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         text.fmt(&mut f).unwrap();
 
         assert_eq!(f.get_content(), "some text");
     }
 
     #[test]
-    fn text_should_escape_html() {
-        let text = Text::from("<some>html</some>");
-        let mut f = HtmlFormatter::default();
+    fn text_should_escape_vimwiki() {
+        let text = Text::from("<some>vimwiki</some>");
+        let mut f = VimwikiFormatter::default();
         text.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), r"&lt;some&gt;html&lt;/some&gt;");
+        assert_eq!(f.get_content(), r"&lt;some&gt;vimwiki&lt;/some&gt;");
     }
 
     #[test]
@@ -2301,7 +2257,7 @@ mod tests {
         let decorated_text = DecoratedText::Bold(vec![Located::from(
             DecoratedTextContent::Text(Text::from("some text")),
         )]);
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         decorated_text.fmt(&mut f).unwrap();
 
         assert_eq!(
@@ -2316,7 +2272,7 @@ mod tests {
         let decorated_text = DecoratedText::Bold(vec![Located::from(
             DecoratedTextContent::Text(Text::from("some text")),
         )]);
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         f.insert_header_text(1, "one");
         f.insert_header_text(2, "two");
         f.insert_header_text(3, "three");
@@ -2337,7 +2293,7 @@ mod tests {
         let decorated_text = DecoratedText::Bold(vec![Located::from(
             DecoratedTextContent::Text(Text::from("some <test> text")),
         )]);
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         decorated_text.fmt(&mut f).unwrap();
 
         assert_eq!(
@@ -2355,7 +2311,7 @@ mod tests {
             DecoratedTextContent::Text(Text::from("bold")),
         )]);
 
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         bold1.fmt(&mut f).unwrap();
         bold2.fmt(&mut f).unwrap();
 
@@ -2382,7 +2338,7 @@ mod tests {
             DecoratedTextContent::Text(Text::from("bold")),
         )]);
 
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         f.insert_header_text(1, "a");
         f.insert_header_text(2, "b");
         bold1.fmt(&mut f).unwrap();
@@ -2407,7 +2363,7 @@ mod tests {
         let decorated_text = DecoratedText::Italic(vec![Located::from(
             DecoratedTextContent::Text(Text::from("some text")),
         )]);
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         decorated_text.fmt(&mut f).unwrap();
 
         assert_eq!(f.get_content(), r#"<em>some text</em>"#);
@@ -2418,7 +2374,7 @@ mod tests {
         let decorated_text = DecoratedText::Strikeout(vec![Located::from(
             DecoratedTextContent::Text(Text::from("some text")),
         )]);
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         decorated_text.fmt(&mut f).unwrap();
 
         assert_eq!(f.get_content(), r#"<del>some text</del>"#);
@@ -2429,7 +2385,7 @@ mod tests {
         let decorated_text = DecoratedText::Superscript(vec![Located::from(
             DecoratedTextContent::Text(Text::from("some text")),
         )]);
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         decorated_text.fmt(&mut f).unwrap();
 
         assert_eq!(f.get_content(), r#"<sup><small>some text</small></sup>"#);
@@ -2440,7 +2396,7 @@ mod tests {
         let decorated_text = DecoratedText::Subscript(vec![Located::from(
             DecoratedTextContent::Text(Text::from("some text")),
         )]);
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         decorated_text.fmt(&mut f).unwrap();
 
         assert_eq!(f.get_content(), r#"<sub><small>some text</small></sub>"#);
@@ -2450,7 +2406,7 @@ mod tests {
     fn keyword_should_output_span_with_class_for_todo() {
         let keyword = Keyword::Todo;
 
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         keyword.fmt(&mut f).unwrap();
 
         assert_eq!(f.get_content(), r#"<span class="todo">TODO</span>"#);
@@ -2460,7 +2416,7 @@ mod tests {
     fn keyword_should_output_self_in_all_caps() {
         let keyword = Keyword::Done;
 
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         keyword.fmt(&mut f).unwrap();
 
         assert_eq!(f.get_content(), "DONE");
@@ -2472,12 +2428,13 @@ mod tests {
             URIReference::try_from("some/page").unwrap(),
             None,
         );
-        let mut f = HtmlFormatter::new(test_html_config("wiki", "test.wiki"));
+        let mut f =
+            VimwikiFormatter::new(test_vimwiki_config("wiki", "test.wiki"));
         link.fmt(&mut f).unwrap();
 
         assert_eq!(
             f.get_content(),
-            r#"<a href="some/page.html">some/page</a>"#
+            r#"<a href="some/page.vimwiki">some/page</a>"#
         );
     }
 
@@ -2487,12 +2444,13 @@ mod tests {
             URIReference::try_from("some/page#some-anchor").unwrap(),
             None,
         );
-        let mut f = HtmlFormatter::new(test_html_config("wiki", "test.wiki"));
+        let mut f =
+            VimwikiFormatter::new(test_vimwiki_config("wiki", "test.wiki"));
         link.fmt(&mut f).unwrap();
 
         assert_eq!(
             f.get_content(),
-            r#"<a href="some/page.html#some-anchor">some/page#some-anchor</a>"#
+            r#"<a href="some/page.vimwiki#some-anchor">some/page#some-anchor</a>"#
         );
     }
 
@@ -2502,12 +2460,13 @@ mod tests {
             URIReference::try_from("some/page").unwrap(),
             Description::from("some description"),
         );
-        let mut f = HtmlFormatter::new(test_html_config("wiki", "test.wiki"));
+        let mut f =
+            VimwikiFormatter::new(test_vimwiki_config("wiki", "test.wiki"));
         link.fmt(&mut f).unwrap();
 
         assert_eq!(
             f.get_content(),
-            r#"<a href="some/page.html">some description</a>"#
+            r#"<a href="some/page.vimwiki">some description</a>"#
         );
     }
 
@@ -2517,12 +2476,13 @@ mod tests {
             URIReference::try_from("some/page").unwrap(),
             Description::try_from_uri_ref_str("some/img.png").unwrap(),
         );
-        let mut f = HtmlFormatter::new(test_html_config("wiki", "test.wiki"));
+        let mut f =
+            VimwikiFormatter::new(test_vimwiki_config("wiki", "test.wiki"));
         link.fmt(&mut f).unwrap();
 
         assert_eq!(
             f.get_content(),
-            r#"<a href="some/page.html"><img src="some/img.png" /></a>"#
+            r#"<a href="some/page.vimwiki"><img src="some/img.png" /></a>"#
         );
     }
 
@@ -2535,15 +2495,15 @@ mod tests {
         );
 
         // Make a config with two wikis so we can refer to the other one
-        let mut c = test_html_config("wiki", "test.wiki");
+        let mut c = test_vimwiki_config("wiki", "test.wiki");
         add_wiki(&mut c, "wiki2");
 
-        let mut f = HtmlFormatter::new(c);
+        let mut f = VimwikiFormatter::new(c);
         link.fmt(&mut f).unwrap();
 
         assert_eq!(
             f.get_content(),
-            r#"<a href="../wiki2/some/page.html">some/page</a>"#
+            r#"<a href="../wiki2/some/page.vimwiki">some/page</a>"#
         );
     }
 
@@ -2556,15 +2516,15 @@ mod tests {
         );
 
         // Make a config with two wikis so we can refer to the other one
-        let mut c = test_html_config("wiki", "test.wiki");
+        let mut c = test_vimwiki_config("wiki", "test.wiki");
         add_wiki(&mut c, "wiki2");
 
-        let mut f = HtmlFormatter::new(c);
+        let mut f = VimwikiFormatter::new(c);
         link.fmt(&mut f).unwrap();
 
         assert_eq!(
             f.get_content(),
-            r#"<a href="../wiki2/some/page.html#some-anchor">some/page#some-anchor</a>"#
+            r#"<a href="../wiki2/some/page.vimwiki#some-anchor">some/page#some-anchor</a>"#
         );
     }
 
@@ -2577,15 +2537,15 @@ mod tests {
         );
 
         // Make a config with two wikis so we can refer to the other one
-        let mut c = test_html_config("wiki", "test.wiki");
+        let mut c = test_vimwiki_config("wiki", "test.wiki");
         add_wiki(&mut c, "wiki2");
 
-        let mut f = HtmlFormatter::new(c);
+        let mut f = VimwikiFormatter::new(c);
         link.fmt(&mut f).unwrap();
 
         assert_eq!(
             f.get_content(),
-            r#"<a href="../wiki2/some/page.html">some description</a>"#
+            r#"<a href="../wiki2/some/page.vimwiki">some description</a>"#
         );
     }
 
@@ -2598,15 +2558,15 @@ mod tests {
         );
 
         // Make a config with two wikis so we can refer to the other one
-        let mut c = test_html_config("wiki", "test.wiki");
+        let mut c = test_vimwiki_config("wiki", "test.wiki");
         add_wiki(&mut c, "wiki2");
 
-        let mut f = HtmlFormatter::new(c);
+        let mut f = VimwikiFormatter::new(c);
         link.fmt(&mut f).unwrap();
 
         assert_eq!(
             f.get_content(),
-            r#"<a href="../wiki2/some/page.html"><img src="some/img.png" /></a>"#
+            r#"<a href="../wiki2/some/page.vimwiki"><img src="some/img.png" /></a>"#
         );
     }
 
@@ -2619,15 +2579,15 @@ mod tests {
         );
 
         // Make a config with two wikis so we can refer to the other one
-        let mut c = test_html_config("wiki", "test.wiki");
+        let mut c = test_vimwiki_config("wiki", "test.wiki");
         add_wiki_with_name(&mut c, "wiki2", "my-wiki");
 
-        let mut f = HtmlFormatter::new(c);
+        let mut f = VimwikiFormatter::new(c);
         link.fmt(&mut f).unwrap();
 
         assert_eq!(
             f.get_content(),
-            r#"<a href="../wiki2/some/page.html">some/page</a>"#
+            r#"<a href="../wiki2/some/page.vimwiki">some/page</a>"#
         );
     }
 
@@ -2640,15 +2600,15 @@ mod tests {
         );
 
         // Make a config with two wikis so we can refer to the other one
-        let mut c = test_html_config("wiki", "test.wiki");
+        let mut c = test_vimwiki_config("wiki", "test.wiki");
         add_wiki_with_name(&mut c, "wiki2", "my-wiki");
 
-        let mut f = HtmlFormatter::new(c);
+        let mut f = VimwikiFormatter::new(c);
         link.fmt(&mut f).unwrap();
 
         assert_eq!(
             f.get_content(),
-            r#"<a href="../wiki2/some/page.html#some-anchor">some/page#some-anchor</a>"#
+            r#"<a href="../wiki2/some/page.vimwiki#some-anchor">some/page#some-anchor</a>"#
         );
     }
 
@@ -2661,15 +2621,15 @@ mod tests {
         );
 
         // Make a config with two wikis so we can refer to the other one
-        let mut c = test_html_config("wiki", "test.wiki");
+        let mut c = test_vimwiki_config("wiki", "test.wiki");
         add_wiki_with_name(&mut c, "wiki2", "my-wiki");
 
-        let mut f = HtmlFormatter::new(c);
+        let mut f = VimwikiFormatter::new(c);
         link.fmt(&mut f).unwrap();
 
         assert_eq!(
             f.get_content(),
-            r#"<a href="../wiki2/some/page.html">some description</a>"#
+            r#"<a href="../wiki2/some/page.vimwiki">some description</a>"#
         );
     }
 
@@ -2682,15 +2642,15 @@ mod tests {
         );
 
         // Make a config with two wikis so we can refer to the other one
-        let mut c = test_html_config("wiki", "test.wiki");
+        let mut c = test_vimwiki_config("wiki", "test.wiki");
         add_wiki_with_name(&mut c, "wiki2", "my-wiki");
 
-        let mut f = HtmlFormatter::new(c);
+        let mut f = VimwikiFormatter::new(c);
         link.fmt(&mut f).unwrap();
 
         assert_eq!(
             f.get_content(),
-            r#"<a href="../wiki2/some/page.html"><img src="some/img.png" /></a>"#
+            r#"<a href="../wiki2/some/page.vimwiki"><img src="some/img.png" /></a>"#
         );
     }
 
@@ -2698,12 +2658,13 @@ mod tests {
     fn diary_link_should_output_a_tag() {
         let link =
             Link::new_diary_link(NaiveDate::from_ymd(2021, 5, 27), None, None);
-        let mut f = HtmlFormatter::new(test_html_config("wiki", "test.wiki"));
+        let mut f =
+            VimwikiFormatter::new(test_vimwiki_config("wiki", "test.wiki"));
         link.fmt(&mut f).unwrap();
 
         assert_eq!(
             f.get_content(),
-            r#"<a href="diary/2021-05-27.html">diary:2021-05-27</a>"#
+            r#"<a href="diary/2021-05-27.vimwiki">diary:2021-05-27</a>"#
         );
     }
 
@@ -2714,12 +2675,13 @@ mod tests {
             Description::from("some description"),
             None,
         );
-        let mut f = HtmlFormatter::new(test_html_config("wiki", "test.wiki"));
+        let mut f =
+            VimwikiFormatter::new(test_vimwiki_config("wiki", "test.wiki"));
         link.fmt(&mut f).unwrap();
 
         assert_eq!(
             f.get_content(),
-            r#"<a href="diary/2021-05-27.html">some description</a>"#
+            r#"<a href="diary/2021-05-27.vimwiki">some description</a>"#
         );
     }
 
@@ -2730,12 +2692,13 @@ mod tests {
             Description::try_from_uri_ref_str("some/img.png").unwrap(),
             None,
         );
-        let mut f = HtmlFormatter::new(test_html_config("wiki", "test.wiki"));
+        let mut f =
+            VimwikiFormatter::new(test_vimwiki_config("wiki", "test.wiki"));
         link.fmt(&mut f).unwrap();
 
         assert_eq!(
             f.get_content(),
-            r#"<a href="diary/2021-05-27.html"><img src="some/img.png" /></a>"#
+            r#"<a href="diary/2021-05-27.vimwiki"><img src="some/img.png" /></a>"#
         );
     }
 
@@ -2745,7 +2708,7 @@ mod tests {
             URIReference::try_from("https://example.com").unwrap(),
         );
 
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         link.fmt(&mut f).unwrap();
 
         assert_eq!(
@@ -2762,7 +2725,7 @@ mod tests {
             None,
         );
 
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         link.fmt(&mut f).unwrap();
 
         assert_eq!(
@@ -2779,7 +2742,8 @@ mod tests {
             None,
         );
 
-        let mut f = HtmlFormatter::new(test_html_config("wiki", "test.wiki"));
+        let mut f =
+            VimwikiFormatter::new(test_vimwiki_config("wiki", "test.wiki"));
         link.fmt(&mut f).unwrap();
 
         assert_eq!(f.get_content(), r#"<img src="img/pic.png" />"#);
@@ -2793,7 +2757,7 @@ mod tests {
             None,
         );
 
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         link.fmt(&mut f).unwrap();
 
         assert_eq!(
@@ -2814,7 +2778,7 @@ mod tests {
             properties,
         );
 
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         link.fmt(&mut f).unwrap();
 
         // NOTE: The order of properties isn't guaranteed, so we have to check
@@ -2827,7 +2791,7 @@ mod tests {
     }
 
     #[test]
-    fn transclusion_link_should_escape_html() {
+    fn transclusion_link_should_escape_vimwiki() {
         let mut properties: HashMap<Cow<str>, Cow<str>> = HashMap::new();
         properties.insert(Cow::from("key1"), Cow::from("<test>value1</test>"));
 
@@ -2838,7 +2802,7 @@ mod tests {
             properties,
         );
 
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         link.fmt(&mut f).unwrap();
 
         assert_eq!(
@@ -2850,7 +2814,7 @@ mod tests {
     #[test]
     fn tags_should_output_span_per_tag() {
         let tags: Tags = vec!["one", "two"].into_iter().collect();
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         tags.fmt(&mut f).unwrap();
 
         assert_eq!(
@@ -2866,7 +2830,7 @@ mod tests {
     #[test]
     fn tags_should_include_extra_span_with_id_comprised_of_previous_headers() {
         let tags: Tags = vec!["one", "two"].into_iter().collect();
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         f.insert_header_text(1, "first-id");
         f.insert_header_text(3, "third-id");
 
@@ -2879,9 +2843,9 @@ mod tests {
     }
 
     #[test]
-    fn tags_should_escape_html() {
+    fn tags_should_escape_vimwiki() {
         let tags: Tags = vec!["one&", "two>"].into_iter().collect();
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         tags.fmt(&mut f).unwrap();
 
         assert_eq!(
@@ -2899,7 +2863,7 @@ mod tests {
         let tags1: Tags = vec!["one", "two"].into_iter().collect();
         let tags2: Tags = vec!["one", "two"].into_iter().collect();
 
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         tags1.fmt(&mut f).unwrap();
         tags2.fmt(&mut f).unwrap();
 
@@ -2922,7 +2886,7 @@ mod tests {
         let tags2: Tags = vec!["one", "two"].into_iter().collect();
         let tags3: Tags = vec!["one", "two"].into_iter().collect();
 
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         f.insert_header_text(1, "a");
         f.insert_header_text(2, "b");
         tags1.fmt(&mut f).unwrap();
@@ -2948,16 +2912,16 @@ mod tests {
     #[test]
     fn code_inline_should_output_code_tag() {
         let code_inline = CodeInline::from("some code");
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         code_inline.fmt(&mut f).unwrap();
 
         assert_eq!(f.get_content(), "<code>some code</code>");
     }
 
     #[test]
-    fn code_inline_should_escape_html() {
+    fn code_inline_should_escape_vimwiki() {
         let code_inline = CodeInline::from("<test>some code</test>");
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         code_inline.fmt(&mut f).unwrap();
 
         assert_eq!(
@@ -2969,16 +2933,16 @@ mod tests {
     #[test]
     fn math_inline_should_output_a_mathjax_notation() {
         let math_inline = MathInline::from("some math");
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         math_inline.fmt(&mut f).unwrap();
 
         assert_eq!(f.get_content(), r"\(some math\)");
     }
 
     #[test]
-    fn math_inline_should_escape_html() {
+    fn math_inline_should_escape_vimwiki() {
         let math_inline = MathInline::from("<test>some math</test>");
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         math_inline.fmt(&mut f).unwrap();
 
         assert_eq!(f.get_content(), r"\(&lt;test&gt;some math&lt;/test&gt;\)");
@@ -2987,8 +2951,8 @@ mod tests {
     #[test]
     fn comment_should_output_tag_based_on_inner_element() {
         let comment = Comment::from(LineComment::from("some comment"));
-        let mut f = HtmlFormatter::new(HtmlConfig {
-            comment: HtmlCommentConfig { include: true },
+        let mut f = VimwikiFormatter::new(VimwikiConfig {
+            comment: VimwikiCommentConfig { include: true },
             ..Default::default()
         });
         comment.fmt(&mut f).unwrap();
@@ -2998,8 +2962,8 @@ mod tests {
             Cow::Borrowed("some comment"),
             Cow::Borrowed("on multiple lines"),
         ]));
-        let mut f = HtmlFormatter::new(HtmlConfig {
-            comment: HtmlCommentConfig { include: true },
+        let mut f = VimwikiFormatter::new(VimwikiConfig {
+            comment: VimwikiCommentConfig { include: true },
             ..Default::default()
         });
         comment.fmt(&mut f).unwrap();
@@ -3010,17 +2974,17 @@ mod tests {
     }
 
     #[test]
-    fn line_comment_should_output_html_comment_if_flagged() {
+    fn line_comment_should_output_vimwiki_comment_if_flagged() {
         let comment = LineComment::from("some comment");
 
         // By default, no comment will be output
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         comment.fmt(&mut f).unwrap();
         assert_eq!(f.get_content(), "");
 
-        // If configured to output comments, should use HTML syntax
-        let mut f = HtmlFormatter::new(HtmlConfig {
-            comment: HtmlCommentConfig { include: true },
+        // If configured to output comments, should use vimwiki syntax
+        let mut f = VimwikiFormatter::new(VimwikiConfig {
+            comment: VimwikiCommentConfig { include: true },
             ..Default::default()
         });
         comment.fmt(&mut f).unwrap();
@@ -3028,20 +2992,20 @@ mod tests {
     }
 
     #[test]
-    fn multi_line_comment_should_output_html_comment_if_flagged() {
+    fn multi_line_comment_should_output_vimwiki_comment_if_flagged() {
         let comment = MultiLineComment::new(vec![
             Cow::Borrowed("some comment"),
             Cow::Borrowed("on multiple lines"),
         ]);
 
         // By default, no comment will be output
-        let mut f = HtmlFormatter::default();
+        let mut f = VimwikiFormatter::default();
         comment.fmt(&mut f).unwrap();
         assert_eq!(f.get_content(), "");
 
-        // If configured to output comments, should use HTML syntax
-        let mut f = HtmlFormatter::new(HtmlConfig {
-            comment: HtmlCommentConfig { include: true },
+        // If configured to output comments, should use vimwiki syntax
+        let mut f = VimwikiFormatter::new(VimwikiConfig {
+            comment: VimwikiCommentConfig { include: true },
             ..Default::default()
         });
         comment.fmt(&mut f).unwrap();
