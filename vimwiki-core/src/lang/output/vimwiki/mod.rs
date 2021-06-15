@@ -14,6 +14,7 @@ use crate::lang::{
     elements::*,
     output::{Output, OutputFormatter},
 };
+use percent_encoding::percent_decode_str;
 use std::{borrow::Cow, collections::HashMap, fmt::Write};
 use uriparse::URIReference;
 
@@ -65,14 +66,6 @@ impl<'a> Output<VimwikiFormatter> for BlockElement<'a> {
 }
 
 impl<'a> Output<VimwikiFormatter> for Blockquote<'a> {
-    /// Writes a blockquote in vimwiki
-    ///
-    /// ### Example
-    ///
-    /// ```vimwiki
-    /// > some blockquote
-    /// > on multiple lines
-    /// ```
     fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
         let VimwikiBlockquoteConfig {
             prefer_indented_blockquote,
@@ -91,8 +84,7 @@ impl<'a> Output<VimwikiFormatter> for Blockquote<'a> {
             }
 
             if trim_lines {
-                f.skip_whitespace(|f| line.fmt(f))?;
-                f.trim_end();
+                f.and_trim(|f| line.fmt(f))?;
             } else {
                 line.fmt(f)?;
             }
@@ -103,15 +95,6 @@ impl<'a> Output<VimwikiFormatter> for Blockquote<'a> {
 }
 
 impl<'a> Output<VimwikiFormatter> for DefinitionList<'a> {
-    /// Writes a definition list in vimwiki
-    ///
-    /// ### Example
-    ///
-    /// ```vimwiki
-    /// term1:: def1
-    /// term2:: def2
-    /// :: def3
-    /// ```
     fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
         let VimwikiDefinitionListConfig {
             term_on_line_by_itself,
@@ -120,9 +103,9 @@ impl<'a> Output<VimwikiFormatter> for DefinitionList<'a> {
         } = f.config().definition_list;
 
         for (term, defs) in self {
+            f.write_indent()?;
             if trim_terms {
-                f.skip_whitespace(|f| term.fmt(f))?;
-                f.trim_end();
+                f.and_trim(|f| term.fmt(f))?;
             } else {
                 term.fmt(f)?;
             }
@@ -133,12 +116,12 @@ impl<'a> Output<VimwikiFormatter> for DefinitionList<'a> {
                     write!(f, " ")?;
                 } else {
                     writeln!(f);
+                    f.write_indent()?;
                     write!(f, ":: ")?;
                 }
 
                 if trim_definitions {
-                    f.skip_whitespace(|f| def.fmt(f))?;
-                    f.trim_end();
+                    f.and_trim(|f| def.fmt(f))?;
                 } else {
                     def.fmt(f)?;
                 }
@@ -150,18 +133,12 @@ impl<'a> Output<VimwikiFormatter> for DefinitionList<'a> {
 }
 
 impl<'a> Output<VimwikiFormatter> for DefinitionListValue<'a> {
-    /// Writes a definition list value in vimwiki
     fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
         self.as_inner().fmt(f)
     }
 }
 
 impl Output<VimwikiFormatter> for Divider {
-    /// Writes a divider in vimwiki
-    ///
-    /// ```vimwiki
-    /// ----
-    /// ```
     fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
         writeln!(f, "----")?;
         Ok(())
@@ -169,18 +146,17 @@ impl Output<VimwikiFormatter> for Divider {
 }
 
 impl<'a> Output<VimwikiFormatter> for Header<'a> {
-    /// Writes a header in vimwiki
-    ///
-    /// ### Example
-    ///
-    /// ```vimwiki
-    /// = some header =
-    /// ```
     fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
         let VimwikiHeaderConfig {
             no_padding,
             trim_content,
         } = f.config().header;
+
+        // If centered, we have to indent by some amount
+        // TODO: Support configuring spaces for centered header
+        if self.centered {
+            f.write_indent()?;
+        }
 
         // Beginning portion of header
         for _ in 0..self.level {
@@ -194,8 +170,7 @@ impl<'a> Output<VimwikiFormatter> for Header<'a> {
 
         // Write the header's content, trimming whitespace if specified
         if trim_content {
-            f.skip_whitespace(|f| self.content.fmt(f))?;
-            f.trim_end();
+            f.and_trim(|f| self.content.fmt(f))?;
         } else {
             self.content.fmt(f)?;
         }
@@ -215,47 +190,9 @@ impl<'a> Output<VimwikiFormatter> for Header<'a> {
 }
 
 impl<'a> Output<VimwikiFormatter> for List<'a> {
-    /// Writes a list in vimwiki
-    ///
-    /// ### Unordered list
-    ///
-    /// ```vimwiki
-    /// <ul>
-    ///     <li>...</li>
-    ///     <li>...</li>
-    /// </ul>
-    /// ```
-    ///
-    /// ### Ordered list
-    ///
-    /// ```vimwiki
-    /// <ol>
-    ///     <li>...</li>
-    ///     <li>...</li>
-    /// </ol>
-    /// ```
     fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
-        // TODO: This should be used for list items... how?
-        let _ignore_newlines = f.config().list.ignore_newline;
-
-        // If the list is ordered, we use an ordered vimwiki list
-        if self.is_ordered() {
-            writeln!(f, "<ol>")?;
-
-        // Otherwise, if the list is unordered (or has nothing) we use
-        // an unordered vimwiki list
-        } else {
-            writeln!(f, "<ul>")?;
-        }
-
         for item in self {
             item.fmt(f)?;
-        }
-
-        if self.is_ordered() {
-            writeln!(f, "</ol>")?;
-        } else {
-            writeln!(f, "</ul>")?;
         }
 
         Ok(())
@@ -263,80 +200,25 @@ impl<'a> Output<VimwikiFormatter> for List<'a> {
 }
 
 impl<'a> Output<VimwikiFormatter> for ListItem<'a> {
-    /// Writes a list item in vimwiki
-    ///
-    /// ### Plain item
-    ///
-    /// ```vimwiki
-    /// <li>...</li>
-    /// ```
-    ///
-    /// ### Incomplete todo item
-    ///
-    /// ```vimwiki
-    /// <li class="done0">...</li>
-    /// ```
-    ///
-    /// ### Partially completed todo items
-    ///
-    /// ```vimwiki
-    /// <li class="done1">...</li>
-    /// <li class="done2">...</li>
-    /// <li class="done3">...</li>
-    /// ```
-    ///
-    /// ### Completed todo item
-    ///
-    /// ```vimwiki
-    /// <li class="done4">...</li>
-    /// ```
-    ///
-    /// ### Rejected todo item
-    ///
-    /// ```vimwiki
-    /// <li class="rejected">...</li>
-    /// ```
     fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
-        // TODO: This should be used for list items... how?
-        let _ignore_newlines = f.config().list.ignore_newline;
+        let VimwikiListConfig { trim_lines } = f.config().list;
 
-        // First, figure out what class we should be using
-        let todo_class = if self.is_todo_incomplete() {
-            "done0"
-        } else if self.is_todo_partially_complete_1() {
-            "done1"
-        } else if self.is_todo_partially_complete_2() {
-            "done2"
-        } else if self.is_todo_partially_complete_3() {
-            "done3"
-        } else if self.is_todo_complete() {
-            "done4"
-        } else if self.is_todo_rejected() {
-            "rejected"
-        } else {
-            ""
-        };
+        for (idx, content) in self.contents.iter().enumerate() {
+            // Apply indentation to place list item at right starting location
+            f.write_indent()?;
 
-        // Second, construct the list item
-        if !todo_class.is_empty() {
-            write!(f, r#"<li class="{}">"#, todo_class)?;
-        } else {
-            write!(f, "<li>")?;
-        }
+            // If first line of content, write the prefix such as 1. or -
+            // alongside content
+            if idx == 0 {
+                write!(f, "{} ", self.to_prefix())?;
+            }
 
-        self.contents.fmt(f)?;
-
-        writeln!(f, "</li>")?;
-
-        Ok(())
-    }
-}
-
-impl<'a> Output<VimwikiFormatter> for ListItemContents<'a> {
-    /// Writes a list item's contents in vimwiki
-    fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
-        for content in self {
-            content.fmt(f)?;
+            // Write line(s) at proper indentation level with trim if specified
+            if trim_lines {
+                f.and_trim(|f| f.and_indent(|f| content.fmt(f)))?;
+            } else {
+                f.and_indent(|f| content.fmt(f))?;
+            }
         }
 
         Ok(())
@@ -344,7 +226,6 @@ impl<'a> Output<VimwikiFormatter> for ListItemContents<'a> {
 }
 
 impl<'a> Output<VimwikiFormatter> for ListItemContent<'a> {
-    /// Writes one piece of content within a list item in vimwiki
     fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
         match self {
             Self::List(x) => x.fmt(f)?,
@@ -356,58 +237,39 @@ impl<'a> Output<VimwikiFormatter> for ListItemContent<'a> {
 }
 
 impl<'a> Output<VimwikiFormatter> for MathBlock<'a> {
-    /// Writes a math block in vimwiki
-    ///
-    /// This leverages MathJAX to transform the dom, and MathJAX expects
-    /// block-level math to look like the following:
-    ///
-    /// ```vimwiki
-    /// \[some math enclosed in block notation\]
-    /// ```
-    ///
-    /// ### With environment
-    ///
-    /// ```vimwiki
-    /// \begin{environment}
-    /// some math enclosed in block notation
-    /// \end{environment}
-    /// ```
     fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
-        if let Some(env) = self.environment.as_deref() {
-            writeln!(f, r"\begin{{{}}}", env)?;
-            for line in self {
-                writeln!(f, "{}", escape::escape_vimwiki(line))?;
-            }
-            writeln!(f, r"\end{{{}}}", env)?;
-        } else {
-            // TODO: vimwiki appears to support a class if it is on the same
-            //       line as the start of the math block, which we currently
-            //       do not parse. This would be appended to the end of the
-            //       starting notation \[<CLASS>
-            writeln!(f, r"\[")?;
-            for line in self {
-                writeln!(f, "{}", escape::escape_vimwiki(line))?;
-            }
-            writeln!(f, r"\]")?;
+        // First, write starting line of math block
+        f.write_indent()?;
+        writeln!(
+            f,
+            "{{{{${}",
+            self.environment
+                .map(|e| format!("%{}%", e))
+                .unwrap_or_default()
+        )?;
+
+        // Second, write all lines within math block
+        for line in self {
+            f.write_indent()?;
+            writeln!(f, "{}", line)?;
         }
+
+        // Third, write closing line of math block
+        f.write_indent()?;
+        writeln!(f, "}}}}$")?;
 
         Ok(())
     }
 }
 
 impl<'a> Output<VimwikiFormatter> for Placeholder<'a> {
-    /// Writes placeholders in vimwiki
-    ///
-    /// Note that this doesn't actually do any writing, but instead updates
-    /// settings in the formatter with specific details such as a title, date,
-    /// or alternative template to use
-    /// ```
     fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
         match self {
-            Self::Title(x) => f.set_title(x),
-            Self::Date(x) => f.set_date(x),
-            Self::Template(x) => f.set_template(x.as_ref()),
-            _ => {}
+            Self::Title(x) => writeln!(f, "%title {}", x)?,
+            Self::Date(x) => writeln!(f, "%date {}", x)?,
+            Self::Template(x) => writeln!(f, "%template {}", x)?,
+            Self::NoHtml => writeln!(f, "%nohtml")?,
+            Self::Other { name, value } => writeln!(f, "%{} {}", name, value)?,
         }
 
         Ok(())
@@ -415,227 +277,56 @@ impl<'a> Output<VimwikiFormatter> for Placeholder<'a> {
 }
 
 impl<'a> Output<VimwikiFormatter> for CodeBlock<'a> {
-    /// Writes a code block block in vimwiki
-    ///
-    /// ### Client-side
-    ///
-    /// Supporting browser highlighters written in JavaScript such as
-    /// `highlight.js`:
-    ///
-    /// ```vimwiki
-    /// <pre>
-    ///     <code class="{language}">
-    ///         // Rust source
-    ///         fn main() {
-    ///             println!("Hello World!");
-    ///         }
-    ///     </code>
-    /// </pre>
-    /// ```
-    ///
-    /// ### Server-side
-    ///
-    /// When supporting CSS classes:
-    ///
-    /// ```vimwiki
-    /// <pre class="code">
-    ///     <span class="source rust">
-    ///         <span class="comment line double-slash rust">
-    ///             <span class="punctuation definition comment rust">//</span> Rust source</span>
-    ///         ...
-    /// </pre>
-    /// ```
-    ///
-    /// When inlining all stylings:
-    ///
-    /// ```vimwiki
-    /// <pre style="background-color:#2b303b;">
-    ///     <span style="color:#c0c5ce;">// Rust source</span>
-    ///     ...
-    /// </pre>
-    /// ```
     fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
-        // If we are told to perform a server-side render of styles, we
-        // build out the <pre> tag and then inject a variety of <span> wrapping
-        // individual text elements with associated stylings
-        if f.config().code.server_side {
-            // Load and use the syntax set from the specified directory if
-            // given, otherwise use the default syntax set
-            let custom_ss = f
-                .config()
-                .code
-                .syntax_dir
-                .as_ref()
-                .map(SyntaxSet::load_from_folder)
-                .transpose()
-                .map_err(VimwikiOutputError::from)?;
-            let ss = custom_ss.as_ref().unwrap_or(&DEFAULT_SYNTAX_SET);
+        // First, write starting line of code block
+        f.write_indent()?;
+        write!(f, "{{{{{{")?;
 
-            // Load and use the theme set from the specified directory if
-            // given, otherwise use the default theme set
-            let custom_ts = f
-                .config()
-                .code
-                .theme_dir
-                .as_ref()
-                .map(ThemeSet::load_from_folder)
-                .transpose()
-                .map_err(VimwikiOutputError::from)?;
-            let ts = custom_ts.as_ref().unwrap_or(&DEFAULT_THEME_SET);
-
-            // Get syntax using language specifier, otherwise use plain text
-            let syntax = if let Some(lang) = self.language.as_ref() {
-                ss.find_syntax_by_token(lang)
-                    .unwrap_or_else(|| ss.find_syntax_plain_text())
-            } else {
-                ss.find_syntax_plain_text()
-            };
-
-            // Load the specified theme, reporting an error if missing
-            let theme =
-                ts.themes.get(&f.config().code.theme).ok_or_else(|| {
-                    VimwikiOutputError::ThemeMissing(
-                        f.config().code.theme.to_string(),
-                    )
-                })?;
-            let mut h = HighlightLines::new(syntax, theme);
-
-            // NOTE: The function to create the <pre> tag includes a newline
-            //       at the end, which is why we use write! instead of writeln!
-            write!(
-                f,
-                "{}",
-                vimwiki::start_highlighted_vimwiki_snippet(theme).0
-            )?;
-
-            // TODO: The preferred way is to iterate with line endings
-            //       included, which we don't have. Want to avoid allocating
-            //       new strings just to include line endings, so code blocks
-            //       may need to be retooled to be just the entire text
-            //       including line endings while supporting an iterator over
-            //       the lines
-            for line in self {
-                let regions = h.highlight(line, ss);
-                writeln!(
-                    f,
-                    "{}",
-                    vimwiki::styled_line_to_highlighted_vimwiki(
-                        &regions[..],
-                        IncludeBackground::No,
-                    )
-                )?;
-            }
-
-            writeln!(f, "</pre>")?;
-
-        // Otherwise, we produce <pre> and <code class="{lang}"> for use with
-        // frontend highlighters like highlight.js
-        } else {
-            write!(f, "<pre>")?;
-
-            // Build out our <code ...> tag
-            {
-                write!(f, "<code")?;
-
-                // If provided with a language, fill it in as the class
-                if let Some(lang) = self.language.as_ref() {
-                    write!(f, r#" class="{}""#, lang)?;
-                }
-
-                // For each metadata assignment, treat it as an vimwiki attribute
-                for (attr, value) in self.metadata.iter() {
-                    write!(f, r#" {}="{}""#, attr, value)?;
-                }
-
-                // NOTE: We do NOT include a newline here because it results
-                //       in the output having a newline at the beginning of
-                //       the code block
-                write!(f, ">")?;
-            }
-
-            for (idx, line) in self.lines.iter().enumerate() {
-                let is_last_line = idx == self.lines.len() - 1;
-                let line = escape::escape_vimwiki(&line);
-
-                if is_last_line {
-                    write!(f, "{}", line)?;
-                } else {
-                    writeln!(f, "{}", line)?;
-                }
-            }
-
-            write!(f, "</code>")?;
-            writeln!(f, "</pre>")?;
+        if let Some(lang) = self.language.as_ref() {
+            write!(f, "{}", lang)?;
         }
+
+        for (idx, (key, value)) in self.metadata.iter().enumerate() {
+            // If a language is not preceeding the metadata, don't add a space
+            if idx != 0 || self.language.is_none() {
+                write!(f, " ")?;
+            }
+
+            write!(f, "{}=\"{}\"", key, value)?;
+        }
+
+        writeln!(f);
+
+        // Second, write all lines within code block
+        for line in self {
+            f.write_indent()?;
+            writeln!(f, "{}", line)?;
+        }
+
+        // Third, write closing line of code block
+        f.write_indent()?;
+        writeln!(f, "}}}}}}")?;
 
         Ok(())
     }
 }
 
 impl<'a> Output<VimwikiFormatter> for Paragraph<'a> {
-    /// Writes a paragraph in vimwiki
-    ///
-    /// ### Ignoring newlines
-    ///
-    /// This will trim lines and join them together using a single space
-    ///
-    /// ```vimwiki
-    /// <p>Some paragraph text on multiple lines</p>
-    /// ```
-    ///
-    /// ### Respecting newlines
-    ///
-    /// This will trim lines and join them together using a <br> tag
-    /// to respect line breaks
-    ///
-    /// ```vimwiki
-    /// <p>Some paragraph text<br />on multiple lines</p>
-    /// ```
     fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
-        let ignore_newlines = f.config().paragraph.ignore_newline;
-        let is_blank = self.is_blank();
+        let VimwikiParagraphConfig {
+            line_wrap_column,
+            no_line_wrap,
+            trim_lines,
+        } = f.config().paragraph;
 
-        // TODO: CHIP CHIP CHIP -- need to handle situation where a paragraph
-        //       is comprised ONLY of comments inside itself. In that situation,
-        //       we don't want to render the <p></p>, but we do want to
-        //       attempt to render comments in case the <!-- --> happens
-        //
-        //       Add to inline element container a method that checks through
-        //       all of the children to see if they are comments; then, we
-        //       can use this across all lines in a paragraph to do the same
-        //
-        //       We probably also need to support this for definition lists,
-        //       lists, and other places (???) where inline element containers
-        //       can exist
+        for line in self {
+            f.write_indent()?;
 
-        // Only render opening tag if not blank (meaning comprised of more
-        // than just comments)
-        if !is_blank {
-            write!(f, "<p>")?;
-        }
-
-        for (idx, line) in self.lines.iter().enumerate() {
-            let is_last_line = idx < self.lines.len() - 1;
-
-            for element in line.iter() {
-                element.fmt(f)?;
+            if trim_lines {
+                f.and_trim(|f| line.fmt(f))?;
+            } else {
+                line.fmt(f)?;
             }
-
-            // If we are not ignoring newlines, then at the end of each line
-            // we want to introduce a hard break (except the last line)
-            if is_last_line && !ignore_newlines {
-                write!(f, "<br />")?;
-            // Otherwise, we want to add a space inbetween the lines of the
-            // paragraph if it isn't the last one
-            } else if is_last_line {
-                write!(f, " ")?;
-            }
-        }
-
-        // Only render closing tag if not blank (meaning comprised of more
-        // than just comments)
-        if !is_blank {
-            writeln!(f, "</p>")?;
         }
 
         Ok(())
@@ -643,156 +334,75 @@ impl<'a> Output<VimwikiFormatter> for Paragraph<'a> {
 }
 
 impl<'a> Output<VimwikiFormatter> for Table<'a> {
-    /// Writes a table in vimwiki
-    ///
-    /// ### Normal
-    ///
-    /// ```vimwiki
-    /// <table>
-    ///     <tbody>
-    ///         <tr>
-    ///             <td>Data 1</td>
-    ///             <td>Data 2</td>
-    ///         </tr>
-    ///         <tr>
-    ///             <td>Data 3</td>
-    ///             <td>Data 4</td>
-    ///         </tr>
-    ///     </tbody>
-    /// </table>
-    /// ```
-    ///
-    /// ### With a header
-    ///
-    /// ```vimwiki
-    /// <table>
-    ///     <thead>
-    ///         <tr>
-    ///             <th>Column 1</th>
-    ///             <th>Column 2</th>
-    ///         </tr>
-    ///     </thead>
-    ///     <tbody>
-    ///         <tr>
-    ///             <td>Data 1</td>
-    ///             <td>Data 2</td>
-    ///         </tr>
-    ///         <tr>
-    ///             <td>Data 3</td>
-    ///             <td>Data 4</td>
-    ///         </tr>
-    ///     </tbody>
-    /// </table>
-    /// ```
-    ///
-    /// ### Centered
-    ///
-    /// If the table is considered centered, it will add a **center** class:
-    ///
-    /// ```vimwiki
-    /// <table class="center">
-    ///     <!-- ... -->
-    /// </table>
-    /// ```
-    ///
-    /// ### Cell spans
-    ///
-    /// If `>` or `\/` is used, the cells to the left or above will have
-    /// a `rowspan` or `colspan` attribute added:
-    ///
-    /// ```vimwiki
-    /// <table>
-    ///     <tbody>
-    ///         <tr>
-    ///             <td rowspan="2">Data 1</td>
-    ///             <td rowspan="3" colspan="2">Data 2</td>
-    ///             <td colspan="2">Data 3</td>
-    ///         </tr>
-    ///     </tbody>
-    /// </table>
-    /// ```
-    ///
     fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
-        if self.centered {
-            writeln!(f, "<table class=\"center\">")?;
-        } else {
-            writeln!(f, "<table>")?;
+        let VimwikiTableConfig { no_padding } = f.config().table;
+
+        // TODO: Need to calculate largest cell in each column
+
+        fn write_row(
+            f: &mut VimwikiFormatter,
+            row: Row<'_, '_>,
+            cell_max_size: usize,
+            no_padding: bool,
+        ) -> VimwikiOutputResult {
+            f.write_indent()?;
+            write!(f, "|")?;
+
+            for cell in row {
+                if !no_padding {
+                    write!(f, " ")?;
+                }
+
+                match cell {
+                    Cell::Content(x) => x.fmt(f)?,
+                    Cell::Span(CellSpan::FromLeft) => write!(f, ">")?,
+                    Cell::Span(CellSpan::FromAbove) => write!(f, r"\/")?,
+                    Cell::Align(ColumnAlign::None) => {
+                        write!(f, "{}", "-".repeat(cell_max_size))?
+                    }
+                    Cell::Align(ColumnAlign::Left) => {
+                        write!(f, ":{}", "-".repeat(cell_max_size - 1))?
+                    }
+                    Cell::Align(ColumnAlign::Center) => {
+                        write!(f, ":{}:", "-".repeat(cell_max_size - 2))?
+                    }
+                    Cell::Align(ColumnAlign::Right) => {
+                        write!(f, "{}:", "-".repeat(cell_max_size - 1))?
+                    }
+                }
+
+                if !no_padding {
+                    write!(f, " ")?;
+                }
+
+                write!(f, "|")?;
+            }
+
+            Ok(())
         }
 
+        // First, write any and all header rows
+        for row in self.header_rows() {
+            write_row(f, row, no_padding)?;
+        }
+
+        // Second, write a divider row if we had at least one header row
         if self.has_header_rows() {
-            writeln!(f, "<thead>")?;
-            for row in self.header_rows() {
-                // Only produce a row if content exists
-                if !row.has_content() {
-                    continue;
-                }
-
-                writeln!(f, "<tr>")?;
-                for (pos, cell) in row.zip_with_position() {
-                    if let Some(content) = cell.get_content() {
-                        write!(f, "<th")?;
-
-                        let rowspan = self.get_cell_rowspan(pos.row, pos.col);
-                        if rowspan > 1 {
-                            write!(f, " rowspan=\"{}\"", rowspan)?;
-                        }
-
-                        let colspan = self.get_cell_colspan(pos.row, pos.col);
-                        if colspan > 1 {
-                            write!(f, " colspan=\"{}\"", colspan)?;
-                        }
-
-                        write!(f, ">")?;
-                        content.fmt(f)?;
-                        writeln!(f, "</th>")?;
-                    }
-                }
-                writeln!(f, "</tr>")?;
-            }
-            writeln!(f, "</thead>")?;
+            // Need to know how many dashes to add for each column, which means
+            // that we need to keep track of characters written
+            todo!();
         }
 
-        if self.has_body_rows() {
-            writeln!(f, "<tbody>")?;
-            for row in self.body_rows() {
-                // Only produce a row if content exists
-                if !row.has_content() {
-                    continue;
-                }
-
-                writeln!(f, "<tr>")?;
-                for (pos, cell) in row.zip_with_position() {
-                    if let Some(content) = cell.get_content() {
-                        write!(f, "<td")?;
-
-                        let rowspan = self.get_cell_rowspan(pos.row, pos.col);
-                        if rowspan > 1 {
-                            write!(f, " rowspan=\"{}\"", rowspan)?;
-                        }
-
-                        let colspan = self.get_cell_colspan(pos.row, pos.col);
-                        if colspan > 1 {
-                            write!(f, " colspan=\"{}\"", colspan)?;
-                        }
-
-                        write!(f, ">")?;
-                        content.fmt(f)?;
-                        writeln!(f, "</td>")?;
-                    }
-                }
-                writeln!(f, "</tr>")?;
-            }
-            writeln!(f, "</tbody>")?;
+        // Third, write all body rows
+        for row in self.body_rows() {
+            write_row(f, row, no_padding)?;
         }
-
-        writeln!(f, "</table>")?;
 
         Ok(())
     }
 }
 
 impl<'a> Output<VimwikiFormatter> for InlineElementContainer<'a> {
-    /// Writes a collection of inline elements in vimwiki
     fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
         for element in self {
             element.fmt(f)?;
@@ -803,7 +413,6 @@ impl<'a> Output<VimwikiFormatter> for InlineElementContainer<'a> {
 }
 
 impl<'a> Output<VimwikiFormatter> for InlineElement<'a> {
-    /// Writes an inline element in vimwiki
     fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
         match self {
             Self::Text(x) => x.fmt(f),
@@ -819,75 +428,49 @@ impl<'a> Output<VimwikiFormatter> for InlineElement<'a> {
 }
 
 impl<'a> Output<VimwikiFormatter> for Text<'a> {
-    /// Writes text in vimwiki, escaping any vimwiki-specific characters
     fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
-        write!(f, "{}", escape::escape_vimwiki(self.as_str()))?;
+        write!(f, "{}", self.as_str())?;
         Ok(())
     }
 }
 
 impl<'a> Output<VimwikiFormatter> for DecoratedText<'a> {
-    /// Writes decorated text in vimwiki
     fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
-        // First, we figure out the type of decoration to apply with bold
-        // having the most unique situation as it can also act as an anchor
         match self {
             Self::Bold(contents) => {
-                // First, build up the isolated id using contents
-                let mut id = String::new();
-                for content in contents {
-                    write!(&mut id, "{}", content.to_string())?;
-                }
-                id = utils::normalize_id(&id);
-                let unique_id = f.ensure_unique_id(&id);
-
-                // Second, produce a span in front if we are nested at some
-                // level when it comes to previous ids
-                if f.max_header_level().is_some() {
-                    let complete_id = build_complete_id(
-                        f,
-                        f.max_header_level().unwrap_or_default() + 1,
-                        id.as_str(),
-                    )?;
-                    let unique_complete_id = f.ensure_unique_id(&complete_id);
-                    write!(f, "<span id=\"{}\"></span>", unique_complete_id)?;
-                }
-
-                // Third, write out all of the contents inbetween <strong> tag
-                // with the strong tag having a unique bold id
-                write!(f, "<strong id=\"{}\">", unique_id)?;
+                write!(f, "*")?;
                 for content in contents {
                     content.fmt(f)?;
                 }
-                write!(f, "</strong>")?;
+                write!(f, "*")?;
             }
             Self::Italic(contents) => {
-                write!(f, "<em>")?;
+                write!(f, "_")?;
                 for content in contents {
                     content.fmt(f)?;
                 }
-                write!(f, "</em>")?;
+                write!(f, "_")?;
             }
             Self::Strikeout(contents) => {
-                write!(f, "<del>")?;
+                write!(f, "~~")?;
                 for content in contents {
                     content.fmt(f)?;
                 }
-                write!(f, "</del>")?;
+                write!(f, "~~")?;
             }
             Self::Superscript(contents) => {
-                write!(f, "<sup><small>")?;
+                write!(f, "^")?;
                 for content in contents {
                     content.fmt(f)?;
                 }
-                write!(f, "</small></sup>")?;
+                write!(f, "^")?;
             }
             Self::Subscript(contents) => {
-                write!(f, "<sub><small>")?;
+                write!(f, ",,")?;
                 for content in contents {
                     content.fmt(f)?;
                 }
-                write!(f, "</small></sub>")?;
+                write!(f, ",,")?;
             }
         }
 
@@ -896,7 +479,6 @@ impl<'a> Output<VimwikiFormatter> for DecoratedText<'a> {
 }
 
 impl<'a> Output<VimwikiFormatter> for DecoratedTextContent<'a> {
-    /// Writes decorated text content in vimwiki
     fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
         match self {
             Self::Text(x) => x.fmt(f),
@@ -908,228 +490,72 @@ impl<'a> Output<VimwikiFormatter> for DecoratedTextContent<'a> {
 }
 
 impl Output<VimwikiFormatter> for Keyword {
-    /// Writes keyword in vimwiki
-    ///
-    /// Unable to be implemented via Output<VimwikiFormatter> trait as generic associated types
-    /// would be required.
     fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
-        // For all keywords other than todo, they are treated as plain output
-        // for vimwiki. For todo, it is wrapped in a span with a todo class
+        write!(f, "{}", self)?;
+        Ok(())
+    }
+}
+
+impl<'a> Output<VimwikiFormatter> for Link<'a> {
+    fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
         match self {
-            Self::Todo => write!(f, "<span class=\"todo\">TODO</span>")?,
-            Self::Done => write!(f, "DONE")?,
-            Self::Started => write!(f, "STARTED")?,
-            Self::Fixme => write!(f, "FIXME")?,
-            Self::Fixed => write!(f, "FIXED")?,
-            Self::Xxx => write!(f, "XXX")?,
+            Self::Wiki { data } => {
+                write!(f, "[[")?;
+                write!(f, "{}", percent_decode_str(data.uri_ref()))?;
+                if let Some(desc) = data.description() {
+                    write!(f, "|{}", desc)?;
+                }
+                write!(f, "]]")?;
+            }
+            Self::IndexedInterWiki { index, data } => {
+                write!(f, "[[")?;
+                write!(f, "wiki{}:", index)?;
+                write!(f, "{}", percent_decode_str(data.uri_ref()))?;
+                if let Some(desc) = data.description() {
+                    write!(f, "|{}", desc)?;
+                }
+                write!(f, "]]")?;
+            }
+            Self::NamedInterWiki { name, data } => {
+                write!(f, "[[")?;
+                write!(f, "wn.{}:", name)?;
+                write!(f, "{}", percent_decode_str(data.uri_ref()))?;
+                if let Some(desc) = data.description() {
+                    write!(f, "|{}", desc)?;
+                }
+                write!(f, "]]")?;
+            }
+            Self::Diary { date, data } => {
+                write!(f, "[[")?;
+                write!(f, "{}", date)?;
+                if let Some(desc) = data.description() {
+                    write!(f, "|{}", desc)?;
+                }
+                write!(f, "]]")?;
+            }
+            Self::Raw { data } => {
+                write!(f, "{}", data.uri_ref())?;
+            }
+            Self::Transclusion { data } => {
+                write!(f, "{{{{")?;
+                write!(f, "{}", percent_decode_str(data.uri_ref()))?;
+                if let Some(desc) = data.description() {
+                    write!(f, "|{}", desc)?;
+                }
+                write!(f, "}}}}")?;
+            }
         }
 
         Ok(())
     }
 }
 
-impl<'a> Output<VimwikiFormatter> for Link<'a> {
-    /// Writes a link in vimwiki
-    ///
-    /// ### Wiki/Interwiki Link
-    ///
-    /// 1. Plain link
-    ///
-    ///    For `[[url]]` in vimwiki:
-    ///
-    ///    ```vimwiki
-    ///    <a href="url.vimwiki">url</a>
-    ///    ```
-    ///
-    /// 2. Link with description
-    ///
-    ///    For `[[url|descr]]` in vimwiki:
-    ///
-    ///    ```vimwiki
-    ///    <a href="url.vimwiki">descr</a>
-    ///    ```
-    ///
-    /// 3. Link with embedded image
-    ///
-    ///    For `[[url|{{...}}]]` in vimwiki:
-    ///
-    ///    ```vimwiki
-    ///    <a href="url.vimwiki"> ... </a>
-    ///    ```
-    ///
-    /// 4. Link with anchors
-    ///
-    ///    For `[[url#a1#a2]]` in vimwiki:
-    ///
-    ///    ```vimwiki
-    ///    <a href="url.vimwiki#a1-a2">url#a1#a2</a>
-    ///    ```
-    ///
-    /// 5. Only anchors
-    ///
-    ///    For `[[#a1#a2]]` in vimwiki:
-    ///
-    ///    ```vimwiki
-    ///    <a href="#a1-a2">#a1#a2</a>
-    ///    ```
-    ///
-    /// ### Diary Link
-    ///
-    /// For `[[diary:2021-03-05]]` and `[[diary:2021-03-05|description]]`:
-    ///
-    /// ```vimwiki
-    /// <a href="diary/2021-03-05.vimwiki">diary:2021-03-05</a>
-    /// <a href="diary/2021-03-05.vimwiki">description</a>
-    /// ```
-    ///
-    /// ### Raw Link
-    ///
-    /// For `https://example.com`:
-    ///
-    /// ```vimwiki
-    /// <a href="https://example.com">https://example.com</a>
-    /// ```
-    ///
-    /// ### Link to file
-    ///
-    /// For `[[fileurl.ext|descr]]` in vimwiki:
-    ///
-    /// ```vimwiki
-    /// <a href="fileurl.ext">descr</a>
-    /// ```
-    ///
-    /// ### Link to directory
-    ///
-    /// For `[[dirurl/|descr]]` in vimwiki:
-    ///
-    /// ```vimwiki
-    /// <a href="dirurl/index.vimwiki">descr</a>
-    /// ```
-    ///
-    /// ### Transclusion Link
-    ///
-    /// For `{{path/to/img.png}}`, `{{path/to/img.png|descr}}`, and
-    /// `{{path/to/img.png|descr|style="A"}}`:
-    ///
-    /// ```vimwiki
-    /// <img src="path/to/img.png" />
-    /// <img src="path/to/img.png" alt="descr" />
-    /// <img src="path/to/img.png" alt="descr" style="A" />
-    /// ```
-    fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
-        // Produces a link tag of <a href=".." ...>link/description</a>
-        // based on the link data and a given base url representing the root
-        // of the wiki if needed
-        fn write_link(
-            f: &mut VimwikiFormatter,
-            href: &URIReference<'_>,
-            description: Option<&Description>,
-            properties: Option<&HashMap<Cow<'_, str>, Cow<'_, str>>>,
-            use_img_tag: bool,
-        ) -> VimwikiOutputResult {
-            if use_img_tag {
-                write!(f, "<img src=\"{}\"", href)?;
-
-                if let Some(desc) = description {
-                    write!(
-                        f,
-                        " alt=\"{}\"",
-                        escape::escape_vimwiki(desc.to_string().as_str())
-                    )?;
-                }
-
-                if let Some(properties) = properties {
-                    for (k, v) in properties.iter() {
-                        write!(f, " {}=\"{}\"", k, escape::escape_vimwiki(v))?;
-                    }
-                }
-
-                write!(f, " />")?;
-            } else {
-                write!(f, "<a href=\"{}\"", href)?;
-
-                if let Some(properties) = properties {
-                    for (k, v) in properties.iter() {
-                        write!(f, " {}=\"{}\"", k, escape::escape_vimwiki(v))?;
-                    }
-                }
-
-                write!(f, ">")?;
-
-                match description {
-                    Some(Description::Text(x)) => {
-                        write!(f, "{}", escape::escape_vimwiki(x))?
-                    }
-
-                    // TODO: Figure out more optimal way to perform nested
-                    //       transclusion that needs to resolve the link
-                    //       within it
-                    Some(Description::TransclusionLink(data)) => {
-                        Link::Transclusion {
-                            data: *data.clone(),
-                        }
-                        .fmt(f)?
-                    }
-                    None => write!(f, "{}", href)?,
-                }
-
-                write!(f, "</a>")?;
-            }
-
-            Ok(())
-        }
-
-        let uri_ref = utils::resolve_link(
-            f.config(),
-            &f.config().to_current_wiki(),
-            f.config().as_active_page_path_within_wiki(),
-            &self,
-        )
-        .map_err(VimwikiOutputError::from)?;
-
-        write_link(
-            f,
-            &uri_ref,
-            self.to_description_or_fallback().as_ref(),
-            self.properties(),
-            matches!(self, Self::Transclusion { .. }),
-        )
-    }
-}
-
 impl<'a> Output<VimwikiFormatter> for Tags<'a> {
-    /// Writes tags in vimwiki
-    ///
-    /// ### Example
-    ///
-    /// If placed after a header called *Header 1*, the tag will inject a span
-    /// in front of itself that acts as an anchor to itself:
-    ///
-    /// ```vimwiki
-    /// <span id="Header 1-tag1"></span><span class="tag" id="tag1">tag1</span>
-    /// ```
     fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
+        write!(f, ":")?;
+
         for tag in self {
-            let id = utils::normalize_id(tag.as_str());
-            let unique_id = f.ensure_unique_id(&id);
-
-            // Only produce a span in front if we are nested at some level
-            // when it comes to previous ids
-            if f.max_header_level().is_some() {
-                let complete_id = build_complete_id(
-                    f,
-                    f.max_header_level().unwrap_or_default() + 1,
-                    id.as_str(),
-                )?;
-                let unique_complete_id = f.ensure_unique_id(&complete_id);
-                write!(f, "<span id=\"{}\"></span>", unique_complete_id)?;
-            }
-
-            write!(
-                f,
-                "<span class=\"tag\" id=\"{}\">{}</span>",
-                unique_id, id
-            )?;
+            write!(f, "{}:", tag)?;
         }
 
         Ok(())
@@ -1137,35 +563,20 @@ impl<'a> Output<VimwikiFormatter> for Tags<'a> {
 }
 
 impl<'a> Output<VimwikiFormatter> for CodeInline<'a> {
-    /// Writes inline code in vimwiki
-    ///
-    /// ### Example
-    ///
-    /// ```vimwiki
-    /// <code>some code</code>
-    /// ```
     fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
-        write!(f, "<code>{}</code>", escape::escape_vimwiki(self.as_str()))?;
+        write!(f, "`{}`", self)?;
         Ok(())
     }
 }
 
 impl<'a> Output<VimwikiFormatter> for MathInline<'a> {
-    /// Writes inline math in vimwiki
-    ///
-    /// ### Example
-    ///
-    /// ```vimwiki
-    /// \(some math\)
-    /// ```
     fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
-        write!(f, r"\({}\)", escape::escape_vimwiki(self.as_str()))?;
+        write!(f, "${}$", self)?;
         Ok(())
     }
 }
 
 impl<'a> Output<VimwikiFormatter> for Comment<'a> {
-    /// Writes a comment in vimwiki
     fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
         match self {
             Self::Line(x) => x.fmt(f),
@@ -1175,67 +586,22 @@ impl<'a> Output<VimwikiFormatter> for Comment<'a> {
 }
 
 impl<'a> Output<VimwikiFormatter> for LineComment<'a> {
-    /// Writes a line comment in vimwiki
-    ///
-    /// ### Example
-    ///
-    /// If `config.comment.include` is true, will output the following:
-    ///
-    /// ```vimwiki
-    /// <!-- {line} -->
-    /// ```
     fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
-        if f.config().comment.include {
-            write!(f, "<!-- {} -->", self.as_str())?;
-        }
+        write!(f, "%%{}", self)?;
         Ok(())
     }
 }
 
 impl<'a> Output<VimwikiFormatter> for MultiLineComment<'a> {
-    /// Writes a multiline comment in vimwiki
-    ///
-    /// ### Example
-    ///
-    /// If `config.comment.include` is true, will output the following:
-    ///
-    /// ```vimwiki
-    /// <!--
-    /// {line1}
-    /// {line2}
-    /// ...
-    /// {lineN}
-    /// -->
-    /// ```
     fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
-        if f.config().comment.include {
-            writeln!(f, "<!--")?;
-            for line in self {
-                writeln!(f, "{}", line)?;
-            }
-            write!(f, "-->")?;
+        write!(f, "%%+")?;
+        for line in self {
+            writeln!(f, "{}", line)?;
         }
+        write!(f, "+%%")?;
+
         Ok(())
     }
-}
-
-fn build_complete_id(
-    f: &mut VimwikiFormatter,
-    max_level: usize,
-    id: &str,
-) -> Result<String, VimwikiOutputError> {
-    let mut complete_id = String::new();
-
-    // Add all of the header text up to (not including) the level specified
-    // to form the complete id
-    for i in 1..max_level {
-        if let Some(id) = f.get_header_text(i) {
-            write!(&mut complete_id, "{}-", id)?;
-        }
-    }
-    write!(&mut complete_id, "{}", id)?;
-
-    Ok(complete_id)
 }
 
 #[cfg(test)]
@@ -1250,74 +616,6 @@ mod tests {
         path::{Path, PathBuf},
     };
     use uriparse::URIReference;
-
-    /// Produces an vimwiki config with a singular wiki for some test page
-    /// provided
-    fn test_vimwiki_config<P1: AsRef<Path>, P2: AsRef<Path>>(
-        wiki: P1,
-        page: P2,
-    ) -> VimwikiConfig {
-        let wiki = wiki.as_ref().to_string_lossy();
-        let page = page.as_ref().to_string_lossy();
-        VimwikiConfig {
-            wikis: vec![VimwikiWikiConfig {
-                path: make_path_from_pieces(vec!["wiki", wiki.as_ref()]),
-                path_vimwiki: make_path_from_pieces(vec![
-                    "vimwiki",
-                    wiki.as_ref(),
-                ]),
-                ..Default::default()
-            }],
-            runtime: VimwikiRuntimeConfig {
-                wiki_index: Some(0),
-                page: make_path_from_pieces(vec![
-                    "wiki",
-                    wiki.as_ref(),
-                    page.as_ref(),
-                ]),
-            },
-            ..Default::default()
-        }
-    }
-
-    /// Adds a wiki to the config for interwiki testing
-    fn add_wiki<P: AsRef<Path>>(c: &mut VimwikiConfig, wiki: P) {
-        let wiki = wiki.as_ref().to_string_lossy();
-        c.wikis.push(VimwikiWikiConfig {
-            path: make_path_from_pieces(vec!["wiki", wiki.as_ref()]),
-            path_vimwiki: make_path_from_pieces(vec!["vimwiki", wiki.as_ref()]),
-            ..Default::default()
-        });
-    }
-
-    /// Adds a wiki to the config for interwiki testing
-    fn add_wiki_with_name<P: AsRef<Path>, N: AsRef<str>>(
-        c: &mut VimwikiConfig,
-        wiki: P,
-        name: N,
-    ) {
-        let wiki = wiki.as_ref().to_string_lossy();
-        c.wikis.push(VimwikiWikiConfig {
-            path: make_path_from_pieces(vec!["wiki", wiki.as_ref()]),
-            path_vimwiki: make_path_from_pieces(vec!["vimwiki", wiki.as_ref()]),
-            name: Some(name.as_ref().to_string()),
-            ..Default::default()
-        });
-    }
-
-    fn make_path_from_pieces<'a, I: IntoIterator<Item = &'a str>>(
-        iter: I,
-    ) -> PathBuf {
-        let rel_path: PathBuf = iter.into_iter().collect();
-        std::path::Path::new(&std::path::Component::RootDir)
-            .join(rel_path.as_path())
-    }
-
-    fn text_to_inline_element_container(s: &str) -> InlineElementContainer {
-        InlineElementContainer::new(vec![Located::from(InlineElement::Text(
-            Text::from(s),
-        ))])
-    }
 
     #[test]
     fn blockquote_with_multiple_line_groups_should_output_blockquote_tag_with_paragraph_for_each_group_of_lines(

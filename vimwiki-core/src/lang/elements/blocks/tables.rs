@@ -464,15 +464,15 @@ impl StrictEq for CellSpan {
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum ColumnAlign {
+    None,
     Left,
     Center,
     Right,
 }
 
 impl Default for ColumnAlign {
-    /// By default, columns align to the left
     fn default() -> Self {
-        Self::Left
+        Self::None
     }
 }
 

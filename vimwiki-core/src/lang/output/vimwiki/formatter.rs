@@ -11,6 +11,10 @@ pub struct VimwikiFormatter {
     /// Contains the content to be injected into a template
     content: String,
 
+    /// Current level of indentation to use when writing vimwiki elements that
+    /// care about indentation
+    indent_level: usize,
+
     /// If true, will skip writing whitespace until the first non-whitespace
     /// character is provided, in which case this is reset to false
     skip_whitespace: bool,
@@ -43,8 +47,45 @@ impl VimwikiFormatter {
         Self {
             config,
             content: String::new(),
+            indent_level: 0,
             skip_whitespace: false,
         }
+    }
+
+    /// Writes a string representing the indentation for the current level
+    pub fn write_indent(&mut self) -> Result<(), VimwikiOutputError> {
+        let indent_str = self.config.format.indent_str.as_str();
+
+        for _ in 0..self.indent_level {
+            write!(self, "{}", indent_str)?;
+        }
+
+        Ok(())
+    }
+
+    /// Invokes the given function, passing it a mutable reference to this
+    /// formatter where the indentation level has been incremented by 1 and
+    /// will be decremented at the end of the function call
+    pub fn and_indent<F>(&mut self, f: F) -> Result<(), VimwikiOutputError>
+    where
+        F: FnOnce(&mut Self) -> Result<(), VimwikiOutputError>,
+    {
+        self.indent_level += 1;
+        let result = f(self);
+        self.indent_level -= 1;
+        result
+    }
+
+    /// Invokes the given function, passing it a mutable reference to this
+    /// formatter where all leading and trailing whitespace the mutable ref
+    /// produces will be removed
+    pub fn and_trim<F>(&mut self, f: F) -> Result<(), VimwikiOutputError>
+    where
+        F: FnOnce(&mut Self) -> Result<(), VimwikiOutputError>,
+    {
+        self.skip_whitespace(f)?;
+        self.trim_end();
+        Ok(())
     }
 
     /// Invokes the given function, passing it a mutable reference to this

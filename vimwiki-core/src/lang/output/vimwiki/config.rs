@@ -4,6 +4,10 @@ use serde::{Deserialize, Serialize};
 /// the running state during vimwiki conversion
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct VimwikiConfig {
+    /// Configuration settings that apply broadly to general formatting
+    #[serde(default)]
+    pub format: VimwikiFormatConfig,
+
     /// Configuration settings that apply specifically to blockquotes
     #[serde(default)]
     pub blockquote: VimwikiBlockquoteConfig,
@@ -15,6 +19,41 @@ pub struct VimwikiConfig {
     /// Configuration settings that apply specifically to headers
     #[serde(default)]
     pub header: VimwikiHeaderConfig,
+
+    /// Configuration settings that apply specifically to lists
+    #[serde(default)]
+    pub list: VimwikiListConfig,
+
+    /// Configuration settings that apply specifically to paragraphs
+    #[serde(default)]
+    pub paragraph: VimwikiParagraphConfig,
+
+    /// Configuration settings that apply specifically to tables
+    #[serde(default)]
+    pub table: VimwikiTableConfig,
+}
+
+/// Represents configuration options related to general formatting
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct VimwikiFormatConfig {
+    /// Represents the string to use when indenting (e.g. four spaces or a tab)
+    #[serde(default = "VimwikiFormatConfig::default_indent_str")]
+    pub indent_str: String,
+}
+
+impl Default for VimwikiFormatConfig {
+    fn default() -> Self {
+        Self {
+            indent_str: Self::default_indent_str(),
+        }
+    }
+}
+
+impl VimwikiFormatConfig {
+    #[inline]
+    pub fn default_indent_str() -> String {
+        String::from("    ")
+    }
 }
 
 /// Represents configuration options related to blockquotes
@@ -130,5 +169,94 @@ impl VimwikiHeaderConfig {
     #[inline]
     pub fn default_trim_content() -> bool {
         true
+    }
+}
+
+/// Represents configuration options related to lists
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct VimwikiListConfig {
+    /// If true, will trim all leading and trailing whitespace from each line
+    #[serde(default = "VimwikiListConfig::default_trim_lines")]
+    pub trim_lines: bool,
+}
+
+impl Default for VimwikiListConfig {
+    fn default() -> Self {
+        Self {
+            trim_lines: Self::default_trim_lines(),
+        }
+    }
+}
+
+impl VimwikiListConfig {
+    #[inline]
+    pub fn default_trim_lines() -> bool {
+        true
+    }
+}
+
+/// Represents configuration options related to paragraphs
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct VimwikiParagraphConfig {
+    /// The column to enforce a line wrap at word boundaries where possible
+    #[serde(default = "VimwikiParagraphConfig::default_line_wrap_column")]
+    pub line_wrap_column: usize,
+
+    /// If true, will leave lines as they are and not wrap
+    #[serde(default = "VimwikiParagraphConfig::default_no_line_wrap")]
+    pub no_line_wrap: bool,
+
+    /// If true, will trim all leading and trailing whitespace from each line
+    #[serde(default = "VimwikiParagraphConfig::default_trim_lines")]
+    pub trim_lines: bool,
+}
+
+impl Default for VimwikiParagraphConfig {
+    fn default() -> Self {
+        Self {
+            line_wrap_column: Self::default_line_wrap_column(),
+            no_line_wrap: Self::default_no_line_wrap(),
+            trim_lines: Self::default_trim_lines(),
+        }
+    }
+}
+
+impl VimwikiParagraphConfig {
+    #[inline]
+    pub fn default_line_wrap_column() -> usize {
+        80
+    }
+
+    #[inline]
+    pub fn default_no_line_wrap() -> bool {
+        false
+    }
+
+    #[inline]
+    pub fn default_trim_lines() -> bool {
+        true
+    }
+}
+
+/// Represents configuration options related to tables
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct VimwikiTableConfig {
+    /// If true, will not pad a cell's content within a table
+    #[serde(default = "VimwikiHeaderConfig::default_no_padding")]
+    pub no_padding: bool,
+}
+
+impl Default for VimwikiTableConfig {
+    fn default() -> Self {
+        Self {
+            no_padding: Self::default_no_padding(),
+        }
+    }
+}
+
+impl VimwikiTableConfig {
+    #[inline]
+    pub fn default_no_padding() -> bool {
+        false
     }
 }
