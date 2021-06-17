@@ -52,6 +52,13 @@ impl VimwikiFormatter {
         }
     }
 
+    pub fn clone_without_content(&self) -> Self {
+        Self {
+            content: String::new(),
+            ..self.clone()
+        }
+    }
+
     /// Writes a string representing the indentation for the current level
     pub fn write_indent(&mut self) -> Result<(), VimwikiOutputError> {
         let indent_str = self.config.format.indent_str.as_str();

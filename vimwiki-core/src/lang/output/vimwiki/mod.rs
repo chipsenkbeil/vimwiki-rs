@@ -73,6 +73,8 @@ impl<'a> Output<VimwikiFormatter> for Blockquote<'a> {
         } = f.config().blockquote;
 
         for line in self {
+            f.write_indent()?;
+
             // TODO: Support determining when to use each type of blockquote
             //       as default instead of forcing one type or another
             // TODO: Support spacing on multiple >>> for nested blockquotes
@@ -337,65 +339,86 @@ impl<'a> Output<VimwikiFormatter> for Table<'a> {
     fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
         let VimwikiTableConfig { no_padding } = f.config().table;
 
-        // TODO: Need to calculate largest cell in each column
+        // First, we calculate the output for each content/span cell so we can
+        // figure out how big each column's largest cell will be
+        let fixed_size_cells: HashMap<CellPos, String> = self
+            .cells()
+            .zip_with_position()
+            .filter_map(|(pos, cell)| match cell {
+                Cell::Content(x) => Some({
+                    // Create a copy of our formatter without the content so we can
+                    // write the content fresh and pass it back as a string
+                    let mut formatter = f.clone_without_content();
+                    x.fmt(&mut formatter)?;
+                    formatter.into_content()
+                }),
+                Cell::Span(CellSpan::FromLeft) => Some(">"),
+                Cell::Span(CellSpan::FromAbove) => Some(r"\/"),
+                _ => None,
+            })
+            .collect();
 
-        fn write_row(
-            f: &mut VimwikiFormatter,
-            row: Row<'_, '_>,
-            cell_max_size: usize,
-            no_padding: bool,
-        ) -> VimwikiOutputResult {
-            f.write_indent()?;
+        // Second, we calculate largest cell in each column (col -> max size)
+        let max_column_sizes: HashMap<usize, usize> = fixed_size_cells
+            .iter()
+            .fold(HashMap::new(), |(mut acc, (pos, text))| {
+                let col = pos.col;
+                let new_size = text.len();
+                let cur_size = acc.entry(col).or_insert(new_size);
+                if new_size > cur_size {
+                    acc.insert(col, new_size);
+                }
+                acc
+            });
+
+        // Third, we iterate through all cells, one row at a time, and write
+        // out the table using the size information
+        for row in 0..self.row_cnt() {
             write!(f, "|")?;
+            for col in 0..self.col_cnt() {
+                // Get the max size, using 0 if nothing with a fixed size is
+                // in the column
+                let mut max_size =
+                    max_column_sizes.get(col).unwrap_or_default();
 
-            for cell in row {
+                // If adding padding on each size, adjust the max cell size
                 if !no_padding {
-                    write!(f, " ")?;
+                    max_size += 2;
                 }
 
-                match cell {
-                    Cell::Content(x) => x.fmt(f)?,
-                    Cell::Span(CellSpan::FromLeft) => write!(f, ">")?,
-                    Cell::Span(CellSpan::FromAbove) => write!(f, r"\/")?,
-                    Cell::Align(ColumnAlign::None) => {
-                        write!(f, "{}", "-".repeat(cell_max_size))?
+                // If we have fixed content, write it with optional padding
+                if let Some(text) = fixed_size_cells.get(CellPos { row, col }) {
+                    if !no_padding {
+                        write!(f, " ")?;
                     }
-                    Cell::Align(ColumnAlign::Left) => {
-                        write!(f, ":{}", "-".repeat(cell_max_size - 1))?
-                    }
-                    Cell::Align(ColumnAlign::Center) => {
-                        write!(f, ":{}:", "-".repeat(cell_max_size - 2))?
-                    }
-                    Cell::Align(ColumnAlign::Right) => {
-                        write!(f, "{}:", "-".repeat(cell_max_size - 1))?
-                    }
-                }
+                    write!(f, "{}", text)?;
 
-                if !no_padding {
-                    write!(f, " ")?;
+                    if !no_padding {
+                        write!(f, " ")?;
+                    }
+
+                // Otherwise, we have some form of divider and want to write it
+                } else {
+                    match self.get_cell(row, col) {
+                        Cell::Align(ColumnAlign::None) => {
+                            write!(f, "{}", "-".repeat(max_size))?
+                        }
+                        Cell::Align(ColumnAlign::Left) => {
+                            write!(f, ":{}", "-".repeat(max_size - 1))?
+                        }
+                        Cell::Align(ColumnAlign::Center) => {
+                            write!(f, ":{}:", "-".repeat(max_size - 2))?
+                        }
+                        Cell::Align(ColumnAlign::Right) => {
+                            write!(f, "{}:", "-".repeat(max_size - 1))?
+                        }
+                        _ => write!(f, "{}", " ".repeat(max_size))?,
+                    }
                 }
 
                 write!(f, "|")?;
             }
-
-            Ok(())
-        }
-
-        // First, write any and all header rows
-        for row in self.header_rows() {
-            write_row(f, row, no_padding)?;
-        }
-
-        // Second, write a divider row if we had at least one header row
-        if self.has_header_rows() {
-            // Need to know how many dashes to add for each column, which means
-            // that we need to keep track of characters written
-            todo!();
-        }
-
-        // Third, write all body rows
-        for row in self.body_rows() {
-            write_row(f, row, no_padding)?;
+            writeln!(f)?;
         }
 
         Ok(())
@@ -618,13 +641,12 @@ mod tests {
     use uriparse::URIReference;
 
     #[test]
-    fn blockquote_with_multiple_line_groups_should_output_blockquote_tag_with_paragraph_for_each_group_of_lines(
-    ) {
+    fn blockquote_should_default_to_arrow_style() {
         let blockquote = Blockquote::new(vec![
-            Cow::from("line1"),
-            Cow::from("line2"),
+            Cow::from("some lines"),
+            Cow::from("of text"),
             Cow::from(""),
-            Cow::from("line3"),
+            Cow::from("with an empty line"),
         ]);
         let mut f = VimwikiFormatter::default();
         blockquote.fmt(&mut f).unwrap();
@@ -632,164 +654,509 @@ mod tests {
         assert_eq!(
             f.get_content(),
             indoc! {"
-                <blockquote>
-                <p>line1 line2</p>
-                <p>line3</p>
-                </blockquote>
+                > some lines
+                > of text
+                >
+                > with an empty line
             "}
         );
     }
 
     #[test]
-    fn blockquote_with_single_line_group_should_output_blockquote_tag_with_no_paragraph(
-    ) {
+    fn blockquote_should_trim_lines_by_default() {
         let blockquote = Blockquote::new(vec![
-            Cow::from("line1"),
-            Cow::from("line2"),
-            Cow::from("line3"),
+            Cow::from("\t some lines \t"),
+            Cow::from("\t\tof text\r"),
         ]);
         let mut f = VimwikiFormatter::default();
         blockquote.fmt(&mut f).unwrap();
 
-        assert_eq!(
-            f.get_content(),
-            indoc! {"
-                <blockquote>
-                line1
-                line2
-                line3
-                </blockquote>
-            "}
-        );
+        assert_eq!(f.get_content(), "> some lines\n> of text\n");
     }
 
     #[test]
-    fn blockquote_should_escape_vimwiki_in_each_line_of_a_singular_line_group()
-    {
+    fn blockquote_should_use_arrow_style_if_indented_setting_disabled() {
         let blockquote = Blockquote::new(vec![
-            Cow::from("<test1>"),
-            Cow::from("<test2>"),
-            Cow::from("<test3>"),
+            Cow::from("some lines"),
+            Cow::from("of text"),
         ]);
-        let mut f = VimwikiFormatter::default();
+        let mut f = VimwikiFormatter::new(VimwikiConfig {
+            blockquote: VimwikiBlockquoteConfig {
+                prefer_indented_blockquote: false,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
         blockquote.fmt(&mut f).unwrap();
 
-        assert_eq!(
-            f.get_content(),
-            indoc! {"
-                <blockquote>
-                &lt;test1&gt;
-                &lt;test2&gt;
-                &lt;test3&gt;
-                </blockquote>
-            "}
-        );
+        assert_eq!(f.get_content(), "> some lines\n> of text\n");
     }
 
     #[test]
-    fn blockquote_should_escape_vimwiki_in_each_line_of_multiple_line_groups() {
+    fn blockquote_should_use_indented_style_if_setting_enabled() {
         let blockquote = Blockquote::new(vec![
-            Cow::from("<test1>"),
-            Cow::from("<test2>"),
-            Cow::from(""),
-            Cow::from("<test3>"),
+            Cow::from("some lines"),
+            Cow::from("of text"),
         ]);
-        let mut f = VimwikiFormatter::default();
+        let mut f = VimwikiFormatter::new(VimwikiConfig {
+            blockquote: VimwikiBlockquoteConfig {
+                prefer_indented_blockquote: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+        blockquote.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "    some lines\n    of text\n");
+    }
+
+    #[test]
+    fn blockquote_should_trim_lines_if_setting_enabled() {
+        let blockquote = Blockquote::new(vec![
+            Cow::from("\t some lines \t"),
+            Cow::from("\t\tof text\r"),
+        ]);
+        let mut f = VimwikiFormatter::new(VimwikiConfig {
+            blockquote: VimwikiBlockquoteConfig {
+                trim_lines: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
         blockquote.fmt(&mut f).unwrap();
 
         assert_eq!(
             f.get_content(),
             indoc! {"
-                <blockquote>
-                <p>&lt;test1&gt; &lt;test2&gt;</p>
-                <p>&lt;test3&gt;</p>
-                </blockquote>
+                > some lines
+                > of text
             "}
         );
     }
 
     #[test]
-    fn definition_list_should_output_list_tag_with_term_and_definition_tags_together(
+    fn blockquote_should_not_trim_lines_if_setting_disabled() {
+        let blockquote = Blockquote::new(vec![
+            Cow::from("\t some lines \t"),
+            Cow::from("\t\tof text\r"),
+        ]);
+        let mut f = VimwikiFormatter::new(VimwikiConfig {
+            blockquote: VimwikiBlockquoteConfig {
+                trim_lines: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+        blockquote.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            indoc! {"
+                > \t some lines \t
+                > \t\tof text\r
+            "}
+        );
+    }
+
+    #[test]
+    fn blockquote_should_support_indentation() {
+        todo!();
+    }
+
+    fn build_def_list<I: IntoIterator<D>, D: Into<DefinitionListValue>>(
+        term: &str,
+        defs: I,
+    ) -> DefinitionList {
+        vec![(
+            term,
+            defs.into_iter()
+                .map(Into::into)
+                .collect::<Vec<DefinitionListValue>>(),
+        )]
+        .into_iter()
+        .collect()
+    }
+
+    #[test]
+    fn definition_list_should_place_first_definition_on_same_line_as_term_by_default(
     ) {
         // Test no definitions
-        let list: DefinitionList = vec![(
-            Located::from(DefinitionListValue::from("term1")),
-            Vec::new(),
-        )]
-        .into_iter()
-        .collect();
-
+        let list = build_def_list("term1", []);
         let mut f = VimwikiFormatter::default();
         list.fmt(&mut f).unwrap();
-
-        assert_eq!(
-            f.get_content(),
-            indoc! {"
-                <dl>
-                <dt>term1</dt>
-                </dl>
-            "}
-        );
+        assert_eq!(f.get_content(), "term1::\n");
 
         // Test single definition
-        let list: DefinitionList = vec![(
-            Located::from(DefinitionListValue::from("term1")),
-            vec![Located::from(DefinitionListValue::from("def1"))],
-        )]
-        .into_iter()
-        .collect();
-
+        let list = build_def_list("term1", ["def1"]);
         let mut f = VimwikiFormatter::default();
         list.fmt(&mut f).unwrap();
-
-        assert_eq!(
-            f.get_content(),
-            indoc! {"
-                <dl>
-                <dt>term1</dt>
-                <dd>def1</dd>
-                </dl>
-            "}
-        );
+        assert_eq!(f.get_content(), "term1:: def1\n");
 
         // Test multiple definitions
-        let list: DefinitionList = vec![(
-            Located::from(DefinitionListValue::from("term1")),
-            vec![
-                Located::from(DefinitionListValue::from("def1")),
-                Located::from(DefinitionListValue::from("def2")),
-            ],
-        )]
-        .into_iter()
-        .collect();
-
+        let list = build_def_list("term1", ["def1", "def2"]);
         let mut f = VimwikiFormatter::default();
         list.fmt(&mut f).unwrap();
-
-        assert_eq!(
-            f.get_content(),
-            indoc! {"
-                <dl>
-                <dt>term1</dt>
-                <dd>def1</dd>
-                <dd>def2</dd>
-                </dl>
-            "}
-        );
+        assert_eq!(f.get_content(), "term1:: def1\n:: def2\n");
     }
 
     #[test]
-    fn divider_should_output_hr_tag() {
+    fn definition_list_should_trim_terms_by_default() {
+        // Test no definitions
+        let list = build_def_list(" \rterm1\t ", []);
+        let mut f = VimwikiFormatter::default();
+        list.fmt(&mut f).unwrap();
+        assert_eq!(f.get_content(), "term1::\n");
+
+        // Test single definition
+        let list = build_def_list(" \rterm1\t ", ["def1"]);
+        let mut f = VimwikiFormatter::default();
+        list.fmt(&mut f).unwrap();
+        assert_eq!(f.get_content(), "term1:: def1\n");
+
+        // Test multiple definitions
+        let list = build_def_list(" \rterm1\t ", ["def1", "def2"]);
+        let mut f = VimwikiFormatter::default();
+        list.fmt(&mut f).unwrap();
+        assert_eq!(f.get_content(), "term1:: def1\n:: def2\n");
+    }
+
+    #[test]
+    fn definition_list_should_trim_definitions_by_default() {
+        // Test single definition
+        let list = build_def_list("term1", [" \rdef1\t "]);
+        let mut f = VimwikiFormatter::default();
+        list.fmt(&mut f).unwrap();
+        assert_eq!(f.get_content(), "term1:: def1\n");
+
+        // Test multiple definitions
+        let list = build_def_list("term1", [" \rdef1\t ", " \rdef2\t "]);
+        let mut f = VimwikiFormatter::default();
+        list.fmt(&mut f).unwrap();
+        assert_eq!(f.get_content(), "term1:: def1\n:: def2\n");
+    }
+
+    #[test]
+    fn definition_list_should_not_place_first_definition_on_same_line_as_term_if_setting_disabled(
+    ) {
+        let config = VimwikiConfig {
+            definition_list: VimwikiDefinitionListConfig {
+                term_on_line_by_itself: false,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        // Test no definitions
+        let list = build_def_list("term1", []);
+        let mut f = VimwikiFormatter::new(config.clone());
+        list.fmt(&mut f).unwrap();
+        assert_eq!(f.get_content(), "term1::\n");
+
+        // Test single definition
+        let list = build_def_list("term1", ["def1"]);
+        let mut f = VimwikiFormatter::new(config.clone());
+        list.fmt(&mut f).unwrap();
+        assert_eq!(f.get_content(), "term1:: def1\n");
+
+        // Test multiple definitions
+        let list = build_def_list("term1", ["def1", "def2"]);
+        let mut f = VimwikiFormatter::new(config.clone());
+        list.fmt(&mut f).unwrap();
+        assert_eq!(f.get_content(), "term1:: def1\n:: def2\n");
+    }
+
+    #[test]
+    fn definition_list_should_place_first_definition_on_same_line_as_term_if_setting_enabled(
+    ) {
+        let config = VimwikiConfig {
+            definition_list: VimwikiDefinitionListConfig {
+                term_on_line_by_itself: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        // Test no definitions
+        let list = build_def_list("term1", []);
+        let mut f = VimwikiFormatter::new(config.clone());
+        list.fmt(&mut f).unwrap();
+        assert_eq!(f.get_content(), "term1::\n");
+
+        // Test single definition
+        let list = build_def_list("term1", ["def1"]);
+        let mut f = VimwikiFormatter::new(config.clone());
+        list.fmt(&mut f).unwrap();
+        assert_eq!(f.get_content(), "term1::\n:: def1\n");
+
+        // Test multiple definitions
+        let list = build_def_list("term1", ["def1", "def2"]);
+        let mut f = VimwikiFormatter::new(config.clone());
+        list.fmt(&mut f).unwrap();
+        assert_eq!(f.get_content(), "term1::\n:: def1\n:: def2\n");
+    }
+
+    #[test]
+    fn definition_list_should_trim_terms_if_setting_enabled() {
+        let config = VimwikiConfig {
+            definition_list: VimwikiDefinitionListConfig {
+                trim_terms: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        // Test no definitions
+        let list = build_def_list(" \rterm1\t ", []);
+        let mut f = VimwikiFormatter::default();
+        list.fmt(&mut f).unwrap();
+        assert_eq!(f.get_content(), "term1::\n");
+
+        // Test single definition
+        let list = build_def_list(" \rterm1\t ", ["def1"]);
+        let mut f = VimwikiFormatter::default();
+        list.fmt(&mut f).unwrap();
+        assert_eq!(f.get_content(), "term1:: def1\n");
+
+        // Test multiple definitions
+        let list = build_def_list(" \rterm1\t ", ["def1", "def2"]);
+        let mut f = VimwikiFormatter::default();
+        list.fmt(&mut f).unwrap();
+        assert_eq!(f.get_content(), "term1:: def1\n:: def2\n");
+    }
+
+    #[test]
+    fn definition_list_should_not_trim_terms_if_setting_disabled() {
+        let config = VimwikiConfig {
+            definition_list: VimwikiDefinitionListConfig {
+                trim_terms: false,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        // Test no definitions
+        let list = build_def_list(" \rterm1\t ", []);
+        let mut f = VimwikiFormatter::default();
+        list.fmt(&mut f).unwrap();
+        assert_eq!(f.get_content(), " \rterm1\t ::\n");
+
+        // Test single definition
+        let list = build_def_list(" \rterm1\t ", ["def1"]);
+        let mut f = VimwikiFormatter::default();
+        list.fmt(&mut f).unwrap();
+        assert_eq!(f.get_content(), " \rterm1\t :: def1\n");
+
+        // Test multiple definitions
+        let list = build_def_list(" \rterm1\t ", ["def1", "def2"]);
+        let mut f = VimwikiFormatter::default();
+        list.fmt(&mut f).unwrap();
+        assert_eq!(f.get_content(), " \rterm1\t :: def1\n:: def2\n");
+    }
+
+    #[test]
+    fn definition_list_should_trim_definitions_if_setting_enabled() {
+        let config = VimwikiConfig {
+            definition_list: VimwikiDefinitionListConfig {
+                trim_definitions: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        // Test single definition
+        let list = build_def_list("term1", [" \rdef1\t "]);
+        let mut f = VimwikiFormatter::default();
+        list.fmt(&mut f).unwrap();
+        assert_eq!(f.get_content(), "term1:: def1\n");
+
+        // Test multiple definitions
+        let list = build_def_list("term1", [" \rdef1\t ", " \rdef2\t "]);
+        let mut f = VimwikiFormatter::default();
+        list.fmt(&mut f).unwrap();
+        assert_eq!(f.get_content(), "term1:: def1\n:: def2\n");
+    }
+
+    #[test]
+    fn definition_list_should_not_trim_definitions_if_setting_disabled() {
+        let config = VimwikiConfig {
+            definition_list: VimwikiDefinitionListConfig {
+                trim_definitions: false,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        // Test single definition
+        let list = build_def_list("term1", [" \rdef1\t "]);
+        let mut f = VimwikiFormatter::default();
+        list.fmt(&mut f).unwrap();
+        assert_eq!(f.get_content(), "term1::  \rdef1\t \n");
+
+        // Test multiple definitions
+        let list = build_def_list("term1", [" \rdef1\t ", " \rdef2\t "]);
+        let mut f = VimwikiFormatter::default();
+        list.fmt(&mut f).unwrap();
+        assert_eq!(f.get_content(), "term1::  \rdef1\t \n::  \rdef2\t \n");
+    }
+
+    #[test]
+    fn definition_list_should_support_indentation() {
+        todo!();
+    }
+
+    #[test]
+    fn divider_should_output_vimwiki_syntax() {
         let divider = Divider;
 
         let mut f = VimwikiFormatter::default();
         divider.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "<hr />\n");
+        assert_eq!(f.get_content(), "----\n");
     }
 
     #[test]
-    fn header_should_output_h_and_a_tags() {
+    fn divider_should_not_support_indentation() {
+        todo!();
+    }
+
+    #[test]
+    fn header_should_trim_content_by_default() {
+        let header = Header::new(
+            text_to_inline_element_container(" \r\tsome header \r\t"),
+            1,
+            false,
+        );
+
+        let mut f = VimwikiFormatter::default();
+        header.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "= some header =\n");
+    }
+
+    #[test]
+    fn header_should_pad_content_by_default() {
+        let header = Header::new(
+            text_to_inline_element_container("some header"),
+            1,
+            false,
+        );
+
+        let mut f = VimwikiFormatter::default();
+        header.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "= some header =\n");
+    }
+
+    #[test]
+    fn header_should_trim_content_if_setting_enabled() {
+        let header = Header::new(
+            text_to_inline_element_container(" \r\tsome header \r\t"),
+            1,
+            false,
+        );
+
+        let mut f = VimwikiFormatter::new(VimwikiConfig {
+            header: VimwikiHeaderConfig {
+                trim_content: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+        header.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "= some header =\n");
+    }
+
+    #[test]
+    fn header_should_not_trim_content_if_setting_disabled() {
+        let header = Header::new(
+            text_to_inline_element_container(" \r\tsome header \r\t"),
+            1,
+            false,
+        );
+
+        let mut f = VimwikiFormatter::new(VimwikiConfig {
+            header: VimwikiHeaderConfig {
+                trim_content: false,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+        header.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "=  \r\tsome header \r\t =\n");
+    }
+
+    #[test]
+    fn header_should_pad_content_if_setting_enabled() {
+        let header = Header::new(
+            text_to_inline_element_container("some header"),
+            1,
+            false,
+        );
+
+        let mut f = VimwikiFormatter::new(VimwikiConfig {
+            header: VimwikiHeaderConfig {
+                no_padding: false,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+        header.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "= some header =\n");
+    }
+
+    #[test]
+    fn header_should_not_pad_content_if_setting_disabled() {
+        let header = Header::new(
+            text_to_inline_element_container("some header"),
+            1,
+            false,
+        );
+
+        let mut f = VimwikiFormatter::new(VimwikiConfig {
+            header: VimwikiHeaderConfig {
+                no_padding: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+        header.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "=some header=\n");
+    }
+
+    #[test]
+    fn header_should_support_level_1_header() {
+        let header = Header::new(
+            text_to_inline_element_container("some header"),
+            1,
+            false,
+        );
+
+        let mut f = VimwikiFormatter::default();
+        header.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "= some header =\n");
+    }
+
+    #[test]
+    fn header_should_support_level_2_header() {
+        let header = Header::new(
+            text_to_inline_element_container("some header"),
+            2,
+            false,
+        );
+
+        let mut f = VimwikiFormatter::default();
+        header.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "== some header ==\n");
+    }
+
+    #[test]
+    fn header_should_support_level_3_header() {
         let header = Header::new(
             text_to_inline_element_container("some header"),
             3,
@@ -799,284 +1166,297 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         header.fmt(&mut f).unwrap();
 
-        assert_eq!(
-            f.get_content(),
-            [
-                "<h3 id=\"some-header\" class=\"header\">",
-                "<a href=\"#some-header\">",
-                "some header",
-                "</a>",
-                "</h3>",
-                "\n",
-            ]
-            .join(""),
-        );
+        assert_eq!(f.get_content(), "=== some header ===\n");
     }
 
     #[test]
-    fn header_should_support_toc_variant() {
-        let text = VimwikiHeaderConfig::default_table_of_contents();
-        let header =
-            Header::new(text_to_inline_element_container(&text), 1, false);
+    fn header_should_support_level_4_header() {
+        let header = Header::new(
+            text_to_inline_element_container("some header"),
+            4,
+            false,
+        );
 
         let mut f = VimwikiFormatter::default();
         header.fmt(&mut f).unwrap();
 
-        assert_eq!(
-            f.get_content(),
-            [
-                "<div class=\"toc\">",
-                "<h1 id=\"contents\">",
-                "Contents",
-                "</h1>",
-                "</div>",
-                "\n",
-            ]
-            .join(""),
-        );
+        assert_eq!(f.get_content(), "==== some header ====\n");
     }
 
     #[test]
-    fn header_should_escape_vimwiki_in_ids() {
-        let header =
-            Header::new(text_to_inline_element_container("<test>"), 3, false);
+    fn header_should_support_level_5_header() {
+        let header = Header::new(
+            text_to_inline_element_container("some header"),
+            5,
+            false,
+        );
 
-        // Configure to use a different table of contents string
-        // that has characters that should be escaped
         let mut f = VimwikiFormatter::default();
-
-        // Add some header ids prior to this one to verify that they aren't used
-        f.insert_header_text(1, "h1");
-        f.insert_header_text(2, "h2");
-
         header.fmt(&mut f).unwrap();
 
-        assert_eq!(
-            f.get_content(),
-            [
-                "<div id=\"h1-h2-&lt;test&gt;\">",
-                "<h3 id=\"&lt;test&gt;\" class=\"header\">",
-                "<a href=\"#h1-h2-&lt;test&gt;\">",
-                "&lt;test&gt;",
-                "</a>",
-                "</h3>",
-                "</div>",
-                "\n",
-            ]
-            .join(""),
-        );
+        assert_eq!(f.get_content(), "===== some header =====\n");
     }
 
     #[test]
-    fn header_should_escape_vimwiki_in_ids_for_toc() {
-        let header =
-            Header::new(text_to_inline_element_container("<test>"), 1, false);
+    fn header_should_support_level_6_header() {
+        let header = Header::new(
+            text_to_inline_element_container("some header"),
+            6,
+            false,
+        );
 
-        // Configure to use a different table of contents string
-        // that has characters that should be escaped
+        let mut f = VimwikiFormatter::default();
+        header.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "====== some header ======\n");
+    }
+
+    #[test]
+    fn header_should_support_being_centered() {
+        let header = Header::new(
+            text_to_inline_element_container("some header"),
+            1,
+            true,
+        );
+
+        let mut f = VimwikiFormatter::default();
+        header.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "    = some header =\n");
+    }
+
+    #[test]
+    fn header_should_not_support_indentation() {
+        todo!();
+    }
+
+    #[test]
+    fn list_should_output_list_items() {
+        let list = List::new(vec![
+            Located::from(ListItem::new(
+                ListItemType::Unordered(UnorderedListItemType::Hyphen),
+                ListItemSuffix::None,
+                0,
+                ListItemContents::new(vec![Located::from(
+                    ListItemContent::InlineContent(
+                        text_to_inline_element_container("some list item"),
+                    ),
+                )]),
+                ListItemAttributes::default(),
+            )),
+            Located::from(ListItem::new(
+                ListItemType::Unordered(UnorderedListItemType::Hyphen),
+                ListItemSuffix::None,
+                1,
+                ListItemContents::new(vec![Located::from(
+                    ListItemContent::InlineContent(
+                        text_to_inline_element_container("another list item"),
+                    ),
+                )]),
+                ListItemAttributes::default(),
+            )),
+        ]);
+        let mut f = VimwikiFormatter::default();
+        list.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "- some list item\n- another list item\n");
+    }
+
+    #[test]
+    fn list_item_should_trim_lines_by_default() {
+        let list_item = ListItem::new(
+            ListItemType::Unordered(UnorderedListItemType::Hyphen),
+            ListItemSuffix::None,
+            0,
+            ListItemContents::new(vec![Located::from(
+                ListItemContent::InlineContent(
+                    text_to_inline_element_container(
+                        " \r\tsome list item \r\t",
+                    ),
+                ),
+            )]),
+            ListItemAttributes::default(),
+        );
+        let mut f = VimwikiFormatter::default();
+        list_item.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "- some list item");
+    }
+
+    #[test]
+    fn list_item_should_trim_lines_if_setting_enabled() {
+        let list_item = ListItem::new(
+            ListItemType::Unordered(UnorderedListItemType::Hyphen),
+            ListItemSuffix::None,
+            0,
+            ListItemContents::new(vec![Located::from(
+                ListItemContent::InlineContent(
+                    text_to_inline_element_container(
+                        " \r\tsome list item \r\t",
+                    ),
+                ),
+            )]),
+            ListItemAttributes::default(),
+        );
         let mut f = VimwikiFormatter::new(VimwikiConfig {
-            header: VimwikiHeaderConfig {
-                table_of_contents: String::from("<test>"),
-            },
+            list: VimwikiListConfig { trim_lines: true },
             ..Default::default()
         });
+        list_item.fmt(&mut f).unwrap();
 
-        header.fmt(&mut f).unwrap();
-
-        assert_eq!(
-            f.get_content(),
-            "<div class=\"toc\"><h1 id=\"&lt;test&gt;\">&lt;test&gt;</h1></div>\n",
-        );
+        assert_eq!(f.get_content(), "- some list item");
     }
 
     #[test]
-    fn header_should_produce_unique_ids_from_repeated_same_header() {
-        let header1 = Header::new(
-            text_to_inline_element_container("some header"),
-            3,
-            false,
-        );
-        let header2 = Header::new(
-            text_to_inline_element_container("some header"),
-            3,
-            false,
-        );
-        let header3 = Header::new(
-            text_to_inline_element_container("some header"),
-            3,
-            false,
-        );
-
-        let mut f = VimwikiFormatter::default();
-        header1.fmt(&mut f).unwrap();
-        header2.fmt(&mut f).unwrap();
-        header3.fmt(&mut f).unwrap();
-
-        assert_eq!(
-            f.get_content(),
-            [
-                // First header
-                "<h3 id=\"some-header\" class=\"header\">",
-                "<a href=\"#some-header\">",
-                "some header",
-                "</a>",
-                "</h3>",
-                "\n",
-                // Second header
-                "<h3 id=\"some-header-1\" class=\"header\">",
-                "<a href=\"#some-header-1\">",
-                "some header",
-                "</a>",
-                "</h3>",
-                "\n",
-                // Third header
-                "<h3 id=\"some-header-2\" class=\"header\">",
-                "<a href=\"#some-header-2\">",
-                "some header",
-                "</a>",
-                "</h3>",
-                "\n",
-            ]
-            .join(""),
-        );
-    }
-
-    #[test]
-    fn header_should_produce_unique_ids_from_repeated_same_header_with_nested_headers(
-    ) {
-        let header1 = Header::new(
-            text_to_inline_element_container("some header"),
-            3,
-            false,
-        );
-        let header2 = Header::new(
-            text_to_inline_element_container("some header"),
-            3,
-            false,
-        );
-        let header3 = Header::new(
-            text_to_inline_element_container("some header"),
-            3,
-            false,
-        );
-
-        let mut f = VimwikiFormatter::default();
-        f.insert_header_text(1, "a");
-        f.insert_header_text(2, "b");
-        header1.fmt(&mut f).unwrap();
-        header2.fmt(&mut f).unwrap();
-
-        f.insert_header_text(2, "c");
-        header3.fmt(&mut f).unwrap();
-
-        assert_eq!(
-            f.get_content(),
-            [
-                // First header
-                "<div id=\"a-b-some-header\">",
-                "<h3 id=\"some-header\" class=\"header\">",
-                "<a href=\"#a-b-some-header\">",
-                "some header",
-                "</a>",
-                "</h3>",
-                "</div>",
-                "\n",
-                // Second header
-                "<div id=\"a-b-some-header-1\">",
-                "<h3 id=\"some-header-1\" class=\"header\">",
-                "<a href=\"#a-b-some-header-1\">",
-                "some header",
-                "</a>",
-                "</h3>",
-                "</div>",
-                "\n",
-                // Third header
-                "<div id=\"a-c-some-header\">",
-                "<h3 id=\"some-header-2\" class=\"header\">",
-                "<a href=\"#a-c-some-header\">",
-                "some header",
-                "</a>",
-                "</h3>",
-                "</div>",
-                "\n",
-            ]
-            .join(""),
-        );
-    }
-
-    #[test]
-    fn list_should_output_ordered_list_if_ordered_type() {
-        let list = List::new(vec![Located::from(ListItem::new(
-            ListItemType::Ordered(OrderedListItemType::Number),
-            ListItemSuffix::None,
-            0,
-            ListItemContents::new(vec![Located::from(
-                ListItemContent::InlineContent(
-                    text_to_inline_element_container("some list item"),
-                ),
-            )]),
-            ListItemAttributes::default(),
-        ))]);
-        let mut f = VimwikiFormatter::default();
-        list.fmt(&mut f).unwrap();
-
-        assert_eq!(
-            f.get_content(),
-            indoc! {"
-                <ol>
-                <li>some list item</li>
-                </ol>
-            "}
-        );
-    }
-
-    #[test]
-    fn list_should_output_unordered_list_if_unordered_type() {
-        let list = List::new(vec![Located::from(ListItem::new(
+    fn list_item_should_not_trim_lines_if_setting_disabled() {
+        let list_item = ListItem::new(
             ListItemType::Unordered(UnorderedListItemType::Hyphen),
             ListItemSuffix::None,
             0,
             ListItemContents::new(vec![Located::from(
                 ListItemContent::InlineContent(
-                    text_to_inline_element_container("some list item"),
+                    text_to_inline_element_container(
+                        " \r\tsome list item \r\t",
+                    ),
                 ),
             )]),
             ListItemAttributes::default(),
-        ))]);
-        let mut f = VimwikiFormatter::default();
-        list.fmt(&mut f).unwrap();
-
-        assert_eq!(
-            f.get_content(),
-            indoc! {"
-                <ul>
-                <li>some list item</li>
-                </ul>
-            "}
         );
+        let mut f = VimwikiFormatter::new(VimwikiConfig {
+            list: VimwikiListConfig { trim_lines: false },
+            ..Default::default()
+        });
+        list_item.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "-  \r\tsome list item \r\t");
     }
 
     #[test]
-    fn list_item_should_output_li_tag() {
-        let item = ListItem::new(
-            ListItemType::Unordered(UnorderedListItemType::Hyphen),
+    fn list_item_should_include_prefix_at_beginning() {
+        fn new_list_item<T: Into<ListItemType>>(
+            ty: T,
+            suffix: ListItemSuffix,
+        ) -> ListItem {
+            ListItem::new(
+                ty.into(),
+                suffix,
+                0,
+                ListItemContents::new(vec![Located::from(
+                    ListItemContent::InlineContent(
+                        text_to_inline_element_container("some list item"),
+                    ),
+                )]),
+                ListItemAttributes::default(),
+            )
+        }
+
+        let item =
+            new_list_item(UnorderedListItemType::Hyphen, ListItemSuffix::None);
+        let mut f = VimwikiFormatter::default();
+        item.fmt(&mut f).unwrap();
+        assert_eq!(f.get_content(), "- some list item");
+
+        let item = new_list_item(
+            UnorderedListItemType::Asterisk,
             ListItemSuffix::None,
-            0,
-            ListItemContents::new(vec![Located::from(
-                ListItemContent::InlineContent(
-                    text_to_inline_element_container("some list item"),
-                ),
-            )]),
-            ListItemAttributes::default(),
         );
         let mut f = VimwikiFormatter::default();
         item.fmt(&mut f).unwrap();
+        assert_eq!(f.get_content(), "* some list item");
 
-        assert_eq!(f.get_content(), "<li>some list item</li>\n");
+        let item = new_list_item(
+            UnorderedListItemType::Other(Cow::from("xXx")),
+            ListItemSuffix::None,
+        );
+        let mut f = VimwikiFormatter::default();
+        item.fmt(&mut f).unwrap();
+        assert_eq!(f.get_content(), "xXx some list item");
+
+        let item =
+            new_list_item(OrderedListItemType::Number, ListItemSuffix::Period);
+        let mut f = VimwikiFormatter::default();
+        item.fmt(&mut f).unwrap();
+        assert_eq!(f.get_content(), "1. some list item");
+
+        let item =
+            new_list_item(OrderedListItemType::Number, ListItemSuffix::Paren);
+        let mut f = VimwikiFormatter::default();
+        item.fmt(&mut f).unwrap();
+        assert_eq!(f.get_content(), "1) some list item");
+
+        let item =
+            new_list_item(OrderedListItemType::Pound, ListItemSuffix::None);
+        let mut f = VimwikiFormatter::default();
+        item.fmt(&mut f).unwrap();
+        assert_eq!(f.get_content(), "# some list item");
+
+        let item = new_list_item(
+            OrderedListItemType::LowercaseAlphabet,
+            ListItemSuffix::Period,
+        );
+        let mut f = VimwikiFormatter::default();
+        item.fmt(&mut f).unwrap();
+        assert_eq!(f.get_content(), "a. some list item");
+
+        let item = new_list_item(
+            OrderedListItemType::LowercaseAlphabet,
+            ListItemSuffix::Paren,
+        );
+        let mut f = VimwikiFormatter::default();
+        item.fmt(&mut f).unwrap();
+        assert_eq!(f.get_content(), "a) some list item");
+
+        let item = new_list_item(
+            OrderedListItemType::UppercaseAlphabet,
+            ListItemSuffix::Period,
+        );
+        let mut f = VimwikiFormatter::default();
+        item.fmt(&mut f).unwrap();
+        assert_eq!(f.get_content(), "A. some list item");
+
+        let item = new_list_item(
+            OrderedListItemType::UppercaseAlphabet,
+            ListItemSuffix::Paren,
+        );
+        let mut f = VimwikiFormatter::default();
+        item.fmt(&mut f).unwrap();
+        assert_eq!(f.get_content(), "A) some list item");
+
+        let item = new_list_item(
+            OrderedListItemType::LowercaseRoman,
+            ListItemSuffix::Period,
+        );
+        let mut f = VimwikiFormatter::default();
+        item.fmt(&mut f).unwrap();
+        assert_eq!(f.get_content(), "i. some list item");
+
+        let item = new_list_item(
+            OrderedListItemType::LowercaseRoman,
+            ListItemSuffix::Paren,
+        );
+        let mut f = VimwikiFormatter::default();
+        item.fmt(&mut f).unwrap();
+        assert_eq!(f.get_content(), "i) some list item");
+
+        let item = new_list_item(
+            OrderedListItemType::UppercaseRoman,
+            ListItemSuffix::Period,
+        );
+        let mut f = VimwikiFormatter::default();
+        item.fmt(&mut f).unwrap();
+        assert_eq!(f.get_content(), "I. some list item");
+
+        let item = new_list_item(
+            OrderedListItemType::UppercaseRoman,
+            ListItemSuffix::Paren,
+        );
+        let mut f = VimwikiFormatter::default();
+        item.fmt(&mut f).unwrap();
+        assert_eq!(f.get_content(), "I) some list item");
     }
 
     #[test]
-    fn list_item_should_support_adding_class_based_on_todo_status() {
+    fn list_item_should_include_todo_status() {
         let mut item = ListItem::new(
             ListItemType::Unordered(UnorderedListItemType::Hyphen),
             ListItemSuffix::None,
@@ -1092,74 +1472,53 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         item.attributes.todo_status = Some(ListItemTodoStatus::Incomplete);
         item.fmt(&mut f).unwrap();
-        assert_eq!(
-            f.get_content(),
-            "<li class=\"done0\">some list item</li>\n"
-        );
+        assert_eq!(f.get_content(), "- [ ] some list item\n");
 
         let mut f = VimwikiFormatter::default();
         item.attributes.todo_status =
             Some(ListItemTodoStatus::PartiallyComplete1);
         item.fmt(&mut f).unwrap();
-        assert_eq!(
-            f.get_content(),
-            "<li class=\"done1\">some list item</li>\n"
-        );
+        assert_eq!(f.get_content(), "- [.] some list item\n");
 
         let mut f = VimwikiFormatter::default();
         item.attributes.todo_status =
             Some(ListItemTodoStatus::PartiallyComplete2);
         item.fmt(&mut f).unwrap();
-        assert_eq!(
-            f.get_content(),
-            "<li class=\"done2\">some list item</li>\n"
-        );
+        assert_eq!(f.get_content(), "- [o] some list item\n");
 
         let mut f = VimwikiFormatter::default();
         item.attributes.todo_status =
             Some(ListItemTodoStatus::PartiallyComplete3);
         item.fmt(&mut f).unwrap();
-        assert_eq!(
-            f.get_content(),
-            "<li class=\"done3\">some list item</li>\n"
-        );
+        assert_eq!(f.get_content(), "- [O] some list item\n");
 
         let mut f = VimwikiFormatter::default();
         item.attributes.todo_status = Some(ListItemTodoStatus::Complete);
         item.fmt(&mut f).unwrap();
-        assert_eq!(
-            f.get_content(),
-            "<li class=\"done4\">some list item</li>\n"
-        );
+        assert_eq!(f.get_content(), "- [X] some list item\n");
 
         let mut f = VimwikiFormatter::default();
         item.attributes.todo_status = Some(ListItemTodoStatus::Rejected);
         item.fmt(&mut f).unwrap();
-        assert_eq!(
-            f.get_content(),
-            "<li class=\"rejected\">some list item</li>\n"
-        );
+        assert_eq!(f.get_content(), "- [-] some list item\n");
     }
 
     #[test]
-    fn math_block_should_output_a_mathjax_notation() {
+    fn list_item_should_support_indentation() {
+        todo!();
+    }
+
+    #[test]
+    fn math_block_should_output_vimwiki() {
         let math = MathBlock::from_lines(vec!["some lines", "of math"]);
         let mut f = VimwikiFormatter::default();
         math.fmt(&mut f).unwrap();
 
-        assert_eq!(
-            f.get_content(),
-            indoc! {r"
-                \[
-                some lines
-                of math
-                \]
-            "}
-        );
+        assert_eq!(f.get_content(), "{{$\nsome lines\nof math\n}}$\n");
     }
 
     #[test]
-    fn math_block_should_support_environments() {
+    fn math_block_should_support_environment() {
         let math = MathBlock::new(
             vec![Cow::from("some lines"), Cow::from("of math")],
             Some(Cow::from("test environment")),
@@ -1169,136 +1528,107 @@ mod tests {
 
         assert_eq!(
             f.get_content(),
-            indoc! {r"
-                \begin{test environment}
-                some lines
-                of math
-                \end{test environment}
-            "}
+            "{{$%test environment%\nsome lines\nof math\n}}$\n"
         );
     }
 
     #[test]
-    fn placeholder_should_set_title_if_specified() {
+    fn math_block_should_support_indentation() {
+        let math = MathBlock::from_lines(vec!["some lines", "of math"]);
+        let mut f = VimwikiFormatter::default();
+        f.and_indent(|f| math.fmt(&mut f)).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            "    {{$\n    some lines\n    of math\n    }}$\n",
+        );
+    }
+
+    #[test]
+    fn placeholder_should_support_title() {
         let placeholder = Placeholder::title_from_str("test title");
         let mut f = VimwikiFormatter::default();
         placeholder.fmt(&mut f).unwrap();
-
-        assert_eq!(f.get_title(), Some("test title"));
+        assert_eq!(f.get_content(), "%title test title");
     }
 
     #[test]
-    fn placeholder_should_set_date_if_specified() {
-        let placeholder = Placeholder::Date(NaiveDate::from_ymd(2021, 4, 27));
+    fn placeholder_should_support_date() {
+        let placeholder = Placeholder::Date(NaiveDate::from_ymd(2021, 6, 17));
         let mut f = VimwikiFormatter::default();
         placeholder.fmt(&mut f).unwrap();
-
-        assert_eq!(f.get_date(), Some(&NaiveDate::from_ymd(2021, 4, 27)));
+        assert_eq!(f.get_content(), "%date 2021-06-17");
     }
 
     #[test]
-    fn placeholder_should_set_template_if_specified() {
-        let placeholder = Placeholder::template_from_str("template file");
+    fn placeholder_should_support_template() {
+        let placeholder = Placeholder::template_from_str("test template");
         let mut f = VimwikiFormatter::default();
         placeholder.fmt(&mut f).unwrap();
-
-        assert_eq!(f.get_template(), Some(Path::new("template file")));
+        assert_eq!(f.get_content(), "%template test template");
     }
 
     #[test]
-    fn code_block_should_output_pre_code_tags_for_clientside_render() {
-        let code = CodeBlock::from_lines(vec!["some lines", "of code"]);
+    fn placeholder_should_support_nohtml() {
+        let placeholder = Placeholder::NoHtml;
         let mut f = VimwikiFormatter::default();
-        code.fmt(&mut f).unwrap();
-
-        assert_eq!(
-            f.get_content(),
-            indoc! {"
-                <pre><code>some lines
-                of code</code></pre>
-            "}
-        );
+        placeholder.fmt(&mut f).unwrap();
+        assert_eq!(f.get_content(), "%nohtml");
     }
 
     #[test]
-    fn code_block_should_escape_output_clientside() {
-        let code = CodeBlock::from_lines(vec!["<test>"]);
+    fn placeholder_should_support_other() {
+        let placeholder = Placeholder::other_from_str("name", "value");
         let mut f = VimwikiFormatter::default();
-        code.fmt(&mut f).unwrap();
-
-        assert_eq!(
-            f.get_content(),
-            indoc! {"
-                <pre><code>&lt;test&gt;</code></pre>
-            "}
-        );
+        placeholder.fmt(&mut f).unwrap();
+        assert_eq!(f.get_content(), "%name value");
     }
 
     #[test]
-    fn code_block_should_support_serverside_render() {
+    fn placeholder_should_not_support_indentation() {
+        todo!();
+    }
+
+    #[test]
+    fn code_block_should_output_vimwiki() {
         let code = CodeBlock::new(
-            Some(Cow::from("rust")),
-            HashMap::new(),
-            vec![Cow::from("fn my_func() -> String { String::new() }")],
+            None,
+            Default::default(),
+            vec![Cow::from("some lines"), Cow::from("of code")],
         );
-        let mut f = VimwikiFormatter::new(VimwikiConfig {
-            code: VimwikiCodeConfig {
-                server_side: true,
-                ..Default::default()
-            },
-            ..Default::default()
-        });
+        let mut f = VimwikiFormatter::default();
         code.fmt(&mut f).unwrap();
 
-        let expected = [
-            r#"<pre style="background-color:#ffffff;">"#,
-            "\n",
-            r#"<span style="font-weight:bold;color:#a71d5d;">fn </span>"#,
-            r#"<span style="font-weight:bold;color:#795da3;">my_func</span>"#,
-            r#"<span style="color:#323232;">() -&gt; String { </span>"#,
-            r#"<span style="color:#0086b3;">String</span>"#,
-            r#"<span style="color:#323232;">::new() }</span>"#,
-            "\n",
-            "</pre>\n",
-        ]
-        .join("");
-
-        assert_eq!(f.get_content(), expected);
+        assert_eq!(f.get_content(), "{{{\nsome lines\nof code\n}}}\n");
     }
 
     #[test]
-    fn code_block_should_support_serverside_render_with_no_language() {
-        let code = CodeBlock::from_lines(vec!["some lines", "of code"]);
-        let mut f = VimwikiFormatter::new(VimwikiConfig {
-            code: VimwikiCodeConfig {
-                server_side: true,
-                ..Default::default()
-            },
-            ..Default::default()
-        });
+    fn code_block_should_support_language() {
+        let code = CodeBlock::new(
+            Some(Cow::from("language")),
+            Default::default(),
+            vec![Cow::from("some lines"), Cow::from("of code")],
+        );
+        let mut f = VimwikiFormatter::default();
         code.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "{{{language\nsome lines\nof code\n}}}\n");
+    }
+
+    #[test]
+    fn code_block_should_support_indentation() {
+        let code = CodeBlock::new(
+            None,
+            Default::default(),
+            vec![Cow::from("some lines"), Cow::from("of code")],
+        );
+        let mut f = VimwikiFormatter::default();
+        f.and_indent(|f| code.fmt(&mut f)).unwrap();
 
         assert_eq!(
             f.get_content(),
-            indoc! {r#"
-                <pre style="background-color:#ffffff;">
-                <span style="color:#323232;">some lines</span>
-                <span style="color:#323232;">of code</span>
-                </pre>
-            "#}
+            "    {{{\n    some lines\n    of code\n    }}}\n",
         );
-    }
-
-    #[test]
-    #[ignore]
-    fn code_block_should_support_serverside_render_with_custom_syntax_dir() {
-        todo!();
-    }
-
-    #[test]
-    #[ignore]
-    fn code_block_should_support_serverside_render_with_custom_theme_dir() {
-        todo!();
     }
 
     #[test]
