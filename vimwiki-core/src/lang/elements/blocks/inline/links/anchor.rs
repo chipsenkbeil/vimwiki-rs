@@ -71,6 +71,8 @@ impl<'a> Anchor<'a> {
 
     // NOTE: Cannot use FromStr due to conflicting lifetimes of impl and trait
     //       method's input str
+    /// Parses a uri fragment in the form of `#one#two#three` with a starting
+    /// pound sign
     pub fn from_uri_fragment(s: &'a str) -> Option<Self> {
         let mut it = s.split('#');
 

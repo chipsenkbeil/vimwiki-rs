@@ -15,8 +15,7 @@ use crate::lang::{
     output::{Output, OutputFormatter},
 };
 use percent_encoding::percent_decode_str;
-use std::{borrow::Cow, collections::HashMap, fmt::Write};
-use uriparse::URIReference;
+use std::{collections::HashMap, fmt::Write};
 
 impl<'a> Output<VimwikiFormatter> for Page<'a> {
     fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
@@ -321,6 +320,13 @@ impl<'a> Output<VimwikiFormatter> for Paragraph<'a> {
             trim_lines,
         } = f.config().paragraph;
 
+        // TODO: Need to handle inline element container directly rather than
+        //       calling fmt(...) because we need to know how many characters
+        //       have been written to support line wrapping; this means that
+        //       we actually need to revise output's fmt(...) to return the
+        //       total characters written (or maybe just bytes) - alternatively,
+        //       we can have a character counter within the formatter that
+        //       gets incremented and can be cleared before writing (probably easier)
         for line in self {
             f.write_indent()?;
 
@@ -551,6 +557,9 @@ impl<'a> Output<VimwikiFormatter> for Link<'a> {
             Self::Diary { date, data } => {
                 write!(f, "[[")?;
                 write!(f, "{}", date)?;
+                if let Some(anchor) = data.to_anchor() {
+                    write!(f, "{}", anchor)?;
+                }
                 if let Some(desc) = data.description() {
                     write!(f, "|{}", desc)?;
                 }
@@ -564,6 +573,17 @@ impl<'a> Output<VimwikiFormatter> for Link<'a> {
                 write!(f, "{}", percent_decode_str(data.uri_ref()))?;
                 if let Some(desc) = data.description() {
                     write!(f, "|{}", desc)?;
+                }
+                if let Some(properties) = data.properties() {
+                    // Transclusion requires a description prior to properties,
+                    // so we make sure there is one, even if empty
+                    if data.description().is_none() {
+                        write!(f, "|")?;
+                    }
+
+                    for (key, value) in properties {
+                        write!(f, "|{}=\"{}\"", key, value)?;
+                    }
                 }
                 write!(f, "}}}}")?;
             }
@@ -1632,37 +1652,124 @@ mod tests {
     }
 
     #[test]
-    fn paragraph_should_output_p_tag() {
+    fn paragraph_should_wrap_lines_to_80_characters_split_by_words_by_default()
+    {
         let paragraph = Paragraph::new(vec![
-            text_to_inline_element_container("some text"),
-            text_to_inline_element_container("and more text"),
+            text_to_inline_element_container("some text that is over 80 characters in length should wrap based on word boundaries"),
+            text_to_inline_element_container("with boundaries being on the next line"),
         ]);
         let mut f = VimwikiFormatter::default();
         paragraph.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "<p>some text and more text</p>\n");
+        assert_eq!(f.get_content(), "some text that is over 80 characters in length should wrap based on word\nboundaries with boundaries being on the next line\n");
     }
 
     #[test]
-    fn paragraph_should_support_linebreaks_if_configured() {
+    fn paragraph_should_wrap_lines_to_80_characters_split_by_words_if_setting_enabled(
+    ) {
         let paragraph = Paragraph::new(vec![
-            text_to_inline_element_container("some text"),
-            text_to_inline_element_container("and more text"),
+            text_to_inline_element_container("some text that is over 80 characters in length should wrap based on word boundaries"),
+            text_to_inline_element_container("with boundaries being on the next line"),
         ]);
         let mut f = VimwikiFormatter::new(VimwikiConfig {
             paragraph: VimwikiParagraphConfig {
-                ignore_newline: false,
+                no_line_wrap: false,
+                line_wrap_column: 80,
+                ..Default::default()
             },
             ..Default::default()
         });
         paragraph.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "<p>some text<br />and more text</p>\n");
+        assert_eq!(f.get_content(), "some text that is over 80 characters in length should wrap based on word\nboundaries with boundaries being on the next line\n");
     }
 
     #[test]
-    fn table_should_output_table_and_other_relevant_tags_for_header_and_body() {
-        let table = Table::new(
+    fn paragraph_should_not_wrap_lines_to_80_characters_split_by_words_if_setting_disabled(
+    ) {
+        let paragraph = Paragraph::new(vec![
+            text_to_inline_element_container("some text that is over 80 characters in length should wrap based on word boundaries"),
+            text_to_inline_element_container("with boundaries being on the next line"),
+        ]);
+        let mut f = VimwikiFormatter::new(VimwikiConfig {
+            paragraph: VimwikiParagraphConfig {
+                no_line_wrap: true,
+                line_wrap_column: 80,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+        paragraph.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "some text that is over 80 characters in length should wrap based on word boundaries\nwith boundaries being on the next line\n");
+    }
+
+    #[test]
+    fn paragraph_should_trim_lines_by_default() {
+        let paragraph = Paragraph::new(vec![
+            text_to_inline_element_container(" \r\tsome text \r\t"),
+            text_to_inline_element_container(" \r\tand more text \r\t"),
+        ]);
+        let mut f = VimwikiFormatter::default();
+        paragraph.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "some text\nand more text\n");
+    }
+
+    #[test]
+    fn paragraph_should_trim_lines_if_setting_enabled() {
+        let paragraph = Paragraph::new(vec![
+            text_to_inline_element_container(" \r\tsome text \r\t"),
+            text_to_inline_element_container(" \r\tand more text \r\t"),
+        ]);
+        let mut f = VimwikiFormatter::new(VimwikiConfig {
+            paragraph: VimwikiParagraphConfig {
+                trim_lines: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+        paragraph.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "some text\nand more text\n");
+    }
+
+    #[test]
+    fn paragraph_should_not_trim_lines_if_setting_disabled() {
+        let paragraph = Paragraph::new(vec![
+            text_to_inline_element_container(" \r\tsome text \r\t"),
+            text_to_inline_element_container(" \r\tand more text \r\t"),
+        ]);
+        let mut f = VimwikiFormatter::new(VimwikiConfig {
+            paragraph: VimwikiParagraphConfig {
+                trim_lines: false,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+        paragraph.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            " \r\tsome text \r\t\n \r\tand more text \r\t\n",
+        );
+    }
+
+    #[test]
+    fn paragraph_should_support_indentation() {
+        let paragraph = Paragraph::new(vec![
+            text_to_inline_element_container("some text"),
+            text_to_inline_element_container("and more text"),
+        ]);
+        let mut f = VimwikiFormatter::default();
+        f.and_indent(|f| paragraph.fmt(&mut f)).unwrap();
+
+        assert_eq!(f.get_content(), "   some text\n    and more text\n");
+    }
+
+    #[inline]
+    fn single_column_table(centered: bool) -> Table {
+        Table::new(
             vec![
                 (
                     CellPos { row: 0, col: 0 },
@@ -1681,189 +1788,91 @@ mod tests {
                     )),
                 ),
             ],
-            false,
-        );
+            centered,
+        )
+    }
+
+    #[test]
+    fn table_should_pad_cells_by_default() {
+        let table = single_column_table(false);
         let mut f = VimwikiFormatter::default();
         table.fmt(&mut f).unwrap();
 
         assert_eq!(
             f.get_content(),
             indoc! {"
-                <table>
-                <thead>
-                <tr>
-                <th>some header</th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr>
-                <td>some text</td>
-                </tr>
-                </tbody>
-                </table>
+                | some header |
+                |-------------|
+                | some text   |
             "},
         );
     }
 
     #[test]
-    fn table_should_support_rowspan_attr_on_header_cells() {
-        let table = Table::new(
-            vec![
-                (
-                    CellPos { row: 0, col: 0 },
-                    Located::from(Cell::Content(
-                        text_to_inline_element_container("some text"),
-                    )),
-                ),
-                (
-                    CellPos { row: 1, col: 0 },
-                    Located::from(Cell::Span(CellSpan::FromAbove)),
-                ),
-                (
-                    CellPos { row: 2, col: 0 },
-                    Located::from(Cell::Align(ColumnAlign::default())),
-                ),
-            ],
-            false,
-        );
-        let mut f = VimwikiFormatter::default();
+    fn table_should_pad_cells_if_setting_enabled() {
+        let table = single_column_table(false);
+        let mut f = VimwikiFormatter::new(VimwikiConfig {
+            table: VimwikiTableConfig { no_padding: false },
+            ..Default::default()
+        });
         table.fmt(&mut f).unwrap();
 
         assert_eq!(
             f.get_content(),
-            indoc! {r#"
-                <table>
-                <thead>
-                <tr>
-                <th rowspan="2">some text</th>
-                </tr>
-                </thead>
-                </table>
-            "#},
+            indoc! {"
+                | some header |
+                |-------------|
+                | some text   |
+            "},
         );
     }
 
     #[test]
-    fn table_should_support_colspan_attr_on_header_cells() {
-        let table = Table::new(
-            vec![
-                (
-                    CellPos { row: 0, col: 0 },
-                    Located::from(Cell::Content(
-                        text_to_inline_element_container("some text"),
-                    )),
-                ),
-                (
-                    CellPos { row: 0, col: 1 },
-                    Located::from(Cell::Span(CellSpan::FromLeft)),
-                ),
-                (
-                    CellPos { row: 1, col: 0 },
-                    Located::from(Cell::Align(ColumnAlign::default())),
-                ),
-                (
-                    CellPos { row: 1, col: 1 },
-                    Located::from(Cell::Align(ColumnAlign::default())),
-                ),
-            ],
-            false,
-        );
-        let mut f = VimwikiFormatter::default();
+    fn table_should_not_pad_cells_if_setting_disabled() {
+        let table = single_column_table(false);
+        let mut f = VimwikiFormatter::new(VimwikiConfig {
+            table: VimwikiTableConfig { no_padding: true },
+            ..Default::default()
+        });
         table.fmt(&mut f).unwrap();
 
         assert_eq!(
             f.get_content(),
-            indoc! {r#"
-                <table>
-                <thead>
-                <tr>
-                <th colspan="2">some text</th>
-                </tr>
-                </thead>
-                </table>
-            "#},
+            indoc! {"
+                |some header|
+                |-----------|
+                |some text  |
+            "},
         );
     }
 
     #[test]
-    fn table_should_support_rowspan_attr_on_body_cells() {
-        let table = Table::new(
-            vec![
-                (
-                    CellPos { row: 0, col: 0 },
-                    Located::from(Cell::Content(
-                        text_to_inline_element_container("some text"),
-                    )),
-                ),
-                (
-                    CellPos { row: 1, col: 0 },
-                    Located::from(Cell::Span(CellSpan::FromAbove)),
-                ),
-            ],
-            false,
-        );
-        let mut f = VimwikiFormatter::default();
-        table.fmt(&mut f).unwrap();
-
-        assert_eq!(
-            f.get_content(),
-            indoc! {r#"
-                <table>
-                <tbody>
-                <tr>
-                <td rowspan="2">some text</td>
-                </tr>
-                </tbody>
-                </table>
-            "#},
-        );
+    fn table_should_adjust_cell_size_to_fit_largest_cell_in_column() {
+        todo!("Do 4 columns with content, span left, span above, and nothing");
     }
 
     #[test]
-    fn table_should_support_colspan_attr_on_body_cells() {
-        let table = Table::new(
-            vec![
-                (
-                    CellPos { row: 0, col: 0 },
-                    Located::from(Cell::Content(
-                        text_to_inline_element_container("some text"),
-                    )),
-                ),
-                (
-                    CellPos { row: 0, col: 1 },
-                    Located::from(Cell::Span(CellSpan::FromLeft)),
-                ),
-            ],
-            false,
-        );
-        let mut f = VimwikiFormatter::default();
-        table.fmt(&mut f).unwrap();
+    fn table_should_adjust_cell_size_accounting_for_padding() {
+        todo!("Do 4 columns with content, span left, span above, and nothing");
+    }
 
-        assert_eq!(
-            f.get_content(),
-            indoc! {r#"
-                <table>
-                <tbody>
-                <tr>
-                <td colspan="2">some text</td>
-                </tr>
-                </tbody>
-                </table>
-            "#},
-        );
+    #[test]
+    fn table_should_stretch_divider_rows_to_fit_column_sizes() {
+        todo!("Do 4 columns with each of 4 types of column divider");
     }
 
     #[test]
     fn table_should_support_being_centered() {
-        let table = Table::new(Vec::new(), true);
-        let mut f = VimwikiFormatter::default();
-        table.fmt(&mut f).unwrap();
-
-        assert_eq!(f.get_content(), "<table class=\"center\">\n</table>\n");
+        todo!();
     }
 
     #[test]
-    fn text_should_output_inner_str() {
+    fn table_should_support_indentation() {
+        todo!();
+    }
+
+    #[test]
+    fn text_should_output_the_same() {
         let text = Text::from("some text");
         let mut f = VimwikiFormatter::default();
         text.fmt(&mut f).unwrap();
@@ -1872,774 +1881,489 @@ mod tests {
     }
 
     #[test]
-    fn text_should_escape_vimwiki() {
-        let text = Text::from("<some>vimwiki</some>");
-        let mut f = VimwikiFormatter::default();
-        text.fmt(&mut f).unwrap();
-
-        assert_eq!(f.get_content(), r"&lt;some&gt;vimwiki&lt;/some&gt;");
-    }
-
-    #[test]
-    fn decorated_text_should_output_strong_tag_for_bold_text() {
+    fn decorated_text_should_output_bold_text_with_asterisks() {
         let decorated_text = DecoratedText::Bold(vec![Located::from(
             DecoratedTextContent::Text(Text::from("some text")),
         )]);
         let mut f = VimwikiFormatter::default();
         decorated_text.fmt(&mut f).unwrap();
 
-        assert_eq!(
-            f.get_content(),
-            r#"<strong id="some-text">some text</strong>"#,
-        );
+        assert_eq!(f.get_content(), "*some text*");
     }
 
     #[test]
-    fn decorated_text_should_include_extra_span_with_id_comprised_of_previous_headers_for_bold_text(
-    ) {
-        let decorated_text = DecoratedText::Bold(vec![Located::from(
-            DecoratedTextContent::Text(Text::from("some text")),
-        )]);
-        let mut f = VimwikiFormatter::default();
-        f.insert_header_text(1, "one");
-        f.insert_header_text(2, "two");
-        f.insert_header_text(3, "three");
-        decorated_text.fmt(&mut f).unwrap();
-
-        assert_eq!(
-            f.get_content(),
-            [
-                r#"<span id="one-two-three-some-text"></span>"#,
-                r#"<strong id="some-text">some text</strong>"#,
-            ]
-            .join(""),
-        );
-    }
-
-    #[test]
-    fn decorated_text_should_escape_id_and_text_for_bold_text() {
-        let decorated_text = DecoratedText::Bold(vec![Located::from(
-            DecoratedTextContent::Text(Text::from("some <test> text")),
-        )]);
-        let mut f = VimwikiFormatter::default();
-        decorated_text.fmt(&mut f).unwrap();
-
-        assert_eq!(
-            f.get_content(),
-            r#"<strong id="some-&lt;test&gt;-text">some &lt;test&gt; text</strong>"#,
-        );
-    }
-
-    #[test]
-    fn decorated_text_should_produce_unique_ids_from_repeated_bold_text() {
-        let bold1 = DecoratedText::Bold(vec![Located::from(
-            DecoratedTextContent::Text(Text::from("bold")),
-        )]);
-        let bold2 = DecoratedText::Bold(vec![Located::from(
-            DecoratedTextContent::Text(Text::from("bold")),
-        )]);
-
-        let mut f = VimwikiFormatter::default();
-        bold1.fmt(&mut f).unwrap();
-        bold2.fmt(&mut f).unwrap();
-
-        assert_eq!(
-            f.get_content(),
-            [
-                r#"<strong id="bold">bold</strong>"#,
-                r#"<strong id="bold-1">bold</strong>"#,
-            ]
-            .join("")
-        );
-    }
-
-    #[test]
-    fn decorated_text_should_produce_unique_ids_from_repeated_bold_text_with_nested_headers(
-    ) {
-        let bold1 = DecoratedText::Bold(vec![Located::from(
-            DecoratedTextContent::Text(Text::from("bold")),
-        )]);
-        let bold2 = DecoratedText::Bold(vec![Located::from(
-            DecoratedTextContent::Text(Text::from("bold")),
-        )]);
-        let bold3 = DecoratedText::Bold(vec![Located::from(
-            DecoratedTextContent::Text(Text::from("bold")),
-        )]);
-
-        let mut f = VimwikiFormatter::default();
-        f.insert_header_text(1, "a");
-        f.insert_header_text(2, "b");
-        bold1.fmt(&mut f).unwrap();
-        bold2.fmt(&mut f).unwrap();
-
-        f.insert_header_text(2, "c");
-        bold3.fmt(&mut f).unwrap();
-
-        assert_eq!(
-            f.get_content(),
-            [
-                r#"<span id="a-b-bold"></span><strong id="bold">bold</strong>"#,
-                r#"<span id="a-b-bold-1"></span><strong id="bold-1">bold</strong>"#,
-                r#"<span id="a-c-bold"></span><strong id="bold-2">bold</strong>"#,
-            ]
-            .join("")
-        );
-    }
-
-    #[test]
-    fn decorated_text_should_output_em_tag_for_italic_text() {
+    fn decorated_text_should_output_italic_text_with_underscores() {
         let decorated_text = DecoratedText::Italic(vec![Located::from(
             DecoratedTextContent::Text(Text::from("some text")),
         )]);
         let mut f = VimwikiFormatter::default();
         decorated_text.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), r#"<em>some text</em>"#);
+        assert_eq!(f.get_content(), "_some text_");
     }
 
     #[test]
-    fn decorated_text_should_output_del_tag_for_strikeout_text() {
+    fn decorated_text_should_output_strikeout_text_with_double_tilde() {
         let decorated_text = DecoratedText::Strikeout(vec![Located::from(
             DecoratedTextContent::Text(Text::from("some text")),
         )]);
         let mut f = VimwikiFormatter::default();
         decorated_text.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), r#"<del>some text</del>"#);
+        assert_eq!(f.get_content(), "~~some text~~");
     }
 
     #[test]
-    fn decorated_text_should_output_sup_tag_for_superscript_text() {
+    fn decorated_text_should_output_superscript_text_with_carrot() {
         let decorated_text = DecoratedText::Superscript(vec![Located::from(
             DecoratedTextContent::Text(Text::from("some text")),
         )]);
         let mut f = VimwikiFormatter::default();
         decorated_text.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), r#"<sup><small>some text</small></sup>"#);
+        assert_eq!(f.get_content(), "^some text^");
     }
 
     #[test]
-    fn decorated_text_should_output_sub_tag_for_subscript_text() {
+    fn decorated_text_should_output_subscript_text_with_double_comma() {
         let decorated_text = DecoratedText::Subscript(vec![Located::from(
             DecoratedTextContent::Text(Text::from("some text")),
         )]);
         let mut f = VimwikiFormatter::default();
         decorated_text.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), r#"<sub><small>some text</small></sub>"#);
-    }
-
-    #[test]
-    fn keyword_should_output_span_with_class_for_todo() {
-        let keyword = Keyword::Todo;
-
-        let mut f = VimwikiFormatter::default();
-        keyword.fmt(&mut f).unwrap();
-
-        assert_eq!(f.get_content(), r#"<span class="todo">TODO</span>"#);
+        assert_eq!(f.get_content(), ",,some text,,");
     }
 
     #[test]
     fn keyword_should_output_self_in_all_caps() {
-        let keyword = Keyword::Done;
+        let inputs_and_outputs = [
+            (Keyword::Todo, "TODO"),
+            (Keyword::Done, "DONE"),
+            (Keyword::Started, "STARTED"),
+            (Keyword::Fixme, "FIXME"),
+            (Keyword::Fixed, "FIXED"),
+            (Keyword::Xxx, "XXX"),
+        ];
 
-        let mut f = VimwikiFormatter::default();
-        keyword.fmt(&mut f).unwrap();
-
-        assert_eq!(f.get_content(), "DONE");
+        for (keyword, output) in inputs_and_outputs {
+            let mut f = VimwikiFormatter::default();
+            keyword.fmt(&mut f).unwrap();
+            assert_eq!(f.get_content(), output);
+        }
     }
 
     #[test]
-    fn wiki_link_should_output_a_tag() {
+    fn wiki_link_should_output_vimwiki() {
         let link = Link::new_wiki_link(
             URIReference::try_from("some/page").unwrap(),
             None,
         );
-        let mut f =
-            VimwikiFormatter::new(test_vimwiki_config("wiki", "test.wiki"));
+        let mut f = VimwikiFormatter::default();
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(
-            f.get_content(),
-            r#"<a href="some/page.vimwiki">some/page</a>"#
-        );
+        assert_eq!(f.get_content(), "[[some/page]]");
     }
 
     #[test]
-    fn wiki_link_should_support_anchors() {
+    fn wiki_link_should_output_vimwiki_with_uri_percent_decoded() {
         let link = Link::new_wiki_link(
-            URIReference::try_from("some/page#some-anchor").unwrap(),
+            URIReference::try_from("some/page%20with%20spaces").unwrap(),
             None,
         );
-        let mut f =
-            VimwikiFormatter::new(test_vimwiki_config("wiki", "test.wiki"));
+        let mut f = VimwikiFormatter::default();
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(
-            f.get_content(),
-            r#"<a href="some/page.vimwiki#some-anchor">some/page#some-anchor</a>"#
-        );
+        assert_eq!(f.get_content(), "[[some/page with spaces]]");
     }
 
     #[test]
-    fn wiki_link_should_support_text_description() {
+    fn wiki_link_should_support_text_descriptions() {
         let link = Link::new_wiki_link(
             URIReference::try_from("some/page").unwrap(),
-            Description::from("some description"),
+            Some(Description::from("text description")),
         );
-        let mut f =
-            VimwikiFormatter::new(test_vimwiki_config("wiki", "test.wiki"));
+        let mut f = VimwikiFormatter::default();
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(
-            f.get_content(),
-            r#"<a href="some/page.vimwiki">some description</a>"#
-        );
+        assert_eq!(f.get_content(), "[[some/page|text description]]");
     }
 
     #[test]
-    fn wiki_link_should_support_transclusion_link_description() {
+    fn wiki_link_should_support_transclusion_descriptions() {
         let link = Link::new_wiki_link(
             URIReference::try_from("some/page").unwrap(),
-            Description::try_from_uri_ref_str("some/img.png").unwrap(),
-        );
-        let mut f =
-            VimwikiFormatter::new(test_vimwiki_config("wiki", "test.wiki"));
-        link.fmt(&mut f).unwrap();
-
-        assert_eq!(
-            f.get_content(),
-            r#"<a href="some/page.vimwiki"><img src="some/img.png" /></a>"#
-        );
-    }
-
-    #[test]
-    fn indexed_inter_wiki_link_should_output_a_tag() {
-        let link = Link::new_indexed_interwiki_link(
-            1,
-            URIReference::try_from("some/page").unwrap(),
-            None,
-        );
-
-        // Make a config with two wikis so we can refer to the other one
-        let mut c = test_vimwiki_config("wiki", "test.wiki");
-        add_wiki(&mut c, "wiki2");
-
-        let mut f = VimwikiFormatter::new(c);
-        link.fmt(&mut f).unwrap();
-
-        assert_eq!(
-            f.get_content(),
-            r#"<a href="../wiki2/some/page.vimwiki">some/page</a>"#
-        );
-    }
-
-    #[test]
-    fn indexed_inter_wiki_link_should_support_anchors() {
-        let link = Link::new_indexed_interwiki_link(
-            1,
-            URIReference::try_from("some/page#some-anchor").unwrap(),
-            None,
-        );
-
-        // Make a config with two wikis so we can refer to the other one
-        let mut c = test_vimwiki_config("wiki", "test.wiki");
-        add_wiki(&mut c, "wiki2");
-
-        let mut f = VimwikiFormatter::new(c);
-        link.fmt(&mut f).unwrap();
-
-        assert_eq!(
-            f.get_content(),
-            r#"<a href="../wiki2/some/page.vimwiki#some-anchor">some/page#some-anchor</a>"#
-        );
-    }
-
-    #[test]
-    fn indexed_inter_wiki_link_should_support_text_description() {
-        let link = Link::new_indexed_interwiki_link(
-            1,
-            URIReference::try_from("some/page").unwrap(),
-            Description::from("some description"),
-        );
-
-        // Make a config with two wikis so we can refer to the other one
-        let mut c = test_vimwiki_config("wiki", "test.wiki");
-        add_wiki(&mut c, "wiki2");
-
-        let mut f = VimwikiFormatter::new(c);
-        link.fmt(&mut f).unwrap();
-
-        assert_eq!(
-            f.get_content(),
-            r#"<a href="../wiki2/some/page.vimwiki">some description</a>"#
-        );
-    }
-
-    #[test]
-    fn indexed_inter_wiki_link_should_support_transclusion_link_description() {
-        let link = Link::new_indexed_interwiki_link(
-            1,
-            URIReference::try_from("some/page").unwrap(),
-            Description::try_from_uri_ref_str("some/img.png").unwrap(),
-        );
-
-        // Make a config with two wikis so we can refer to the other one
-        let mut c = test_vimwiki_config("wiki", "test.wiki");
-        add_wiki(&mut c, "wiki2");
-
-        let mut f = VimwikiFormatter::new(c);
-        link.fmt(&mut f).unwrap();
-
-        assert_eq!(
-            f.get_content(),
-            r#"<a href="../wiki2/some/page.vimwiki"><img src="some/img.png" /></a>"#
-        );
-    }
-
-    #[test]
-    fn named_inter_wiki_link_should_output_a_tag() {
-        let link = Link::new_named_interwiki_link(
-            "my-wiki",
-            URIReference::try_from("some/page").unwrap(),
-            None,
-        );
-
-        // Make a config with two wikis so we can refer to the other one
-        let mut c = test_vimwiki_config("wiki", "test.wiki");
-        add_wiki_with_name(&mut c, "wiki2", "my-wiki");
-
-        let mut f = VimwikiFormatter::new(c);
-        link.fmt(&mut f).unwrap();
-
-        assert_eq!(
-            f.get_content(),
-            r#"<a href="../wiki2/some/page.vimwiki">some/page</a>"#
-        );
-    }
-
-    #[test]
-    fn named_inter_wiki_link_should_support_anchors() {
-        let link = Link::new_named_interwiki_link(
-            "my-wiki",
-            URIReference::try_from("some/page#some-anchor").unwrap(),
-            None,
-        );
-
-        // Make a config with two wikis so we can refer to the other one
-        let mut c = test_vimwiki_config("wiki", "test.wiki");
-        add_wiki_with_name(&mut c, "wiki2", "my-wiki");
-
-        let mut f = VimwikiFormatter::new(c);
-        link.fmt(&mut f).unwrap();
-
-        assert_eq!(
-            f.get_content(),
-            r#"<a href="../wiki2/some/page.vimwiki#some-anchor">some/page#some-anchor</a>"#
-        );
-    }
-
-    #[test]
-    fn named_inter_wiki_link_should_support_text_description() {
-        let link = Link::new_named_interwiki_link(
-            "my-wiki",
-            URIReference::try_from("some/page").unwrap(),
-            Description::from("some description"),
-        );
-
-        // Make a config with two wikis so we can refer to the other one
-        let mut c = test_vimwiki_config("wiki", "test.wiki");
-        add_wiki_with_name(&mut c, "wiki2", "my-wiki");
-
-        let mut f = VimwikiFormatter::new(c);
-        link.fmt(&mut f).unwrap();
-
-        assert_eq!(
-            f.get_content(),
-            r#"<a href="../wiki2/some/page.vimwiki">some description</a>"#
-        );
-    }
-
-    #[test]
-    fn named_inter_wiki_link_should_support_transclusion_link_description() {
-        let link = Link::new_named_interwiki_link(
-            "my-wiki",
-            URIReference::try_from("some/page").unwrap(),
-            Description::try_from_uri_ref_str("some/img.png").unwrap(),
-        );
-
-        // Make a config with two wikis so we can refer to the other one
-        let mut c = test_vimwiki_config("wiki", "test.wiki");
-        add_wiki_with_name(&mut c, "wiki2", "my-wiki");
-
-        let mut f = VimwikiFormatter::new(c);
-        link.fmt(&mut f).unwrap();
-
-        assert_eq!(
-            f.get_content(),
-            r#"<a href="../wiki2/some/page.vimwiki"><img src="some/img.png" /></a>"#
-        );
-    }
-
-    #[test]
-    fn diary_link_should_output_a_tag() {
-        let link =
-            Link::new_diary_link(NaiveDate::from_ymd(2021, 5, 27), None, None);
-        let mut f =
-            VimwikiFormatter::new(test_vimwiki_config("wiki", "test.wiki"));
-        link.fmt(&mut f).unwrap();
-
-        assert_eq!(
-            f.get_content(),
-            r#"<a href="diary/2021-05-27.vimwiki">diary:2021-05-27</a>"#
-        );
-    }
-
-    #[test]
-    fn diary_link_should_support_text_description() {
-        let link = Link::new_diary_link(
-            NaiveDate::from_ymd(2021, 5, 27),
-            Description::from("some description"),
-            None,
-        );
-        let mut f =
-            VimwikiFormatter::new(test_vimwiki_config("wiki", "test.wiki"));
-        link.fmt(&mut f).unwrap();
-
-        assert_eq!(
-            f.get_content(),
-            r#"<a href="diary/2021-05-27.vimwiki">some description</a>"#
-        );
-    }
-
-    #[test]
-    fn diary_link_should_support_transclusion_link_description() {
-        let link = Link::new_diary_link(
-            NaiveDate::from_ymd(2021, 5, 27),
-            Description::try_from_uri_ref_str("some/img.png").unwrap(),
-            None,
-        );
-        let mut f =
-            VimwikiFormatter::new(test_vimwiki_config("wiki", "test.wiki"));
-        link.fmt(&mut f).unwrap();
-
-        assert_eq!(
-            f.get_content(),
-            r#"<a href="diary/2021-05-27.vimwiki"><img src="some/img.png" /></a>"#
-        );
-    }
-
-    #[test]
-    fn raw_link_should_output_a_tag() {
-        let link = Link::new_raw_link(
-            URIReference::try_from("https://example.com").unwrap(),
-        );
-
-        let mut f = VimwikiFormatter::default();
-        link.fmt(&mut f).unwrap();
-
-        assert_eq!(
-            f.get_content(),
-            r#"<a href="https://example.com/">https://example.com/</a>"#
-        );
-    }
-
-    #[test]
-    fn transclusion_link_should_output_img_tag() {
-        let link = Link::new_transclusion_link(
-            URIReference::try_from("https://example.com/img.jpg").unwrap(),
-            None,
-            None,
-        );
-
-        let mut f = VimwikiFormatter::default();
-        link.fmt(&mut f).unwrap();
-
-        assert_eq!(
-            f.get_content(),
-            r#"<img src="https://example.com/img.jpg" />"#
-        );
-    }
-
-    #[test]
-    fn transclusion_link_should_support_local_uris() {
-        let link = Link::new_transclusion_link(
-            URIReference::try_from("img/pic.png").unwrap(),
-            None,
-            None,
-        );
-
-        let mut f =
-            VimwikiFormatter::new(test_vimwiki_config("wiki", "test.wiki"));
-        link.fmt(&mut f).unwrap();
-
-        assert_eq!(f.get_content(), r#"<img src="img/pic.png" />"#);
-    }
-
-    #[test]
-    fn transclusion_link_should_use_description_as_alt_text() {
-        let link = Link::new_transclusion_link(
-            URIReference::try_from("https://example.com/img.jpg").unwrap(),
-            Some(Description::from("some description")),
-            None,
-        );
-
-        let mut f = VimwikiFormatter::default();
-        link.fmt(&mut f).unwrap();
-
-        assert_eq!(
-            f.get_content(),
-            r#"<img src="https://example.com/img.jpg" alt="some description" />"#
-        );
-    }
-
-    #[test]
-    fn transclusion_link_should_support_arbitrary_attrs_on_img() {
-        let mut properties: HashMap<Cow<str>, Cow<str>> = HashMap::new();
-        properties.insert(Cow::from("key1"), Cow::from("value1"));
-        properties.insert(Cow::from("key2"), Cow::from("value2"));
-
-        let link = Link::new_transclusion_link(
-            URIReference::try_from("https://example.com/img.jpg").unwrap(),
-            Some(Description::from("some description")),
-            properties,
-        );
-
-        let mut f = VimwikiFormatter::default();
-        link.fmt(&mut f).unwrap();
-
-        // NOTE: The order of properties isn't guaranteed, so we have to check
-        //       both possibilities
-        let equal1 = f.get_content()
-            == r#"<img src="https://example.com/img.jpg" alt="some description" key1="value1" key2="value2" />"#;
-        let equal2 = f.get_content()
-            == r#"<img src="https://example.com/img.jpg" alt="some description" key2="value2" key1="value1" />"#;
-        assert!(equal1 || equal2);
-    }
-
-    #[test]
-    fn transclusion_link_should_escape_vimwiki() {
-        let mut properties: HashMap<Cow<str>, Cow<str>> = HashMap::new();
-        properties.insert(Cow::from("key1"), Cow::from("<test>value1</test>"));
-
-        let link = Link::new_transclusion_link(
-            URIReference::try_from("https://example.com/img.jpg?a=b&c=d")
+            Some(
+                Description::try_from_uri_ref_str(
+                    "https://example.com/img.png",
+                )
                 .unwrap(),
-            Some(Description::from("<test>some description</test>")),
-            properties,
+            ),
         );
-
         let mut f = VimwikiFormatter::default();
         link.fmt(&mut f).unwrap();
 
         assert_eq!(
             f.get_content(),
-            r#"<img src="https://example.com/img.jpg?a=b&c=d" alt="&lt;test&gt;some description&lt;/test&gt;" key1="&lt;test&gt;value1&lt;/test&gt;" />"#
+            "[[some/page|{{https://example.com/img.png}}]]"
         );
     }
 
     #[test]
-    fn tags_should_output_span_per_tag() {
+    fn indexed_interwiki_link_should_output_vimwiki() {
+        let link = Link::new_indexed_interwiki_link(
+            123,
+            URIReference::try_from("some/page").unwrap(),
+            None,
+        );
+        let mut f = VimwikiFormatter::default();
+        link.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "[[wiki123:some/page]]");
+    }
+
+    #[test]
+    fn indexed_interwiki_link_should_output_vimwiki_with_uri_percent_decoded() {
+        let link = Link::new_interwiki_link(
+            123,
+            URIReference::try_from("some/page%20with%20spaces").unwrap(),
+            None,
+        );
+        let mut f = VimwikiFormatter::default();
+        link.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "[[wiki123:some/page with spaces]]");
+    }
+
+    #[test]
+    fn indexed_interwiki_link_should_support_text_descriptions() {
+        let link = Link::new_indexed_interwiki_link(
+            123,
+            URIReference::try_from("some/page").unwrap(),
+            Some(Description::from("text description")),
+        );
+        let mut f = VimwikiFormatter::default();
+        link.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "[[wiki123:some/page|text description]]");
+    }
+
+    #[test]
+    fn indexed_interwiki_link_should_support_transclusion_descriptions() {
+        let link = Link::new_indexed_interwiki_link(
+            123,
+            URIReference::try_from("some/page").unwrap(),
+            Some(
+                Description::try_from_uri_ref_str(
+                    "https://example.com/img.png",
+                )
+                .unwrap(),
+            ),
+        );
+        let mut f = VimwikiFormatter::default();
+        link.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            "[[wiki123:some/page|{{https://example.com/img.png}}]]"
+        );
+    }
+
+    #[test]
+    fn named_interwiki_link_should_output_vimwiki() {
+        let link = Link::new_named_interwiki_link(
+            "my wiki",
+            URIReference::try_from("some/page").unwrap(),
+            None,
+        );
+        let mut f = VimwikiFormatter::default();
+        link.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "[[wn.my wiki:some/page]]");
+    }
+
+    #[test]
+    fn named_interwiki_link_should_output_vimwiki_with_uri_percent_decoded() {
+        let link = Link::new_interwiki_link(
+            "my wiki",
+            URIReference::try_from("some/page%20with%20spaces").unwrap(),
+            None,
+        );
+        let mut f = VimwikiFormatter::default();
+        link.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "[[wn.my wiki:some/page with spaces]]");
+    }
+
+    #[test]
+    fn named_interwiki_link_should_support_text_descriptions() {
+        let link = Link::new_named_interwiki_link(
+            "my wiki",
+            URIReference::try_from("some/page").unwrap(),
+            Some(Description::from("text description")),
+        );
+        let mut f = VimwikiFormatter::default();
+        link.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            "[[wn.my wiki:some/page|text description]]"
+        );
+    }
+
+    #[test]
+    fn named_interwiki_link_should_support_transclusion_descriptions() {
+        let link = Link::new_named_interwiki_link(
+            "my wiki",
+            URIReference::try_from("some/page").unwrap(),
+            Some(
+                Description::try_from_uri_ref_str(
+                    "https://example.com/img.png",
+                )
+                .unwrap(),
+            ),
+        );
+        let mut f = VimwikiFormatter::default();
+        link.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            "[[wn.my wiki:some/page|{{https://example.com/img.png}}]]"
+        );
+    }
+
+    #[test]
+    fn diary_link_should_output_vimwiki() {
+        let link =
+            Link::new_diary_link(NaiveDate::from_ymd(2021, 6, 17), None, None);
+        let mut f = VimwikiFormatter::default();
+        link.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "[[2021-06-17]]");
+    }
+
+    #[test]
+    fn diary_link_should_support_text_descriptions() {
+        let link = Link::new_diary_link(
+            NaiveDate::from_ymd(2021, 6, 17),
+            Description::from("text description"),
+            None,
+        );
+        let mut f = VimwikiFormatter::default();
+        link.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "[[2021-06-17|text description]]");
+    }
+
+    #[test]
+    fn diary_link_should_support_transclusion_descriptions() {
+        let link = Link::new_diary_link(
+            NaiveDate::from_ymd(2021, 6, 17),
+            Description::try_from_uri_ref_str("https://example.com/img.png")
+                .unwrap(),
+            None,
+        );
+        let mut f = VimwikiFormatter::default();
+        link.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            "[[2021-06-17|{{https://example.com/img.png}}]]"
+        );
+    }
+
+    #[test]
+    fn diary_link_should_support_anchors() {
+        let link = Link::new_diary_link(
+            NaiveDate::from_ymd(2021, 6, 17),
+            None,
+            Anchor::from_uri_fragment("#one#two#three").unwrap(),
+        );
+        let mut f = VimwikiFormatter::default();
+        link.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "[[2021-06-17#one#two#three]]");
+    }
+
+    #[test]
+    fn diary_link_should_support_anchors_and_descriptions_together() {
+        let link = Link::new_diary_link(
+            NaiveDate::from_ymd(2021, 6, 17),
+            Description::from("text description"),
+            Anchor::from_uri_fragment("#one#two#three").unwrap(),
+        );
+        let mut f = VimwikiFormatter::default();
+        link.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            "[[2021-06-17#one#two#three|text description]]"
+        );
+    }
+
+    #[test]
+    fn raw_link_should_output_vimwiki() {
+        let link = Link::try_new_raw_link("https://example.com/");
+        let mut f = VimwikiFormatter::default();
+        link.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "https://example.com/");
+    }
+
+    #[test]
+    fn transclusion_link_should_output_vimwiki() {
+        let link = Link::new_transclusion_link(
+            URIReference::try_from("some/img.png").unwrap(),
+            None,
+            None,
+        );
+        let mut f = VimwikiFormatter::default();
+        link.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "{{some/img.png}}");
+    }
+
+    #[test]
+    fn transclusion_link_should_output_with_uri_percent_decoded() {
+        let link = Link::new_transclusion_link(
+            URIReference::try_from("some/img%20with%20spaces.png").unwrap(),
+            None,
+            None,
+        );
+        let mut f = VimwikiFormatter::default();
+        link.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "{{some/img with spaces.png}}");
+    }
+
+    #[test]
+    fn transclusion_link_should_support_text_descriptions() {
+        let link = Link::new_transclusion_link(
+            URIReference::try_from("some/img.png").unwrap(),
+            Some(Description::from("text description")),
+            None,
+        );
+        let mut f = VimwikiFormatter::default();
+        link.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "{{some/img.png|text description}}");
+    }
+
+    #[test]
+    fn transclusion_link_should_support_transclusion_descriptions() {
+        let link = Link::new_transclusion_link(
+            URIReference::try_from("some/img.png").unwrap(),
+            Some(
+                Description::try_from_uri_ref_str(
+                    "https://example.com/img.png",
+                )
+                .unwrap(),
+            ),
+            None,
+        );
+        let mut f = VimwikiFormatter::default();
+        link.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            "{{some/img.png|{{https://example.com/img.png}}}}"
+        );
+    }
+
+    #[test]
+    fn transclusion_link_should_support_properties() {
+        let link = Link::new_transclusion_link(
+            URIReference::try_from("some/img.png").unwrap(),
+            None,
+            [(Cow::Borrowed("key"), Cow::Borrowed("value"))]
+                .into_iter()
+                .collect::<HashMap<Cow<str>, Cow<str>>>(),
+        );
+        let mut f = VimwikiFormatter::default();
+        link.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "{{some/img.png||key=\"value\"}}");
+    }
+
+    #[test]
+    fn transclusion_link_should_support_description_properties() {
+        let link = Link::new_transclusion_link(
+            URIReference::try_from("some/img.png").unwrap(),
+            Description::from("text description"),
+            [(Cow::Borrowed("key"), Cow::Borrowed("value"))]
+                .into_iter()
+                .collect::<HashMap<Cow<str>, Cow<str>>>(),
+        );
+        let mut f = VimwikiFormatter::default();
+        link.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            "{{some/img.png|text description|key=\"value\"}}"
+        );
+    }
+
+    #[test]
+    fn tags_should_output_vimwiki() {
         let tags: Tags = vec!["one", "two"].into_iter().collect();
         let mut f = VimwikiFormatter::default();
         tags.fmt(&mut f).unwrap();
 
-        assert_eq!(
-            f.get_content(),
-            [
-                r#"<span class="tag" id="one">one</span>"#,
-                r#"<span class="tag" id="two">two</span>"#,
-            ]
-            .join("")
-        );
+        assert_eq!(f.get_content(), ":one:two:");
     }
 
     #[test]
-    fn tags_should_include_extra_span_with_id_comprised_of_previous_headers() {
-        let tags: Tags = vec!["one", "two"].into_iter().collect();
-        let mut f = VimwikiFormatter::default();
-        f.insert_header_text(1, "first-id");
-        f.insert_header_text(3, "third-id");
-
-        tags.fmt(&mut f).unwrap();
-
-        assert_eq!(f.get_content(), [
-            r#"<span id="first-id-third-id-one"></span><span class="tag" id="one">one</span>"#,
-            r#"<span id="first-id-third-id-two"></span><span class="tag" id="two">two</span>"#,
-        ].join(""));
-    }
-
-    #[test]
-    fn tags_should_escape_vimwiki() {
-        let tags: Tags = vec!["one&", "two>"].into_iter().collect();
+    fn tags_should_output_single_tag() {
+        let tags: Tags = vec!["one"].into_iter().collect();
         let mut f = VimwikiFormatter::default();
         tags.fmt(&mut f).unwrap();
 
-        assert_eq!(
-            f.get_content(),
-            [
-                r#"<span class="tag" id="one&amp;">one&amp;</span>"#,
-                r#"<span class="tag" id="two&gt;">two&gt;</span>"#,
-            ]
-            .join("")
-        );
+        assert_eq!(f.get_content(), ":one:");
     }
 
     #[test]
-    fn tags_should_produce_unique_ids_from_repeated_same_tags() {
-        let tags1: Tags = vec!["one", "two"].into_iter().collect();
-        let tags2: Tags = vec!["one", "two"].into_iter().collect();
-
-        let mut f = VimwikiFormatter::default();
-        tags1.fmt(&mut f).unwrap();
-        tags2.fmt(&mut f).unwrap();
-
-        assert_eq!(
-            f.get_content(),
-            [
-                r#"<span class="tag" id="one">one</span>"#,
-                r#"<span class="tag" id="two">two</span>"#,
-                r#"<span class="tag" id="one-1">one</span>"#,
-                r#"<span class="tag" id="two-1">two</span>"#,
-            ]
-            .join("")
-        );
-    }
-
-    #[test]
-    fn tags_should_produce_unique_ids_from_repeated_same_tags_with_nested_headers(
-    ) {
-        let tags1: Tags = vec!["one", "two"].into_iter().collect();
-        let tags2: Tags = vec!["one", "two"].into_iter().collect();
-        let tags3: Tags = vec!["one", "two"].into_iter().collect();
-
-        let mut f = VimwikiFormatter::default();
-        f.insert_header_text(1, "a");
-        f.insert_header_text(2, "b");
-        tags1.fmt(&mut f).unwrap();
-        tags2.fmt(&mut f).unwrap();
-
-        f.insert_header_text(2, "c");
-        tags3.fmt(&mut f).unwrap();
-
-        assert_eq!(
-            f.get_content(),
-            [
-                r#"<span id="a-b-one"></span><span class="tag" id="one">one</span>"#,
-                r#"<span id="a-b-two"></span><span class="tag" id="two">two</span>"#,
-                r#"<span id="a-b-one-1"></span><span class="tag" id="one-1">one</span>"#,
-                r#"<span id="a-b-two-1"></span><span class="tag" id="two-1">two</span>"#,
-                r#"<span id="a-c-one"></span><span class="tag" id="one-2">one</span>"#,
-                r#"<span id="a-c-two"></span><span class="tag" id="two-2">two</span>"#,
-            ]
-            .join("")
-        );
-    }
-
-    #[test]
-    fn code_inline_should_output_code_tag() {
+    fn code_inline_should_output_vimwiki() {
         let code_inline = CodeInline::from("some code");
         let mut f = VimwikiFormatter::default();
         code_inline.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "<code>some code</code>");
+        assert_eq!(f.get_content(), "`some code`");
     }
 
     #[test]
-    fn code_inline_should_escape_vimwiki() {
-        let code_inline = CodeInline::from("<test>some code</test>");
-        let mut f = VimwikiFormatter::default();
-        code_inline.fmt(&mut f).unwrap();
-
-        assert_eq!(
-            f.get_content(),
-            "<code>&lt;test&gt;some code&lt;/test&gt;</code>"
-        );
-    }
-
-    #[test]
-    fn math_inline_should_output_a_mathjax_notation() {
+    fn math_inline_should_output_vimwiki() {
         let math_inline = MathInline::from("some math");
         let mut f = VimwikiFormatter::default();
         math_inline.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), r"\(some math\)");
+        assert_eq!(f.get_content(), "$some math$");
     }
 
     #[test]
-    fn math_inline_should_escape_vimwiki() {
-        let math_inline = MathInline::from("<test>some math</test>");
-        let mut f = VimwikiFormatter::default();
-        math_inline.fmt(&mut f).unwrap();
-
-        assert_eq!(f.get_content(), r"\(&lt;test&gt;some math&lt;/test&gt;\)");
-    }
-
-    #[test]
-    fn comment_should_output_tag_based_on_inner_element() {
-        let comment = Comment::from(LineComment::from("some comment"));
-        let mut f = VimwikiFormatter::new(VimwikiConfig {
-            comment: VimwikiCommentConfig { include: true },
-            ..Default::default()
-        });
-        comment.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "<!-- some comment -->");
-
-        let comment = Comment::from(MultiLineComment::new(vec![
-            Cow::Borrowed("some comment"),
-            Cow::Borrowed("on multiple lines"),
-        ]));
-        let mut f = VimwikiFormatter::new(VimwikiConfig {
-            comment: VimwikiCommentConfig { include: true },
-            ..Default::default()
-        });
-        comment.fmt(&mut f).unwrap();
-        assert_eq!(
-            f.get_content(),
-            "<!--\nsome comment\non multiple lines\n-->"
-        );
-    }
-
-    #[test]
-    fn line_comment_should_output_vimwiki_comment_if_flagged() {
+    fn line_comment_should_output_vimwiki() {
         let comment = LineComment::from("some comment");
-
-        // By default, no comment will be output
         let mut f = VimwikiFormatter::default();
         comment.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "");
 
-        // If configured to output comments, should use vimwiki syntax
-        let mut f = VimwikiFormatter::new(VimwikiConfig {
-            comment: VimwikiCommentConfig { include: true },
-            ..Default::default()
-        });
-        comment.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "<!-- some comment -->");
+        assert_eq!(f.get_content(), "%%some comment");
     }
 
     #[test]
-    fn multi_line_comment_should_output_vimwiki_comment_if_flagged() {
-        let comment = MultiLineComment::new(vec![
-            Cow::Borrowed("some comment"),
-            Cow::Borrowed("on multiple lines"),
-        ]);
-
-        // By default, no comment will be output
+    fn multi_line_comment_should_output_vimwiki() {
+        let comment = MultiLineComment::from("some single line comment");
         let mut f = VimwikiFormatter::default();
         comment.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "");
 
-        // If configured to output comments, should use vimwiki syntax
-        let mut f = VimwikiFormatter::new(VimwikiConfig {
-            comment: VimwikiCommentConfig { include: true },
-            ..Default::default()
-        });
+        assert_eq!(f.get_content(), "%%+some single line comment+%%");
+    }
+
+    #[test]
+    fn multi_line_comment_should_support_multiple_lines() {
+        let comment: MultiLineComment =
+            ["line one", "line two"].into_iter().collect();
+        let mut f = VimwikiFormatter::default();
         comment.fmt(&mut f).unwrap();
-        assert_eq!(
-            f.get_content(),
-            "<!--\nsome comment\non multiple lines\n-->"
-        );
+
+        assert_eq!(f.get_content(), "%%+line one\nline two+%%");
     }
 }
