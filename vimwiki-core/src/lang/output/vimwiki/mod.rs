@@ -14,7 +14,6 @@ use crate::lang::{
     elements::*,
     output::{Output, OutputFormatter},
 };
-use percent_encoding::percent_decode_str;
 use std::{collections::HashMap, fmt::Write};
 
 impl<'a> Output<VimwikiFormatter> for Page<'a> {
@@ -85,9 +84,12 @@ impl<'a> Output<VimwikiFormatter> for Blockquote<'a> {
             }
 
             if trim_lines {
-                f.and_trim(|f| line.fmt(f))?;
+                f.and_trim(|f| {
+                    write!(f, "{}", line)?;
+                    Ok(())
+                })?;
             } else {
-                line.fmt(f)?;
+                write!(f, "{}", line)?;
             }
             writeln!(f)?;
         }
@@ -112,11 +114,14 @@ impl<'a> Output<VimwikiFormatter> for DefinitionList<'a> {
             }
             write!(f, "::")?;
 
+            if term_on_line_by_itself || defs.is_empty() {
+                writeln!(f)?;
+            }
+
             for (idx, def) in defs.iter().enumerate() {
                 if idx == 0 && !term_on_line_by_itself {
                     write!(f, " ")?;
                 } else {
-                    writeln!(f);
                     f.write_indent()?;
                     write!(f, ":: ")?;
                 }
@@ -156,7 +161,7 @@ impl<'a> Output<VimwikiFormatter> for Header<'a> {
         // If centered, we have to indent by some amount
         // TODO: Support configuring spaces for centered header
         if self.centered {
-            f.write_indent()?;
+            write!(f, "    ")?;
         }
 
         // Beginning portion of header
@@ -186,6 +191,9 @@ impl<'a> Output<VimwikiFormatter> for Header<'a> {
             write!(f, "=")?;
         }
 
+        // Header is on line by itself
+        writeln!(f)?;
+
         Ok(())
     }
 }
@@ -202,16 +210,49 @@ impl<'a> Output<VimwikiFormatter> for List<'a> {
 
 impl<'a> Output<VimwikiFormatter> for ListItem<'a> {
     fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
-        let VimwikiListConfig { trim_lines } = f.config().list;
+        let VimwikiListConfig { trim_lines, todo } = f.config().list;
+        let VimwikiTodoListItemConfig {
+            incomplete_char,
+            partially_complete_1_char,
+            partially_complete_2_char,
+            partially_complete_3_char,
+            complete_char,
+            rejected_char,
+        } = todo;
 
         for (idx, content) in self.contents.iter().enumerate() {
             // Apply indentation to place list item at right starting location
             f.write_indent()?;
 
             // If first line of content, write the prefix such as 1. or -
-            // alongside content
+            // as well as the todo status
             if idx == 0 {
                 write!(f, "{} ", self.to_prefix())?;
+
+                if let Some(todo_status) =
+                    self.attributes.todo_status.as_ref().copied()
+                {
+                    match todo_status {
+                        ListItemTodoStatus::Incomplete => {
+                            write!(f, "[{}] ", incomplete_char)?
+                        }
+                        ListItemTodoStatus::PartiallyComplete1 => {
+                            write!(f, "[{}] ", partially_complete_1_char)?
+                        }
+                        ListItemTodoStatus::PartiallyComplete2 => {
+                            write!(f, "[{}] ", partially_complete_2_char)?
+                        }
+                        ListItemTodoStatus::PartiallyComplete3 => {
+                            write!(f, "[{}] ", partially_complete_3_char)?
+                        }
+                        ListItemTodoStatus::Complete => {
+                            write!(f, "[{}] ", complete_char)?
+                        }
+                        ListItemTodoStatus::Rejected => {
+                            write!(f, "[{}] ", rejected_char)?
+                        }
+                    }
+                }
             }
 
             // Write line(s) at proper indentation level with trim if specified
@@ -220,6 +261,9 @@ impl<'a> Output<VimwikiFormatter> for ListItem<'a> {
             } else {
                 f.and_indent(|f| content.fmt(f))?;
             }
+
+            // End list item line
+            writeln!(f)?;
         }
 
         Ok(())
@@ -245,6 +289,7 @@ impl<'a> Output<VimwikiFormatter> for MathBlock<'a> {
             f,
             "{{{{${}",
             self.environment
+                .as_ref()
                 .map(|e| format!("%{}%", e))
                 .unwrap_or_default()
         )?;
@@ -296,7 +341,7 @@ impl<'a> Output<VimwikiFormatter> for CodeBlock<'a> {
             write!(f, "{}=\"{}\"", key, value)?;
         }
 
-        writeln!(f);
+        writeln!(f)?;
 
         // Second, write all lines within code block
         for line in self {
@@ -315,9 +360,10 @@ impl<'a> Output<VimwikiFormatter> for CodeBlock<'a> {
 impl<'a> Output<VimwikiFormatter> for Paragraph<'a> {
     fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
         let VimwikiParagraphConfig {
-            line_wrap_column,
-            no_line_wrap,
+            // line_wrap_column,
+            // no_line_wrap,
             trim_lines,
+            ..
         } = f.config().paragraph;
 
         // TODO: Need to handle inline element container directly rather than
@@ -347,31 +393,36 @@ impl<'a> Output<VimwikiFormatter> for Table<'a> {
 
         // First, we calculate the output for each content/span cell so we can
         // figure out how big each column's largest cell will be
-        let fixed_size_cells: HashMap<CellPos, String> = self
+        let fixed_size_cells = self
             .cells()
             .zip_with_position()
-            .filter_map(|(pos, cell)| match cell {
+            .filter_map(|(pos, cell)| match cell.as_inner() {
                 Cell::Content(x) => Some({
                     // Create a copy of our formatter without the content so we can
                     // write the content fresh and pass it back as a string
                     let mut formatter = f.clone_without_content();
-                    x.fmt(&mut formatter)?;
-                    formatter.into_content()
+                    x.fmt(&mut formatter)
+                        .map(|_| (pos, formatter.into_content()))
                 }),
-                Cell::Span(CellSpan::FromLeft) => Some(">"),
-                Cell::Span(CellSpan::FromAbove) => Some(r"\/"),
+                Cell::Span(CellSpan::FromLeft) => {
+                    Some(Ok((pos, String::from(">"))))
+                }
+                Cell::Span(CellSpan::FromAbove) => {
+                    Some(Ok((pos, String::from(r"\/"))))
+                }
                 _ => None,
             })
-            .collect();
+            .collect::<Result<HashMap<CellPos, String>, VimwikiOutputError>>(
+            )?;
 
         // Second, we calculate largest cell in each column (col -> max size)
         let max_column_sizes: HashMap<usize, usize> = fixed_size_cells
             .iter()
-            .fold(HashMap::new(), |(mut acc, (pos, text))| {
+            .fold(HashMap::new(), |mut acc, (pos, text)| {
                 let col = pos.col;
                 let new_size = text.len();
                 let cur_size = acc.entry(col).or_insert(new_size);
-                if new_size > cur_size {
+                if new_size > *cur_size {
                     acc.insert(col, new_size);
                 }
                 acc
@@ -385,7 +436,7 @@ impl<'a> Output<VimwikiFormatter> for Table<'a> {
                 // Get the max size, using 0 if nothing with a fixed size is
                 // in the column
                 let mut max_size =
-                    max_column_sizes.get(col).unwrap_or_default();
+                    max_column_sizes.get(&col).copied().unwrap_or_default();
 
                 // If adding padding on each size, adjust the max cell size
                 if !no_padding {
@@ -393,7 +444,8 @@ impl<'a> Output<VimwikiFormatter> for Table<'a> {
                 }
 
                 // If we have fixed content, write it with optional padding
-                if let Some(text) = fixed_size_cells.get(CellPos { row, col }) {
+                if let Some(text) = fixed_size_cells.get(&CellPos { row, col })
+                {
                     if !no_padding {
                         write!(f, " ")?;
                     }
@@ -405,17 +457,17 @@ impl<'a> Output<VimwikiFormatter> for Table<'a> {
 
                 // Otherwise, we have some form of divider and want to write it
                 } else {
-                    match self.get_cell(row, col) {
-                        Cell::Align(ColumnAlign::None) => {
+                    match self.get_cell(row, col).map(|x| x.as_inner()) {
+                        Some(Cell::Align(ColumnAlign::None)) => {
                             write!(f, "{}", "-".repeat(max_size))?
                         }
-                        Cell::Align(ColumnAlign::Left) => {
+                        Some(Cell::Align(ColumnAlign::Left)) => {
                             write!(f, ":{}", "-".repeat(max_size - 1))?
                         }
-                        Cell::Align(ColumnAlign::Center) => {
+                        Some(Cell::Align(ColumnAlign::Center)) => {
                             write!(f, ":{}:", "-".repeat(max_size - 2))?
                         }
-                        Cell::Align(ColumnAlign::Right) => {
+                        Some(Cell::Align(ColumnAlign::Right)) => {
                             write!(f, "{}:", "-".repeat(max_size - 1))?
                         }
                         _ => write!(f, "{}", " ".repeat(max_size))?,
@@ -530,27 +582,42 @@ impl<'a> Output<VimwikiFormatter> for Link<'a> {
         match self {
             Self::Wiki { data } => {
                 write!(f, "[[")?;
-                write!(f, "{}", percent_decode_str(data.uri_ref()))?;
-                if let Some(desc) = data.description() {
-                    write!(f, "|{}", desc)?;
+                write!(f, "{}", data.to_decoded_uri_string())?;
+                match data.description.as_ref() {
+                    Some(Description::Text(x)) => write!(f, "|{}", x)?,
+                    Some(Description::TransclusionLink(x)) => {
+                        write!(f, "|")?;
+                        Link::Transclusion { data: *x.clone() }.fmt(f)?;
+                    }
+                    _ => {}
                 }
                 write!(f, "]]")?;
             }
             Self::IndexedInterWiki { index, data } => {
                 write!(f, "[[")?;
                 write!(f, "wiki{}:", index)?;
-                write!(f, "{}", percent_decode_str(data.uri_ref()))?;
-                if let Some(desc) = data.description() {
-                    write!(f, "|{}", desc)?;
+                write!(f, "{}", data.to_decoded_uri_string())?;
+                match data.description.as_ref() {
+                    Some(Description::Text(x)) => write!(f, "|{}", x)?,
+                    Some(Description::TransclusionLink(x)) => {
+                        write!(f, "|")?;
+                        Link::Transclusion { data: *x.clone() }.fmt(f)?;
+                    }
+                    _ => {}
                 }
                 write!(f, "]]")?;
             }
             Self::NamedInterWiki { name, data } => {
                 write!(f, "[[")?;
                 write!(f, "wn.{}:", name)?;
-                write!(f, "{}", percent_decode_str(data.uri_ref()))?;
-                if let Some(desc) = data.description() {
-                    write!(f, "|{}", desc)?;
+                write!(f, "{}", data.to_decoded_uri_string())?;
+                match data.description.as_ref() {
+                    Some(Description::Text(x)) => write!(f, "|{}", x)?,
+                    Some(Description::TransclusionLink(x)) => {
+                        write!(f, "|")?;
+                        Link::Transclusion { data: *x.clone() }.fmt(f)?;
+                    }
+                    _ => {}
                 }
                 write!(f, "]]")?;
             }
@@ -560,24 +627,34 @@ impl<'a> Output<VimwikiFormatter> for Link<'a> {
                 if let Some(anchor) = data.to_anchor() {
                     write!(f, "{}", anchor)?;
                 }
-                if let Some(desc) = data.description() {
-                    write!(f, "|{}", desc)?;
+                match data.description.as_ref() {
+                    Some(Description::Text(x)) => write!(f, "|{}", x)?,
+                    Some(Description::TransclusionLink(x)) => {
+                        write!(f, "|")?;
+                        Link::Transclusion { data: *x.clone() }.fmt(f)?;
+                    }
+                    _ => {}
                 }
                 write!(f, "]]")?;
             }
             Self::Raw { data } => {
-                write!(f, "{}", data.uri_ref())?;
+                write!(f, "{}", data.uri_ref.to_string())?;
             }
             Self::Transclusion { data } => {
                 write!(f, "{{{{")?;
-                write!(f, "{}", percent_decode_str(data.uri_ref()))?;
-                if let Some(desc) = data.description() {
-                    write!(f, "|{}", desc)?;
+                write!(f, "{}", data.to_decoded_uri_string())?;
+                match data.description.as_ref() {
+                    Some(Description::Text(x)) => write!(f, "|{}", x)?,
+                    Some(Description::TransclusionLink(x)) => {
+                        write!(f, "|")?;
+                        Link::Transclusion { data: *x.clone() }.fmt(f)?;
+                    }
+                    _ => {}
                 }
-                if let Some(properties) = data.properties() {
+                if let Some(properties) = data.properties.as_ref() {
                     // Transclusion requires a description prior to properties,
                     // so we make sure there is one, even if empty
-                    if data.description().is_none() {
+                    if data.description.is_none() {
                         write!(f, "|")?;
                     }
 
@@ -652,13 +729,14 @@ mod tests {
     use super::*;
     use chrono::NaiveDate;
     use indoc::indoc;
-    use std::{
-        borrow::Cow,
-        collections::HashMap,
-        convert::TryFrom,
-        path::{Path, PathBuf},
-    };
+    use std::{borrow::Cow, collections::HashMap, convert::TryFrom};
     use uriparse::URIReference;
+
+    fn text_to_inline_element_container(s: &str) -> InlineElementContainer {
+        InlineElementContainer::new(vec![Located::from(InlineElement::Text(
+            Text::from(s),
+        ))])
+    }
 
     #[test]
     fn blockquote_should_default_to_arrow_style() {
@@ -762,7 +840,7 @@ mod tests {
         ]);
         let mut f = VimwikiFormatter::new(VimwikiConfig {
             blockquote: VimwikiBlockquoteConfig {
-                trim_lines: true,
+                trim_lines: false,
                 ..Default::default()
             },
             ..Default::default()
@@ -780,18 +858,26 @@ mod tests {
 
     #[test]
     fn blockquote_should_support_indentation() {
-        todo!();
+        let blockquote = Blockquote::new(vec![
+            Cow::from("some lines"),
+            Cow::from("of text"),
+        ]);
+        let mut f = VimwikiFormatter::default();
+        f.and_indent(|f| blockquote.fmt(f)).unwrap();
+
+        assert_eq!(f.get_content(), "    > some lines\n    > of text\n");
     }
 
-    fn build_def_list<I: IntoIterator<D>, D: Into<DefinitionListValue>>(
-        term: &str,
-        defs: I,
+    fn build_def_list<'a, D: Into<DefinitionListValue<'a>>>(
+        term: &'a str,
+        defs: Vec<D>,
     ) -> DefinitionList {
         vec![(
-            term,
+            Located::from(DefinitionListValue::from(term)),
             defs.into_iter()
                 .map(Into::into)
-                .collect::<Vec<DefinitionListValue>>(),
+                .map(Located::from)
+                .collect::<Vec<Located<DefinitionListValue>>>(),
         )]
         .into_iter()
         .collect()
@@ -801,19 +887,19 @@ mod tests {
     fn definition_list_should_place_first_definition_on_same_line_as_term_by_default(
     ) {
         // Test no definitions
-        let list = build_def_list("term1", []);
+        let list = build_def_list::<&str>("term1", Vec::new());
         let mut f = VimwikiFormatter::default();
         list.fmt(&mut f).unwrap();
         assert_eq!(f.get_content(), "term1::\n");
 
         // Test single definition
-        let list = build_def_list("term1", ["def1"]);
+        let list = build_def_list("term1", vec!["def1"]);
         let mut f = VimwikiFormatter::default();
         list.fmt(&mut f).unwrap();
         assert_eq!(f.get_content(), "term1:: def1\n");
 
         // Test multiple definitions
-        let list = build_def_list("term1", ["def1", "def2"]);
+        let list = build_def_list("term1", vec!["def1", "def2"]);
         let mut f = VimwikiFormatter::default();
         list.fmt(&mut f).unwrap();
         assert_eq!(f.get_content(), "term1:: def1\n:: def2\n");
@@ -822,19 +908,19 @@ mod tests {
     #[test]
     fn definition_list_should_trim_terms_by_default() {
         // Test no definitions
-        let list = build_def_list(" \rterm1\t ", []);
+        let list = build_def_list::<&str>(" \rterm1\t ", vec![]);
         let mut f = VimwikiFormatter::default();
         list.fmt(&mut f).unwrap();
         assert_eq!(f.get_content(), "term1::\n");
 
         // Test single definition
-        let list = build_def_list(" \rterm1\t ", ["def1"]);
+        let list = build_def_list(" \rterm1\t ", vec!["def1"]);
         let mut f = VimwikiFormatter::default();
         list.fmt(&mut f).unwrap();
         assert_eq!(f.get_content(), "term1:: def1\n");
 
         // Test multiple definitions
-        let list = build_def_list(" \rterm1\t ", ["def1", "def2"]);
+        let list = build_def_list(" \rterm1\t ", vec!["def1", "def2"]);
         let mut f = VimwikiFormatter::default();
         list.fmt(&mut f).unwrap();
         assert_eq!(f.get_content(), "term1:: def1\n:: def2\n");
@@ -843,13 +929,13 @@ mod tests {
     #[test]
     fn definition_list_should_trim_definitions_by_default() {
         // Test single definition
-        let list = build_def_list("term1", [" \rdef1\t "]);
+        let list = build_def_list("term1", vec![" \rdef1\t "]);
         let mut f = VimwikiFormatter::default();
         list.fmt(&mut f).unwrap();
         assert_eq!(f.get_content(), "term1:: def1\n");
 
         // Test multiple definitions
-        let list = build_def_list("term1", [" \rdef1\t ", " \rdef2\t "]);
+        let list = build_def_list("term1", vec![" \rdef1\t ", " \rdef2\t "]);
         let mut f = VimwikiFormatter::default();
         list.fmt(&mut f).unwrap();
         assert_eq!(f.get_content(), "term1:: def1\n:: def2\n");
@@ -867,19 +953,19 @@ mod tests {
         };
 
         // Test no definitions
-        let list = build_def_list("term1", []);
+        let list = build_def_list::<&str>("term1", vec![]);
         let mut f = VimwikiFormatter::new(config.clone());
         list.fmt(&mut f).unwrap();
         assert_eq!(f.get_content(), "term1::\n");
 
         // Test single definition
-        let list = build_def_list("term1", ["def1"]);
+        let list = build_def_list("term1", vec!["def1"]);
         let mut f = VimwikiFormatter::new(config.clone());
         list.fmt(&mut f).unwrap();
         assert_eq!(f.get_content(), "term1:: def1\n");
 
         // Test multiple definitions
-        let list = build_def_list("term1", ["def1", "def2"]);
+        let list = build_def_list("term1", vec!["def1", "def2"]);
         let mut f = VimwikiFormatter::new(config.clone());
         list.fmt(&mut f).unwrap();
         assert_eq!(f.get_content(), "term1:: def1\n:: def2\n");
@@ -897,19 +983,19 @@ mod tests {
         };
 
         // Test no definitions
-        let list = build_def_list("term1", []);
+        let list = build_def_list::<&str>("term1", vec![]);
         let mut f = VimwikiFormatter::new(config.clone());
         list.fmt(&mut f).unwrap();
         assert_eq!(f.get_content(), "term1::\n");
 
         // Test single definition
-        let list = build_def_list("term1", ["def1"]);
+        let list = build_def_list("term1", vec!["def1"]);
         let mut f = VimwikiFormatter::new(config.clone());
         list.fmt(&mut f).unwrap();
         assert_eq!(f.get_content(), "term1::\n:: def1\n");
 
         // Test multiple definitions
-        let list = build_def_list("term1", ["def1", "def2"]);
+        let list = build_def_list("term1", vec!["def1", "def2"]);
         let mut f = VimwikiFormatter::new(config.clone());
         list.fmt(&mut f).unwrap();
         assert_eq!(f.get_content(), "term1::\n:: def1\n:: def2\n");
@@ -926,20 +1012,20 @@ mod tests {
         };
 
         // Test no definitions
-        let list = build_def_list(" \rterm1\t ", []);
-        let mut f = VimwikiFormatter::default();
+        let list = build_def_list::<&str>(" \rterm1\t ", vec![]);
+        let mut f = VimwikiFormatter::new(config.clone());
         list.fmt(&mut f).unwrap();
         assert_eq!(f.get_content(), "term1::\n");
 
         // Test single definition
-        let list = build_def_list(" \rterm1\t ", ["def1"]);
-        let mut f = VimwikiFormatter::default();
+        let list = build_def_list(" \rterm1\t ", vec!["def1"]);
+        let mut f = VimwikiFormatter::new(config.clone());
         list.fmt(&mut f).unwrap();
         assert_eq!(f.get_content(), "term1:: def1\n");
 
         // Test multiple definitions
-        let list = build_def_list(" \rterm1\t ", ["def1", "def2"]);
-        let mut f = VimwikiFormatter::default();
+        let list = build_def_list(" \rterm1\t ", vec!["def1", "def2"]);
+        let mut f = VimwikiFormatter::new(config);
         list.fmt(&mut f).unwrap();
         assert_eq!(f.get_content(), "term1:: def1\n:: def2\n");
     }
@@ -955,20 +1041,20 @@ mod tests {
         };
 
         // Test no definitions
-        let list = build_def_list(" \rterm1\t ", []);
-        let mut f = VimwikiFormatter::default();
+        let list = build_def_list::<&str>(" \rterm1\t ", vec![]);
+        let mut f = VimwikiFormatter::new(config.clone());
         list.fmt(&mut f).unwrap();
         assert_eq!(f.get_content(), " \rterm1\t ::\n");
 
         // Test single definition
-        let list = build_def_list(" \rterm1\t ", ["def1"]);
-        let mut f = VimwikiFormatter::default();
+        let list = build_def_list(" \rterm1\t ", vec!["def1"]);
+        let mut f = VimwikiFormatter::new(config.clone());
         list.fmt(&mut f).unwrap();
         assert_eq!(f.get_content(), " \rterm1\t :: def1\n");
 
         // Test multiple definitions
-        let list = build_def_list(" \rterm1\t ", ["def1", "def2"]);
-        let mut f = VimwikiFormatter::default();
+        let list = build_def_list(" \rterm1\t ", vec!["def1", "def2"]);
+        let mut f = VimwikiFormatter::new(config);
         list.fmt(&mut f).unwrap();
         assert_eq!(f.get_content(), " \rterm1\t :: def1\n:: def2\n");
     }
@@ -984,14 +1070,14 @@ mod tests {
         };
 
         // Test single definition
-        let list = build_def_list("term1", [" \rdef1\t "]);
-        let mut f = VimwikiFormatter::default();
+        let list = build_def_list("term1", vec![" \rdef1\t "]);
+        let mut f = VimwikiFormatter::new(config.clone());
         list.fmt(&mut f).unwrap();
         assert_eq!(f.get_content(), "term1:: def1\n");
 
         // Test multiple definitions
-        let list = build_def_list("term1", [" \rdef1\t ", " \rdef2\t "]);
-        let mut f = VimwikiFormatter::default();
+        let list = build_def_list("term1", vec![" \rdef1\t ", " \rdef2\t "]);
+        let mut f = VimwikiFormatter::new(config);
         list.fmt(&mut f).unwrap();
         assert_eq!(f.get_content(), "term1:: def1\n:: def2\n");
     }
@@ -1007,21 +1093,37 @@ mod tests {
         };
 
         // Test single definition
-        let list = build_def_list("term1", [" \rdef1\t "]);
-        let mut f = VimwikiFormatter::default();
+        let list = build_def_list("term1", vec![" \rdef1\t "]);
+        let mut f = VimwikiFormatter::new(config.clone());
         list.fmt(&mut f).unwrap();
         assert_eq!(f.get_content(), "term1::  \rdef1\t \n");
 
         // Test multiple definitions
-        let list = build_def_list("term1", [" \rdef1\t ", " \rdef2\t "]);
-        let mut f = VimwikiFormatter::default();
+        let list = build_def_list("term1", vec![" \rdef1\t ", " \rdef2\t "]);
+        let mut f = VimwikiFormatter::new(config);
         list.fmt(&mut f).unwrap();
         assert_eq!(f.get_content(), "term1::  \rdef1\t \n::  \rdef2\t \n");
     }
 
     #[test]
     fn definition_list_should_support_indentation() {
-        todo!();
+        // Test no definitions
+        let list = build_def_list::<&str>("term1", vec![]);
+        let mut f = VimwikiFormatter::default();
+        f.and_indent(|f| list.fmt(f)).unwrap();
+        assert_eq!(f.get_content(), "    term1::\n");
+
+        // Test single definition
+        let list = build_def_list("term1", vec!["def1"]);
+        let mut f = VimwikiFormatter::default();
+        f.and_indent(|f| list.fmt(f)).unwrap();
+        assert_eq!(f.get_content(), "    term1:: def1\n");
+
+        // Test multiple definitions
+        let list = build_def_list("term1", vec!["def1", "def2"]);
+        let mut f = VimwikiFormatter::default();
+        f.and_indent(|f| list.fmt(f)).unwrap();
+        assert_eq!(f.get_content(), "    term1:: def1\n    :: def2\n");
     }
 
     #[test]
@@ -1036,7 +1138,12 @@ mod tests {
 
     #[test]
     fn divider_should_not_support_indentation() {
-        todo!();
+        let divider = Divider;
+
+        let mut f = VimwikiFormatter::default();
+        f.and_indent(|f| divider.fmt(f)).unwrap();
+
+        assert_eq!(f.get_content(), "----\n");
     }
 
     #[test]
@@ -1247,7 +1354,16 @@ mod tests {
 
     #[test]
     fn header_should_not_support_indentation() {
-        todo!();
+        let header = Header::new(
+            text_to_inline_element_container("some header"),
+            1,
+            false,
+        );
+
+        let mut f = VimwikiFormatter::default();
+        f.and_indent(|f| header.fmt(f)).unwrap();
+
+        assert_eq!(f.get_content(), "= some header =\n");
     }
 
     #[test]
@@ -1300,7 +1416,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         list_item.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "- some list item");
+        assert_eq!(f.get_content(), "- some list item\n");
     }
 
     #[test]
@@ -1319,12 +1435,15 @@ mod tests {
             ListItemAttributes::default(),
         );
         let mut f = VimwikiFormatter::new(VimwikiConfig {
-            list: VimwikiListConfig { trim_lines: true },
+            list: VimwikiListConfig {
+                trim_lines: true,
+                ..Default::default()
+            },
             ..Default::default()
         });
         list_item.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "- some list item");
+        assert_eq!(f.get_content(), "- some list item\n");
     }
 
     #[test]
@@ -1343,20 +1462,23 @@ mod tests {
             ListItemAttributes::default(),
         );
         let mut f = VimwikiFormatter::new(VimwikiConfig {
-            list: VimwikiListConfig { trim_lines: false },
+            list: VimwikiListConfig {
+                trim_lines: false,
+                ..Default::default()
+            },
             ..Default::default()
         });
         list_item.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "-  \r\tsome list item \r\t");
+        assert_eq!(f.get_content(), "-  \r\tsome list item \r\t\n");
     }
 
     #[test]
     fn list_item_should_include_prefix_at_beginning() {
-        fn new_list_item<T: Into<ListItemType>>(
+        fn new_list_item<'a, T: Into<ListItemType<'a>>>(
             ty: T,
             suffix: ListItemSuffix,
-        ) -> ListItem {
+        ) -> ListItem<'a> {
             ListItem::new(
                 ty.into(),
                 suffix,
@@ -1374,7 +1496,7 @@ mod tests {
             new_list_item(UnorderedListItemType::Hyphen, ListItemSuffix::None);
         let mut f = VimwikiFormatter::default();
         item.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "- some list item");
+        assert_eq!(f.get_content(), "- some list item\n");
 
         let item = new_list_item(
             UnorderedListItemType::Asterisk,
@@ -1382,7 +1504,7 @@ mod tests {
         );
         let mut f = VimwikiFormatter::default();
         item.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "* some list item");
+        assert_eq!(f.get_content(), "* some list item\n");
 
         let item = new_list_item(
             UnorderedListItemType::Other(Cow::from("xXx")),
@@ -1390,25 +1512,25 @@ mod tests {
         );
         let mut f = VimwikiFormatter::default();
         item.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "xXx some list item");
+        assert_eq!(f.get_content(), "xXx some list item\n");
 
         let item =
             new_list_item(OrderedListItemType::Number, ListItemSuffix::Period);
         let mut f = VimwikiFormatter::default();
         item.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "1. some list item");
+        assert_eq!(f.get_content(), "1. some list item\n");
 
         let item =
             new_list_item(OrderedListItemType::Number, ListItemSuffix::Paren);
         let mut f = VimwikiFormatter::default();
         item.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "1) some list item");
+        assert_eq!(f.get_content(), "1) some list item\n");
 
         let item =
             new_list_item(OrderedListItemType::Pound, ListItemSuffix::None);
         let mut f = VimwikiFormatter::default();
         item.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "# some list item");
+        assert_eq!(f.get_content(), "# some list item\n");
 
         let item = new_list_item(
             OrderedListItemType::LowercaseAlphabet,
@@ -1416,7 +1538,7 @@ mod tests {
         );
         let mut f = VimwikiFormatter::default();
         item.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "a. some list item");
+        assert_eq!(f.get_content(), "a. some list item\n");
 
         let item = new_list_item(
             OrderedListItemType::LowercaseAlphabet,
@@ -1424,7 +1546,7 @@ mod tests {
         );
         let mut f = VimwikiFormatter::default();
         item.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "a) some list item");
+        assert_eq!(f.get_content(), "a) some list item\n");
 
         let item = new_list_item(
             OrderedListItemType::UppercaseAlphabet,
@@ -1432,7 +1554,7 @@ mod tests {
         );
         let mut f = VimwikiFormatter::default();
         item.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "A. some list item");
+        assert_eq!(f.get_content(), "A. some list item\n");
 
         let item = new_list_item(
             OrderedListItemType::UppercaseAlphabet,
@@ -1440,7 +1562,7 @@ mod tests {
         );
         let mut f = VimwikiFormatter::default();
         item.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "A) some list item");
+        assert_eq!(f.get_content(), "A) some list item\n");
 
         let item = new_list_item(
             OrderedListItemType::LowercaseRoman,
@@ -1448,7 +1570,7 @@ mod tests {
         );
         let mut f = VimwikiFormatter::default();
         item.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "i. some list item");
+        assert_eq!(f.get_content(), "i. some list item\n");
 
         let item = new_list_item(
             OrderedListItemType::LowercaseRoman,
@@ -1456,7 +1578,7 @@ mod tests {
         );
         let mut f = VimwikiFormatter::default();
         item.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "i) some list item");
+        assert_eq!(f.get_content(), "i) some list item\n");
 
         let item = new_list_item(
             OrderedListItemType::UppercaseRoman,
@@ -1464,7 +1586,7 @@ mod tests {
         );
         let mut f = VimwikiFormatter::default();
         item.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "I. some list item");
+        assert_eq!(f.get_content(), "I. some list item\n");
 
         let item = new_list_item(
             OrderedListItemType::UppercaseRoman,
@@ -1472,7 +1594,7 @@ mod tests {
         );
         let mut f = VimwikiFormatter::default();
         item.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "I) some list item");
+        assert_eq!(f.get_content(), "I) some list item\n");
     }
 
     #[test]
@@ -1525,7 +1647,22 @@ mod tests {
 
     #[test]
     fn list_item_should_support_indentation() {
-        todo!();
+        let item = ListItem::new(
+            ListItemType::Unordered(UnorderedListItemType::Hyphen),
+            ListItemSuffix::None,
+            0,
+            ListItemContents::new(vec![Located::from(
+                ListItemContent::InlineContent(
+                    text_to_inline_element_container("some list item"),
+                ),
+            )]),
+            ListItemAttributes::default(),
+        );
+
+        let mut f = VimwikiFormatter::default();
+        f.and_indent(|f| item.fmt(f)).unwrap();
+
+        assert_eq!(f.get_content(), "    - some list item\n");
     }
 
     #[test]
@@ -1556,7 +1693,7 @@ mod tests {
     fn math_block_should_support_indentation() {
         let math = MathBlock::from_lines(vec!["some lines", "of math"]);
         let mut f = VimwikiFormatter::default();
-        f.and_indent(|f| math.fmt(&mut f)).unwrap();
+        f.and_indent(|f| math.fmt(f)).unwrap();
 
         assert_eq!(
             f.get_content(),
@@ -1569,7 +1706,7 @@ mod tests {
         let placeholder = Placeholder::title_from_str("test title");
         let mut f = VimwikiFormatter::default();
         placeholder.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "%title test title");
+        assert_eq!(f.get_content(), "%title test title\n");
     }
 
     #[test]
@@ -1577,7 +1714,7 @@ mod tests {
         let placeholder = Placeholder::Date(NaiveDate::from_ymd(2021, 6, 17));
         let mut f = VimwikiFormatter::default();
         placeholder.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "%date 2021-06-17");
+        assert_eq!(f.get_content(), "%date 2021-06-17\n");
     }
 
     #[test]
@@ -1585,7 +1722,7 @@ mod tests {
         let placeholder = Placeholder::template_from_str("test template");
         let mut f = VimwikiFormatter::default();
         placeholder.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "%template test template");
+        assert_eq!(f.get_content(), "%template test template\n");
     }
 
     #[test]
@@ -1593,7 +1730,7 @@ mod tests {
         let placeholder = Placeholder::NoHtml;
         let mut f = VimwikiFormatter::default();
         placeholder.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "%nohtml");
+        assert_eq!(f.get_content(), "%nohtml\n");
     }
 
     #[test]
@@ -1601,12 +1738,15 @@ mod tests {
         let placeholder = Placeholder::other_from_str("name", "value");
         let mut f = VimwikiFormatter::default();
         placeholder.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "%name value");
+        assert_eq!(f.get_content(), "%name value\n");
     }
 
     #[test]
     fn placeholder_should_not_support_indentation() {
-        todo!();
+        let placeholder = Placeholder::title_from_str("test title");
+        let mut f = VimwikiFormatter::default();
+        f.and_indent(|f| placeholder.fmt(f)).unwrap();
+        assert_eq!(f.get_content(), "%title test title\n");
     }
 
     #[test]
@@ -1643,7 +1783,7 @@ mod tests {
             vec![Cow::from("some lines"), Cow::from("of code")],
         );
         let mut f = VimwikiFormatter::default();
-        f.and_indent(|f| code.fmt(&mut f)).unwrap();
+        f.and_indent(|f| code.fmt(f)).unwrap();
 
         assert_eq!(
             f.get_content(),
@@ -1762,13 +1902,13 @@ mod tests {
             text_to_inline_element_container("and more text"),
         ]);
         let mut f = VimwikiFormatter::default();
-        f.and_indent(|f| paragraph.fmt(&mut f)).unwrap();
+        f.and_indent(|f| paragraph.fmt(f)).unwrap();
 
         assert_eq!(f.get_content(), "   some text\n    and more text\n");
     }
 
     #[inline]
-    fn single_column_table(centered: bool) -> Table {
+    fn single_column_table(centered: bool) -> Table<'static> {
         Table::new(
             vec![
                 (
@@ -1946,10 +2086,10 @@ mod tests {
             (Keyword::Xxx, "XXX"),
         ];
 
-        for (keyword, output) in inputs_and_outputs {
+        for (keyword, output) in inputs_and_outputs.into_iter() {
             let mut f = VimwikiFormatter::default();
             keyword.fmt(&mut f).unwrap();
-            assert_eq!(f.get_content(), output);
+            assert_eq!(f.get_content(), *output);
         }
     }
 
@@ -2024,7 +2164,7 @@ mod tests {
 
     #[test]
     fn indexed_interwiki_link_should_output_vimwiki_with_uri_percent_decoded() {
-        let link = Link::new_interwiki_link(
+        let link = Link::new_indexed_interwiki_link(
             123,
             URIReference::try_from("some/page%20with%20spaces").unwrap(),
             None,
@@ -2084,7 +2224,7 @@ mod tests {
 
     #[test]
     fn named_interwiki_link_should_output_vimwiki_with_uri_percent_decoded() {
-        let link = Link::new_interwiki_link(
+        let link = Link::new_named_interwiki_link(
             "my wiki",
             URIReference::try_from("some/page%20with%20spaces").unwrap(),
             None,
@@ -2203,7 +2343,7 @@ mod tests {
 
     #[test]
     fn raw_link_should_output_vimwiki() {
-        let link = Link::try_new_raw_link("https://example.com/");
+        let link = Link::try_new_raw_link("https://example.com/").unwrap();
         let mut f = VimwikiFormatter::default();
         link.fmt(&mut f).unwrap();
 
@@ -2275,7 +2415,7 @@ mod tests {
         let link = Link::new_transclusion_link(
             URIReference::try_from("some/img.png").unwrap(),
             None,
-            [(Cow::Borrowed("key"), Cow::Borrowed("value"))]
+            vec![(Cow::Borrowed("key"), Cow::Borrowed("value"))]
                 .into_iter()
                 .collect::<HashMap<Cow<str>, Cow<str>>>(),
         );
@@ -2290,7 +2430,7 @@ mod tests {
         let link = Link::new_transclusion_link(
             URIReference::try_from("some/img.png").unwrap(),
             Description::from("text description"),
-            [(Cow::Borrowed("key"), Cow::Borrowed("value"))]
+            vec![(Cow::Borrowed("key"), Cow::Borrowed("value"))]
                 .into_iter()
                 .collect::<HashMap<Cow<str>, Cow<str>>>(),
         );
@@ -2360,7 +2500,7 @@ mod tests {
     #[test]
     fn multi_line_comment_should_support_multiple_lines() {
         let comment: MultiLineComment =
-            ["line one", "line two"].into_iter().collect();
+            vec!["line one", "line two"].into_iter().collect();
         let mut f = VimwikiFormatter::default();
         comment.fmt(&mut f).unwrap();
 

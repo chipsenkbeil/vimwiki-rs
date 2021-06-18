@@ -52,6 +52,9 @@ fn tokenize_column_align(
 ) -> TokenStream {
     let root = root_crate();
     match column_align {
+        ColumnAlign::None => {
+            quote! { #root::ColumnAlign::None }
+        }
         ColumnAlign::Left => {
             quote! { #root::ColumnAlign::Left }
         }

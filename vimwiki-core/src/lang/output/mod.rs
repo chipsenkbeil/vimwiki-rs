@@ -4,7 +4,7 @@ mod html;
 pub use html::*;
 
 mod vimwiki;
-pub use vimwiki::*;
+pub use self::vimwiki::*;
 
 use std::{error::Error, fmt};
 

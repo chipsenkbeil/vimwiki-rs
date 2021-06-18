@@ -219,10 +219,10 @@ mod tests {
         check_cell_text_value(cell, " age");
 
         let cell = t.get_cell(1, 0).unwrap().as_inner();
-        assert_eq!(cell, &Cell::Align(ColumnAlign::Left));
+        assert_eq!(cell, &Cell::Align(ColumnAlign::None));
 
         let cell = t.get_cell(1, 1).unwrap().as_inner();
-        assert_eq!(cell, &Cell::Align(ColumnAlign::Left));
+        assert_eq!(cell, &Cell::Align(ColumnAlign::None));
 
         let cell = t.get_cell(2, 0).unwrap().as_inner();
         check_cell_text_value(cell, "abcd");
@@ -329,7 +329,7 @@ mod tests {
         check_cell_text_value(cell, "value1");
 
         let cell = t.get_cell(1, 0).unwrap().as_inner();
-        assert_eq!(cell, &Cell::Align(ColumnAlign::Left));
+        assert_eq!(cell, &Cell::Align(ColumnAlign::None));
     }
 
     #[test]
@@ -353,10 +353,10 @@ mod tests {
         check_cell_text_value(cell, "value2");
 
         let cell = t.get_cell(1, 0).unwrap().as_inner();
-        assert_eq!(cell, &Cell::Align(ColumnAlign::Left));
+        assert_eq!(cell, &Cell::Align(ColumnAlign::None));
 
         let cell = t.get_cell(1, 1).unwrap().as_inner();
-        assert_eq!(cell, &Cell::Align(ColumnAlign::Left));
+        assert_eq!(cell, &Cell::Align(ColumnAlign::None));
     }
 
     #[test]
@@ -377,7 +377,7 @@ mod tests {
         check_cell_text_value(cell, "value1");
 
         let cell = t.get_cell(1, 0).unwrap().as_inner();
-        assert_eq!(cell, &Cell::Align(ColumnAlign::Left));
+        assert_eq!(cell, &Cell::Align(ColumnAlign::None));
 
         let cell = t.get_cell(1, 1).unwrap().as_inner();
         assert_eq!(cell, &Cell::Align(ColumnAlign::Left));

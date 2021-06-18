@@ -178,12 +178,17 @@ pub struct VimwikiListConfig {
     /// If true, will trim all leading and trailing whitespace from each line
     #[serde(default = "VimwikiListConfig::default_trim_lines")]
     pub trim_lines: bool,
+
+    /// Configuration settings that apply specifically to todo list items
+    #[serde(default)]
+    pub todo: VimwikiTodoListItemConfig,
 }
 
 impl Default for VimwikiListConfig {
     fn default() -> Self {
         Self {
             trim_lines: Self::default_trim_lines(),
+            todo: Default::default(),
         }
     }
 }
@@ -192,6 +197,88 @@ impl VimwikiListConfig {
     #[inline]
     pub fn default_trim_lines() -> bool {
         true
+    }
+}
+
+/// Represents configuration options related to todo list items
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+pub struct VimwikiTodoListItemConfig {
+    /// Text to use within [ ] to signify incomplete status
+    #[serde(default = "VimwikiTodoListItemConfig::default_incomplete_char")]
+    pub incomplete_char: char,
+
+    /// Text to use within [ ] to signify partially complete 1 status
+    #[serde(
+        default = "VimwikiTodoListItemConfig::default_partially_complete_1_char"
+    )]
+    pub partially_complete_1_char: char,
+
+    /// Text to use within [ ] to signify partially complete 2 status
+    #[serde(
+        default = "VimwikiTodoListItemConfig::default_partially_complete_2_char"
+    )]
+    pub partially_complete_2_char: char,
+
+    /// Text to use within [ ] to signify partially complete 3 status
+    #[serde(
+        default = "VimwikiTodoListItemConfig::default_partially_complete_3_char"
+    )]
+    pub partially_complete_3_char: char,
+
+    /// Text to use within [ ] to signify complete status
+    #[serde(default = "VimwikiTodoListItemConfig::default_complete_char")]
+    pub complete_char: char,
+
+    /// Text to use within [ ] to signify rejected status
+    #[serde(default = "VimwikiTodoListItemConfig::default_rejected_char")]
+    pub rejected_char: char,
+}
+
+impl Default for VimwikiTodoListItemConfig {
+    fn default() -> Self {
+        Self {
+            incomplete_char: Self::default_incomplete_char(),
+            partially_complete_1_char: Self::default_partially_complete_1_char(
+            ),
+            partially_complete_2_char: Self::default_partially_complete_2_char(
+            ),
+            partially_complete_3_char: Self::default_partially_complete_3_char(
+            ),
+            complete_char: Self::default_complete_char(),
+            rejected_char: Self::default_rejected_char(),
+        }
+    }
+}
+
+impl VimwikiTodoListItemConfig {
+    #[inline]
+    pub fn default_incomplete_char() -> char {
+        ' '
+    }
+
+    #[inline]
+    pub fn default_partially_complete_1_char() -> char {
+        '.'
+    }
+
+    #[inline]
+    pub fn default_partially_complete_2_char() -> char {
+        'o'
+    }
+
+    #[inline]
+    pub fn default_partially_complete_3_char() -> char {
+        'O'
+    }
+
+    #[inline]
+    pub fn default_complete_char() -> char {
+        'X'
+    }
+
+    #[inline]
+    pub fn default_rejected_char() -> char {
+        '-'
     }
 }
 

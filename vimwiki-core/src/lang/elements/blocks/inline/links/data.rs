@@ -186,6 +186,11 @@ impl<'a> LinkData<'a> {
             .map(|s| s.split("%23").collect::<Anchor>())
     }
 
+    /// Produces a new string representing the uri ref percent decoded
+    pub fn to_decoded_uri_string(&self) -> String {
+        Self::decode_uri(self.uri_ref.to_string())
+    }
+
     /// Returns reference to the scheme of the link's uri if it exists
     pub fn scheme(&self) -> Option<&Scheme<'_>> {
         self.uri_ref.scheme()

@@ -3,7 +3,7 @@ use std::fmt::{self, Write};
 
 /// Represents the formatter to use to write ivimwiki output that includes various
 /// options that can be set as well as a context for use when writing output
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct VimwikiFormatter {
     /// Represents the configuration associated with the formatter
     config: VimwikiConfig,
@@ -61,7 +61,7 @@ impl VimwikiFormatter {
 
     /// Writes a string representing the indentation for the current level
     pub fn write_indent(&mut self) -> Result<(), VimwikiOutputError> {
-        let indent_str = self.config.format.indent_str.as_str();
+        let indent_str = self.config.format.indent_str.to_string();
 
         for _ in 0..self.indent_level {
             write!(self, "{}", indent_str)?;

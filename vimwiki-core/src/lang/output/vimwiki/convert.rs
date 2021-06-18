@@ -7,7 +7,7 @@ pub trait ToVimwikiString {
     ) -> Result<String, VimwikiOutputError>;
 }
 
-impl<T: Output<VimwikiFormatter, VimwikiOutputError>> ToVimwikiString for T {
+impl<T: Output<VimwikiFormatter>> ToVimwikiString for T {
     fn to_vimwiki_string(
         &self,
         config: VimwikiConfig,
@@ -21,16 +21,11 @@ impl<T: Output<VimwikiFormatter, VimwikiOutputError>> ToVimwikiString for T {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        VimwikiOutputResult, VimwikiRuntimeConfig, VimwikiTemplateConfig,
-        VimwikiWikiConfig,
-    };
-    use chrono::NaiveDate;
-    use std::path::PathBuf;
+    use crate::VimwikiOutputResult;
 
     struct TestOutput<F: Fn(&mut VimwikiFormatter) -> VimwikiOutputResult>(F);
     impl<F: Fn(&mut VimwikiFormatter) -> VimwikiOutputResult>
-        Output<VimwikiFormatter, VimwikiOutputError> for TestOutput<F>
+        Output<VimwikiFormatter> for TestOutput<F>
     {
         fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
             self.0(f)?;
