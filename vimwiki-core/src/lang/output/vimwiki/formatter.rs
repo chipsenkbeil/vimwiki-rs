@@ -120,6 +120,10 @@ impl VimwikiFormatter {
         &self.config
     }
 
+    pub fn clear_content(&mut self) {
+        self.content.clear();
+    }
+
     pub fn get_content(&self) -> &str {
         self.content.as_str()
     }
