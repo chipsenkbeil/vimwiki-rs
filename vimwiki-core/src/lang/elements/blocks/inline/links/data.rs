@@ -101,6 +101,13 @@ impl<'a> LinkData<'a> {
         percent_decode(uri.as_ref()).decode_utf8_lossy().to_string()
     }
 
+    /// Retrieves a property by name, returning it as a str slice
+    pub fn get_property_str(&'a self, name: &'a str) -> Option<&'a str> {
+        self.properties.as_ref().and_then(|properties| {
+            properties.get(&Cow::Borrowed(name)).map(AsRef::as_ref)
+        })
+    }
+
     /// Whether or not the link is representing an anchor to the current page
     pub fn is_local_anchor(&self) -> bool {
         self.uri_ref.scheme().is_none()

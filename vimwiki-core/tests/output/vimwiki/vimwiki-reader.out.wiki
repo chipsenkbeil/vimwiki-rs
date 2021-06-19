@@ -66,7 +66,9 @@ _not
 emph_
 
 ~~not
+
 > %%comment
+
 %% comment
 strikeout~~
 
@@ -118,10 +120,10 @@ Just two backticks: ``
 
 === preformatted text with attributes ===
 
- {{{class="python" style="color:blue"
- for i in range(1, 5):
-     print(i)
- }}}
+{{{class="python" style="color:blue"
+for i in range(1, 5):
+    print(i)
+}}}
 
 === preformatted text with nested syntax ===
 
@@ -136,19 +138,19 @@ SELECT * FROM table
 
 == block quotes ==
 
-    (indentation 4 spaces) This would be a blockquote in Vimwiki. It is not *highlighted* in Vim but
-    (indentation 1 space followed by 1 tab of width 4) could be styled by CSS in HTML. Blockquotes are usually used to quote a
-    (indentation 1 tab of width 4) long piece of text from another source. ~~blah blah~~ :blockquote:
+> (indentation 4 spaces) This would be a blockquote in Vimwiki. It is not *highlighted* in Vim but
+> (indentation 1 space followed by 1 tab of width 4) could be styled by CSS in HTML. Blockquotes are usually used to quote a
+> (indentation 1 tab of width 4) long piece of text from another source. ~~blah blah~~ :blockquote:
 
 == external links ==
 
-[[http://google.com|_Google_ search engine]]
+[[http://google.com/|_Google_ search engine]]
 
-http://pandoc.org
+http://pandoc.org/
 
-ftp://vim.org
+ftp://vim.org/
 
-[[http://google.com]]
+[[http://google.com/]]
 
 [[mailto:info@example.org|email me]]
 
@@ -179,7 +181,8 @@ mailto:hello@bye.com
 [[file:../assets/data.csv|Important Data]]
 
 === links with thumbnails ===
-[[http://www.google.com|{{./movie.jpg}}]]
+
+[[http://www.google.com/|{{./movie.jpg}}]]
 
 == images ==
 
@@ -189,8 +192,8 @@ mailto:hello@bye.com
 
 {{local:./movie.jpg}}
 
-
 === image with attributes ===
+
 {{lalune.jpg|_cool stuff_|style="width:150px;height:120px;"}}
 
 {{nonexist.jpg|*Non-existing* image|class="center flow blabla" style="font-color:red"}}

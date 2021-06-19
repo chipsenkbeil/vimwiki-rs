@@ -11,6 +11,7 @@ use crate::lang::{
 use nom::{
     branch::alt,
     bytes::complete::tag,
+    character::complete::space1,
     combinator::{map, map_opt, map_parser, opt, rest},
     multi::separated_list1,
     sequence::{delimited, separated_pair},
@@ -147,7 +148,7 @@ fn link_anchor<'a>(input: Span<'a>) -> IResult<Anchor<'a>> {
 
 /// Parser for link property pairs separated by | in the form of
 ///
-/// |key1="value1"|key2="value2"|...
+/// |key1="value1" key2="value2" ...
 fn link_properties<'a>(
     input: Span<'a>,
 ) -> IResult<HashMap<Cow<'a, str>, Cow<'a, str>>> {
@@ -157,7 +158,7 @@ fn link_properties<'a>(
     // Second, continue taking key="value" pairs until we reach the end of the link
     map(
         separated_list1(
-            tag("|"),
+            space1,
             separated_pair(
                 map_parser(take_line_until1("="), cow_str),
                 tag("="),
@@ -215,5 +216,20 @@ mod tests {
         let input = Span::from("{{https://example.com/img.jpg}}");
         let (_, l) = link(input).unwrap();
         assert!(matches!(l.into_inner(), Link::Transclusion { .. }));
+    }
+
+    #[test]
+    fn link_properties_should_parse_multiple_properties() {
+        let input = Span::from(r#"|key1="value1" key2="value2""#);
+        let (_, properties) = link_properties(input).unwrap();
+
+        assert_eq!(
+            properties.get(&Cow::Borrowed("key1")).map(AsRef::as_ref),
+            Some("value1")
+        );
+        assert_eq!(
+            properties.get(&Cow::Borrowed("key2")).map(AsRef::as_ref),
+            Some("value2")
+        );
     }
 }

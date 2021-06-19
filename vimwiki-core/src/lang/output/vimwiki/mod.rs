@@ -354,7 +354,7 @@ impl<'a> Output<VimwikiFormatter> for CodeBlock<'a> {
 
         for (idx, (key, value)) in sorted_metadata.into_iter().enumerate() {
             // If a language is not preceeding the metadata, don't add a space
-            if idx != 0 || self.language.is_none() {
+            if idx != 0 || self.language.is_some() {
                 write!(f, " ")?;
             }
 
@@ -711,6 +711,9 @@ impl<'a> Output<VimwikiFormatter> for Link<'a> {
                         write!(f, "|")?;
                     }
 
+                    // Start property section
+                    write!(f, "|")?;
+
                     // NOTE: We provide specific ordering by key to ensure consitent output,
                     //       otherwise the properties can move around with each output
                     let mut sorted_properties = properties
@@ -720,8 +723,15 @@ impl<'a> Output<VimwikiFormatter> for Link<'a> {
                     sorted_properties
                         .sort_by(|(key1, _), (key2, _)| key1.cmp(key2));
 
-                    for (key, value) in sorted_properties {
-                        write!(f, "|{}=\"{}\"", key, value)?;
+                    for (idx, (key, value)) in
+                        sorted_properties.into_iter().enumerate()
+                    {
+                        // Add space separator if not first property
+                        if idx != 0 {
+                            write!(f, " ")?;
+                        }
+
+                        write!(f, "{}=\"{}\"", key, value)?;
                     }
                 }
                 write!(f, "}}}}")?;
@@ -1879,6 +1889,45 @@ mod tests {
         code.fmt(&mut f).unwrap();
 
         assert_eq!(f.get_content(), "{{{language\nsome lines\nof code\n}}}\n");
+    }
+
+    #[test]
+    fn code_block_should_support_metadata() {
+        let code = CodeBlock::new(
+            None,
+            vec![
+                (Cow::from("key1"), Cow::from("value1")),
+                (Cow::from("key2"), Cow::from("value2")),
+            ]
+            .into_iter()
+            .collect(),
+            vec![Cow::from("some lines"), Cow::from("of code")],
+        );
+        let mut f = VimwikiFormatter::default();
+        code.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            "{{{key1=\"value1\" key2=\"value2\"\nsome lines\nof code\n}}}\n"
+        );
+    }
+
+    #[test]
+    fn code_block_should_support_language_and_metadata() {
+        let code = CodeBlock::new(
+            Some(Cow::from("language")),
+            vec![
+                (Cow::from("key1"), Cow::from("value1")),
+                (Cow::from("key2"), Cow::from("value2")),
+            ]
+            .into_iter()
+            .collect(),
+            vec![Cow::from("some lines"), Cow::from("of code")],
+        );
+        let mut f = VimwikiFormatter::default();
+        code.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "{{{language key1=\"value1\" key2=\"value2\"\nsome lines\nof code\n}}}\n");
     }
 
     #[test]
