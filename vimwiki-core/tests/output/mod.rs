@@ -52,6 +52,7 @@ fn check_vimwiki_to_vimwiki() {
         .unwrap());
 }
 
+#[cfg(feature = "html")]
 #[test]
 fn check_vimwiki_to_html() {
     test_file_pairs!("wiki", "out.html", |page: Page| page
