@@ -405,6 +405,13 @@ where
     })
 }
 
+/// Counts the number of bytes remaining in the input
+pub fn count_remaining_bytes<'a>(input: Span<'a>) -> IResult<usize> {
+    context("Count Remaining Bytes", |input: Span<'a>| {
+        Ok((input, input.remaining_len()))
+    })(input)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

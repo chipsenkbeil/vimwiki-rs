@@ -343,7 +343,16 @@ impl<'a> Output<VimwikiFormatter> for CodeBlock<'a> {
             write!(f, "{}", lang)?;
         }
 
-        for (idx, (key, value)) in self.metadata.iter().enumerate() {
+        // NOTE: We provide specific ordering by key to ensure consitent output,
+        //       otherwise the metadata can move around with each output
+        let mut sorted_metadata = self
+            .metadata
+            .iter()
+            .map(|(key, value)| (key.as_ref(), value.as_ref()))
+            .collect::<Vec<(&str, &str)>>();
+        sorted_metadata.sort_by(|(key1, _), (key2, _)| key1.cmp(key2));
+
+        for (idx, (key, value)) in sorted_metadata.into_iter().enumerate() {
             // If a language is not preceeding the metadata, don't add a space
             if idx != 0 || self.language.is_none() {
                 write!(f, " ")?;
@@ -702,7 +711,16 @@ impl<'a> Output<VimwikiFormatter> for Link<'a> {
                         write!(f, "|")?;
                     }
 
-                    for (key, value) in properties {
+                    // NOTE: We provide specific ordering by key to ensure consitent output,
+                    //       otherwise the properties can move around with each output
+                    let mut sorted_properties = properties
+                        .iter()
+                        .map(|(key, value)| (key.as_ref(), value.as_ref()))
+                        .collect::<Vec<(&str, &str)>>();
+                    sorted_properties
+                        .sort_by(|(key1, _), (key2, _)| key1.cmp(key2));
+
+                    for (key, value) in sorted_properties {
                         write!(f, "|{}=\"{}\"", key, value)?;
                     }
                 }
@@ -751,22 +769,59 @@ impl<'a> Output<VimwikiFormatter> for Comment<'a> {
 
 impl<'a> Output<VimwikiFormatter> for LineComment<'a> {
     fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
-        write!(f, "%%{}", self)?;
+        let VimwikiCommentConfig {
+            no_padding,
+            trim_content,
+        } = f.config().comment;
+
+        let content = if trim_content {
+            self.as_str().trim()
+        } else {
+            self.as_str()
+        };
+
+        write!(f, "%%")?;
+
+        if !no_padding {
+            write!(f, " ")?;
+        }
+
+        write!(f, "{}", content)?;
+
         Ok(())
     }
 }
 
 impl<'a> Output<VimwikiFormatter> for MultiLineComment<'a> {
     fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
+        let VimwikiCommentConfig {
+            no_padding,
+            trim_content,
+        } = f.config().comment;
+
         write!(f, "%%+")?;
 
+        if !no_padding {
+            write!(f, " ")?;
+        }
+
         for (idx, line) in self.iter().enumerate() {
+            let content = if trim_content {
+                line.trim()
+            } else {
+                line.as_ref()
+            };
+
             // Don't write newline on last line
             if idx == self.len() - 1 {
-                write!(f, "{}", line)?;
+                write!(f, "{}", content)?;
             } else {
-                writeln!(f, "{}", line)?;
+                writeln!(f, "{}", content)?;
             }
+        }
+
+        if !no_padding {
+            write!(f, " ")?;
         }
 
         write!(f, "+%%")?;
@@ -2697,21 +2752,81 @@ mod tests {
     }
 
     #[test]
-    fn line_comment_should_output_vimwiki() {
+    fn line_comment_should_pad_content_by_default() {
         let comment = LineComment::from("some comment");
         let mut f = VimwikiFormatter::default();
+        comment.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "%% some comment");
+    }
+
+    #[test]
+    fn line_comment_should_pad_content_if_setting_enabled() {
+        let comment = LineComment::from("some comment");
+        let mut f = VimwikiFormatter::new(VimwikiConfig {
+            comment: VimwikiCommentConfig {
+                no_padding: false,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+        comment.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "%% some comment");
+    }
+
+    #[test]
+    fn line_comment_should_not_pad_content_if_setting_disabled() {
+        let comment = LineComment::from("some comment");
+        let mut f = VimwikiFormatter::new(VimwikiConfig {
+            comment: VimwikiCommentConfig {
+                no_padding: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
         comment.fmt(&mut f).unwrap();
 
         assert_eq!(f.get_content(), "%%some comment");
     }
 
     #[test]
-    fn multi_line_comment_should_output_vimwiki() {
-        let comment = MultiLineComment::from("some single line comment");
+    fn line_comment_should_trim_content_by_default() {
+        let comment = LineComment::from(" \r\tsome comment \r\t");
         let mut f = VimwikiFormatter::default();
         comment.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "%%+some single line comment+%%");
+        assert_eq!(f.get_content(), "%% some comment");
+    }
+
+    #[test]
+    fn line_comment_should_trim_content_if_setting_enabled() {
+        let comment = LineComment::from(" \r\tsome comment \r\t");
+        let mut f = VimwikiFormatter::new(VimwikiConfig {
+            comment: VimwikiCommentConfig {
+                trim_content: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+        comment.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "%% some comment");
+    }
+
+    #[test]
+    fn line_comment_should_not_trim_content_if_setting_disabled() {
+        let comment = LineComment::from(" \r\tsome comment \r\t");
+        let mut f = VimwikiFormatter::new(VimwikiConfig {
+            comment: VimwikiCommentConfig {
+                trim_content: false,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+        comment.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "%%  \r\tsome comment \r\t");
     }
 
     #[test]
@@ -2721,6 +2836,96 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         comment.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "%%+line one\nline two+%%");
+        assert_eq!(f.get_content(), "%%+ line one\nline two +%%");
+    }
+
+    #[test]
+    fn multi_line_comment_should_pad_content_by_default() {
+        let comment = MultiLineComment::from("some single line comment");
+        let mut f = VimwikiFormatter::default();
+        comment.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "%%+ some single line comment +%%");
+    }
+
+    #[test]
+    fn multi_line_comment_should_pad_content_if_setting_enabled() {
+        let comment = MultiLineComment::from("some single line comment");
+        let mut f = VimwikiFormatter::new(VimwikiConfig {
+            comment: VimwikiCommentConfig {
+                no_padding: false,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+        comment.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "%%+ some single line comment +%%");
+    }
+
+    #[test]
+    fn multi_line_comment_should_not_pad_content_if_setting_disabled() {
+        let comment = MultiLineComment::from("some single line comment");
+        let mut f = VimwikiFormatter::new(VimwikiConfig {
+            comment: VimwikiCommentConfig {
+                no_padding: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+        comment.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "%%+some single line comment+%%");
+    }
+
+    #[test]
+    fn multi_line_comment_should_trim_content_by_default() {
+        let comment: MultiLineComment =
+            vec![" \r\tline one \r\t", " \r\tline two \r\t"]
+                .into_iter()
+                .collect();
+        let mut f = VimwikiFormatter::default();
+        comment.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "%%+ line one\nline two +%%");
+    }
+
+    #[test]
+    fn multi_line_comment_should_trim_content_if_setting_enabled() {
+        let comment: MultiLineComment =
+            vec![" \r\tline one \r\t", " \r\tline two \r\t"]
+                .into_iter()
+                .collect();
+        let mut f = VimwikiFormatter::new(VimwikiConfig {
+            comment: VimwikiCommentConfig {
+                trim_content: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+        comment.fmt(&mut f).unwrap();
+
+        assert_eq!(f.get_content(), "%%+ line one\nline two +%%");
+    }
+
+    #[test]
+    fn multi_line_comment_should_not_trim_content_if_setting_disabled() {
+        let comment: MultiLineComment =
+            vec![" \r\tline one \r\t", " \r\tline two \r\t"]
+                .into_iter()
+                .collect();
+        let mut f = VimwikiFormatter::new(VimwikiConfig {
+            comment: VimwikiCommentConfig {
+                trim_content: false,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+        comment.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            "%%+  \r\tline one \r\t\n \r\tline two \r\t +%%"
+        );
     }
 }

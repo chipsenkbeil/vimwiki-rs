@@ -12,6 +12,10 @@ pub struct VimwikiConfig {
     #[serde(default)]
     pub blockquote: VimwikiBlockquoteConfig,
 
+    /// Configuration settings that apply specifically to comments
+    #[serde(default)]
+    pub comment: VimwikiCommentConfig,
+
     /// Configuration settings that apply specifically to definition lists
     #[serde(default)]
     pub definition_list: VimwikiDefinitionListConfig,
@@ -100,6 +104,40 @@ impl VimwikiBlockquoteConfig {
 
     #[inline]
     pub fn default_trim_lines() -> bool {
+        true
+    }
+}
+
+/// Represents configuration options related to comments
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct VimwikiCommentConfig {
+    /// If true, will not pad a comment's content
+    #[serde(default = "VimwikiCommentConfig::default_no_padding")]
+    pub no_padding: bool,
+
+    /// If true, will trim all leading and trailing whitespace from comment's content,
+    /// either being a single line or multiple lines
+    #[serde(default = "VimwikiCommentConfig::default_trim_content")]
+    pub trim_content: bool,
+}
+
+impl Default for VimwikiCommentConfig {
+    fn default() -> Self {
+        Self {
+            no_padding: Self::default_no_padding(),
+            trim_content: Self::default_trim_content(),
+        }
+    }
+}
+
+impl VimwikiCommentConfig {
+    #[inline]
+    pub fn default_no_padding() -> bool {
+        false
+    }
+
+    #[inline]
+    pub fn default_trim_content() -> bool {
         true
     }
 }

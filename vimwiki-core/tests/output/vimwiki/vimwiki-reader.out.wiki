@@ -1,4 +1,5 @@
 = _*implemented*_ =
+
 = header =
 
 == header level two ==
@@ -21,14 +22,16 @@ hi== not a header ==
 
 not a header:
 
-=n=
+= n =
 
 === not a header ====
 
- == centred header ==
+    == centred header ==
 
 == header with some `==` in between ==
+
 == header with some == in between ==
+
 == header with some ==in between ==
 
 == emph strong and strikeout ==
@@ -59,29 +62,32 @@ just two underscores: __
 just four ~s: ~~~~
 
 _not
-%%comment
+%% comment
 emph_
 
 ~~not
-    %%comment
-  %%comment
+> %%comment
+%% comment
 strikeout~~
 
 == horizontal rule ==
 
 top
+
 ----
+
 middle
 
--------
+----
 
 not a rule-----
 
 not a rule (trailing spaces):
------
+
+----
 
 not a rule (leading spaces):
-  ----
+----
 
 == comments ==
 

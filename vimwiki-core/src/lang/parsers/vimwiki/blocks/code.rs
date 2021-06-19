@@ -2,8 +2,9 @@ use crate::lang::{
     elements::{CodeBlock, Located},
     parsers::{
         utils::{
-            any_line, beginning_of_line, capture, context, cow_str,
-            end_of_line_or_input, locate, take_line_until, take_line_until1,
+            any_line, beginning_of_line, capture, context,
+            count_remaining_bytes, cow_str, end_of_line_or_input, locate,
+            take_line_until, take_line_until1,
         },
         IResult, Span,
     },
@@ -23,12 +24,36 @@ type Metadata<'a> = HashMap<Cow<'a, str>, Cow<'a, str>>;
 #[inline]
 pub fn code_block(input: Span) -> IResult<Located<CodeBlock>> {
     fn inner(input: Span) -> IResult<CodeBlock> {
-        let (input, (maybe_lang, metadata)) = code_block_start(input)?;
+        let (input, (start_indent_size, maybe_lang, metadata)) =
+            code_block_start(input)?;
         let (input, lines) = many0(preceded(
             not(code_block_end),
             map_parser(any_line, cow_str),
         ))(input)?;
-        let (input, _) = code_block_end(input)?;
+        let (input, end_indent_size) = code_block_end(input)?;
+
+        // We need to adjust the start of each line based on the indentation
+        // of the code block start/end and the space at the beginning of a line
+        let indent_size = std::cmp::min(start_indent_size, end_indent_size);
+        let lines = lines
+            .into_iter()
+            .map(|mut line| {
+                // Figure out total bytes of leading whitespace so we know if
+                // the line is at the same level of indentation, further, or
+                // earlier
+                let cnt = line.len() - line.trim_start().len();
+                let cnt_to_remove = std::cmp::min(cnt, indent_size);
+
+                match line {
+                    Cow::Borrowed(ref mut x) => *x = &x[cnt_to_remove..],
+                    Cow::Owned(ref mut x) => {
+                        *x = x[cnt_to_remove..].to_string()
+                    }
+                }
+
+                line
+            })
+            .collect();
 
         Ok((input, CodeBlock::new(maybe_lang, metadata, lines)))
     }
@@ -39,10 +64,11 @@ pub fn code_block(input: Span) -> IResult<Located<CodeBlock>> {
 #[inline]
 fn code_block_start<'a>(
     input: Span<'a>,
-) -> IResult<(MaybeLang<'a>, Metadata<'a>)> {
+) -> IResult<(usize, MaybeLang<'a>, Metadata<'a>)> {
     // First, verify we have the start of a block and consume it
     let (input, _) = beginning_of_line(input)?;
-    let (input, _) = space0(input)?;
+    let (input, indent_size) =
+        map_parser(space0, count_remaining_bytes)(input)?;
     let (input, _) = tag("{{{")(input)?;
 
     // Second, look for optional language and consume it
@@ -78,18 +104,22 @@ fn code_block_start<'a>(
     let (input, _) = space0(input)?;
     let (input, _) = end_of_line_or_input(input)?;
 
-    Ok((input, (maybe_lang, pairs.into_iter().collect())))
+    Ok((
+        input,
+        (indent_size, maybe_lang, pairs.into_iter().collect()),
+    ))
 }
 
 #[inline]
-fn code_block_end(input: Span) -> IResult<()> {
+fn code_block_end(input: Span) -> IResult<usize> {
     let (input, _) = beginning_of_line(input)?;
-    let (input, _) = space0(input)?;
+    let (input, indent_size) =
+        map_parser(space0, count_remaining_bytes)(input)?;
     let (input, _) = tag("}}}")(input)?;
     let (input, _) = space0(input)?;
     let (input, _) = end_of_line_or_input(input)?;
 
-    Ok((input, ()))
+    Ok((input, indent_size))
 }
 
 #[cfg(test)]
@@ -259,6 +289,85 @@ mod tests {
         assert_eq!(
             p.metadata.get("style"),
             Some(&Cow::from("position: relative"))
+        );
+    }
+
+    #[test]
+    fn code_block_should_support_indentation() {
+        // Lines are at same level
+        let input =
+            vec!["  {{{", "  one line", "  two line", "  }}}"].join("\n");
+        let input = Span::from(input.as_str());
+        let (input, p) = code_block(input).unwrap();
+        assert!(input.is_empty(), "Did not consume code block");
+        assert_eq!(
+            p.lines.iter().map(AsRef::as_ref).collect::<Vec<&str>>(),
+            vec!["one line", "two line"]
+        );
+
+        // Start of code block is deeper
+        let input = Span::from(indoc! {"
+                {{{
+            one line
+            two line
+            }}}
+        "});
+        let (input, p) = code_block(input).unwrap();
+        assert!(input.is_empty(), "Did not consume code block");
+        assert_eq!(
+            p.lines.iter().map(AsRef::as_ref).collect::<Vec<&str>>(),
+            vec!["one line", "two line"]
+        );
+
+        // End of code block is deeper
+        let input = Span::from(indoc! {"
+            {{{
+            one line
+            two line
+                }}}
+        "});
+        let (input, p) = code_block(input).unwrap();
+        assert!(input.is_empty(), "Did not consume code block");
+        assert_eq!(
+            p.lines.iter().map(AsRef::as_ref).collect::<Vec<&str>>(),
+            vec!["one line", "two line"]
+        );
+
+        // Start & end of code block are deeper
+        let input = Span::from(indoc! {"
+                {{{
+            one line
+            two line
+                }}}
+        "});
+        let (input, p) = code_block(input).unwrap();
+        assert!(input.is_empty(), "Did not consume code block");
+        assert_eq!(
+            p.lines.iter().map(AsRef::as_ref).collect::<Vec<&str>>(),
+            vec!["one line", "two line"]
+        );
+
+        // Uneven lines
+        let input = Span::from(indoc! {"
+                {{{
+            one line
+                    two line
+              three line
+                four line
+                 five line
+                }}}
+        "});
+        let (input, p) = code_block(input).unwrap();
+        assert!(input.is_empty(), "Did not consume code block");
+        assert_eq!(
+            p.lines.iter().map(AsRef::as_ref).collect::<Vec<&str>>(),
+            vec![
+                "one line",
+                "    two line",
+                "three line",
+                "four line",
+                " five line"
+            ]
         );
     }
 }
