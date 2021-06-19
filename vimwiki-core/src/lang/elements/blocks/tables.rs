@@ -4,7 +4,7 @@ use crate::{
     },
     StrictEq,
 };
-use derive_more::{Constructor, Display, Error, From, IntoIterator};
+use derive_more::{Constructor, Display, Error, From, IntoIterator, IsVariant};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::{num::ParseIntError, str::FromStr};
@@ -31,7 +31,7 @@ pub struct CellPos {
     pub col: usize,
 }
 
-#[derive(Debug, Display, Error)]
+#[derive(Debug, Display, Error, PartialEq, Eq)]
 pub enum ParseCellPosError {
     TooFewItems,
     TooManyItems,
@@ -353,7 +353,9 @@ impl<'a> StrictEq for Table<'a> {
 
 /// Represents a cell within a table that is either content, span (indicating
 /// that another cell fills this cell), or a column alignment indicator
-#[derive(Clone, Debug, From, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(
+    Clone, Debug, From, Eq, PartialEq, Hash, Serialize, Deserialize, IsVariant,
+)]
 pub enum Cell<'a> {
     Content(InlineElementContainer<'a>),
     Span(CellSpan),
@@ -379,24 +381,6 @@ impl Cell<'_> {
 }
 
 impl<'a> Cell<'a> {
-    /// Returns true if cell represents a content cell
-    #[inline]
-    pub fn is_content(&self) -> bool {
-        matches!(self, Cell::Content(_))
-    }
-
-    /// Returns true if cell represents a span cell
-    #[inline]
-    pub fn is_span(&self) -> bool {
-        matches!(self, Cell::Span(_))
-    }
-
-    /// Returns true if cell represents a column alignment cell
-    #[inline]
-    pub fn is_align(&self) -> bool {
-        matches!(self, Cell::Align(_))
-    }
-
     /// Returns a reference to the content of the cell if it has content
     #[inline]
     pub fn get_content(&self) -> Option<&InlineElementContainer<'a>> {
@@ -488,7 +472,46 @@ pub use iter::*;
 mod iter {
     use super::{Cell, CellPos, Located, Table};
     use derive_more::Constructor;
+    use std::marker::PhantomData;
 
+    /// Represents an iterator over some part of a table at the granularity
+    /// of individual cells within the table
+    pub trait CellIter<T>: std::iter::Iterator<Item = T> + Sized {
+        /// Returns the row of the next item returned by the iterator
+        fn row(&self) -> usize;
+
+        /// Returns the column of the next item returned by the iterator
+        fn col(&self) -> usize;
+
+        /// Consumes next item in iterator, returning it with the cell's position
+        fn next_with_pos(&mut self) -> Option<(CellPos, T)> {
+            let pos = CellPos {
+                row: self.row(),
+                col: self.col(),
+            };
+            self.next().map(move |x| (pos, x))
+        }
+
+        /// Zips up a cell iterator with the cell's position
+        fn zip_with_position(self) -> ZipCellPos<Self, T> {
+            ZipCellPos(self, PhantomData)
+        }
+    }
+
+    /// Represents an iterator over some cell and its position
+    #[derive(Debug)]
+    pub struct ZipCellPos<I: CellIter<T>, T>(I, PhantomData<T>);
+
+    impl<I: CellIter<T>, T> Iterator for ZipCellPos<I, T> {
+        type Item = (CellPos, T);
+
+        fn next(&mut self) -> Option<Self::Item> {
+            self.0.next_with_pos()
+        }
+    }
+
+    /// Represents an iterator over rows of a table
+    #[derive(Debug)]
     pub struct Rows<'a, 'b> {
         table: &'a Table<'b>,
         idx: usize,
@@ -540,6 +563,8 @@ mod iter {
         }
     }
 
+    /// Represents an iterator over rows of a table that belong to its header
+    #[derive(Debug)]
     pub struct HeaderRows<'a, 'b> {
         table: &'a Table<'b>,
         idx: usize,
@@ -594,6 +619,8 @@ mod iter {
         }
     }
 
+    /// Represents an iterator over rows of a table that belong to its body
+    #[derive(Debug)]
     pub struct BodyRows<'a, 'b> {
         table: &'a Table<'b>,
         idx: usize,
@@ -605,7 +632,12 @@ mod iter {
         pub fn new(table: &'a Table<'b>) -> Self {
             Self {
                 table,
-                idx: table.get_divider_row_index().unwrap_or_default(),
+
+                // Find index just passed divider row, or start from beginning
+                idx: table
+                    .get_divider_row_index()
+                    .map(|x| x + 1)
+                    .unwrap_or_default(),
             }
         }
 
@@ -645,7 +677,8 @@ mod iter {
         }
     }
 
-    #[derive(Constructor)]
+    /// Represents an iterator over cells within a row of a table
+    #[derive(Constructor, Debug)]
     pub struct Row<'a, 'b> {
         table: &'a Table<'b>,
         row: usize,
@@ -659,13 +692,6 @@ mod iter {
             self.table
                 .get_cell(self.row, 0)
                 .map_or(false, |cell| cell.is_align())
-        }
-
-        pub fn zip_with_position(
-            self,
-        ) -> impl Iterator<Item = (CellPos, &'a Located<Cell<'b>>)> {
-            let pos = CellPos::new(self.row, self.col);
-            self.map(move |cell| (pos, cell))
         }
 
         /// Returns true if the iterator has at least one content cell
@@ -697,7 +723,18 @@ mod iter {
         }
     }
 
-    #[derive(Constructor)]
+    impl<'a, 'b> CellIter<&'a Located<Cell<'b>>> for Row<'a, 'b> {
+        fn row(&self) -> usize {
+            self.row
+        }
+
+        fn col(&self) -> usize {
+            self.col
+        }
+    }
+
+    /// Represents an iterator over cells within a row of a table
+    #[derive(Constructor, Debug)]
     pub struct IntoRow<'a> {
         table: Table<'a>,
         row: usize,
@@ -711,13 +748,6 @@ mod iter {
             self.table
                 .get_cell(self.row, 0)
                 .map_or(false, |cell| cell.is_align())
-        }
-
-        pub fn zip_with_position(
-            self,
-        ) -> impl Iterator<Item = (CellPos, Located<Cell<'a>>)> {
-            let pos = CellPos::new(self.row, self.col);
-            self.map(move |cell| (pos, cell))
         }
 
         /// Returns true if the iterator has at least one content cell
@@ -754,6 +784,18 @@ mod iter {
         }
     }
 
+    impl<'a> CellIter<Located<Cell<'a>>> for IntoRow<'a> {
+        fn row(&self) -> usize {
+            self.row
+        }
+
+        fn col(&self) -> usize {
+            self.col
+        }
+    }
+
+    /// Represents an iterator over columns of a table
+    #[derive(Debug)]
     pub struct Columns<'a, 'b> {
         table: &'a Table<'b>,
         idx: usize,
@@ -791,7 +833,7 @@ mod iter {
 
         fn next(&mut self) -> Option<Self::Item> {
             if self.idx < self.table.col_cnt() {
-                let col = Column::new(self.table, self.idx, 0);
+                let col = Column::new(self.table, 0, self.idx);
                 self.idx += 1;
                 Some(col)
             } else {
@@ -805,7 +847,8 @@ mod iter {
         }
     }
 
-    #[derive(Constructor)]
+    /// Represents an iterator over cells within a column of a table
+    #[derive(Constructor, Debug)]
     pub struct Column<'a, 'b> {
         table: &'a Table<'b>,
         row: usize,
@@ -813,13 +856,6 @@ mod iter {
     }
 
     impl<'a, 'b> Column<'a, 'b> {
-        pub fn zip_with_position(
-            self,
-        ) -> impl Iterator<Item = (CellPos, &'a Located<Cell<'b>>)> {
-            let pos = CellPos::new(self.row, self.col);
-            self.map(move |cell| (pos, cell))
-        }
-
         /// Returns true if the iterator has at least one content cell
         pub fn has_content(&self) -> bool {
             let mut column = Column {
@@ -849,7 +885,18 @@ mod iter {
         }
     }
 
-    #[derive(Constructor)]
+    impl<'a, 'b> CellIter<&'a Located<Cell<'b>>> for Column<'a, 'b> {
+        fn row(&self) -> usize {
+            self.row
+        }
+
+        fn col(&self) -> usize {
+            self.col
+        }
+    }
+
+    /// Represents an iterator over cells within a column of a table
+    #[derive(Constructor, Debug)]
     pub struct IntoColumn<'a> {
         table: Table<'a>,
         row: usize,
@@ -857,13 +904,6 @@ mod iter {
     }
 
     impl<'a> IntoColumn<'a> {
-        pub fn zip_with_position(
-            self,
-        ) -> impl Iterator<Item = (CellPos, Located<Cell<'a>>)> {
-            let pos = CellPos::new(self.row, self.col);
-            self.map(move |cell| (pos, cell))
-        }
-
         /// Returns true if the iterator has at least one content cell
         pub fn has_content(&self) -> bool {
             Column::from(self).has_content()
@@ -898,6 +938,18 @@ mod iter {
         }
     }
 
+    impl<'a> CellIter<Located<Cell<'a>>> for IntoColumn<'a> {
+        fn row(&self) -> usize {
+            self.row
+        }
+
+        fn col(&self) -> usize {
+            self.col
+        }
+    }
+
+    /// Represents an iterator over cells within a table
+    #[derive(Debug)]
     pub struct Cells<'a, 'b> {
         table: &'a Table<'b>,
         row: usize,
@@ -911,13 +963,6 @@ mod iter {
                 row: 0,
                 col: 0,
             }
-        }
-
-        pub fn zip_with_position(
-            self,
-        ) -> impl Iterator<Item = (CellPos, &'a Located<Cell<'b>>)> {
-            let pos = CellPos::new(self.row, self.col);
-            self.map(move |cell| (pos, cell))
         }
 
         /// Returns true if the iterator has at least one content cell
@@ -937,28 +982,52 @@ mod iter {
 
         fn next(&mut self) -> Option<Self::Item> {
             let cell = self.table.get_cell(self.row, self.col);
+            let col_cnt = self.table.col_cnt();
+            let row_cnt = self.table.row_cnt();
 
             // If not yet reached end of row, advance column ptr
-            if self.col < self.table.col_cnt() {
+            if self.col + 1 < col_cnt {
                 self.col += 1;
 
             // Else if not yet reached end of all rows, advance row ptr and
             // reset column ptr
-            } else if self.row < self.table.row_cnt() {
+            } else if self.row + 1 < row_cnt {
                 self.row += 1;
                 self.col = 0;
+
+            // Otherwise, we have reached the end, so ensure we are done
+            } else {
+                self.row = row_cnt;
+                self.col = col_cnt;
             }
 
             cell
         }
 
         fn size_hint(&self) -> (usize, Option<usize>) {
-            let remaining =
-                self.table.len() - (self.row * self.table.col_cnt()) - self.col;
+            let consumed = (self.row * self.table.col_cnt()) + self.col;
+            let total = self.table.len();
+            let remaining = if total > consumed {
+                total - consumed
+            } else {
+                0
+            };
             (remaining, Some(remaining))
         }
     }
 
+    impl<'a, 'b> CellIter<&'a Located<Cell<'b>>> for Cells<'a, 'b> {
+        fn row(&self) -> usize {
+            self.row
+        }
+
+        fn col(&self) -> usize {
+            self.col
+        }
+    }
+
+    /// Represents an iterator over cells within a table
+    #[derive(Debug)]
     pub struct IntoCells<'a> {
         table: Table<'a>,
         row: usize,
@@ -972,13 +1041,6 @@ mod iter {
                 row: 0,
                 col: 0,
             }
-        }
-
-        pub fn zip_with_position(
-            self,
-        ) -> impl Iterator<Item = (CellPos, Located<Cell<'a>>)> {
-            let pos = CellPos::new(self.row, self.col);
-            self.map(move |cell| (pos, cell))
         }
 
         /// Returns true if the iterator has at least one content cell
@@ -1003,25 +1065,1342 @@ mod iter {
         fn next(&mut self) -> Option<Self::Item> {
             let cell =
                 self.table.cells.remove(&CellPos::new(self.row, self.col));
+            let col_cnt = self.table.col_cnt();
+            let row_cnt = self.table.row_cnt();
 
             // If not yet reached end of row, advance column ptr
-            if self.col < self.table.col_cnt() {
+            if self.col + 1 < col_cnt {
                 self.col += 1;
 
             // Else if not yet reached end of all rows, advance row ptr and
             // reset column ptr
-            } else if self.row < self.table.row_cnt() {
+            } else if self.row + 1 < row_cnt {
                 self.row += 1;
                 self.col = 0;
+
+            // Otherwise, we have reached the end, so ensure we are done
+            } else {
+                self.row = row_cnt;
+                self.col = col_cnt;
             }
 
             cell
         }
 
         fn size_hint(&self) -> (usize, Option<usize>) {
-            let remaining =
-                self.table.len() - (self.row * self.table.col_cnt()) - self.col;
+            let consumed = (self.row * self.table.col_cnt()) + self.col;
+            let total = self.table.len();
+            let remaining = if total > consumed {
+                total - consumed
+            } else {
+                0
+            };
             (remaining, Some(remaining))
+        }
+    }
+
+    impl<'a> CellIter<Located<Cell<'a>>> for IntoCells<'a> {
+        fn row(&self) -> usize {
+            self.row
+        }
+
+        fn col(&self) -> usize {
+            self.col
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Text;
+
+    fn make_span_cell(
+        row: usize,
+        col: usize,
+        span: CellSpan,
+    ) -> (CellPos, Located<Cell<'static>>) {
+        (CellPos { row, col }, Located::from(Cell::Span(span)))
+    }
+
+    fn make_align_cell(
+        row: usize,
+        col: usize,
+        align: ColumnAlign,
+    ) -> (CellPos, Located<Cell<'static>>) {
+        (CellPos { row, col }, Located::from(Cell::Align(align)))
+    }
+
+    fn make_content_cell(
+        row: usize,
+        col: usize,
+        text: &str,
+    ) -> (CellPos, Located<Cell>) {
+        (
+            CellPos { row, col },
+            Located::from(Cell::Content(InlineElementContainer::new(vec![
+                Located::from(InlineElement::Text(Text::from(text))),
+            ]))),
+        )
+    }
+
+    #[test]
+    fn cell_pos_should_support_being_parsed_from_str() {
+        assert!("".parse::<CellPos>().is_err());
+        assert_eq!("1".parse::<CellPos>(), Err(ParseCellPosError::TooFewItems));
+        assert!(",1".parse::<CellPos>().is_err());
+        assert_eq!(
+            "1,2,3".parse::<CellPos>(),
+            Err(ParseCellPosError::TooManyItems)
+        );
+        assert!(matches!(
+            "a,1".parse::<CellPos>(),
+            Err(ParseCellPosError::BadRow(_))
+        ));
+        assert!(matches!(
+            "1,a".parse::<CellPos>(),
+            Err(ParseCellPosError::BadCol(_))
+        ));
+        assert_eq!(
+            "123,456".parse::<CellPos>(),
+            Ok(CellPos { row: 123, col: 456 })
+        );
+    }
+
+    #[test]
+    fn table_new_should_calculate_row_and_column_counts_from_max_row_and_column(
+    ) {
+        let table = Table::new(vec![], false);
+        assert_eq!(table.row_cnt(), 0);
+        assert_eq!(table.col_cnt(), 0);
+
+        let table =
+            Table::new(vec![make_align_cell(3, 2, ColumnAlign::None)], false);
+        assert_eq!(table.row_cnt(), 4);
+        assert_eq!(table.col_cnt(), 3);
+
+        let table = Table::new(
+            vec![
+                make_align_cell(3, 0, ColumnAlign::None),
+                make_align_cell(0, 5, ColumnAlign::None),
+            ],
+            false,
+        );
+        assert_eq!(table.row_cnt(), 4);
+        assert_eq!(table.col_cnt(), 6);
+    }
+
+    #[test]
+    fn table_has_header_rows_should_indicate_whether_or_not_header_rows_exist()
+    {
+        let table = Table::new(
+            vec![
+                make_content_cell(0, 0, "body cell 1"),
+                make_content_cell(1, 0, "body cell 2"),
+            ],
+            false,
+        );
+        assert!(!table.has_header_rows());
+
+        let table = Table::new(
+            vec![
+                make_content_cell(0, 0, "header cell"),
+                make_align_cell(1, 0, ColumnAlign::None),
+                make_content_cell(2, 0, "body cell"),
+            ],
+            false,
+        );
+        assert!(table.has_header_rows());
+    }
+
+    #[test]
+    fn table_has_body_rows_should_indicate_whether_or_not_body_rows_exist() {
+        let table = Table::new(
+            vec![
+                make_content_cell(0, 0, "header cell"),
+                make_align_cell(1, 0, ColumnAlign::None),
+                make_content_cell(2, 0, "body cell"),
+            ],
+            false,
+        );
+        assert!(table.has_body_rows());
+
+        let table = Table::new(
+            vec![
+                make_content_cell(0, 0, "header cell"),
+                make_align_cell(1, 0, ColumnAlign::None),
+            ],
+            false,
+        );
+        assert!(!table.has_body_rows());
+    }
+
+    #[test]
+    fn table_has_divider_row_should_indicate_whether_or_not_divider_row_exists()
+    {
+        let table = Table::new(
+            vec![
+                make_content_cell(0, 0, "header cell"),
+                make_align_cell(1, 0, ColumnAlign::None),
+                make_content_cell(2, 0, "body cell"),
+            ],
+            false,
+        );
+        assert!(table.has_divider_row());
+
+        let table = Table::new(
+            vec![
+                make_content_cell(0, 0, "body cell 1"),
+                make_content_cell(1, 0, "body cell 2"),
+            ],
+            false,
+        );
+        assert!(!table.has_divider_row());
+    }
+
+    #[test]
+    fn table_get_divider_row_index_should_return_index_of_divider_row_if_it_has_one(
+    ) {
+        let table = Table::new(
+            vec![
+                make_content_cell(0, 0, "header cell"),
+                make_align_cell(1, 0, ColumnAlign::None),
+                make_content_cell(2, 0, "body cell"),
+            ],
+            false,
+        );
+        assert_eq!(table.get_divider_row_index(), Some(1));
+
+        let table = Table::new(
+            vec![
+                make_content_cell(0, 0, "body cell 1"),
+                make_content_cell(1, 0, "body cell 2"),
+            ],
+            false,
+        );
+        assert_eq!(table.get_divider_row_index(), None);
+    }
+
+    #[test]
+    fn table_get_column_alignment_should_return_align_from_first_align_cell_found(
+    ) {
+        let table = Table::new(
+            vec![
+                make_align_cell(0, 0, ColumnAlign::Right),
+                make_align_cell(0, 1, ColumnAlign::Left),
+                make_align_cell(1, 0, ColumnAlign::Center),
+                make_align_cell(1, 1, ColumnAlign::None),
+            ],
+            false,
+        );
+        assert_eq!(table.get_column_alignment(0), ColumnAlign::Right);
+        assert_eq!(table.get_column_alignment(1), ColumnAlign::Left);
+    }
+
+    #[test]
+    fn table_get_column_alignment_should_return_default_if_no_align_cells() {
+        let table = Table::new(
+            vec![
+                make_content_cell(0, 0, "a"),
+                make_content_cell(0, 1, "b"),
+                make_content_cell(1, 0, "c"),
+                make_content_cell(1, 1, "d"),
+            ],
+            false,
+        );
+        assert_eq!(table.get_column_alignment(0), ColumnAlign::default());
+        assert_eq!(table.get_column_alignment(1), ColumnAlign::default());
+    }
+
+    #[test]
+    fn table_get_cell_should_return_ref_to_cell_at_location() {
+        let table = Table::new(
+            vec![
+                make_content_cell(0, 0, "a"),
+                make_content_cell(0, 1, "b"),
+                make_content_cell(1, 0, "c"),
+                make_content_cell(1, 1, "d"),
+            ],
+            false,
+        );
+        assert_eq!(
+            table
+                .get_cell(0, 0)
+                .and_then(|x| x.get_content())
+                .map(ToString::to_string),
+            Some(String::from("a"))
+        );
+        assert_eq!(
+            table
+                .get_cell(0, 1)
+                .and_then(|x| x.get_content())
+                .map(ToString::to_string),
+            Some(String::from("b"))
+        );
+        assert_eq!(
+            table
+                .get_cell(1, 0)
+                .and_then(|x| x.get_content())
+                .map(ToString::to_string),
+            Some(String::from("c"))
+        );
+        assert_eq!(
+            table
+                .get_cell(1, 1)
+                .and_then(|x| x.get_content())
+                .map(ToString::to_string),
+            Some(String::from("d"))
+        );
+        assert_eq!(table.get_cell(1, 2), None);
+    }
+
+    #[test]
+    fn table_get_mut_cell_should_return_mut_ref_to_cell_at_location() {
+        let mut table = Table::new(
+            vec![
+                make_content_cell(0, 0, "a"),
+                make_content_cell(0, 1, "b"),
+                make_content_cell(1, 0, "c"),
+                make_content_cell(1, 1, "d"),
+            ],
+            false,
+        );
+        *table.get_mut_cell(0, 0).unwrap() = make_content_cell(0, 0, "e").1;
+        assert_eq!(
+            table
+                .get_cell(0, 0)
+                .and_then(|x| x.get_content())
+                .map(ToString::to_string),
+            Some(String::from("e"))
+        );
+    }
+
+    #[test]
+    fn table_get_cell_rowspan_should_return_0_if_no_cell_at_location() {
+        let table = Table::new(vec![make_content_cell(0, 0, "content")], false);
+        assert_eq!(table.get_cell_rowspan(999, 0), 0);
+    }
+
+    #[test]
+    fn table_get_cell_rowspan_should_return_0_if_not_a_content_cell() {
+        let table = Table::new(
+            vec![
+                make_content_cell(0, 0, "content"),
+                make_span_cell(1, 0, CellSpan::FromAbove),
+            ],
+            false,
+        );
+        assert_eq!(table.get_cell_rowspan(1, 0), 0);
+    }
+
+    #[test]
+    fn table_get_cell_rowspan_should_return_1_if_regular_cell_with_no_span() {
+        let table = Table::new(
+            vec![
+                make_content_cell(0, 0, "content"),
+                make_content_cell(1, 0, "content"),
+                make_content_cell(2, 0, "content"),
+            ],
+            false,
+        );
+        assert_eq!(table.get_cell_rowspan(0, 0), 1);
+    }
+
+    #[test]
+    fn table_get_cell_rowspan_should_return_more_than_1_if_spans_from_above() {
+        let table = Table::new(
+            vec![
+                make_content_cell(0, 0, "content"),
+                make_span_cell(1, 0, CellSpan::FromAbove),
+                make_span_cell(2, 0, CellSpan::FromAbove),
+            ],
+            false,
+        );
+        assert_eq!(table.get_cell_rowspan(0, 0), 3);
+
+        // Does not count other types of spans
+        let table = Table::new(
+            vec![
+                make_content_cell(0, 0, "content"),
+                make_span_cell(1, 0, CellSpan::FromAbove),
+                make_span_cell(2, 0, CellSpan::FromAbove),
+                make_span_cell(3, 0, CellSpan::FromLeft),
+            ],
+            false,
+        );
+        assert_eq!(table.get_cell_rowspan(0, 0), 3);
+    }
+
+    #[test]
+    fn table_get_cell_colspan_should_return_0_if_no_cell_at_location() {
+        let table = Table::new(vec![make_content_cell(0, 0, "content")], false);
+        assert_eq!(table.get_cell_colspan(0, 999), 0);
+    }
+
+    #[test]
+    fn table_get_cell_colspan_should_return_0_if_not_a_content_cell() {
+        let table = Table::new(
+            vec![
+                make_content_cell(0, 0, "content"),
+                make_span_cell(0, 1, CellSpan::FromLeft),
+            ],
+            false,
+        );
+        assert_eq!(table.get_cell_colspan(0, 1), 0);
+    }
+
+    #[test]
+    fn table_get_cell_colspan_should_return_1_if_regular_cell_with_no_span() {
+        let table = Table::new(
+            vec![
+                make_content_cell(0, 0, "content"),
+                make_content_cell(0, 1, "content"),
+                make_content_cell(0, 2, "content"),
+            ],
+            false,
+        );
+        assert_eq!(table.get_cell_colspan(0, 0), 1);
+    }
+
+    #[test]
+    fn table_get_cell_colspan_should_return_more_than_1_if_spans_from_left() {
+        let table = Table::new(
+            vec![
+                make_content_cell(0, 0, "content"),
+                make_span_cell(0, 1, CellSpan::FromLeft),
+                make_span_cell(0, 2, CellSpan::FromLeft),
+            ],
+            false,
+        );
+        assert_eq!(table.get_cell_colspan(0, 0), 3);
+
+        // Does not count other types of spans
+        let table = Table::new(
+            vec![
+                make_content_cell(0, 0, "content"),
+                make_span_cell(0, 1, CellSpan::FromLeft),
+                make_span_cell(0, 2, CellSpan::FromLeft),
+                make_span_cell(0, 3, CellSpan::FromAbove),
+            ],
+            false,
+        );
+        assert_eq!(table.get_cell_colspan(0, 0), 3);
+    }
+
+    #[test]
+    fn cell_get_content_should_return_some_content_if_content_variant() {
+        let cell = Cell::Span(CellSpan::FromLeft);
+        assert!(cell.get_content().is_none());
+
+        let cell = Cell::Content(InlineElementContainer::new(Vec::new()));
+        assert!(cell.get_content().is_some());
+    }
+
+    #[test]
+    fn cell_get_span_should_return_some_span_if_span_variant() {
+        let cell = Cell::Content(InlineElementContainer::new(Vec::new()));
+        assert!(cell.get_span().is_none());
+
+        let cell = Cell::Span(CellSpan::FromLeft);
+        assert!(cell.get_span().is_some());
+    }
+
+    #[test]
+    fn cell_get_align_should_return_some_align_if_align_variant() {
+        let cell = Cell::Content(InlineElementContainer::new(Vec::new()));
+        assert!(cell.get_align().is_none());
+
+        let cell = Cell::Align(ColumnAlign::None);
+        assert!(cell.get_align().is_some());
+    }
+
+    mod iter {
+        use super::*;
+
+        #[test]
+        fn rows_has_content_should_return_true_if_any_remaining_row_has_content(
+        ) {
+            let table = Table::new(vec![make_content_cell(0, 0, "")], false);
+            assert!(table.rows().has_content());
+
+            let table = Table::new(
+                vec![make_align_cell(0, 0, ColumnAlign::default())],
+                false,
+            );
+            assert!(!table.rows().has_content());
+        }
+
+        #[test]
+        fn rows_next_should_return_next_row_if_available() {
+            let table = Table::new(vec![make_content_cell(0, 0, "")], false);
+
+            let mut rows = table.rows();
+            assert!(rows.next().is_some());
+        }
+
+        #[test]
+        fn rows_next_should_return_none_if_no_more_rows_available() {
+            let table = Table::new(vec![make_content_cell(0, 0, "")], false);
+
+            let mut rows = table.rows();
+            rows.next();
+            assert!(rows.next().is_none());
+        }
+
+        #[test]
+        fn rows_size_hint_should_return_remaining_rows_as_both_bounds() {
+            let table = Table::new(vec![make_content_cell(0, 0, "")], false);
+
+            let mut rows = table.rows();
+            assert_eq!(rows.size_hint(), (1, Some(1)));
+
+            rows.next();
+            assert_eq!(rows.size_hint(), (0, Some(0)));
+        }
+
+        #[test]
+        fn header_rows_has_content_should_return_true_if_any_remaining_header_row_has_content(
+        ) {
+            // Table with no header rows
+            let table =
+                Table::new(vec![make_content_cell(0, 0, "body")], false);
+            assert!(!table.header_rows().has_content());
+
+            // Table with one header row w/ content
+            let table = Table::new(
+                vec![
+                    make_content_cell(0, 0, "header"),
+                    make_align_cell(1, 0, ColumnAlign::default()),
+                    make_content_cell(2, 0, "body"),
+                ],
+                false,
+            );
+            assert!(table.header_rows().has_content());
+
+            // Table with one header row w/o content
+            let table = Table::new(
+                vec![
+                    make_span_cell(0, 0, CellSpan::FromLeft),
+                    make_align_cell(1, 0, ColumnAlign::default()),
+                    make_content_cell(2, 0, "body"),
+                ],
+                false,
+            );
+            assert!(!table.header_rows().has_content());
+        }
+
+        #[test]
+        fn header_rows_next_should_return_next_header_row_if_available() {
+            // Table with no header rows
+            let table =
+                Table::new(vec![make_content_cell(0, 0, "body")], false);
+
+            let mut rows = table.header_rows();
+            assert!(rows.next().is_none());
+
+            // Table with one header row
+            let table = Table::new(
+                vec![
+                    make_content_cell(0, 0, "header"),
+                    make_align_cell(1, 0, ColumnAlign::default()),
+                    make_content_cell(2, 0, "body"),
+                ],
+                false,
+            );
+            let mut rows = table.header_rows();
+            assert!(rows.next().is_some());
+        }
+
+        #[test]
+        fn header_rows_next_should_return_none_if_no_more_header_rows_available(
+        ) {
+            // Table with no header rows
+            let table =
+                Table::new(vec![make_content_cell(0, 0, "body")], false);
+
+            let mut rows = table.header_rows();
+            assert!(rows.next().is_none());
+
+            // Table with one header row
+            let table = Table::new(
+                vec![
+                    make_content_cell(0, 0, "header"),
+                    make_align_cell(1, 0, ColumnAlign::default()),
+                    make_content_cell(2, 0, "body"),
+                ],
+                false,
+            );
+            let mut rows = table.header_rows();
+            rows.next();
+            assert!(rows.next().is_none());
+        }
+
+        #[test]
+        fn header_rows_size_hint_should_return_remaining_header_rows_as_both_bounds(
+        ) {
+            // Table with no header rows
+            let table =
+                Table::new(vec![make_content_cell(0, 0, "body")], false);
+            assert_eq!(table.header_rows().size_hint(), (0, Some(0)));
+
+            // Table with one header row
+            let table = Table::new(
+                vec![
+                    make_content_cell(0, 0, "header"),
+                    make_align_cell(1, 0, ColumnAlign::default()),
+                    make_content_cell(2, 0, "body"),
+                ],
+                false,
+            );
+            let mut rows = table.header_rows();
+            assert_eq!(rows.size_hint(), (1, Some(1)));
+
+            rows.next();
+            assert_eq!(rows.size_hint(), (0, Some(0)));
+        }
+
+        #[test]
+        fn body_rows_has_content_should_return_true_if_any_remaining_body_row_has_content(
+        ) {
+            // Table with no body rows
+            let table = Table::new(
+                vec![
+                    make_content_cell(0, 0, "header"),
+                    make_align_cell(1, 0, ColumnAlign::default()),
+                ],
+                false,
+            );
+            assert!(!table.body_rows().has_content());
+
+            // Table with mix of header and body rows w/ content
+            let table = Table::new(
+                vec![
+                    make_content_cell(0, 0, "header"),
+                    make_align_cell(1, 0, ColumnAlign::default()),
+                    make_content_cell(2, 0, "body"),
+                ],
+                false,
+            );
+            assert!(table.body_rows().has_content());
+
+            // Table with mix of header and body rows w/o content
+            let table = Table::new(
+                vec![
+                    make_content_cell(0, 0, "header"),
+                    make_align_cell(1, 0, ColumnAlign::default()),
+                    make_span_cell(2, 0, CellSpan::FromAbove),
+                ],
+                false,
+            );
+            assert!(!table.body_rows().has_content());
+        }
+
+        #[test]
+        fn body_rows_next_should_return_next_body_row_if_available() {
+            // Table with no body rows
+            let table = Table::new(
+                vec![
+                    make_content_cell(0, 0, "header"),
+                    make_align_cell(1, 0, ColumnAlign::default()),
+                ],
+                false,
+            );
+
+            let mut rows = table.body_rows();
+            assert!(rows.next().is_none());
+
+            // Table with mix of header and body rows
+            let table = Table::new(
+                vec![
+                    make_content_cell(0, 0, "header"),
+                    make_align_cell(1, 0, ColumnAlign::default()),
+                    make_content_cell(2, 0, "body"),
+                ],
+                false,
+            );
+            let mut rows = table.body_rows();
+            assert!(rows.next().is_some());
+        }
+
+        #[test]
+        fn body_rows_next_should_return_none_if_no_more_body_rows_available() {
+            // Table with no body rows
+            let table = Table::new(
+                vec![
+                    make_content_cell(0, 0, "header"),
+                    make_align_cell(1, 0, ColumnAlign::default()),
+                ],
+                false,
+            );
+
+            let mut rows = table.body_rows();
+            assert!(rows.next().is_none());
+
+            // Table with mix of header and body rows
+            let table = Table::new(
+                vec![
+                    make_content_cell(0, 0, "header"),
+                    make_align_cell(1, 0, ColumnAlign::default()),
+                    make_content_cell(2, 0, "body"),
+                ],
+                false,
+            );
+            let mut rows = table.body_rows();
+            rows.next();
+            assert!(rows.next().is_none());
+        }
+
+        #[test]
+        fn body_rows_size_hint_should_return_remaining_body_rows_as_both_bounds(
+        ) {
+            // Table with no body rows
+            let table = Table::new(
+                vec![
+                    make_content_cell(0, 0, "header"),
+                    make_align_cell(1, 0, ColumnAlign::default()),
+                ],
+                false,
+            );
+            assert_eq!(table.body_rows().size_hint(), (0, Some(0)));
+
+            // Table with mix of header and body rows
+            let table = Table::new(
+                vec![
+                    make_content_cell(0, 0, "header"),
+                    make_align_cell(1, 0, ColumnAlign::default()),
+                    make_content_cell(2, 0, "body"),
+                ],
+                false,
+            );
+            let mut rows = table.body_rows();
+            assert_eq!(rows.size_hint(), (1, Some(1)));
+
+            rows.next();
+            assert_eq!(rows.size_hint(), (0, Some(0)));
+        }
+
+        #[test]
+        fn row_has_content_should_return_true_if_any_remaining_cells_have_content(
+        ) {
+            let table = Table::new(vec![make_content_cell(0, 0, "")], false);
+            assert!(table.row(0).has_content());
+
+            let table = Table::new(
+                vec![make_align_cell(0, 0, ColumnAlign::default())],
+                false,
+            );
+            assert!(!table.row(0).has_content());
+        }
+
+        #[test]
+        fn row_is_divider_row_should_return_true_if_made_up_of_align_cells() {
+            let table = Table::new(
+                vec![make_align_cell(0, 0, ColumnAlign::default())],
+                false,
+            );
+            assert!(table.row(0).is_divider_row());
+
+            let table = Table::new(vec![make_content_cell(0, 0, "")], false);
+            assert!(!table.row(0).is_divider_row());
+        }
+
+        #[test]
+        fn row_zip_with_position_should_map_iter_to_include_cell_position() {
+            let table = Table::new(
+                vec![
+                    make_content_cell(0, 0, "a"),
+                    make_span_cell(0, 1, CellSpan::FromLeft),
+                    make_align_cell(1, 0, ColumnAlign::None),
+                    make_align_cell(1, 1, ColumnAlign::Right),
+                    make_content_cell(2, 0, "b"),
+                    make_content_cell(2, 1, "c"),
+                ],
+                false,
+            );
+
+            let mut rows = table.rows();
+
+            let mut row_0 = rows.next().unwrap().zip_with_position();
+            assert_eq!(row_0.next().unwrap().0, CellPos { row: 0, col: 0 });
+            assert_eq!(row_0.next().unwrap().0, CellPos { row: 0, col: 1 });
+
+            let mut row_1 = rows.next().unwrap().zip_with_position();
+            assert_eq!(row_1.next().unwrap().0, CellPos { row: 1, col: 0 });
+            assert_eq!(row_1.next().unwrap().0, CellPos { row: 1, col: 1 });
+
+            let mut row_2 = rows.next().unwrap().zip_with_position();
+            assert_eq!(row_2.next().unwrap().0, CellPos { row: 2, col: 0 });
+            assert_eq!(row_2.next().unwrap().0, CellPos { row: 2, col: 1 });
+        }
+
+        #[test]
+        fn row_should_iterator_through_appropriate_cells() {
+            let table = Table::new(
+                vec![
+                    make_content_cell(0, 0, "a"),
+                    make_content_cell(0, 1, "b"),
+                    make_content_cell(1, 0, "c"),
+                    make_content_cell(1, 1, "d"),
+                    make_content_cell(2, 0, "e"),
+                    make_content_cell(2, 1, "f"),
+                ],
+                false,
+            );
+
+            assert_eq!(
+                table
+                    .row(1)
+                    .filter_map(|x| x.get_content())
+                    .map(ToString::to_string)
+                    .collect::<Vec<String>>(),
+                vec!["c", "d"]
+            );
+        }
+
+        #[test]
+        fn row_next_should_return_next_cell_if_available() {
+            let table = Table::new(vec![make_content_cell(0, 0, "")], false);
+
+            let mut row = table.row(0);
+            assert!(row.next().is_some());
+        }
+
+        #[test]
+        fn row_next_should_return_none_if_no_more_cells_available() {
+            let table = Table::new(vec![make_content_cell(0, 0, "")], false);
+
+            let mut row = table.row(0);
+            row.next();
+            assert!(row.next().is_none());
+        }
+
+        #[test]
+        fn row_size_hint_should_return_remaining_cells_as_both_bounds() {
+            let table = Table::new(vec![make_content_cell(0, 0, "")], false);
+
+            let mut row = table.row(0);
+            assert_eq!(row.size_hint(), (1, Some(1)));
+
+            row.next();
+            assert_eq!(row.size_hint(), (0, Some(0)));
+        }
+
+        #[test]
+        fn into_row_has_content_should_return_true_if_any_remaining_cells_have_content(
+        ) {
+            let table = Table::new(vec![make_content_cell(0, 0, "")], false);
+            assert!(table.into_row(0).has_content());
+
+            let table = Table::new(
+                vec![make_align_cell(0, 0, ColumnAlign::default())],
+                false,
+            );
+            assert!(!table.into_row(0).has_content());
+        }
+
+        #[test]
+        fn into_row_is_divider_row_should_return_true_if_made_up_of_align_cells(
+        ) {
+            let table = Table::new(
+                vec![make_align_cell(0, 0, ColumnAlign::default())],
+                false,
+            );
+            assert!(table.into_row(0).is_divider_row());
+
+            let table = Table::new(vec![make_content_cell(0, 0, "")], false);
+            assert!(!table.into_row(0).is_divider_row());
+        }
+
+        #[test]
+        fn into_row_zip_with_position_should_map_iter_to_include_cell_position()
+        {
+            let table = Table::new(
+                vec![
+                    make_content_cell(0, 0, "a"),
+                    make_span_cell(0, 1, CellSpan::FromLeft),
+                    make_align_cell(1, 0, ColumnAlign::None),
+                    make_align_cell(1, 1, ColumnAlign::Right),
+                    make_content_cell(2, 0, "b"),
+                    make_content_cell(2, 1, "c"),
+                ],
+                false,
+            );
+
+            let mut row_0 = table.clone().into_row(0).zip_with_position();
+            assert_eq!(row_0.next().unwrap().0, CellPos { row: 0, col: 0 });
+            assert_eq!(row_0.next().unwrap().0, CellPos { row: 0, col: 1 });
+
+            let mut row_1 = table.clone().into_row(1).zip_with_position();
+            assert_eq!(row_1.next().unwrap().0, CellPos { row: 1, col: 0 });
+            assert_eq!(row_1.next().unwrap().0, CellPos { row: 1, col: 1 });
+
+            let mut row_2 = table.into_row(2).zip_with_position();
+            assert_eq!(row_2.next().unwrap().0, CellPos { row: 2, col: 0 });
+            assert_eq!(row_2.next().unwrap().0, CellPos { row: 2, col: 1 });
+        }
+
+        #[test]
+        fn into_row_should_iterator_through_appropriate_cells() {
+            let table = Table::new(
+                vec![
+                    make_content_cell(0, 0, "a"),
+                    make_content_cell(0, 1, "b"),
+                    make_content_cell(1, 0, "c"),
+                    make_content_cell(1, 1, "d"),
+                    make_content_cell(2, 0, "e"),
+                    make_content_cell(2, 1, "f"),
+                ],
+                false,
+            );
+
+            assert_eq!(
+                table
+                    .into_row(1)
+                    .filter_map(|x| match x.into_inner() {
+                        Cell::Content(x) => Some(x.to_string()),
+                        _ => None,
+                    })
+                    .collect::<Vec<String>>(),
+                vec!["c", "d"]
+            );
+        }
+
+        #[test]
+        fn into_row_next_should_return_next_cell_if_available() {
+            let table = Table::new(vec![make_content_cell(0, 0, "")], false);
+
+            let mut row = table.into_row(0);
+            assert!(row.next().is_some());
+        }
+
+        #[test]
+        fn into_row_next_should_return_none_if_no_more_cells_available() {
+            let table = Table::new(vec![make_content_cell(0, 0, "")], false);
+
+            let mut row = table.into_row(0);
+            row.next();
+            assert!(row.next().is_none());
+        }
+
+        #[test]
+        fn into_row_size_hint_should_return_remaining_cells_as_both_bounds() {
+            let table = Table::new(vec![make_content_cell(0, 0, "")], false);
+
+            let mut row = table.into_row(0);
+            assert_eq!(row.size_hint(), (1, Some(1)));
+
+            row.next();
+            assert_eq!(row.size_hint(), (0, Some(0)));
+        }
+
+        #[test]
+        fn columns_has_content_should_return_true_if_any_remaining_column_has_content(
+        ) {
+            let table = Table::new(vec![make_content_cell(0, 0, "")], false);
+            assert!(table.columns().has_content());
+
+            let table = Table::new(
+                vec![make_align_cell(0, 0, ColumnAlign::default())],
+                false,
+            );
+            assert!(!table.columns().has_content());
+        }
+
+        #[test]
+        fn columns_next_should_return_next_column_if_available() {
+            let table = Table::new(vec![make_content_cell(0, 0, "")], false);
+
+            let mut columns = table.columns();
+            assert!(columns.next().is_some());
+        }
+
+        #[test]
+        fn columns_next_should_return_none_if_no_more_columns_available() {
+            let table = Table::new(vec![make_content_cell(0, 0, "")], false);
+
+            let mut columns = table.columns();
+            columns.next();
+            assert!(columns.next().is_none());
+        }
+
+        #[test]
+        fn columns_size_hint_should_return_remaining_columns_as_both_bounds() {
+            let table = Table::new(vec![make_content_cell(0, 0, "")], false);
+
+            let mut columns = table.columns();
+            assert_eq!(columns.size_hint(), (1, Some(1)));
+
+            columns.next();
+            assert_eq!(columns.size_hint(), (0, Some(0)));
+        }
+
+        #[test]
+        fn column_has_content_should_return_true_if_any_remaining_cells_have_content(
+        ) {
+            let table = Table::new(vec![make_content_cell(0, 0, "")], false);
+            assert!(table.column(0).has_content());
+
+            let table = Table::new(
+                vec![make_align_cell(0, 0, ColumnAlign::default())],
+                false,
+            );
+            assert!(!table.column(0).has_content());
+        }
+
+        #[test]
+        fn column_zip_with_position_should_map_iter_to_include_cell_position() {
+            let table = Table::new(
+                vec![
+                    make_content_cell(0, 0, "a"),
+                    make_content_cell(0, 1, "b"),
+                    make_content_cell(0, 2, "c"),
+                    make_align_cell(1, 0, ColumnAlign::Right),
+                    make_align_cell(1, 1, ColumnAlign::Left),
+                    make_align_cell(1, 2, ColumnAlign::None),
+                ],
+                false,
+            );
+
+            let mut columns = table.columns();
+
+            let mut column_0 = columns.next().unwrap().zip_with_position();
+            assert_eq!(column_0.next().unwrap().0, CellPos { row: 0, col: 0 });
+            assert_eq!(column_0.next().unwrap().0, CellPos { row: 1, col: 0 });
+
+            let mut column_1 = columns.next().unwrap().zip_with_position();
+            assert_eq!(column_1.next().unwrap().0, CellPos { row: 0, col: 1 });
+            assert_eq!(column_1.next().unwrap().0, CellPos { row: 1, col: 1 });
+
+            let mut column_2 = columns.next().unwrap().zip_with_position();
+            assert_eq!(column_2.next().unwrap().0, CellPos { row: 0, col: 2 });
+            assert_eq!(column_2.next().unwrap().0, CellPos { row: 1, col: 2 });
+        }
+
+        #[test]
+        fn column_should_iterator_through_appropriate_cells() {
+            let table = Table::new(
+                vec![
+                    make_content_cell(0, 0, "a"),
+                    make_content_cell(0, 1, "b"),
+                    make_content_cell(0, 2, "c"),
+                    make_content_cell(1, 0, "d"),
+                    make_content_cell(1, 1, "e"),
+                    make_content_cell(1, 2, "f"),
+                ],
+                false,
+            );
+
+            assert_eq!(
+                table
+                    .column(1)
+                    .filter_map(|x| x.get_content())
+                    .map(ToString::to_string)
+                    .collect::<Vec<String>>(),
+                vec!["b", "e"]
+            );
+        }
+
+        #[test]
+        fn column_next_should_return_next_cell_if_available() {
+            let table = Table::new(vec![make_content_cell(0, 0, "")], false);
+
+            let mut column = table.column(0);
+            assert!(column.next().is_some());
+        }
+
+        #[test]
+        fn column_next_should_return_none_if_no_more_cells_available() {
+            let table = Table::new(vec![make_content_cell(0, 0, "")], false);
+
+            let mut column = table.column(0);
+            column.next();
+            assert!(column.next().is_none());
+        }
+
+        #[test]
+        fn column_size_hint_should_return_remaining_cells_as_both_bounds() {
+            let table = Table::new(vec![make_content_cell(0, 0, "")], false);
+
+            let mut column = table.column(0);
+            assert_eq!(column.size_hint(), (1, Some(1)));
+
+            column.next();
+            assert_eq!(column.size_hint(), (0, Some(0)));
+        }
+
+        #[test]
+        fn into_column_has_content_should_return_true_if_any_remaining_cells_have_content(
+        ) {
+            let table = Table::new(vec![make_content_cell(0, 0, "")], false);
+            assert!(table.into_column(0).has_content());
+
+            let table = Table::new(
+                vec![make_align_cell(0, 0, ColumnAlign::default())],
+                false,
+            );
+            assert!(!table.into_column(0).has_content());
+        }
+
+        #[test]
+        fn into_column_zip_with_position_should_map_iter_to_include_cell_position(
+        ) {
+            let table = Table::new(
+                vec![
+                    make_content_cell(0, 0, "a"),
+                    make_content_cell(0, 1, "b"),
+                    make_content_cell(0, 2, "c"),
+                    make_align_cell(1, 0, ColumnAlign::Left),
+                    make_align_cell(1, 1, ColumnAlign::None),
+                    make_align_cell(1, 2, ColumnAlign::Right),
+                ],
+                false,
+            );
+
+            let mut column_0 = table.clone().into_column(0).zip_with_position();
+            assert_eq!(column_0.next().unwrap().0, CellPos { row: 0, col: 0 });
+            assert_eq!(column_0.next().unwrap().0, CellPos { row: 1, col: 0 });
+
+            let mut column_1 = table.clone().into_column(1).zip_with_position();
+            assert_eq!(column_1.next().unwrap().0, CellPos { row: 0, col: 1 });
+            assert_eq!(column_1.next().unwrap().0, CellPos { row: 1, col: 1 });
+
+            let mut column_2 = table.into_column(2).zip_with_position();
+            assert_eq!(column_2.next().unwrap().0, CellPos { row: 0, col: 2 });
+            assert_eq!(column_2.next().unwrap().0, CellPos { row: 1, col: 2 });
+        }
+
+        #[test]
+        fn into_column_should_iterator_through_appropriate_cells() {
+            let table = Table::new(
+                vec![
+                    make_content_cell(0, 0, "a"),
+                    make_content_cell(0, 1, "b"),
+                    make_content_cell(0, 2, "c"),
+                    make_content_cell(1, 0, "d"),
+                    make_content_cell(1, 1, "e"),
+                    make_content_cell(1, 2, "f"),
+                ],
+                false,
+            );
+
+            assert_eq!(
+                table
+                    .into_column(1)
+                    .filter_map(|x| match x.into_inner() {
+                        Cell::Content(x) => Some(x.to_string()),
+                        _ => None,
+                    })
+                    .collect::<Vec<String>>(),
+                vec!["b", "e"]
+            );
+        }
+
+        #[test]
+        fn into_column_next_should_return_next_cell_if_available() {
+            let table = Table::new(vec![make_content_cell(0, 0, "")], false);
+
+            let mut column = table.into_column(0);
+            assert!(column.next().is_some());
+        }
+
+        #[test]
+        fn into_column_next_should_return_none_if_no_more_cells_available() {
+            let table = Table::new(vec![make_content_cell(0, 0, "")], false);
+
+            let mut column = table.into_column(0);
+            column.next();
+            assert!(column.next().is_none());
+        }
+
+        #[test]
+        fn into_column_size_hint_should_return_remaining_cells_as_both_bounds()
+        {
+            let table = Table::new(vec![make_content_cell(0, 0, "")], false);
+
+            let mut column = table.into_column(0);
+            assert_eq!(column.size_hint(), (1, Some(1)));
+
+            column.next();
+            assert_eq!(column.size_hint(), (0, Some(0)));
+        }
+
+        #[test]
+        fn cells_has_content_should_return_true_if_any_remaining_cells_have_content(
+        ) {
+            let table = Table::new(vec![make_content_cell(0, 0, "")], false);
+            assert!(table.cells().has_content());
+
+            let table = Table::new(
+                vec![make_align_cell(0, 0, ColumnAlign::default())],
+                false,
+            );
+            assert!(!table.cells().has_content());
+        }
+
+        #[test]
+        fn cells_zip_with_position_should_map_iter_to_include_cell_position() {
+            let table = Table::new(
+                vec![
+                    make_content_cell(0, 0, "a"),
+                    make_content_cell(0, 1, "b"),
+                    make_content_cell(0, 2, "c"),
+                    make_align_cell(1, 0, ColumnAlign::Right),
+                    make_align_cell(1, 1, ColumnAlign::Left),
+                    make_align_cell(1, 2, ColumnAlign::None),
+                ],
+                false,
+            );
+
+            let mut cells = table.cells().zip_with_position();
+            assert_eq!(cells.next().unwrap().0, CellPos { row: 0, col: 0 });
+            assert_eq!(cells.next().unwrap().0, CellPos { row: 0, col: 1 });
+            assert_eq!(cells.next().unwrap().0, CellPos { row: 0, col: 2 });
+            assert_eq!(cells.next().unwrap().0, CellPos { row: 1, col: 0 });
+            assert_eq!(cells.next().unwrap().0, CellPos { row: 1, col: 1 });
+            assert_eq!(cells.next().unwrap().0, CellPos { row: 1, col: 2 });
+        }
+
+        #[test]
+        fn cells_should_iterator_through_appropriate_cells() {
+            let table = Table::new(
+                vec![
+                    make_content_cell(0, 0, "a"),
+                    make_content_cell(0, 1, "b"),
+                    make_content_cell(0, 2, "c"),
+                    make_content_cell(1, 0, "d"),
+                    make_content_cell(1, 1, "e"),
+                    make_content_cell(1, 2, "f"),
+                ],
+                false,
+            );
+
+            assert_eq!(
+                table
+                    .cells()
+                    .filter_map(|x| x.get_content())
+                    .map(ToString::to_string)
+                    .collect::<Vec<String>>(),
+                vec!["a", "b", "c", "d", "e", "f"]
+            );
+        }
+
+        #[test]
+        fn cells_next_should_return_next_cell_if_available() {
+            let table = Table::new(vec![make_content_cell(0, 0, "")], false);
+
+            let mut cells = table.cells();
+            assert!(cells.next().is_some());
+        }
+
+        #[test]
+        fn cells_next_should_return_none_if_no_more_cells_available() {
+            let table = Table::new(vec![make_content_cell(0, 0, "")], false);
+
+            let mut cells = table.cells();
+            cells.next();
+            assert!(cells.next().is_none());
+        }
+
+        #[test]
+        fn cells_size_hint_should_return_remaining_cells_as_both_bounds() {
+            let table = Table::new(vec![make_content_cell(0, 0, "")], false);
+
+            let mut cells = table.cells();
+            assert_eq!(cells.size_hint(), (1, Some(1)));
+
+            cells.next();
+            assert_eq!(cells.size_hint(), (0, Some(0)));
+        }
+
+        #[test]
+        fn into_cells_has_content_should_return_true_if_any_remaining_cells_have_content(
+        ) {
+            let table = Table::new(vec![make_content_cell(0, 0, "")], false);
+            assert!(table.into_cells().has_content());
+
+            let table = Table::new(
+                vec![make_align_cell(0, 0, ColumnAlign::default())],
+                false,
+            );
+            assert!(!table.into_cells().has_content());
+        }
+
+        #[test]
+        fn into_cells_zip_with_position_should_map_iter_to_include_cell_position(
+        ) {
+            let table = Table::new(
+                vec![
+                    make_content_cell(0, 0, "a"),
+                    make_content_cell(0, 1, "b"),
+                    make_content_cell(0, 2, "c"),
+                    make_align_cell(1, 0, ColumnAlign::Left),
+                    make_align_cell(1, 1, ColumnAlign::None),
+                    make_align_cell(1, 2, ColumnAlign::Right),
+                ],
+                false,
+            );
+
+            let mut cells = table.into_cells().zip_with_position();
+            assert_eq!(cells.next().unwrap().0, CellPos { row: 0, col: 0 });
+            assert_eq!(cells.next().unwrap().0, CellPos { row: 0, col: 1 });
+            assert_eq!(cells.next().unwrap().0, CellPos { row: 0, col: 2 });
+            assert_eq!(cells.next().unwrap().0, CellPos { row: 1, col: 0 });
+            assert_eq!(cells.next().unwrap().0, CellPos { row: 1, col: 1 });
+            assert_eq!(cells.next().unwrap().0, CellPos { row: 1, col: 2 });
+        }
+
+        #[test]
+        fn into_cells_should_iterator_through_all_cells() {
+            let table = Table::new(
+                vec![
+                    make_content_cell(0, 0, "a"),
+                    make_content_cell(0, 1, "b"),
+                    make_content_cell(0, 2, "c"),
+                    make_content_cell(1, 0, "d"),
+                    make_content_cell(1, 1, "e"),
+                    make_content_cell(1, 2, "f"),
+                ],
+                false,
+            );
+
+            assert_eq!(
+                table
+                    .into_cells()
+                    .filter_map(|x| match x.into_inner() {
+                        Cell::Content(x) => Some(x.to_string()),
+                        _ => None,
+                    })
+                    .collect::<Vec<String>>(),
+                vec!["a", "b", "c", "d", "e", "f"]
+            );
+        }
+
+        #[test]
+        fn into_cells_next_should_return_next_cell_if_available() {
+            let table = Table::new(vec![make_content_cell(0, 0, "")], false);
+
+            let mut cells = table.into_cells();
+            assert!(cells.next().is_some());
+        }
+
+        #[test]
+        fn into_cells_next_should_return_none_if_no_more_cells_available() {
+            let table = Table::new(vec![make_content_cell(0, 0, "")], false);
+
+            let mut cells = table.into_cells();
+            cells.next();
+            assert!(cells.next().is_none());
+        }
+
+        #[test]
+        fn into_cells_size_hint_should_return_remaining_cells_as_both_bounds() {
+            let table = Table::new(vec![make_content_cell(0, 0, "")], false);
+
+            let mut cells = table.into_cells();
+            assert_eq!(cells.size_hint(), (1, Some(1)));
+
+            cells.next();
+            assert_eq!(cells.size_hint(), (0, Some(0)));
         }
     }
 }

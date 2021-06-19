@@ -416,7 +416,7 @@ impl<'a> Output<VimwikiFormatter> for Table<'a> {
             )?;
 
         // Second, we calculate largest cell in each column (col -> max size)
-        let max_column_sizes: HashMap<usize, usize> = fixed_size_cells
+        let mut max_column_sizes: HashMap<usize, usize> = fixed_size_cells
             .iter()
             .fold(HashMap::new(), |mut acc, (pos, text)| {
                 let col = pos.col;
@@ -428,9 +428,39 @@ impl<'a> Output<VimwikiFormatter> for Table<'a> {
                 acc
             });
 
+        // Make sure that the max size accounts for cases where content is
+        // empty or missing and so we need a default size based on align
+        for (col, size) in max_column_sizes.iter_mut() {
+            let min_align_size = self
+                .column(*col)
+                .map(|x| match x.as_inner() {
+                    Cell::Align(ColumnAlign::None) => 1,  /* - */
+                    Cell::Align(ColumnAlign::Left) => 2,  /* :- */
+                    Cell::Align(ColumnAlign::Right) => 2, /* -: */
+                    Cell::Align(ColumnAlign::Center) => 3, /* :-: */
+                    _ => 0,
+                })
+                .max()
+                .unwrap_or_default();
+
+            // Factor in that max size might be +2 for padding
+            let extra = if no_padding { 0 } else { 2 };
+
+            if min_align_size > *size + extra {
+                *size = min_align_size;
+            }
+        }
+
         // Third, we iterate through all cells, one row at a time, and write
         // out the table using the size information
         for row in 0..self.row_cnt() {
+            f.write_indent()?;
+
+            // TODO: Enable configuring centered indentation
+            if self.centered {
+                write!(f, "    ")?;
+            }
+
             write!(f, "|")?;
             for col in 0..self.col_cnt() {
                 // Get the max size, using 0 if nothing with a fixed size is
@@ -438,18 +468,19 @@ impl<'a> Output<VimwikiFormatter> for Table<'a> {
                 let mut max_size =
                     max_column_sizes.get(&col).copied().unwrap_or_default();
 
-                // If adding padding on each size, adjust the max cell size
-                if !no_padding {
-                    max_size += 2;
-                }
-
                 // If we have fixed content, write it with optional padding
                 if let Some(text) = fixed_size_cells.get(&CellPos { row, col })
                 {
                     if !no_padding {
                         write!(f, " ")?;
                     }
+
                     write!(f, "{}", text)?;
+
+                    // NOTE: Add extra space to fill in remainder of cell
+                    if text.len() < max_size {
+                        write!(f, "{}", " ".repeat(max_size - text.len()))?;
+                    }
 
                     if !no_padding {
                         write!(f, " ")?;
@@ -457,6 +488,13 @@ impl<'a> Output<VimwikiFormatter> for Table<'a> {
 
                 // Otherwise, we have some form of divider and want to write it
                 } else {
+                    // If adding padding on each size, adjust the max cell size
+                    // for when we need to produce a divider to make sure it
+                    // accounts for that padding
+                    if !no_padding {
+                        max_size += 2;
+                    }
+
                     match self.get_cell(row, col).map(|x| x.as_inner()) {
                         Some(Cell::Align(ColumnAlign::None)) => {
                             write!(f, "{}", "-".repeat(max_size))?
@@ -715,9 +753,16 @@ impl<'a> Output<VimwikiFormatter> for LineComment<'a> {
 impl<'a> Output<VimwikiFormatter> for MultiLineComment<'a> {
     fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
         write!(f, "%%+")?;
-        for line in self {
-            writeln!(f, "{}", line)?;
+
+        for (idx, line) in self.iter().enumerate() {
+            // Don't write newline on last line
+            if idx == self.len() - 1 {
+                write!(f, "{}", line)?;
+            } else {
+                writeln!(f, "{}", line)?;
+            }
         }
+
         write!(f, "+%%")?;
 
         Ok(())
@@ -966,7 +1011,7 @@ mod tests {
 
         // Test multiple definitions
         let list = build_def_list("term1", vec!["def1", "def2"]);
-        let mut f = VimwikiFormatter::new(config.clone());
+        let mut f = VimwikiFormatter::new(config);
         list.fmt(&mut f).unwrap();
         assert_eq!(f.get_content(), "term1:: def1\n:: def2\n");
     }
@@ -996,7 +1041,7 @@ mod tests {
 
         // Test multiple definitions
         let list = build_def_list("term1", vec!["def1", "def2"]);
-        let mut f = VimwikiFormatter::new(config.clone());
+        let mut f = VimwikiFormatter::new(config);
         list.fmt(&mut f).unwrap();
         assert_eq!(f.get_content(), "term1::\n:: def1\n:: def2\n");
     }
@@ -1932,6 +1977,71 @@ mod tests {
         )
     }
 
+    #[inline]
+    fn multi_column_table(centered: bool) -> Table<'static> {
+        Table::new(
+            vec![
+                (
+                    CellPos { row: 0, col: 0 },
+                    Located::from(Cell::Content(
+                        text_to_inline_element_container("some header 1"),
+                    )),
+                ),
+                (
+                    CellPos { row: 0, col: 1 },
+                    Located::from(Cell::Span(CellSpan::FromLeft)),
+                ),
+                (
+                    CellPos { row: 0, col: 2 },
+                    Located::from(Cell::Content(
+                        text_to_inline_element_container("some header 2"),
+                    )),
+                ),
+                (
+                    CellPos { row: 0, col: 3 },
+                    Located::from(Cell::Span(CellSpan::FromLeft)),
+                ),
+                (
+                    CellPos { row: 1, col: 0 },
+                    Located::from(Cell::Align(ColumnAlign::None)),
+                ),
+                (
+                    CellPos { row: 1, col: 1 },
+                    Located::from(Cell::Align(ColumnAlign::Left)),
+                ),
+                (
+                    CellPos { row: 1, col: 2 },
+                    Located::from(Cell::Align(ColumnAlign::Right)),
+                ),
+                (
+                    CellPos { row: 1, col: 3 },
+                    Located::from(Cell::Align(ColumnAlign::Center)),
+                ),
+                (
+                    CellPos { row: 2, col: 0 },
+                    Located::from(Cell::Content(
+                        text_to_inline_element_container("some text 1"),
+                    )),
+                ),
+                (
+                    CellPos { row: 2, col: 1 },
+                    Located::from(Cell::Span(CellSpan::FromAbove)),
+                ),
+                (
+                    CellPos { row: 2, col: 2 },
+                    Located::from(Cell::Span(CellSpan::FromAbove)),
+                ),
+                (
+                    CellPos { row: 2, col: 3 },
+                    Located::from(Cell::Content(
+                        text_to_inline_element_container(""),
+                    )),
+                ),
+            ],
+            centered,
+        )
+    }
+
     #[test]
     fn table_should_pad_cells_by_default() {
         let table = single_column_table(false);
@@ -1987,28 +2097,127 @@ mod tests {
     }
 
     #[test]
-    fn table_should_adjust_cell_size_to_fit_largest_cell_in_column() {
-        todo!("Do 4 columns with content, span left, span above, and nothing");
+    fn table_should_adjust_cell_size_to_fit_largest_cell_in_column_for_no_padding_if_disabled(
+    ) {
+        let table = multi_column_table(false);
+        let mut f = VimwikiFormatter::new(VimwikiConfig {
+            table: VimwikiTableConfig { no_padding: true },
+            ..Default::default()
+        });
+        table.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            indoc! {r"
+                |some header 1|> |some header 2|>  |
+                |-------------|:-|------------:|:-:|
+                |some text 1  |\/|\/           |   |
+            "},
+        );
     }
 
     #[test]
-    fn table_should_adjust_cell_size_accounting_for_padding() {
-        todo!("Do 4 columns with content, span left, span above, and nothing");
+    fn table_should_adjust_cell_size_to_fit_largest_cell_in_column_accounting_for_padding_if_enabled(
+    ) {
+        let table = multi_column_table(false);
+        let mut f = VimwikiFormatter::new(VimwikiConfig {
+            table: VimwikiTableConfig { no_padding: false },
+            ..Default::default()
+        });
+        table.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            indoc! {r"
+                | some header 1 | >  | some header 2 | > |
+                |---------------|:---|--------------:|:-:|
+                | some text 1   | \/ | \/            |   |
+            "},
+        );
     }
 
     #[test]
-    fn table_should_stretch_divider_rows_to_fit_column_sizes() {
-        todo!("Do 4 columns with each of 4 types of column divider");
+    fn table_should_leverage_a_base_divider_size_in_case_all_other_cells_empty()
+    {
+        fn make_text_cell(text: &str) -> Located<Cell> {
+            Located::from(Cell::Content(InlineElementContainer::new(vec![
+                Located::from(InlineElement::from(Text::from(text))),
+            ])))
+        }
+
+        let table = Table::new(
+            vec![
+                (CellPos { row: 0, col: 0 }, make_text_cell("")),
+                (CellPos { row: 0, col: 1 }, make_text_cell("")),
+                (CellPos { row: 0, col: 2 }, make_text_cell("")),
+                (CellPos { row: 0, col: 3 }, make_text_cell("")),
+                (
+                    CellPos { row: 1, col: 0 },
+                    Located::from(Cell::Align(ColumnAlign::None)),
+                ),
+                (
+                    CellPos { row: 1, col: 1 },
+                    Located::from(Cell::Align(ColumnAlign::Left)),
+                ),
+                (
+                    CellPos { row: 1, col: 2 },
+                    Located::from(Cell::Align(ColumnAlign::Right)),
+                ),
+                (
+                    CellPos { row: 1, col: 3 },
+                    Located::from(Cell::Align(ColumnAlign::Center)),
+                ),
+                (CellPos { row: 2, col: 0 }, make_text_cell("")),
+                (CellPos { row: 2, col: 1 }, make_text_cell("")),
+                (CellPos { row: 2, col: 2 }, make_text_cell("")),
+                (CellPos { row: 2, col: 3 }, make_text_cell("")),
+            ],
+            false,
+        );
+        let mut f = VimwikiFormatter::new(VimwikiConfig {
+            table: VimwikiTableConfig { no_padding: true },
+            ..Default::default()
+        });
+        table.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            indoc! {r"
+                | |  |  |   |
+                |-|:-|-:|:-:|
+                | |  |  |   |
+            "},
+        );
     }
 
     #[test]
     fn table_should_support_being_centered() {
-        todo!();
+        let table = single_column_table(true);
+        let mut f = VimwikiFormatter::new(VimwikiConfig {
+            table: VimwikiTableConfig { no_padding: true },
+            ..Default::default()
+        });
+        table.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            "    |some header|\n    |-----------|\n    |some text  |\n",
+        );
     }
 
     #[test]
     fn table_should_support_indentation() {
-        todo!();
+        let table = single_column_table(false);
+        let mut f = VimwikiFormatter::new(VimwikiConfig {
+            table: VimwikiTableConfig { no_padding: true },
+            ..Default::default()
+        });
+        f.and_indent(|f| table.fmt(f)).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            "    |some header|\n    |-----------|\n    |some text  |\n",
+        );
     }
 
     #[test]
@@ -2086,7 +2295,7 @@ mod tests {
             (Keyword::Xxx, "XXX"),
         ];
 
-        for (keyword, output) in inputs_and_outputs.into_iter() {
+        for (keyword, output) in inputs_and_outputs.iter() {
             let mut f = VimwikiFormatter::default();
             keyword.fmt(&mut f).unwrap();
             assert_eq!(f.get_content(), *output);
