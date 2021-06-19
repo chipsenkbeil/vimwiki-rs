@@ -1,4 +1,4 @@
-use crate::fixtures::VimwikiFile;
+use crate::parser::fixtures::VimwikiFile;
 use std::convert::TryFrom;
 use vimwiki_core::{vendor::uriparse::URIReference, *};
 

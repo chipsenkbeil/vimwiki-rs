@@ -4,11 +4,7 @@ use serde::{Deserialize, Serialize};
 /// the running state during vimwiki conversion
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct VimwikiConfig {
-    /// Configuration settings that apply broadly to general formatting
-    #[serde(default)]
-    pub format: VimwikiFormatConfig,
-
-    /// Configuration settings that apply specifically to pages
+    /// Configuration settings that apply across entire pages
     #[serde(default)]
     pub page: VimwikiPageConfig,
 
@@ -37,32 +33,13 @@ pub struct VimwikiConfig {
     pub table: VimwikiTableConfig,
 }
 
-/// Represents configuration options related to general formatting
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct VimwikiFormatConfig {
-    /// Represents the string to use when indenting (e.g. four spaces or a tab)
-    #[serde(default = "VimwikiFormatConfig::default_indent_str")]
-    pub indent_str: String,
-}
-
-impl Default for VimwikiFormatConfig {
-    fn default() -> Self {
-        Self {
-            indent_str: Self::default_indent_str(),
-        }
-    }
-}
-
-impl VimwikiFormatConfig {
-    #[inline]
-    pub fn default_indent_str() -> String {
-        String::from("    ")
-    }
-}
-
-/// Represents configuration options related to pages
+/// Represents configuration options related to entire pages
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct VimwikiPageConfig {
+    /// Represents the string to use when indenting (e.g. four spaces or a tab)
+    #[serde(default = "VimwikiPageConfig::default_indent_str")]
+    pub indent_str: String,
+
     /// If true, will add an extra line between each block element at the page level
     #[serde(default = "VimwikiPageConfig::default_separate_block_elements")]
     pub separate_block_elements: bool,
@@ -71,6 +48,7 @@ pub struct VimwikiPageConfig {
 impl Default for VimwikiPageConfig {
     fn default() -> Self {
         Self {
+            indent_str: Self::default_indent_str(),
             separate_block_elements: Self::default_separate_block_elements(),
         }
     }
@@ -80,6 +58,11 @@ impl VimwikiPageConfig {
     #[inline]
     pub fn default_separate_block_elements() -> bool {
         true
+    }
+
+    #[inline]
+    pub fn default_indent_str() -> String {
+        String::from("    ")
     }
 }
 

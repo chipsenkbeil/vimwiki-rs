@@ -20,6 +20,7 @@ impl<'a> Output<VimwikiFormatter> for Page<'a> {
     fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
         let VimwikiPageConfig {
             separate_block_elements,
+            ..
         } = f.config().page;
 
         for (idx, element) in self.elements.iter().enumerate() {

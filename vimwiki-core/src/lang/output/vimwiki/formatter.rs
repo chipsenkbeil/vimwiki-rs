@@ -61,7 +61,7 @@ impl VimwikiFormatter {
 
     /// Writes a string representing the indentation for the current level
     pub fn write_indent(&mut self) -> Result<(), VimwikiOutputError> {
-        let indent_str = self.config.format.indent_str.to_string();
+        let indent_str = self.config.page.indent_str.to_string();
 
         for _ in 0..self.indent_level {
             write!(self, "{}", indent_str)?;

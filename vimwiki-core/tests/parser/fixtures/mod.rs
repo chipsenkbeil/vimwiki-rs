@@ -23,8 +23,8 @@ impl VimwikiFile {
 
     /// Returns the path associated with the fixture
     pub fn to_path(&self) -> PathBuf {
-        let head =
-            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+        let head = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/parser/fixtures");
         let tail = match self {
             Self::Issue119 => PathBuf::from("issue/119.wiki"),
             Self::Issue120 => PathBuf::from("issue/120.wiki"),
