@@ -665,7 +665,7 @@ impl<'a> Output<VimwikiFormatter> for Link<'a> {
                 write!(f, "]]")?;
             }
             Self::Diary { date, data } => {
-                write!(f, "[[")?;
+                write!(f, "[[diary:")?;
                 write!(f, "{}", date)?;
                 if let Some(anchor) = data.to_anchor() {
                     write!(f, "{}", anchor)?;
@@ -2495,7 +2495,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "[[2021-06-17]]");
+        assert_eq!(f.get_content(), "[[diary:2021-06-17]]");
     }
 
     #[test]
@@ -2508,7 +2508,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "[[2021-06-17|text description]]");
+        assert_eq!(f.get_content(), "[[diary:2021-06-17|text description]]");
     }
 
     #[test]
@@ -2524,7 +2524,7 @@ mod tests {
 
         assert_eq!(
             f.get_content(),
-            "[[2021-06-17|{{https://example.com/img.png}}]]"
+            "[[diary:2021-06-17|{{https://example.com/img.png}}]]"
         );
     }
 
@@ -2538,7 +2538,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "[[2021-06-17#one#two#three]]");
+        assert_eq!(f.get_content(), "[[diary:2021-06-17#one#two#three]]");
     }
 
     #[test]
@@ -2553,7 +2553,7 @@ mod tests {
 
         assert_eq!(
             f.get_content(),
-            "[[2021-06-17#one#two#three|text description]]"
+            "[[diary:2021-06-17#one#two#three|text description]]"
         );
     }
 
