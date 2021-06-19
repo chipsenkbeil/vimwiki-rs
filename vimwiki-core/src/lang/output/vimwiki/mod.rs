@@ -18,8 +18,18 @@ use std::{collections::HashMap, fmt::Write};
 
 impl<'a> Output<VimwikiFormatter> for Page<'a> {
     fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
-        for element in self.elements.iter() {
+        let VimwikiPageConfig {
+            separate_block_elements,
+        } = f.config().page;
+
+        for (idx, element) in self.elements.iter().enumerate() {
             element.fmt(f)?;
+
+            // If specified, add an additional linefeed after each element
+            // except for the very last one
+            if separate_block_elements && idx < self.elements.len() - 1 {
+                writeln!(f)?;
+            }
         }
 
         Ok(())

@@ -8,6 +8,10 @@ pub struct VimwikiConfig {
     #[serde(default)]
     pub format: VimwikiFormatConfig,
 
+    /// Configuration settings that apply specifically to pages
+    #[serde(default)]
+    pub page: VimwikiPageConfig,
+
     /// Configuration settings that apply specifically to blockquotes
     #[serde(default)]
     pub blockquote: VimwikiBlockquoteConfig,
@@ -53,6 +57,29 @@ impl VimwikiFormatConfig {
     #[inline]
     pub fn default_indent_str() -> String {
         String::from("    ")
+    }
+}
+
+/// Represents configuration options related to pages
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct VimwikiPageConfig {
+    /// If true, will add an extra line between each block element at the page level
+    #[serde(default = "VimwikiPageConfig::default_separate_block_elements")]
+    pub separate_block_elements: bool,
+}
+
+impl Default for VimwikiPageConfig {
+    fn default() -> Self {
+        Self {
+            separate_block_elements: Self::default_separate_block_elements(),
+        }
+    }
+}
+
+impl VimwikiPageConfig {
+    #[inline]
+    pub fn default_separate_block_elements() -> bool {
+        true
     }
 }
 
