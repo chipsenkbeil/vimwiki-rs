@@ -25,6 +25,7 @@ impl<'a> Output<VimwikiFormatter> for Page<'a> {
 
         for (idx, element) in self.elements.iter().enumerate() {
             element.fmt(f)?;
+            writeln!(f)?;
 
             // If specified, add an additional linefeed after each element
             // except for the very last one
@@ -211,7 +212,7 @@ impl<'a> Output<VimwikiFormatter> for Header<'a> {
 
 impl<'a> Output<VimwikiFormatter> for List<'a> {
     fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
-        for item in self {
+        for (idx, item) in self.items.iter().enumerate() {
             item.fmt(f)?;
         }
 
@@ -221,7 +222,7 @@ impl<'a> Output<VimwikiFormatter> for List<'a> {
 
 impl<'a> Output<VimwikiFormatter> for ListItem<'a> {
     fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
-        let VimwikiListConfig { trim_lines, todo } = f.config().list;
+        let VimwikiListConfig { todo } = f.config().list;
         let VimwikiTodoListItemConfig {
             incomplete_char,
             partially_complete_1_char,
@@ -266,15 +267,8 @@ impl<'a> Output<VimwikiFormatter> for ListItem<'a> {
                 }
             }
 
-            // Write line(s) at proper indentation level with trim if specified
-            if trim_lines {
-                f.and_trim(|f| f.and_indent(|f| content.fmt(f)))?;
-            } else {
-                f.and_indent(|f| content.fmt(f))?;
-            }
-
-            // End list item line
-            writeln!(f)?;
+            // Write content at next indentation level
+            f.and_indent(|f| content.fmt(f))?;
         }
 
         Ok(())
@@ -1501,75 +1495,6 @@ mod tests {
         list.fmt(&mut f).unwrap();
 
         assert_eq!(f.get_content(), "- some list item\n- another list item\n");
-    }
-
-    #[test]
-    fn list_item_should_trim_lines_by_default() {
-        let list_item = ListItem::new(
-            ListItemType::Unordered(UnorderedListItemType::Hyphen),
-            ListItemSuffix::None,
-            0,
-            ListItemContents::new(vec![Located::from(BlockElement::from(
-                Paragraph::new(vec![text_to_inline_element_container(
-                    " \r\tsome list item \r\t",
-                )]),
-            ))]),
-            ListItemAttributes::default(),
-        );
-        let mut f = VimwikiFormatter::default();
-        list_item.fmt(&mut f).unwrap();
-
-        assert_eq!(f.get_content(), "- some list item\n");
-    }
-
-    #[test]
-    fn list_item_should_trim_lines_if_setting_enabled() {
-        let list_item = ListItem::new(
-            ListItemType::Unordered(UnorderedListItemType::Hyphen),
-            ListItemSuffix::None,
-            0,
-            ListItemContents::new(vec![Located::from(BlockElement::from(
-                Paragraph::new(vec![text_to_inline_element_container(
-                    " \r\tsome list item \r\t",
-                )]),
-            ))]),
-            ListItemAttributes::default(),
-        );
-        let mut f = VimwikiFormatter::new(VimwikiConfig {
-            list: VimwikiListConfig {
-                trim_lines: true,
-                ..Default::default()
-            },
-            ..Default::default()
-        });
-        list_item.fmt(&mut f).unwrap();
-
-        assert_eq!(f.get_content(), "- some list item\n");
-    }
-
-    #[test]
-    fn list_item_should_not_trim_lines_if_setting_disabled() {
-        let list_item = ListItem::new(
-            ListItemType::Unordered(UnorderedListItemType::Hyphen),
-            ListItemSuffix::None,
-            0,
-            ListItemContents::new(vec![Located::from(BlockElement::from(
-                Paragraph::new(vec![text_to_inline_element_container(
-                    " \r\tsome list item \r\t",
-                )]),
-            ))]),
-            ListItemAttributes::default(),
-        );
-        let mut f = VimwikiFormatter::new(VimwikiConfig {
-            list: VimwikiListConfig {
-                trim_lines: false,
-                ..Default::default()
-            },
-            ..Default::default()
-        });
-        list_item.fmt(&mut f).unwrap();
-
-        assert_eq!(f.get_content(), "-  \r\tsome list item \r\t\n");
     }
 
     #[test]

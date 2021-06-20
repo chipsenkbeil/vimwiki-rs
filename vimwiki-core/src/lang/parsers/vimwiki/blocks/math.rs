@@ -2,9 +2,8 @@ use crate::lang::{
     elements::{Located, MathBlock},
     parsers::{
         utils::{
-            any_line, beginning_of_line, capture, context,
-            count_remaining_bytes, cow_str, end_of_line_or_input, locate,
-            take_line_until1,
+            any_line, capture, context, count_remaining_bytes, cow_str,
+            end_of_line_or_input, locate, take_line_until1,
         },
         IResult, Span,
     },
@@ -69,7 +68,6 @@ fn beginning_of_math_block<'a>(
     let environment_parser =
         delimited(char('%'), take_line_until1("%"), char('%'));
 
-    let (input, _) = beginning_of_line(input)?;
     let (input, indent_size) =
         map_parser(space0, count_remaining_bytes)(input)?;
     let (input, _) = tag("{{$")(input)?;
@@ -82,7 +80,6 @@ fn beginning_of_math_block<'a>(
 }
 
 fn end_of_math_block(input: Span) -> IResult<usize> {
-    let (input, _) = beginning_of_line(input)?;
     let (input, indent_size) =
         map_parser(space0, count_remaining_bytes)(input)?;
     let (input, _) = tag("}}$")(input)?;

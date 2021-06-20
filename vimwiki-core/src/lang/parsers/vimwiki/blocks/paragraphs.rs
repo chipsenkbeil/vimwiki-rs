@@ -6,10 +6,7 @@ use super::{
 use crate::lang::{
     elements::{InlineElementContainer, Located, Paragraph},
     parsers::{
-        utils::{
-            beginning_of_line, blank_line, capture, context,
-            end_of_line_or_input, locate,
-        },
+        utils::{blank_line, capture, context, end_of_line_or_input, locate},
         IResult, Span,
     },
 };
@@ -24,9 +21,6 @@ use nom::{
 #[inline]
 pub fn paragraph(input: Span) -> IResult<Located<Paragraph>> {
     fn inner(input: Span) -> IResult<Paragraph> {
-        // Ensure that we are starting at the beginning of a line
-        let (input, _) = beginning_of_line(input)?;
-
         // Continuously take content until we encounter another type of
         // element
         let (input, lines) = context(

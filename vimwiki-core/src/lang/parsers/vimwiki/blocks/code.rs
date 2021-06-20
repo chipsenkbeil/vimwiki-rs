@@ -2,9 +2,8 @@ use crate::lang::{
     elements::{CodeBlock, Located},
     parsers::{
         utils::{
-            any_line, beginning_of_line, capture, context,
-            count_remaining_bytes, cow_str, end_of_line_or_input, locate,
-            take_line_until, take_line_until1,
+            any_line, capture, context, count_remaining_bytes, cow_str,
+            end_of_line_or_input, locate, take_line_until, take_line_until1,
         },
         IResult, Span,
     },
@@ -66,7 +65,6 @@ fn code_block_start<'a>(
     input: Span<'a>,
 ) -> IResult<(usize, MaybeLang<'a>, Metadata<'a>)> {
     // First, verify we have the start of a block and consume it
-    let (input, _) = beginning_of_line(input)?;
     let (input, indent_size) =
         map_parser(space0, count_remaining_bytes)(input)?;
     let (input, _) = tag("{{{")(input)?;
@@ -112,7 +110,6 @@ fn code_block_start<'a>(
 
 #[inline]
 fn code_block_end(input: Span) -> IResult<usize> {
-    let (input, _) = beginning_of_line(input)?;
     let (input, indent_size) =
         map_parser(space0, count_remaining_bytes)(input)?;
     let (input, _) = tag("}}}")(input)?;

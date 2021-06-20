@@ -59,12 +59,16 @@ impl VimwikiFormatter {
         }
     }
 
-    /// Writes a string representing the indentation for the current level
+    /// Writes a string representing the indentation for the current level,
+    /// only if the current content is either empty or the very last character
+    /// was a linefeed
     pub fn write_indent(&mut self) -> Result<(), VimwikiOutputError> {
-        let indent_str = self.config.page.indent_str.to_string();
+        if self.content.is_empty() || self.content.ends_with('\n') {
+            let indent_str = self.config.page.indent_str.to_string();
 
-        for _ in 0..self.indent_level {
-            write!(self, "{}", indent_str)?;
+            for _ in 0..self.indent_level {
+                write!(self, "{}", indent_str)?;
+            }
         }
 
         Ok(())

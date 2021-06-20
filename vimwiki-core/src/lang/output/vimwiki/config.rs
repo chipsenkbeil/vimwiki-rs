@@ -223,28 +223,23 @@ impl VimwikiHeaderConfig {
 /// Represents configuration options related to lists
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct VimwikiListConfig {
-    /// If true, will trim all leading and trailing whitespace from each line
-    #[serde(default = "VimwikiListConfig::default_trim_lines")]
-    pub trim_lines: bool,
-
     /// Configuration settings that apply specifically to todo list items
-    #[serde(default)]
+    #[serde(default = "VimwikiListConfig::default_todo")]
     pub todo: VimwikiTodoListItemConfig,
 }
 
 impl Default for VimwikiListConfig {
     fn default() -> Self {
         Self {
-            trim_lines: Self::default_trim_lines(),
-            todo: Default::default(),
+            todo: Self::default_todo(),
         }
     }
 }
 
 impl VimwikiListConfig {
     #[inline]
-    pub fn default_trim_lines() -> bool {
-        true
+    pub fn default_todo() -> VimwikiTodoListItemConfig {
+        VimwikiTodoListItemConfig::default()
     }
 }
 
