@@ -56,12 +56,12 @@ fn test() {
                 ListItemSuffix::None,
                 0,
                 ListItemContents::new(vec![
-                    Located::from(ListItemContent::InlineContent(
+                    Located::from(BlockElement::from(Paragraph::new(vec![
                         InlineElementContainer::new(vec![Located::from(
                             InlineElement::from(Text::from("this is a list"))
                         )])
-                    )),
-                    Located::from(ListItemContent::List(List::new(vec![
+                    ]))),
+                    Located::from(BlockElement::List(List::new(vec![
                         Located::from(ListItem::new(
                             ListItemType::Unordered(
                                 UnorderedListItemType::Hyphen
@@ -69,24 +69,24 @@ fn test() {
                             ListItemSuffix::None,
                             0,
                             ListItemContents::new(vec![Located::from(
-                                ListItemContent::InlineContent(
+                                BlockElement::from(Paragraph::new(vec![
                                     InlineElementContainer::new(vec![
                                         Located::from(InlineElement::from(
                                             Text::from("and a sublist")
                                         ))
                                     ])
-                                )
+                                ]))
                             )]),
                             ListItemAttributes::default(),
                         ))
                     ]))),
-                    Located::from(ListItemContent::InlineContent(
+                    Located::from(BlockElement::from(Paragraph::new(vec![
                         InlineElementContainer::new(vec![Located::from(
                             InlineElement::from(Text::from(
                                 "with carriage returns"
                             ))
                         )])
-                    ))
+                    ])))
                 ]),
                 ListItemAttributes::default(),
             )),
@@ -94,15 +94,13 @@ fn test() {
                 ListItemType::Unordered(UnorderedListItemType::Hyphen),
                 ListItemSuffix::None,
                 1,
-                ListItemContents::new(vec![Located::from(
-                    ListItemContent::InlineContent(
-                        InlineElementContainer::new(vec![Located::from(
-                            InlineElement::from(Text::from(
-                                "and multiple items"
-                            ))
-                        )])
-                    )
-                )]),
+                ListItemContents::new(vec![Located::from(BlockElement::from(
+                    Paragraph::new(vec![InlineElementContainer::new(vec![
+                        Located::from(InlineElement::from(Text::from(
+                            "and multiple items"
+                        )))
+                    ])])
+                ))]),
                 ListItemAttributes::default(),
             ))
         ]))),

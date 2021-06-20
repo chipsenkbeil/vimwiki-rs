@@ -1,7 +1,7 @@
 use crate::StrictEq;
 use derive_more::{Constructor, Index, IndexMut, IntoIterator};
 use serde::{Deserialize, Serialize};
-use std::{borrow::Cow, collections::HashMap, iter::FromIterator};
+use std::{borrow::Cow, collections::HashMap, fmt, iter::FromIterator};
 
 #[derive(
     Constructor,
@@ -99,6 +99,14 @@ impl CodeBlock<'_> {
                 .map(|x| Cow::from(x.into_owned()))
                 .collect(),
         }
+    }
+}
+
+impl<'a> fmt::Display for CodeBlock<'a> {
+    /// Writes out the code block by writing out each of its lines, separated
+    /// by line feed
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.lines.join("\n"))
     }
 }
 

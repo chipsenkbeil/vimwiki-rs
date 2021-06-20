@@ -198,11 +198,9 @@ mailto:hello@bye.com
 
 {{nonexist.jpg|*Non-existing* image|class="center flow blabla" style="font-color:red"}}
 
-{{lalune.jpg|_cool stuff_|style="width:150px;height:120px;"|anything in this segment is ignored}}
-
+{{lalune.jpg|_cool stuff_|style="width:150px;height:120px;"}}
 
 == lists ==
-
 
 # ordered list item 1, and here is some math belonging to list item 1
  {{$

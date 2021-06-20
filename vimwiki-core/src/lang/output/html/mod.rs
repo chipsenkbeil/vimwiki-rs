@@ -75,7 +75,7 @@ impl<'a> Output<HtmlFormatter> for BlockElement<'a> {
             Self::Divider(x) => x.fmt(f),
             Self::Header(x) => x.fmt(f),
             Self::List(x) => x.fmt(f),
-            Self::Math(x) => x.fmt(f),
+            Self::MathBlock(x) => x.fmt(f),
             Self::Paragraph(x) => x.fmt(f),
             Self::Placeholder(x) => x.fmt(f),
             Self::CodeBlock(x) => x.fmt(f),
@@ -389,18 +389,6 @@ impl<'a> Output<HtmlFormatter> for ListItemContents<'a> {
     fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
         for content in self {
             content.fmt(f)?;
-        }
-
-        Ok(())
-    }
-}
-
-impl<'a> Output<HtmlFormatter> for ListItemContent<'a> {
-    /// Writes one piece of content within a list item in HTML
-    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
-        match self {
-            Self::List(x) => x.fmt(f)?,
-            Self::InlineContent(x) => x.fmt(f)?,
         }
 
         Ok(())
@@ -1756,11 +1744,11 @@ mod tests {
             ListItemType::Ordered(OrderedListItemType::Number),
             ListItemSuffix::None,
             0,
-            ListItemContents::new(vec![Located::from(
-                ListItemContent::InlineContent(
-                    text_to_inline_element_container("some list item"),
-                ),
-            )]),
+            ListItemContents::new(vec![Located::from(BlockElement::from(
+                Paragraph::new(vec![text_to_inline_element_container(
+                    "some list item",
+                )]),
+            ))]),
             ListItemAttributes::default(),
         ))]);
         let mut f = HtmlFormatter::default();
@@ -1782,11 +1770,11 @@ mod tests {
             ListItemType::Unordered(UnorderedListItemType::Hyphen),
             ListItemSuffix::None,
             0,
-            ListItemContents::new(vec![Located::from(
-                ListItemContent::InlineContent(
-                    text_to_inline_element_container("some list item"),
-                ),
-            )]),
+            ListItemContents::new(vec![Located::from(BlockElement::from(
+                Paragraph::new(vec![text_to_inline_element_container(
+                    "some list item",
+                )]),
+            ))]),
             ListItemAttributes::default(),
         ))]);
         let mut f = HtmlFormatter::default();
@@ -1808,11 +1796,11 @@ mod tests {
             ListItemType::Unordered(UnorderedListItemType::Hyphen),
             ListItemSuffix::None,
             0,
-            ListItemContents::new(vec![Located::from(
-                ListItemContent::InlineContent(
-                    text_to_inline_element_container("some list item"),
-                ),
-            )]),
+            ListItemContents::new(vec![Located::from(BlockElement::from(
+                Paragraph::new(vec![text_to_inline_element_container(
+                    "some list item",
+                )]),
+            ))]),
             ListItemAttributes::default(),
         );
         let mut f = HtmlFormatter::default();
@@ -1827,11 +1815,11 @@ mod tests {
             ListItemType::Unordered(UnorderedListItemType::Hyphen),
             ListItemSuffix::None,
             0,
-            ListItemContents::new(vec![Located::from(
-                ListItemContent::InlineContent(
-                    text_to_inline_element_container("some list item"),
-                ),
-            )]),
+            ListItemContents::new(vec![Located::from(BlockElement::from(
+                Paragraph::new(vec![text_to_inline_element_container(
+                    "some list item",
+                )]),
+            ))]),
             ListItemAttributes::default(),
         );
 

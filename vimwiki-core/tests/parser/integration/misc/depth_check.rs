@@ -151,7 +151,7 @@ fn test() {
                         0,
                         ListItemContents::new(vec![
                             Located::new(
-                                ListItemContent::InlineContent(
+                                BlockElement::from(Paragraph::new(vec![
                                     InlineElementContainer::new(vec![
                                         Located::new(
                                             InlineElement::Text(Text::from(
@@ -160,11 +160,11 @@ fn test() {
                                             Region::new_at_depth(132, 13, 3),
                                         ),
                                     ]),
-                                ),
+                                ])),
                                 Region::new_at_depth(132, 13, 2),
                             ),
                             Located::new(
-                                ListItemContent::List(List::new(vec![
+                                BlockElement::List(List::new(vec![
                                     Located::new(
                                         ListItem::new(
                                             ListItemType::Unordered(
@@ -174,17 +174,18 @@ fn test() {
                                             0,
                                             ListItemContents::new(vec![
                                                 Located::new(
-                                                    ListItemContent::InlineContent(
-                                                    InlineElementContainer::new(vec![
-                                                        Located::new(
-                                                            InlineElement::Text(Text::from("Containing a sublist")),
-                                                            Region::new_at_depth(152, 20, 5)
-                                                        ),
+                                                    BlockElement::from(Paragraph::new(vec![
+                                                        InlineElementContainer::new(vec![
+                                                            Located::new(
+                                                                InlineElement::Text(Text::from("Containing a sublist")),
+                                                                Region::new_at_depth(152, 20, 5)
+                                                            ),
+                                                        ])
                                                     ])),
                                                     Region::new_at_depth(152, 20, 4),
                                                 ),
                                                 Located::new(
-                                                    ListItemContent::List(List::new(vec![
+                                                    BlockElement::List(List::new(vec![
                                                         Located::new(
                                                             ListItem::new(
                                                                 ListItemType::Unordered(UnorderedListItemType::Hyphen),
@@ -192,16 +193,18 @@ fn test() {
                                                                 0,
                                                                 ListItemContents::new(vec![
                                                                     Located::new(
-                                                                        ListItemContent::InlineContent(InlineElementContainer::new(vec![
+                                                                        BlockElement::from(Paragraph::new(vec![
+                                                                            InlineElementContainer::new(vec![
                                                                                 Located::new(
                                                                                     InlineElement::Text(Text::from("With another sublist")),
                                                                                     Region::new_at_depth(183, 20, 7),
                                                                                 )
+                                                                            ])
                                                                         ])),
                                                                         Region::new_at_depth(183, 20, 6)
                                                                     ),
                                                                     Located::new(
-                                                                        ListItemContent::List(List::new(vec![
+                                                                        BlockElement::List(List::new(vec![
                                                                             Located::new(
                                                                                 ListItem::new(
                                                                                     ListItemType::Unordered(UnorderedListItemType::Hyphen),
@@ -209,11 +212,13 @@ fn test() {
                                                                                     0,
                                                                                     ListItemContents::new(vec![
                                                                                         Located::new(
-                                                                                            ListItemContent::InlineContent(InlineElementContainer::new(vec![
+                                                                                            BlockElement::from(Paragraph::new(vec![
+                                                                                                InlineElementContainer::new(vec![
                                                                                                     Located::new(
                                                                                                         InlineElement::Text(Text::from("And an additional sublist")),
                                                                                                         Region::new_at_depth(218, 25, 9),
-                                                                                                        )
+                                                                                                    )
+                                                                                                ])
                                                                                             ])),
                                                                                             Region::new_at_depth(218, 25, 8),
                                                                                             ),
@@ -226,11 +231,13 @@ fn test() {
                                                                         Region::new_at_depth(204, 40 , 6),
                                                                     ),
                                                                     Located::new(
-                                                                        ListItemContent::InlineContent(InlineElementContainer::new(vec![
-                                                                            Located::new(
-                                                                                InlineElement::Text(Text::from("with content from the a sublist")),
-                                                                                Region::new_at_depth(254, 31, 7),
-                                                                            )
+                                                                        BlockElement::from(Paragraph::new(vec![
+                                                                            InlineElementContainer::new(vec![
+                                                                                Located::new(
+                                                                                    InlineElement::Text(Text::from("with content from the a sublist")),
+                                                                                    Region::new_at_depth(254, 31, 7),
+                                                                                )
+                                                                            ])
                                                                         ])),
                                                                         Region::new_at_depth(254, 31, 6)
                                                                     ),
@@ -243,11 +250,13 @@ fn test() {
                                                     Region::new_at_depth(173, 113, 4),
                                                 ),
                                                 Located::new(
-                                                    ListItemContent::InlineContent(InlineElementContainer::new(vec![
-                                                        Located::new(
-                                                            InlineElement::Text(Text::from("and content after that sublist")),
-                                                            Region::new_at_depth(292, 30, 5)
-                                                        )
+                                                    BlockElement::from(Paragraph::new(vec![
+                                                        InlineElementContainer::new(vec![
+                                                            Located::new(
+                                                                InlineElement::Text(Text::from("and content after that sublist")),
+                                                                Region::new_at_depth(292, 30, 5)
+                                                            )
+                                                        ])
                                                     ])),
                                                     Region::new_at_depth(292, 30, 4),
                                                 ),
@@ -260,24 +269,26 @@ fn test() {
                                 Region::new_at_depth(146, 177, 2),
                             ),
                             Located::new(
-                                ListItemContent::InlineContent(InlineElementContainer::new(vec![
-                                    Located::new(
-                                        InlineElement::Text(Text::from("and ")),
-                                        Region::new_at_depth(325, 4, 3)
-                                    ),
-                                    Located::new(
-                                        InlineElement::DecoratedText(DecoratedText::Bold(vec![
-                                            Located::new(
-                                                DecoratedTextContent::Text(Text::from("bold")),
-                                                Region::new_at_depth(330, 4, 4),
-                                            ),
-                                        ])),
-                                        Region::new_at_depth(329, 6, 3),
-                                    ),
-                                    Located::new(
-                                        InlineElement::Text(Text::from(" content after that sublist")),
-                                        Region::new_at_depth(335, 27, 3)
-                                    )
+                                BlockElement::from(Paragraph::new(vec![
+                                    InlineElementContainer::new(vec![
+                                        Located::new(
+                                            InlineElement::Text(Text::from("and ")),
+                                            Region::new_at_depth(325, 4, 3)
+                                        ),
+                                        Located::new(
+                                            InlineElement::DecoratedText(DecoratedText::Bold(vec![
+                                                Located::new(
+                                                    DecoratedTextContent::Text(Text::from("bold")),
+                                                    Region::new_at_depth(330, 4, 4),
+                                                ),
+                                            ])),
+                                            Region::new_at_depth(329, 6, 3),
+                                        ),
+                                        Located::new(
+                                            InlineElement::Text(Text::from(" content after that sublist")),
+                                            Region::new_at_depth(335, 27, 3)
+                                        )
+                                    ])
                                 ])),
                                 Region::new_at_depth(325, 37, 2),
                             ),
@@ -292,7 +303,7 @@ fn test() {
                         ListItemSuffix::None,
                         1,
                         ListItemContents::new(vec![Located::new(
-                            ListItemContent::InlineContent(
+                            BlockElement::from(Paragraph::new(vec![
                                 InlineElementContainer::new(vec![
                                     Located::new(
                                         InlineElement::from(Text::from(
@@ -301,7 +312,7 @@ fn test() {
                                         Region::new_at_depth(365, 28, 3),
                                     ),
                                 ]),
-                            ),
+                            ])),
                             Region::new_at_depth(365, 28, 2),
                         )]),
                         ListItemAttributes::default(),

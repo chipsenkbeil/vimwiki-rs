@@ -1,7 +1,7 @@
 use crate::{
     lang::elements::{
-        AsChildrenMutSlice, AsChildrenSlice, Element, InlineBlockElement,
-        InlineElement, InlineElementContainer, IntoChildren, Located,
+        AsChildrenMutSlice, AsChildrenSlice, BlockElement, Element,
+        InlineBlockElement, IntoChildren, Located,
     },
     StrictEq,
 };
@@ -164,43 +164,6 @@ impl<'a> StrictEq for List<'a> {
     }
 }
 
-/// Represents some content associated with a list item, either being
-/// an inline element or a new sublist
-#[derive(Clone, Debug, From, Eq, PartialEq, Serialize, Deserialize)]
-pub enum ListItemContent<'a> {
-    InlineContent(InlineElementContainer<'a>),
-    List(List<'a>),
-}
-
-impl ListItemContent<'_> {
-    pub fn to_borrowed(&self) -> ListItemContent {
-        match self {
-            Self::InlineContent(ref x) => {
-                ListItemContent::from(x.to_borrowed())
-            }
-            Self::List(ref x) => ListItemContent::from(x.to_borrowed()),
-        }
-    }
-
-    pub fn into_owned(self) -> ListItemContent<'static> {
-        match self {
-            Self::InlineContent(x) => ListItemContent::from(x.into_owned()),
-            Self::List(x) => ListItemContent::from(x.into_owned()),
-        }
-    }
-}
-
-impl<'a> StrictEq for ListItemContent<'a> {
-    /// Performs a strict_eq check against eqivalent variants
-    fn strict_eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::InlineContent(x), Self::InlineContent(y)) => x.strict_eq(y),
-            (Self::List(x), Self::List(y)) => x.strict_eq(y),
-            _ => false,
-        }
-    }
-}
-
 /// Represents a collection of list item content
 #[derive(
     AsRef,
@@ -221,68 +184,68 @@ impl<'a> StrictEq for ListItemContent<'a> {
 )]
 #[as_ref(forward)]
 #[into_iterator(owned, ref, ref_mut)]
-pub struct ListItemContents<'a>(Vec<Located<ListItemContent<'a>>>);
+pub struct ListItemContents<'a>(Vec<Located<BlockElement<'a>>>);
 
 impl ListItemContents<'_> {
     pub fn to_borrowed(&self) -> ListItemContents {
         self.iter()
-            .map(|x| x.as_ref().map(ListItemContent::to_borrowed))
+            .map(|x| x.as_ref().map(BlockElement::to_borrowed))
             .collect()
     }
 
     pub fn into_owned(self) -> ListItemContents<'static> {
         self.into_iter()
-            .map(|x| x.map(ListItemContent::into_owned))
+            .map(|x| x.map(BlockElement::into_owned))
             .collect()
     }
 }
 
 impl<'a> ListItemContents<'a> {
-    pub fn inline_content_iter(
-        &self,
-    ) -> impl Iterator<Item = &InlineElement> + '_ {
-        self.iter()
-            .filter_map(|c| match c.as_inner() {
-                ListItemContent::InlineContent(x) => {
-                    Some(x.iter().map(|y| y.as_inner()))
-                }
-                _ => None,
-            })
-            .flatten()
+    /// Represents an iterator over references to contents that are not sublists
+    pub fn non_sublist_iter(&self) -> impl Iterator<Item = &BlockElement> + '_ {
+        self.iter().filter_map(|c| {
+            if matches!(c.as_inner(), BlockElement::List(_)) {
+                None
+            } else {
+                Some(c.as_inner())
+            }
+        })
     }
 
-    pub fn inline_content_iter_mut(
+    /// Represents an iterator over mutable references to contents that are not sublists
+    pub fn non_sublist_iter_mut(
         &mut self,
-    ) -> impl Iterator<Item = &mut InlineElement<'a>> + '_ {
-        self.iter_mut()
-            .filter_map(|c| match c.as_mut_inner() {
-                ListItemContent::InlineContent(x) => {
-                    Some(x.iter_mut().map(|y| y.as_mut_inner()))
-                }
-                _ => None,
-            })
-            .flatten()
+    ) -> impl Iterator<Item = &mut BlockElement<'a>> + '_ {
+        self.iter_mut().filter_map(|c| {
+            if matches!(c.as_inner(), BlockElement::List(_)) {
+                None
+            } else {
+                Some(c.as_mut_inner())
+            }
+        })
     }
 
+    /// Represents an iterator over references to contents that are sublists
     pub fn sublist_iter(&self) -> impl Iterator<Item = &List> + '_ {
         self.iter().flat_map(|c| match c.as_inner() {
-            ListItemContent::List(x) => Some(x),
+            BlockElement::List(x) => Some(x),
             _ => None,
         })
     }
 
+    /// Represents an iterator over mut references to contents that are sublists
     pub fn sublist_iter_mut(
         &mut self,
     ) -> impl Iterator<Item = &mut List<'a>> + '_ {
         self.iter_mut().flat_map(|c| match c.as_mut_inner() {
-            ListItemContent::List(x) => Some(x),
+            BlockElement::List(x) => Some(x),
             _ => None,
         })
     }
 }
 
 impl<'a> AsChildrenSlice for ListItemContents<'a> {
-    type Child = Located<ListItemContent<'a>>;
+    type Child = Located<BlockElement<'a>>;
 
     fn as_children_slice(&self) -> &[Self::Child] {
         &self.0
@@ -290,7 +253,7 @@ impl<'a> AsChildrenSlice for ListItemContents<'a> {
 }
 
 impl<'a> AsChildrenMutSlice for ListItemContents<'a> {
-    type Child = Located<ListItemContent<'a>>;
+    type Child = Located<BlockElement<'a>>;
 
     fn as_children_mut_slice(&mut self) -> &mut [Self::Child] {
         &mut self.0
@@ -301,26 +264,12 @@ impl<'a> IntoChildren for ListItemContents<'a> {
     type Child = Located<Element<'a>>;
 
     fn into_children(self) -> Vec<Self::Child> {
-        self.into_iter()
-            .flat_map(|x| {
-                let region = x.region();
-                match x.into_inner() {
-                    ListItemContent::InlineContent(content) => content
-                        .into_children()
-                        .into_iter()
-                        .map(|x| x.map(Element::from))
-                        .collect(),
-                    ListItemContent::List(list) => {
-                        vec![Located::new(Element::from(list), region)]
-                    }
-                }
-            })
-            .collect()
+        self.into_iter().map(|x| x.map(Element::from)).collect()
     }
 }
 
-impl<'a> FromIterator<Located<ListItemContent<'a>>> for ListItemContents<'a> {
-    fn from_iter<I: IntoIterator<Item = Located<ListItemContent<'a>>>>(
+impl<'a> FromIterator<Located<BlockElement<'a>>> for ListItemContents<'a> {
+    fn from_iter<I: IntoIterator<Item = Located<BlockElement<'a>>>>(
         iter: I,
     ) -> Self {
         Self::new(iter.into_iter().collect())

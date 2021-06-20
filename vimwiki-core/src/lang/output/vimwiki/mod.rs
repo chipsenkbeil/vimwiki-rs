@@ -65,7 +65,7 @@ impl<'a> Output<VimwikiFormatter> for BlockElement<'a> {
             Self::Divider(x) => x.fmt(f),
             Self::Header(x) => x.fmt(f),
             Self::List(x) => x.fmt(f),
-            Self::Math(x) => x.fmt(f),
+            Self::MathBlock(x) => x.fmt(f),
             Self::Paragraph(x) => x.fmt(f),
             Self::Placeholder(x) => x.fmt(f),
             Self::CodeBlock(x) => x.fmt(f),
@@ -275,17 +275,6 @@ impl<'a> Output<VimwikiFormatter> for ListItem<'a> {
 
             // End list item line
             writeln!(f)?;
-        }
-
-        Ok(())
-    }
-}
-
-impl<'a> Output<VimwikiFormatter> for ListItemContent<'a> {
-    fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
-        match self {
-            Self::List(x) => x.fmt(f)?,
-            Self::InlineContent(x) => x.fmt(f)?,
         }
 
         Ok(())
@@ -1489,22 +1478,22 @@ mod tests {
                 ListItemType::Unordered(UnorderedListItemType::Hyphen),
                 ListItemSuffix::None,
                 0,
-                ListItemContents::new(vec![Located::from(
-                    ListItemContent::InlineContent(
-                        text_to_inline_element_container("some list item"),
-                    ),
-                )]),
+                ListItemContents::new(vec![Located::from(BlockElement::from(
+                    Paragraph::new(vec![text_to_inline_element_container(
+                        "some list item",
+                    )]),
+                ))]),
                 ListItemAttributes::default(),
             )),
             Located::from(ListItem::new(
                 ListItemType::Unordered(UnorderedListItemType::Hyphen),
                 ListItemSuffix::None,
                 1,
-                ListItemContents::new(vec![Located::from(
-                    ListItemContent::InlineContent(
-                        text_to_inline_element_container("another list item"),
-                    ),
-                )]),
+                ListItemContents::new(vec![Located::from(BlockElement::from(
+                    Paragraph::new(vec![text_to_inline_element_container(
+                        "another list item",
+                    )]),
+                ))]),
                 ListItemAttributes::default(),
             )),
         ]);
@@ -1520,13 +1509,11 @@ mod tests {
             ListItemType::Unordered(UnorderedListItemType::Hyphen),
             ListItemSuffix::None,
             0,
-            ListItemContents::new(vec![Located::from(
-                ListItemContent::InlineContent(
-                    text_to_inline_element_container(
-                        " \r\tsome list item \r\t",
-                    ),
-                ),
-            )]),
+            ListItemContents::new(vec![Located::from(BlockElement::from(
+                Paragraph::new(vec![text_to_inline_element_container(
+                    " \r\tsome list item \r\t",
+                )]),
+            ))]),
             ListItemAttributes::default(),
         );
         let mut f = VimwikiFormatter::default();
@@ -1541,13 +1528,11 @@ mod tests {
             ListItemType::Unordered(UnorderedListItemType::Hyphen),
             ListItemSuffix::None,
             0,
-            ListItemContents::new(vec![Located::from(
-                ListItemContent::InlineContent(
-                    text_to_inline_element_container(
-                        " \r\tsome list item \r\t",
-                    ),
-                ),
-            )]),
+            ListItemContents::new(vec![Located::from(BlockElement::from(
+                Paragraph::new(vec![text_to_inline_element_container(
+                    " \r\tsome list item \r\t",
+                )]),
+            ))]),
             ListItemAttributes::default(),
         );
         let mut f = VimwikiFormatter::new(VimwikiConfig {
@@ -1568,13 +1553,11 @@ mod tests {
             ListItemType::Unordered(UnorderedListItemType::Hyphen),
             ListItemSuffix::None,
             0,
-            ListItemContents::new(vec![Located::from(
-                ListItemContent::InlineContent(
-                    text_to_inline_element_container(
-                        " \r\tsome list item \r\t",
-                    ),
-                ),
-            )]),
+            ListItemContents::new(vec![Located::from(BlockElement::from(
+                Paragraph::new(vec![text_to_inline_element_container(
+                    " \r\tsome list item \r\t",
+                )]),
+            ))]),
             ListItemAttributes::default(),
         );
         let mut f = VimwikiFormatter::new(VimwikiConfig {
@@ -1599,11 +1582,11 @@ mod tests {
                 ty.into(),
                 suffix,
                 0,
-                ListItemContents::new(vec![Located::from(
-                    ListItemContent::InlineContent(
-                        text_to_inline_element_container("some list item"),
-                    ),
-                )]),
+                ListItemContents::new(vec![Located::from(BlockElement::from(
+                    Paragraph::new(vec![text_to_inline_element_container(
+                        "some list item",
+                    )]),
+                ))]),
                 ListItemAttributes::default(),
             )
         }
@@ -1719,11 +1702,11 @@ mod tests {
             ListItemType::Unordered(UnorderedListItemType::Hyphen),
             ListItemSuffix::None,
             0,
-            ListItemContents::new(vec![Located::from(
-                ListItemContent::InlineContent(
-                    text_to_inline_element_container("some list item"),
-                ),
-            )]),
+            ListItemContents::new(vec![Located::from(BlockElement::from(
+                Paragraph::new(vec![text_to_inline_element_container(
+                    "some list item",
+                )]),
+            ))]),
             ListItemAttributes::default(),
         );
 
@@ -1767,11 +1750,11 @@ mod tests {
             ListItemType::Unordered(UnorderedListItemType::Hyphen),
             ListItemSuffix::None,
             0,
-            ListItemContents::new(vec![Located::from(
-                ListItemContent::InlineContent(
-                    text_to_inline_element_container("some list item"),
-                ),
-            )]),
+            ListItemContents::new(vec![Located::from(BlockElement::from(
+                Paragraph::new(vec![text_to_inline_element_container(
+                    "some list item",
+                )]),
+            ))]),
             ListItemAttributes::default(),
         );
 

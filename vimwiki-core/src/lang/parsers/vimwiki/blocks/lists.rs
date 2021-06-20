@@ -1,15 +1,12 @@
 use crate::lang::{
     elements::{
-        InlineElementContainer, List, ListItem, ListItemAttributes,
-        ListItemContent, ListItemContents, ListItemSuffix, ListItemTodoStatus,
-        ListItemType, Located, OrderedListItemType, UnorderedListItemType,
+        BlockElement, List, ListItem, ListItemAttributes, ListItemContents,
+        ListItemSuffix, ListItemTodoStatus, ListItemType, Located,
+        OrderedListItemType, UnorderedListItemType,
     },
     parsers::{
-        utils::{
-            beginning_of_line, capture, context, deeper, end_of_line_or_input,
-            locate,
-        },
-        vimwiki::blocks::inline::inline_element_container,
+        utils::{beginning_of_line, capture, context, deeper, locate},
+        vimwiki::blocks::block_element,
         IResult, Span,
     },
 };
@@ -19,7 +16,7 @@ use nom::{
     character::complete::{digit1, one_of, space0},
     combinator::{map, opt, peek, value, verify},
     multi::{fold_many0, many0, many1},
-    sequence::{pair, preceded, terminated},
+    sequence::{pair, preceded},
 };
 
 #[inline]
@@ -29,7 +26,7 @@ pub fn list(input: Span) -> IResult<Located<List>> {
         // use to determine how far to go
         let (input, (indentation, item)) = deeper(list_item)(input)?;
 
-        // TODO: Keep track of indentation level for a list based on its first
+        // NOTE: Keep track of indentation level for a list based on its first
         //       item
         //
         //       1. Any item with a greater indentation level is a sublist
@@ -104,9 +101,8 @@ fn list_item_tail(
         let (input, maybe_todo_status) = opt(todo_status)(input)?;
 
         // 5. Parse the rest of the current line
-        let (input, content) = map(deeper(list_item_line_content), |c| {
-            c.map(ListItemContent::from)
-        })(input)?;
+        let (input, content) =
+            map(deeper(block_element), |c| c.map(BlockElement::from))(input)?;
 
         // 6. Continue parsing additional lines as content for the
         //    current list item as long as the following are met:
@@ -120,12 +116,7 @@ fn list_item_tail(
         //    start of a sublist, so we need to check for each
         let (input, mut contents) = many0(preceded(
             verify(indentation_level(false), |level| *level > indentation),
-            alt((
-                map(deeper(list), |c| c.map(ListItemContent::from)),
-                map(preceded(space0, deeper(list_item_line_content)), |c| {
-                    c.map(ListItemContent::from)
-                }),
-            )),
+            map(deeper(block_element), |c| c.map(BlockElement::from)),
         ))(input)?;
 
         contents.insert(0, content);
@@ -153,15 +144,6 @@ fn indentation_level(consume: bool) -> impl Fn(Span) -> IResult<usize> {
             map(peek(space0), |s: Span| s.remaining_len())(input)
         }
     }
-}
-
-/// Parses a line AFTER indentation has been parsed, treating the line as
-/// a series of content.
-#[inline]
-fn list_item_line_content(
-    input: Span,
-) -> IResult<Located<InlineElementContainer>> {
-    terminated(inline_element_container, end_of_line_or_input)(input)
 }
 
 #[inline]
@@ -338,8 +320,9 @@ fn list_item_suffix_none(input: Span) -> IResult<ListItemSuffix> {
 mod tests {
     use super::*;
     use crate::lang::elements::{
-        DecoratedText, DecoratedTextContent, InlineElement, Keyword, Link,
-        MathInline, Tags, Text,
+        DecoratedText, DecoratedTextContent, InlineElement,
+        InlineElementContainer, Keyword, Link, MathInline, Paragraph, Tags,
+        Text,
     };
     use indoc::indoc;
     use std::convert::TryFrom;
@@ -356,11 +339,11 @@ mod tests {
         assert_eq!(item.suffix, item_suffix);
         assert_eq!(item.pos, 0);
 
-        let element = match &item[0].as_inner() {
-            ListItemContent::InlineContent(c) => c[0].as_inner(),
-            x => panic!("Unexpected list item content: {:?}", x),
+        let actual = match &item[0].as_inner() {
+            BlockElement::Paragraph(x) => x[0].to_string(),
+            x => panic!("Unexpected item content: {:?}", x),
         };
-        assert_eq!(element, &InlineElement::Text(Text::from(text)));
+        assert_eq!(actual, text);
     }
 
     #[test]
@@ -544,7 +527,7 @@ mod tests {
     }
 
     #[test]
-    fn list_should_support_list_item_with_inline_content() {
+    fn list_should_support_list_item_with_paragraph_on_same_line() {
         let input = Span::from(indoc! {r#"
             - list *item 1* has a [[link]] with :tag: and $formula$ is DONE
         "#});
@@ -553,33 +536,31 @@ mod tests {
         assert_eq!(l.len(), 1, "Unexpected number of list items");
 
         assert_eq!(
-            l[0].contents
-                .inline_content_iter()
-                .collect::<Vec<&InlineElement>>(),
-            vec![
-                &InlineElement::Text(Text::from("list ")),
-                &InlineElement::DecoratedText(DecoratedText::Bold(vec![
-                    Located::from(DecoratedTextContent::from(Text::from(
-                        "item 1"
-                    )))
-                ])),
-                &InlineElement::Text(Text::from(" has a ")),
-                &InlineElement::Link(Link::new_wiki_link(
+            l[0][0].as_paragraph().unwrap(),
+            &Paragraph::new(vec![InlineElementContainer::new(vec![
+                Located::from(InlineElement::Text(Text::from("list "))),
+                Located::from(InlineElement::DecoratedText(
+                    DecoratedText::Bold(vec![Located::from(
+                        DecoratedTextContent::from(Text::from("item 1"))
+                    )])
+                )),
+                Located::from(InlineElement::Text(Text::from(" has a "))),
+                Located::from(InlineElement::Link(Link::new_wiki_link(
                     URIReference::try_from("link").unwrap(),
                     None
-                )),
-                &InlineElement::Text(Text::from(" with ")),
-                &InlineElement::Tags(Tags::from("tag")),
-                &InlineElement::Text(Text::from(" and ")),
-                &InlineElement::Math(MathInline::from("formula")),
-                &InlineElement::Text(Text::from(" is ")),
-                &InlineElement::Keyword(Keyword::Done),
-            ]
+                ))),
+                Located::from(InlineElement::Text(Text::from(" with "))),
+                Located::from(InlineElement::Tags(Tags::from("tag"))),
+                Located::from(InlineElement::Text(Text::from(" and "))),
+                Located::from(InlineElement::Math(MathInline::from("formula"))),
+                Located::from(InlineElement::Text(Text::from(" is "))),
+                Located::from(InlineElement::Keyword(Keyword::Done)),
+            ])]),
         );
     }
 
     #[test]
-    fn list_should_support_list_item_with_multiple_lines_of_content() {
+    fn list_should_support_list_item_with_paragraph_on_multiple_lines() {
         let input = Span::from(indoc! {"
             - list item 1
               has extra content
@@ -591,15 +572,57 @@ mod tests {
         assert_eq!(l.len(), 1, "Unexpected number of list items");
 
         assert_eq!(
-            l[0].contents
-                .inline_content_iter()
-                .collect::<Vec<&InlineElement>>(),
-            vec![
-                &InlineElement::Text(Text::from("list item 1")),
-                &InlineElement::Text(Text::from("has extra content")),
-                &InlineElement::Text(Text::from("on multiple lines")),
-            ]
+            l[0][0].as_paragraph().unwrap(),
+            &Paragraph::new(vec![InlineElementContainer::new(vec![
+                Located::from(InlineElement::Text(Text::from("list item 1"))),
+                Located::from(InlineElement::Text(Text::from(
+                    "has extra content"
+                ))),
+                Located::from(InlineElement::Text(Text::from(
+                    "on multiple lines"
+                ))),
+            ])]),
         );
+    }
+
+    #[test]
+    fn list_should_support_list_item_with_blockquote() {
+        todo!();
+    }
+
+    #[test]
+    fn list_should_support_list_item_with_code_block() {
+        todo!();
+    }
+
+    #[test]
+    fn list_should_support_list_item_with_definition_list() {
+        todo!();
+    }
+
+    #[test]
+    fn list_should_support_list_item_with_math_block() {
+        todo!();
+    }
+
+    #[test]
+    fn list_should_support_list_item_with_table() {
+        todo!();
+    }
+
+    #[test]
+    fn list_should_not_support_list_item_with_divider() {
+        todo!();
+    }
+
+    #[test]
+    fn list_should_not_support_list_item_with_header() {
+        todo!();
+    }
+
+    #[test]
+    fn list_should_not_support_list_item_with_placeholder() {
+        todo!();
     }
 
     #[test]
@@ -617,39 +640,30 @@ mod tests {
         assert_eq!(input.as_unsafe_remaining_str(), "not a list item\n");
         assert_eq!(l.len(), 1, "Unexpected number of list items");
 
-        // Should only have three lines of inline content
+        // First, have a paragraph on the first two lines
         assert_eq!(
-            l[0].contents
-                .inline_content_iter()
-                .collect::<Vec<&InlineElement>>(),
-            vec![
-                &InlineElement::Text(Text::from("list item 1")),
-                &InlineElement::Text(Text::from("has extra content")),
-                &InlineElement::Text(Text::from("on multiple lines")),
-            ]
+            l[0][0].as_paragraph().unwrap().to_string(),
+            "list item 1\nhas extra content",
         );
 
-        // Should have a single sublist with two items and content
-        let sublist = l[0].contents.sublist_iter().next().unwrap();
+        // Second, have a sublist
+        let sublist = l[0][1].as_list().unwrap();
         assert_eq!(sublist.len(), 2, "Unexpected number of list items");
 
         assert_eq!(
-            sublist[0]
-                .contents
-                .inline_content_iter()
-                .collect::<Vec<&InlineElement>>(),
-            vec![
-                &InlineElement::Text(Text::from("sublist item 1")),
-                &InlineElement::Text(Text::from("has content")),
-            ]
+            sublist[0][0].as_paragraph().unwrap().to_string(),
+            "sublist item 1\nhas content",
         );
 
         assert_eq!(
-            sublist[1]
-                .contents
-                .inline_content_iter()
-                .collect::<Vec<&InlineElement>>(),
-            vec![&InlineElement::Text(Text::from("sublist item 2")),]
+            sublist[1][0].as_paragraph().unwrap().to_string(),
+            "sublist item 2",
+        );
+
+        // Third, have another paragraph on last line
+        assert_eq!(
+            l[0][2].as_paragraph().unwrap().to_string(),
+            "on multiple lines",
         );
     }
 
@@ -668,39 +682,21 @@ mod tests {
         assert_eq!(l.len(), 6, "Unexpected number of list items");
 
         assert!(l[0].is_todo_incomplete());
-        assert_eq!(
-            l[0].contents.inline_content_iter().next(),
-            Some(&InlineElement::Text(Text::from("list item 1"))),
-        );
+        assert_eq!(l[0][0].as_paragraph().unwrap().to_string(), "list item 1");
 
         assert!(l[1].is_todo_partially_complete_1());
-        assert_eq!(
-            l[1].contents.inline_content_iter().next(),
-            Some(&InlineElement::Text(Text::from("list item 2"))),
-        );
+        assert_eq!(l[1][0].as_paragraph().unwrap().to_string(), "list item 2");
 
         assert!(l[2].is_todo_partially_complete_2());
-        assert_eq!(
-            l[2].contents.inline_content_iter().next(),
-            Some(&InlineElement::Text(Text::from("list item 3"))),
-        );
+        assert_eq!(l[2][0].as_paragraph().unwrap().to_string(), "list item 3");
 
         assert!(l[3].is_todo_partially_complete_3());
-        assert_eq!(
-            l[3].contents.inline_content_iter().next(),
-            Some(&InlineElement::Text(Text::from("list item 4"))),
-        );
+        assert_eq!(l[3][0].as_paragraph().unwrap().to_string(), "list item 4");
 
         assert!(l[4].is_todo_complete());
-        assert_eq!(
-            l[4].contents.inline_content_iter().next(),
-            Some(&InlineElement::Text(Text::from("list item 5"))),
-        );
+        assert_eq!(l[4][0].as_paragraph().unwrap().to_string(), "list item 5");
 
         assert!(l[5].is_todo_rejected());
-        assert_eq!(
-            l[5].contents.inline_content_iter().next(),
-            Some(&InlineElement::Text(Text::from("list item 6"))),
-        );
+        assert_eq!(l[5][0].as_paragraph().unwrap().to_string(), "list item 6");
     }
 }

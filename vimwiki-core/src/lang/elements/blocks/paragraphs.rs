@@ -6,7 +6,7 @@ use crate::{
 };
 use derive_more::{Constructor, Index, IndexMut, IntoIterator};
 use serde::{Deserialize, Serialize};
-use std::iter::FromIterator;
+use std::{fmt, iter::FromIterator};
 
 #[derive(
     Constructor,
@@ -54,6 +54,23 @@ impl Paragraph<'_> {
 
     pub fn into_owned(self) -> Paragraph<'static> {
         Paragraph::new(self.into_iter().map(|x| x.into_owned()).collect())
+    }
+}
+
+impl<'a> fmt::Display for Paragraph<'a> {
+    /// Writes out the paragraph by writing out each of its lines using their
+    /// underlying display impl, separated by line feed
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for (idx, line) in self.into_iter().enumerate() {
+            write!(f, "{}", line)?;
+
+            // For all lines but last, we add a newline
+            if idx + 1 < self.lines.len() {
+                writeln!(f)?;
+            }
+        }
+
+        Ok(())
     }
 }
 
