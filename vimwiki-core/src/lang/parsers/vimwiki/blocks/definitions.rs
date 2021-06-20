@@ -54,6 +54,9 @@ fn term_and_definitions<'a>(
 fn term_line(
     input: Span,
 ) -> IResult<(Located<Term>, Option<Located<Definition>>)> {
+    // Remove any leading whitespace
+    let (input, _) = space0(input)?;
+
     // Parse our term and provide location information for it
     let (input, term) = locate(capture(terminated(
         map_parser(
@@ -92,6 +95,7 @@ fn term_line(
 #[inline]
 fn definition_line(input: Span) -> IResult<Located<Definition>> {
     fn inner(input: Span) -> IResult<Definition> {
+        let (input, _) = space0(input)?;
         let (input, _) = tag("::")(input)?;
         let (input, _) = space1(input)?;
         let (input, def) = map_parser(

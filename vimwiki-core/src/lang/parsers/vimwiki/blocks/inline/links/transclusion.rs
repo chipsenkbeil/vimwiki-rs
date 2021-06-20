@@ -170,7 +170,6 @@ mod tests {
         assert_eq!(link.data().uri_ref.path(), "/vimwiki_logo.png");
         assert_eq!(link.description(), Some(&Description::from("")));
 
-        println!("PROPERTIES: {:?}", link.properties());
         assert_eq!(
             link.data().get_property_str("class"),
             Some("center flow blabla")

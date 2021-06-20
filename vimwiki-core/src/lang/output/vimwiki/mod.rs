@@ -212,7 +212,7 @@ impl<'a> Output<VimwikiFormatter> for Header<'a> {
 
 impl<'a> Output<VimwikiFormatter> for List<'a> {
     fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
-        for (idx, item) in self.items.iter().enumerate() {
+        for item in self {
             item.fmt(f)?;
         }
 

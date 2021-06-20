@@ -46,12 +46,22 @@ pub fn blank_line<'a>(input: Span<'a>) -> IResult<Span<'a>> {
 pub fn any_line<'a>(input: Span<'a>) -> IResult<Span<'a>> {
     fn inner<'a>(input: Span<'a>) -> IResult<Span<'a>> {
         let (input, _) = beginning_of_line(input)?;
+        let (input, content) = rest_of_line(input)?;
+        Ok((input, content))
+    }
+
+    context("Any Line", inner)(input)
+}
+
+/// Parser that will consume rest of any line, returning the line's content as output
+pub fn rest_of_line<'a>(input: Span<'a>) -> IResult<Span<'a>> {
+    fn inner<'a>(input: Span<'a>) -> IResult<Span<'a>> {
         let (input, content) = take_until_end_of_line_or_input(input)?;
         let (input, _) = end_of_line_or_input(input)?;
         Ok((input, content))
     }
 
-    context("Any Line", inner)(input)
+    context("Rest of Line", inner)(input)
 }
 
 #[cfg(test)]

@@ -1,4 +1,5 @@
 use crate::parser::fixtures::VimwikiFile;
+use similar_asserts::Diff;
 use std::convert::TryFrom;
 use vimwiki_core::{vendor::uriparse::URIReference, *};
 
@@ -326,8 +327,7 @@ fn test() {
 
     assert!(
         page.strict_eq(&expected_page),
-        "Pages not equal! Page: {:?} Expected: {:?}",
-        page,
-        expected_page
+        "Pages not equal! {}",
+        Diff::from_debug(&page, &expected_page, "Actual Page", "Expected Page"),
     );
 }
