@@ -25,7 +25,6 @@ impl<'a> Output<VimwikiFormatter> for Page<'a> {
 
         for (idx, element) in self.elements.iter().enumerate() {
             element.fmt(f)?;
-            writeln!(f)?;
 
             // If specified, add an additional linefeed after each element
             // except for the very last one
@@ -410,6 +409,43 @@ impl<'a> Output<VimwikiFormatter> for Table<'a> {
                 }
                 _ => None,
             })
+            .map(|res| match res {
+                Ok((pos, s)) => {
+                    let is_empty = s.is_empty();
+                    let has_start_whitespace = s.trim_start().len() < s.len();
+                    let has_end_whitespace = s.trim_end().len() < s.len();
+
+                    let s = match (
+                        !no_padding,
+                        !is_empty,
+                        has_start_whitespace,
+                        has_end_whitespace,
+                    ) {
+                        // If we have content, no padding on either side, and want
+                        // padding then we apply it
+                        (true, true, false, false) => format!(" {} ", s),
+
+                        // If we have content, no padding at beginning, and want
+                        // padding then we apply it
+                        (true, true, false, true) => format!(" {}", s),
+
+                        // If we have content, no padding at end, and want
+                        // padding then we apply it
+                        (true, true, true, false) => format!("{} ", s),
+
+                        // If we don't have content and we want padding,
+                        // return a single space
+                        (true, false, _, _) => String::from(" "),
+
+                        // Otherwise, return string unmodified in situation where
+                        // we already having padding OR we don't want padding
+                        (true, true, _, _) | (false, _, _, _) => s,
+                    };
+
+                    Ok((pos, s))
+                }
+                x => x,
+            })
             .collect::<Result<HashMap<CellPos, String>, VimwikiOutputError>>(
             )?;
 
@@ -427,7 +463,7 @@ impl<'a> Output<VimwikiFormatter> for Table<'a> {
             });
 
         // Make sure that the max size accounts for cases where content is
-        // empty or missing and so we need a default size based on align
+        // empty, missing, or smaller than our alignment
         for (col, size) in max_column_sizes.iter_mut() {
             let min_align_size = self
                 .column(*col)
@@ -441,10 +477,7 @@ impl<'a> Output<VimwikiFormatter> for Table<'a> {
                 .max()
                 .unwrap_or_default();
 
-            // Factor in that max size might be +2 for padding
-            let extra = if no_padding { 0 } else { 2 };
-
-            if min_align_size > *size + extra {
+            if min_align_size > *size {
                 *size = min_align_size;
             }
         }
@@ -463,16 +496,12 @@ impl<'a> Output<VimwikiFormatter> for Table<'a> {
             for col in 0..self.col_cnt() {
                 // Get the max size, using 0 if nothing with a fixed size is
                 // in the column
-                let mut max_size =
+                let max_size =
                     max_column_sizes.get(&col).copied().unwrap_or_default();
 
                 // If we have fixed content, write it with optional padding
                 if let Some(text) = fixed_size_cells.get(&CellPos { row, col })
                 {
-                    if !no_padding {
-                        write!(f, " ")?;
-                    }
-
                     write!(f, "{}", text)?;
 
                     // NOTE: Add extra space to fill in remainder of cell
@@ -480,19 +509,8 @@ impl<'a> Output<VimwikiFormatter> for Table<'a> {
                         write!(f, "{}", " ".repeat(max_size - text.len()))?;
                     }
 
-                    if !no_padding {
-                        write!(f, " ")?;
-                    }
-
                 // Otherwise, we have some form of divider and want to write it
                 } else {
-                    // If adding padding on each size, adjust the max cell size
-                    // for when we need to produce a divider to make sure it
-                    // accounts for that padding
-                    if !no_padding {
-                        max_size += 2;
-                    }
-
                     match self.get_cell(row, col).map(|x| x.as_inner()) {
                         Some(Cell::Align(ColumnAlign::None)) => {
                             write!(f, "{}", "-".repeat(max_size))?
@@ -2156,15 +2174,15 @@ mod tests {
         );
     }
 
+    fn make_text_cell(text: &str) -> Located<Cell> {
+        Located::from(Cell::Content(InlineElementContainer::new(vec![
+            Located::from(InlineElement::from(Text::from(text))),
+        ])))
+    }
+
     #[test]
     fn table_should_leverage_a_base_divider_size_in_case_all_other_cells_empty()
     {
-        fn make_text_cell(text: &str) -> Located<Cell> {
-            Located::from(Cell::Content(InlineElementContainer::new(vec![
-                Located::from(InlineElement::from(Text::from(text))),
-            ])))
-        }
-
         let table = Table::new(
             vec![
                 (CellPos { row: 0, col: 0 }, make_text_cell("")),
@@ -2237,6 +2255,36 @@ mod tests {
         assert_eq!(
             f.get_content(),
             "    |some header|\n    |-----------|\n    |some text  |\n",
+        );
+    }
+
+    #[test]
+    fn table_should_only_pad_cells_where_needed() {
+        let table = Table::new(
+            vec![
+                (CellPos { row: 0, col: 0 }, make_text_cell("a")),
+                (CellPos { row: 0, col: 1 }, make_text_cell(" a")),
+                (CellPos { row: 0, col: 2 }, make_text_cell("a ")),
+                (CellPos { row: 0, col: 3 }, make_text_cell(" a ")),
+                (CellPos { row: 1, col: 0 }, make_text_cell("b")),
+                (CellPos { row: 1, col: 1 }, make_text_cell("b")),
+                (CellPos { row: 1, col: 2 }, make_text_cell("b")),
+                (CellPos { row: 1, col: 3 }, make_text_cell("b")),
+            ],
+            false,
+        );
+        let mut f = VimwikiFormatter::new(VimwikiConfig {
+            table: VimwikiTableConfig { no_padding: false },
+            ..Default::default()
+        });
+        table.fmt(&mut f).unwrap();
+
+        assert_eq!(
+            f.get_content(),
+            indoc! {"
+                | a | a | a | a |
+                | b | b | b | b |
+            "},
         );
     }
 
