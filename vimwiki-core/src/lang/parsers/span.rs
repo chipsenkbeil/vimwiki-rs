@@ -876,39 +876,39 @@ mod tests {
         #[test]
         fn find_token_should_yield_true_if_byte_exists_in_remaining_bytes() {
             let span = Span::from(b"abc123").advance_start_by(2);
-            assert_eq!(span.find_token(b'c'), true);
+            assert!(span.find_token(b'c'));
         }
 
         #[test]
         fn find_token_should_yield_false_if_byte_missing_in_remaining_bytes() {
             let span = Span::from(b"abc123").advance_start_by(4);
-            assert_eq!(span.find_token(b'c'), false);
+            assert!(!span.find_token(b'c'));
         }
 
         #[test]
         fn find_token_should_yield_true_if_byte_ref_exists_in_remaining_bytes()
         {
             let span = Span::from(b"abc123").advance_start_by(2);
-            assert_eq!(span.find_token(&b'c'), true);
+            assert!(span.find_token(&b'c'));
         }
 
         #[test]
         fn find_token_should_yield_false_if_byte_ref_missing_in_remaining_bytes(
         ) {
             let span = Span::from(b"abc123").advance_start_by(4);
-            assert_eq!(span.find_token(&b'c'), false);
+            assert!(!span.find_token(&b'c'));
         }
 
         #[test]
         fn find_token_should_yield_true_if_char_exists_in_remaining_bytes() {
             let span = Span::from(b"abc123").advance_start_by(2);
-            assert_eq!(span.find_token('c'), true);
+            assert!(span.find_token('c'));
         }
 
         #[test]
         fn find_token_should_yield_false_if_char_missing_in_remaining_bytes() {
             let span = Span::from(b"abc123").advance_start_by(4);
-            assert_eq!(span.find_token('c'), false);
+            assert!(!span.find_token('c'));
         }
 
         #[test]

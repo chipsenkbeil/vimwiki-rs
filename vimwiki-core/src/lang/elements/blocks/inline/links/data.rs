@@ -359,27 +359,27 @@ mod tests {
     fn is_local_anchor_should_return_true_if_link_only_has_anchor() {
         let data = LinkData::try_from("#some-fragment")
             .expect("Failed to parse str as link data");
-        assert_eq!(data.is_local_anchor(), true);
+        assert!(data.is_local_anchor());
     }
 
     #[test]
     fn is_local_anchor_should_return_false_if_has_non_anchor_path() {
         let data = LinkData::try_from("path#some-fragment")
             .expect("Failed to parse str as link data");
-        assert_eq!(data.is_local_anchor(), false);
+        assert!(!data.is_local_anchor());
     }
 
     #[test]
     fn is_path_dir_should_return_true_if_link_is_to_directory() {
         let data = LinkData::try_from("some/directory/")
             .expect("Failed to parse str as link data");
-        assert_eq!(data.is_path_dir(), true);
+        assert!(data.is_path_dir());
     }
 
     #[test]
     fn is_path_dir_should_return_false_if_link_is_not_to_directory() {
         let data = LinkData::try_from("some/file")
             .expect("Failed to parse str as link data");
-        assert_eq!(data.is_path_dir(), false);
+        assert!(!data.is_path_dir());
     }
 }
