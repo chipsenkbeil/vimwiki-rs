@@ -30,8 +30,15 @@ macro_rules! test_file_pairs {
             println!("Loading {}...", path_in.to_string_lossy());
             let in_str = fs::read_to_string(path_in).unwrap();
 
+            // NOTE: On windows, loading the file into a string will yield \r\n for
+            //       the line terminations regardless of what the file actually
+            //       contains; so, we need to remove \r to handle this test
             println!("Loading {}...", path_out.to_string_lossy());
-            let out_str = fs::read_to_string(path_out).unwrap();
+            let out_str: String = fs::read_to_string(path_out)
+                .unwrap()
+                .chars()
+                .filter(|c| *c != '\r')
+                .collect();
 
             println!("Parsing input...");
             let language = Language::from_vimwiki_str(&in_str);
