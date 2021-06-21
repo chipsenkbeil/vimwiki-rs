@@ -1,7 +1,7 @@
 use crate::data::{
-    Element, ElementQuery, FromVimwikiElement, GqlPageFilter,
-    GraphqlDatabaseError, InlineElement, InlineElementQuery, Page, PageQuery,
-    Region,
+    BlockElement, BlockElementQuery, Element, ElementQuery, FromVimwikiElement,
+    GqlPageFilter, GraphqlDatabaseError, InlineElement, InlineElementQuery,
+    Page, PageQuery, Region,
 };
 use entity::*;
 use entity_async_graphql::*;
@@ -83,7 +83,7 @@ pub struct ListItem {
 
     /// The contents contained within the list item
     #[ent(edge(policy = "deep", wrap, graphql(filter_untyped)))]
-    contents: Vec<ListItemContent>,
+    contents: Vec<BlockElement>,
 
     /// Additional attributes associated with the list item
     #[ent(edge(policy = "deep"))]
@@ -129,7 +129,7 @@ impl<'a> FromVimwikiElement<'a> for ListItem {
         let mut contents = Vec::new();
         for content in item.contents {
             contents.push(
-                ListItemContent::from_vimwiki_element(
+                BlockElement::from_vimwiki_element(
                     page_id,
                     Some(ent.id()),
                     content,
@@ -245,56 +245,6 @@ impl ValueLike for ListItemSuffix {
             Value::Text(x) => x.as_str().parse().map_err(|_| Value::Text(x)),
             x => Err(x),
         }
-    }
-}
-
-#[gql_ent]
-pub enum ListItemContent {
-    InlineContent(InlineContent),
-    List(List),
-}
-
-impl ListItemContent {
-    pub fn page_id(&self) -> Id {
-        match self {
-            Self::InlineContent(x) => x.page_id(),
-            Self::List(x) => x.page_id(),
-        }
-    }
-
-    pub fn parent_id(&self) -> Option<Id> {
-        match self {
-            Self::InlineContent(x) => x.parent_id(),
-            Self::List(x) => x.parent_id(),
-        }
-    }
-}
-
-impl<'a> FromVimwikiElement<'a> for ListItemContent {
-    type Element = Located<v::ListItemContent<'a>>;
-
-    fn from_vimwiki_element(
-        page_id: Id,
-        parent_id: Option<Id>,
-        element: Self::Element,
-    ) -> Result<Self, GraphqlDatabaseError> {
-        let region = element.region();
-        Ok(match element.into_inner() {
-            v::ListItemContent::InlineContent(x) => {
-                Self::InlineContent(InlineContent::from_vimwiki_element(
-                    page_id,
-                    parent_id,
-                    Located::new(x, region),
-                )?)
-            }
-            v::ListItemContent::List(x) => {
-                Self::List(List::from_vimwiki_element(
-                    page_id,
-                    parent_id,
-                    Located::new(x, region),
-                )?)
-            }
-        })
     }
 }
 

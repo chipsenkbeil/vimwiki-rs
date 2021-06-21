@@ -1,7 +1,20 @@
 use crate::CommonOpt;
 use log::*;
-use std::{io, path::PathBuf};
-use vimwiki::{HtmlConfig, HtmlWikiConfig};
+use std::{
+    io,
+    path::{Path, PathBuf},
+};
+use vimwiki::{HtmlConfig, HtmlWikiConfig, VimwikiConfig};
+
+/// Attempts to load a vimwiki format config from a file
+pub fn load_format_config(path: &Path) -> io::Result<VimwikiConfig> {
+    trace!("load_format_config(path = {:?})", path);
+
+    let config_string = std::fs::read_to_string(path)?;
+    let config: VimwikiConfig = toml::from_str(config_string.as_str())?;
+
+    Ok(config)
+}
 
 /// Attempts to load an html config from a file, attempting to load wikis from
 /// vim/neovim if no wikis are defined or if merge = true
