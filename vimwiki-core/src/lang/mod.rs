@@ -103,7 +103,10 @@ macro_rules! impl_from_language {
 
 // Top-level types
 impl_from_language!(Page<'a>, vimwiki::page);
-impl_from_language!(Located<BlockElement<'a>>, vimwiki::blocks::block_element);
+impl_from_language!(
+    Located<BlockElement<'a>>,
+    vimwiki::blocks::top_level_block_element
+);
 impl_from_language!(
     Located<InlineElementContainer<'a>>,
     vimwiki::blocks::inline::inline_element_container

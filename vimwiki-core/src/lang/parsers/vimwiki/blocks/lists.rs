@@ -8,7 +8,7 @@ use crate::lang::{
         utils::{
             beginning_of_line, capture, context, deeper, locate, rest_of_line,
         },
-        vimwiki::blocks::block_element,
+        vimwiki::blocks::nested_block_element,
         IResult, Span,
     },
 };
@@ -16,7 +16,7 @@ use nom::{
     branch::alt,
     bytes::complete::{tag, take_while1},
     character::complete::{digit1, one_of, space0},
-    combinator::{eof, map, opt, peek, recognize, value, verify},
+    combinator::{map, opt, peek, recognize, value, verify},
     multi::{fold_many0, many0, many1},
     sequence::{pair, preceded},
 };
@@ -79,7 +79,7 @@ pub fn list_item(input: Span) -> IResult<(usize, Located<ListItem>)> {
 
         // 3. Grab input up to the next list item or other item based on the
         //    indentation level
-        let (input, remaining) = recognize(pair(
+        let (_, remaining) = recognize(pair(
             rest_of_line,
             many0(preceded(
                 verify(indentation_level(false), |level| *level > indentation),
@@ -98,8 +98,13 @@ pub fn list_item(input: Span) -> IResult<(usize, Located<ListItem>)> {
             },
         )))(remaining)?;
 
-        // 5. Verify that we consumed all of the content intended for the list item
-        let _ = eof(remaining)?;
+        // 5. Add back in all remaining that was not consumed as it is not
+        //    part of the list item; this happens if a header is following
+        //    immediately as it is not part of a nested block element but
+        //    can still be successfully parsed because of its support of
+        //    0+ spaces as part of centering
+        let input = input
+            .advance_start_by(remaining.start_offset() - input.start_offset());
 
         Ok((input, (indentation, item)))
     }
@@ -117,7 +122,9 @@ fn list_item_tail(
 
         // 5. Parse the rest of the current line
         let (input, content) =
-            map(deeper(block_element), |c| c.map(BlockElement::from))(input)?;
+            map(deeper(nested_block_element), |c| c.map(BlockElement::from))(
+                input,
+            )?;
 
         // 6. Continue parsing additional lines as content for the
         //    current list item as long as the following are met:
@@ -131,7 +138,7 @@ fn list_item_tail(
         //    start of a sublist, so we need to check for each
         let (input, mut contents) = many0(preceded(
             verify(indentation_level(false), |level| *level > indentation),
-            map(deeper(block_element), |c| c.map(BlockElement::from)),
+            map(deeper(nested_block_element), |c| c.map(BlockElement::from)),
         ))(input)?;
 
         contents.insert(0, content);
@@ -215,10 +222,17 @@ fn unordered_list_item_prefix(
 ///
 /// 1. Some list item
 /// 1) Some other list item
+///
+/// aaa. Some other list item
+/// AAA. Some other list item
 /// aaa) Some other list item
 /// AAA) Some other list item
+///
+/// iii. Some other list item
+/// III. Some other list item
 /// iii) Some other list item
 /// III) Some other list item
+///
 /// # Some other list item
 ///
 #[inline]
@@ -228,17 +242,15 @@ fn ordered_list_item_prefix(
     // NOTE: Roman numeral check comes before alphabetic as alphabetic would
     //       also match roman numerals
     let (input, (item_type, item_suffix)) = alt((
-        pair(ordered_list_item_type_number, list_item_suffix_period),
-        pair(ordered_list_item_type_number, list_item_suffix_paren),
-        pair(ordered_list_item_type_lower_roman, list_item_suffix_paren),
-        pair(ordered_list_item_type_upper_roman, list_item_suffix_paren),
         pair(
-            ordered_list_item_type_lower_alphabet,
-            list_item_suffix_paren,
-        ),
-        pair(
-            ordered_list_item_type_upper_alphabet,
-            list_item_suffix_paren,
+            alt((
+                ordered_list_item_type_number,
+                ordered_list_item_type_lower_roman,
+                ordered_list_item_type_upper_roman,
+                ordered_list_item_type_lower_alphabet,
+                ordered_list_item_type_upper_alphabet,
+            )),
+            alt((list_item_suffix_period, list_item_suffix_paren)),
         ),
         pair(ordered_list_item_type_pound, list_item_suffix_none),
     ))(input)?;
@@ -732,14 +744,14 @@ mod tests {
               =header=
         "});
         let (input, l) = list(input).unwrap();
-        assert!(
-            input.is_empty(),
-            "Did not consume header as part of paragraph"
+        assert_eq!(
+            input.as_unsafe_remaining_str(),
+            "  =header=\n",
+            "Unexpectedly consumed header"
         );
         assert_eq!(l.len(), 1, "Unexpected number of list items");
 
         assert_eq!(l[0][0].as_paragraph().unwrap().to_string(), "list item");
-        assert_eq!(l[0][1].as_header().unwrap().to_string(), "header");
     }
 
     #[test]
@@ -836,6 +848,110 @@ mod tests {
         assert_eq!(
             l[0][2].as_paragraph().unwrap().to_string(),
             "on multiple lines",
+        );
+    }
+
+    #[test]
+    fn list_should_supported_deeply_nested_sublists_with_paragraphs_over_blockquotes(
+    ) {
+        // NOTE: This comes from a specific case I encountered where deeply
+        //       nesting list item content with paragraphs is still getting
+        //       parsed as blockquotes such as "and content after that sublist"
+        //       because it is not already part of a paragraph
+        let input = Span::from(indoc! {"
+            - List of items
+                - Containing a sublist
+                    - With another sublist
+                        - And an additional sublist
+                      with content from the a sublist
+                  and content after that sublist as paragraph within list item
+        "});
+        let (input, l) = list(input).unwrap();
+        assert!(input.is_empty(), "Did not consume list");
+        assert_eq!(l.len(), 1, "Unexpected number of list items");
+
+        assert_eq!(
+            l[0][0].as_paragraph().unwrap().to_string(),
+            "List of items"
+        );
+
+        let sublist = l[0][1].as_list().unwrap();
+        assert_eq!(
+            sublist[0][0].as_paragraph().unwrap().to_string(),
+            "Containing a sublist"
+        );
+
+        let subsublist = sublist[0][1].as_list().unwrap();
+        assert_eq!(
+            subsublist[0][0].as_paragraph().unwrap().to_string(),
+            "With another sublist"
+        );
+
+        let subsubsublist = subsublist[0][1].as_list().unwrap();
+        assert_eq!(
+            subsubsublist[0][0].as_paragraph().unwrap().to_string(),
+            "And an additional sublist"
+        );
+
+        assert_eq!(
+            subsublist[0][2].as_paragraph().unwrap().to_string(),
+            "with content from the a sublist"
+        );
+        assert_eq!(
+            sublist[0][2].as_paragraph().unwrap().to_string(),
+            "and content after that sublist as paragraph within list item"
+        );
+    }
+
+    #[test]
+    fn list_should_properly_read_through_different_types_that_are_nested() {
+        let input = Span::from(indoc! {"
+            - nested
+             * list
+              1. of
+               a) content
+                second line of a
+               second line of 1
+              second line of bullet
+             second line of hyphen
+            * different list item
+        "});
+        let (input, l) = list(input).unwrap();
+        assert!(input.is_empty(), "Did not consume list");
+        assert_eq!(l.len(), 2, "Unexpected number of list items");
+
+        assert_eq!(l[0][0].as_paragraph().unwrap().to_string(), "nested");
+
+        let sublist = l[0][1].as_list().unwrap();
+        assert_eq!(sublist[0][0].as_paragraph().unwrap().to_string(), "list");
+
+        let subsublist = sublist[0][1].as_list().unwrap();
+        assert_eq!(subsublist[0][0].as_paragraph().unwrap().to_string(), "of");
+
+        let subsubsublist = subsublist[0][1].as_list().unwrap();
+        assert_eq!(
+            subsubsublist[0][0].as_paragraph().unwrap().to_string(),
+            "content\nsecond line of a"
+        );
+
+        assert_eq!(
+            subsublist[0][2].as_paragraph().unwrap().to_string(),
+            "second line of 1"
+        );
+
+        assert_eq!(
+            sublist[0][2].as_paragraph().unwrap().to_string(),
+            "second line of bullet"
+        );
+
+        assert_eq!(
+            l[0][2].as_paragraph().unwrap().to_string(),
+            "second line of hyphen"
+        );
+
+        assert_eq!(
+            l[1][0].as_paragraph().unwrap().to_string(),
+            "different list item"
         );
     }
 

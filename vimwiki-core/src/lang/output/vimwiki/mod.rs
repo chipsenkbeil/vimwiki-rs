@@ -846,6 +846,7 @@ mod tests {
     use super::*;
     use chrono::NaiveDate;
     use indoc::indoc;
+    use similar_asserts::assert_str_eq;
     use std::{borrow::Cow, collections::HashMap, convert::TryFrom};
     use uriparse::URIReference;
 
@@ -866,7 +867,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         blockquote.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             indoc! {"
                 > some lines
@@ -886,7 +887,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         blockquote.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "> some lines\n> of text\n");
+        assert_str_eq!(f.get_content(), "> some lines\n> of text\n");
     }
 
     #[test]
@@ -904,7 +905,7 @@ mod tests {
         });
         blockquote.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "> some lines\n> of text\n");
+        assert_str_eq!(f.get_content(), "> some lines\n> of text\n");
     }
 
     #[test]
@@ -922,7 +923,7 @@ mod tests {
         });
         blockquote.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "    some lines\n    of text\n");
+        assert_str_eq!(f.get_content(), "    some lines\n    of text\n");
     }
 
     #[test]
@@ -940,7 +941,7 @@ mod tests {
         });
         blockquote.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             indoc! {"
                 > some lines
@@ -964,7 +965,7 @@ mod tests {
         });
         blockquote.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             indoc! {"
                 > \t some lines \t
@@ -982,7 +983,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         f.and_indent(|f| blockquote.fmt(f)).unwrap();
 
-        assert_eq!(f.get_content(), "    > some lines\n    > of text\n");
+        assert_str_eq!(f.get_content(), "    > some lines\n    > of text\n");
     }
 
     fn build_def_list<'a, D: Into<DefinitionListValue<'a>>>(
@@ -1007,19 +1008,19 @@ mod tests {
         let list = build_def_list::<&str>("term1", Vec::new());
         let mut f = VimwikiFormatter::default();
         list.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "term1::\n");
+        assert_str_eq!(f.get_content(), "term1::\n");
 
         // Test single definition
         let list = build_def_list("term1", vec!["def1"]);
         let mut f = VimwikiFormatter::default();
         list.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "term1:: def1\n");
+        assert_str_eq!(f.get_content(), "term1:: def1\n");
 
         // Test multiple definitions
         let list = build_def_list("term1", vec!["def1", "def2"]);
         let mut f = VimwikiFormatter::default();
         list.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "term1:: def1\n:: def2\n");
+        assert_str_eq!(f.get_content(), "term1:: def1\n:: def2\n");
     }
 
     #[test]
@@ -1028,19 +1029,19 @@ mod tests {
         let list = build_def_list::<&str>(" \rterm1\t ", vec![]);
         let mut f = VimwikiFormatter::default();
         list.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "term1::\n");
+        assert_str_eq!(f.get_content(), "term1::\n");
 
         // Test single definition
         let list = build_def_list(" \rterm1\t ", vec!["def1"]);
         let mut f = VimwikiFormatter::default();
         list.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "term1:: def1\n");
+        assert_str_eq!(f.get_content(), "term1:: def1\n");
 
         // Test multiple definitions
         let list = build_def_list(" \rterm1\t ", vec!["def1", "def2"]);
         let mut f = VimwikiFormatter::default();
         list.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "term1:: def1\n:: def2\n");
+        assert_str_eq!(f.get_content(), "term1:: def1\n:: def2\n");
     }
 
     #[test]
@@ -1049,13 +1050,13 @@ mod tests {
         let list = build_def_list("term1", vec![" \rdef1\t "]);
         let mut f = VimwikiFormatter::default();
         list.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "term1:: def1\n");
+        assert_str_eq!(f.get_content(), "term1:: def1\n");
 
         // Test multiple definitions
         let list = build_def_list("term1", vec![" \rdef1\t ", " \rdef2\t "]);
         let mut f = VimwikiFormatter::default();
         list.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "term1:: def1\n:: def2\n");
+        assert_str_eq!(f.get_content(), "term1:: def1\n:: def2\n");
     }
 
     #[test]
@@ -1073,19 +1074,19 @@ mod tests {
         let list = build_def_list::<&str>("term1", vec![]);
         let mut f = VimwikiFormatter::new(config.clone());
         list.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "term1::\n");
+        assert_str_eq!(f.get_content(), "term1::\n");
 
         // Test single definition
         let list = build_def_list("term1", vec!["def1"]);
         let mut f = VimwikiFormatter::new(config.clone());
         list.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "term1:: def1\n");
+        assert_str_eq!(f.get_content(), "term1:: def1\n");
 
         // Test multiple definitions
         let list = build_def_list("term1", vec!["def1", "def2"]);
         let mut f = VimwikiFormatter::new(config);
         list.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "term1:: def1\n:: def2\n");
+        assert_str_eq!(f.get_content(), "term1:: def1\n:: def2\n");
     }
 
     #[test]
@@ -1103,19 +1104,19 @@ mod tests {
         let list = build_def_list::<&str>("term1", vec![]);
         let mut f = VimwikiFormatter::new(config.clone());
         list.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "term1::\n");
+        assert_str_eq!(f.get_content(), "term1::\n");
 
         // Test single definition
         let list = build_def_list("term1", vec!["def1"]);
         let mut f = VimwikiFormatter::new(config.clone());
         list.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "term1::\n:: def1\n");
+        assert_str_eq!(f.get_content(), "term1::\n:: def1\n");
 
         // Test multiple definitions
         let list = build_def_list("term1", vec!["def1", "def2"]);
         let mut f = VimwikiFormatter::new(config);
         list.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "term1::\n:: def1\n:: def2\n");
+        assert_str_eq!(f.get_content(), "term1::\n:: def1\n:: def2\n");
     }
 
     #[test]
@@ -1132,19 +1133,19 @@ mod tests {
         let list = build_def_list::<&str>(" \rterm1\t ", vec![]);
         let mut f = VimwikiFormatter::new(config.clone());
         list.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "term1::\n");
+        assert_str_eq!(f.get_content(), "term1::\n");
 
         // Test single definition
         let list = build_def_list(" \rterm1\t ", vec!["def1"]);
         let mut f = VimwikiFormatter::new(config.clone());
         list.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "term1:: def1\n");
+        assert_str_eq!(f.get_content(), "term1:: def1\n");
 
         // Test multiple definitions
         let list = build_def_list(" \rterm1\t ", vec!["def1", "def2"]);
         let mut f = VimwikiFormatter::new(config);
         list.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "term1:: def1\n:: def2\n");
+        assert_str_eq!(f.get_content(), "term1:: def1\n:: def2\n");
     }
 
     #[test]
@@ -1161,19 +1162,19 @@ mod tests {
         let list = build_def_list::<&str>(" \rterm1\t ", vec![]);
         let mut f = VimwikiFormatter::new(config.clone());
         list.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), " \rterm1\t ::\n");
+        assert_str_eq!(f.get_content(), " \rterm1\t ::\n");
 
         // Test single definition
         let list = build_def_list(" \rterm1\t ", vec!["def1"]);
         let mut f = VimwikiFormatter::new(config.clone());
         list.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), " \rterm1\t :: def1\n");
+        assert_str_eq!(f.get_content(), " \rterm1\t :: def1\n");
 
         // Test multiple definitions
         let list = build_def_list(" \rterm1\t ", vec!["def1", "def2"]);
         let mut f = VimwikiFormatter::new(config);
         list.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), " \rterm1\t :: def1\n:: def2\n");
+        assert_str_eq!(f.get_content(), " \rterm1\t :: def1\n:: def2\n");
     }
 
     #[test]
@@ -1190,13 +1191,13 @@ mod tests {
         let list = build_def_list("term1", vec![" \rdef1\t "]);
         let mut f = VimwikiFormatter::new(config.clone());
         list.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "term1:: def1\n");
+        assert_str_eq!(f.get_content(), "term1:: def1\n");
 
         // Test multiple definitions
         let list = build_def_list("term1", vec![" \rdef1\t ", " \rdef2\t "]);
         let mut f = VimwikiFormatter::new(config);
         list.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "term1:: def1\n:: def2\n");
+        assert_str_eq!(f.get_content(), "term1:: def1\n:: def2\n");
     }
 
     #[test]
@@ -1213,13 +1214,13 @@ mod tests {
         let list = build_def_list("term1", vec![" \rdef1\t "]);
         let mut f = VimwikiFormatter::new(config.clone());
         list.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "term1::  \rdef1\t \n");
+        assert_str_eq!(f.get_content(), "term1::  \rdef1\t \n");
 
         // Test multiple definitions
         let list = build_def_list("term1", vec![" \rdef1\t ", " \rdef2\t "]);
         let mut f = VimwikiFormatter::new(config);
         list.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "term1::  \rdef1\t \n::  \rdef2\t \n");
+        assert_str_eq!(f.get_content(), "term1::  \rdef1\t \n::  \rdef2\t \n");
     }
 
     #[test]
@@ -1228,19 +1229,19 @@ mod tests {
         let list = build_def_list::<&str>("term1", vec![]);
         let mut f = VimwikiFormatter::default();
         f.and_indent(|f| list.fmt(f)).unwrap();
-        assert_eq!(f.get_content(), "    term1::\n");
+        assert_str_eq!(f.get_content(), "    term1::\n");
 
         // Test single definition
         let list = build_def_list("term1", vec!["def1"]);
         let mut f = VimwikiFormatter::default();
         f.and_indent(|f| list.fmt(f)).unwrap();
-        assert_eq!(f.get_content(), "    term1:: def1\n");
+        assert_str_eq!(f.get_content(), "    term1:: def1\n");
 
         // Test multiple definitions
         let list = build_def_list("term1", vec!["def1", "def2"]);
         let mut f = VimwikiFormatter::default();
         f.and_indent(|f| list.fmt(f)).unwrap();
-        assert_eq!(f.get_content(), "    term1:: def1\n    :: def2\n");
+        assert_str_eq!(f.get_content(), "    term1:: def1\n    :: def2\n");
     }
 
     #[test]
@@ -1250,7 +1251,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         divider.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "----\n");
+        assert_str_eq!(f.get_content(), "----\n");
     }
 
     #[test]
@@ -1260,7 +1261,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         f.and_indent(|f| divider.fmt(f)).unwrap();
 
-        assert_eq!(f.get_content(), "----\n");
+        assert_str_eq!(f.get_content(), "----\n");
     }
 
     #[test]
@@ -1274,7 +1275,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         header.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "= some header =\n");
+        assert_str_eq!(f.get_content(), "= some header =\n");
     }
 
     #[test]
@@ -1288,7 +1289,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         header.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "= some header =\n");
+        assert_str_eq!(f.get_content(), "= some header =\n");
     }
 
     #[test]
@@ -1308,7 +1309,7 @@ mod tests {
         });
         header.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "= some header =\n");
+        assert_str_eq!(f.get_content(), "= some header =\n");
     }
 
     #[test]
@@ -1328,7 +1329,7 @@ mod tests {
         });
         header.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "=  \r\tsome header \r\t =\n");
+        assert_str_eq!(f.get_content(), "=  \r\tsome header \r\t =\n");
     }
 
     #[test]
@@ -1348,7 +1349,7 @@ mod tests {
         });
         header.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "= some header =\n");
+        assert_str_eq!(f.get_content(), "= some header =\n");
     }
 
     #[test]
@@ -1368,7 +1369,7 @@ mod tests {
         });
         header.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "=some header=\n");
+        assert_str_eq!(f.get_content(), "=some header=\n");
     }
 
     #[test]
@@ -1382,7 +1383,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         header.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "= some header =\n");
+        assert_str_eq!(f.get_content(), "= some header =\n");
     }
 
     #[test]
@@ -1396,7 +1397,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         header.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "== some header ==\n");
+        assert_str_eq!(f.get_content(), "== some header ==\n");
     }
 
     #[test]
@@ -1410,7 +1411,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         header.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "=== some header ===\n");
+        assert_str_eq!(f.get_content(), "=== some header ===\n");
     }
 
     #[test]
@@ -1424,7 +1425,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         header.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "==== some header ====\n");
+        assert_str_eq!(f.get_content(), "==== some header ====\n");
     }
 
     #[test]
@@ -1438,7 +1439,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         header.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "===== some header =====\n");
+        assert_str_eq!(f.get_content(), "===== some header =====\n");
     }
 
     #[test]
@@ -1452,7 +1453,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         header.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "====== some header ======\n");
+        assert_str_eq!(f.get_content(), "====== some header ======\n");
     }
 
     #[test]
@@ -1466,7 +1467,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         header.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "    = some header =\n");
+        assert_str_eq!(f.get_content(), "    = some header =\n");
     }
 
     #[test]
@@ -1480,7 +1481,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         f.and_indent(|f| header.fmt(f)).unwrap();
 
-        assert_eq!(f.get_content(), "= some header =\n");
+        assert_str_eq!(f.get_content(), "= some header =\n");
     }
 
     #[test]
@@ -1512,7 +1513,116 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         list.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "- some list item\n- another list item\n");
+        assert_str_eq!(
+            f.get_content(),
+            "- some list item\n- another list item\n"
+        );
+    }
+
+    #[test]
+    fn list_should_output_list_items_extra_content_at_appropriate_indentation()
+    {
+        fn make_list_item<'a>(
+            ty: ListItemType<'a>,
+            suffix: ListItemSuffix,
+            pos: usize,
+            text: &'static str,
+            list: Option<List<'a>>,
+            followup_text: Option<&'static str>,
+        ) -> Located<ListItem<'a>> {
+            let mut contents =
+                vec![Located::from(BlockElement::from(Paragraph::new(vec![
+                    text_to_inline_element_container(text),
+                ])))];
+
+            if let Some(list) = list {
+                contents.push(Located::from(BlockElement::from(list)));
+            }
+
+            if let Some(text) = followup_text {
+                contents.push(Located::from(BlockElement::from(
+                    Paragraph::new(vec![text_to_inline_element_container(
+                        text,
+                    )]),
+                )));
+            }
+
+            Located::from(ListItem::new(
+                ty,
+                suffix,
+                pos,
+                ListItemContents::new(contents),
+                ListItemAttributes::default(),
+            ))
+        }
+
+        // - nested
+        //  * list
+        //   1. of
+        //    a) content
+        //     second line of a
+        //    second line of 1
+        //   second line of bullet
+        //  second line of hyphen
+        // * different list item
+        let list = List::new(vec![
+            make_list_item(
+                ListItemType::Unordered(UnorderedListItemType::Hyphen),
+                ListItemSuffix::None,
+                0,
+                "nested",
+                Some(List::new(vec![make_list_item(
+                    ListItemType::Unordered(UnorderedListItemType::Asterisk),
+                    ListItemSuffix::None,
+                    0,
+                    "list",
+                    Some(List::new(vec![make_list_item(
+                        ListItemType::Ordered(OrderedListItemType::Number),
+                        ListItemSuffix::Period,
+                        0,
+                        "of",
+                        Some(List::new(vec![make_list_item(
+                            ListItemType::Ordered(
+                                OrderedListItemType::LowercaseAlphabet,
+                            ),
+                            ListItemSuffix::Period,
+                            0,
+                            "content",
+                            None,
+                            Some("second line of a"),
+                        )])),
+                        Some("second line of 1"),
+                    )])),
+                    Some("second line of bullet"),
+                )])),
+                Some("second line of hyphen"),
+            ),
+            make_list_item(
+                ListItemType::Unordered(UnorderedListItemType::Asterisk),
+                ListItemSuffix::None,
+                1,
+                "different list item",
+                None,
+                None,
+            ),
+        ]);
+        let mut f = VimwikiFormatter::default();
+        list.fmt(&mut f).unwrap();
+
+        assert_str_eq!(
+            f.get_content(),
+            indoc! {"
+                - nested
+                    * list
+                        1. of
+                            a. content
+                                second line of a
+                            second line of 1
+                        second line of bullet
+                    second line of hyphen
+                - different list item
+            "},
+        );
     }
 
     #[test]
@@ -1538,7 +1648,7 @@ mod tests {
             new_list_item(UnorderedListItemType::Hyphen, ListItemSuffix::None);
         let mut f = VimwikiFormatter::default();
         item.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "- some list item\n");
+        assert_str_eq!(f.get_content(), "- some list item\n");
 
         let item = new_list_item(
             UnorderedListItemType::Asterisk,
@@ -1546,7 +1656,7 @@ mod tests {
         );
         let mut f = VimwikiFormatter::default();
         item.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "* some list item\n");
+        assert_str_eq!(f.get_content(), "* some list item\n");
 
         let item = new_list_item(
             UnorderedListItemType::Other(Cow::from("xXx")),
@@ -1554,25 +1664,25 @@ mod tests {
         );
         let mut f = VimwikiFormatter::default();
         item.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "xXx some list item\n");
+        assert_str_eq!(f.get_content(), "xXx some list item\n");
 
         let item =
             new_list_item(OrderedListItemType::Number, ListItemSuffix::Period);
         let mut f = VimwikiFormatter::default();
         item.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "1. some list item\n");
+        assert_str_eq!(f.get_content(), "1. some list item\n");
 
         let item =
             new_list_item(OrderedListItemType::Number, ListItemSuffix::Paren);
         let mut f = VimwikiFormatter::default();
         item.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "1) some list item\n");
+        assert_str_eq!(f.get_content(), "1) some list item\n");
 
         let item =
             new_list_item(OrderedListItemType::Pound, ListItemSuffix::None);
         let mut f = VimwikiFormatter::default();
         item.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "# some list item\n");
+        assert_str_eq!(f.get_content(), "# some list item\n");
 
         let item = new_list_item(
             OrderedListItemType::LowercaseAlphabet,
@@ -1580,7 +1690,7 @@ mod tests {
         );
         let mut f = VimwikiFormatter::default();
         item.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "a. some list item\n");
+        assert_str_eq!(f.get_content(), "a. some list item\n");
 
         let item = new_list_item(
             OrderedListItemType::LowercaseAlphabet,
@@ -1588,7 +1698,7 @@ mod tests {
         );
         let mut f = VimwikiFormatter::default();
         item.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "a) some list item\n");
+        assert_str_eq!(f.get_content(), "a) some list item\n");
 
         let item = new_list_item(
             OrderedListItemType::UppercaseAlphabet,
@@ -1596,7 +1706,7 @@ mod tests {
         );
         let mut f = VimwikiFormatter::default();
         item.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "A. some list item\n");
+        assert_str_eq!(f.get_content(), "A. some list item\n");
 
         let item = new_list_item(
             OrderedListItemType::UppercaseAlphabet,
@@ -1604,7 +1714,7 @@ mod tests {
         );
         let mut f = VimwikiFormatter::default();
         item.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "A) some list item\n");
+        assert_str_eq!(f.get_content(), "A) some list item\n");
 
         let item = new_list_item(
             OrderedListItemType::LowercaseRoman,
@@ -1612,7 +1722,7 @@ mod tests {
         );
         let mut f = VimwikiFormatter::default();
         item.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "i. some list item\n");
+        assert_str_eq!(f.get_content(), "i. some list item\n");
 
         let item = new_list_item(
             OrderedListItemType::LowercaseRoman,
@@ -1620,7 +1730,7 @@ mod tests {
         );
         let mut f = VimwikiFormatter::default();
         item.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "i) some list item\n");
+        assert_str_eq!(f.get_content(), "i) some list item\n");
 
         let item = new_list_item(
             OrderedListItemType::UppercaseRoman,
@@ -1628,7 +1738,7 @@ mod tests {
         );
         let mut f = VimwikiFormatter::default();
         item.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "I. some list item\n");
+        assert_str_eq!(f.get_content(), "I. some list item\n");
 
         let item = new_list_item(
             OrderedListItemType::UppercaseRoman,
@@ -1636,7 +1746,7 @@ mod tests {
         );
         let mut f = VimwikiFormatter::default();
         item.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "I) some list item\n");
+        assert_str_eq!(f.get_content(), "I) some list item\n");
     }
 
     #[test]
@@ -1656,35 +1766,35 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         item.attributes.todo_status = Some(ListItemTodoStatus::Incomplete);
         item.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "- [ ] some list item\n");
+        assert_str_eq!(f.get_content(), "- [ ] some list item\n");
 
         let mut f = VimwikiFormatter::default();
         item.attributes.todo_status =
             Some(ListItemTodoStatus::PartiallyComplete1);
         item.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "- [.] some list item\n");
+        assert_str_eq!(f.get_content(), "- [.] some list item\n");
 
         let mut f = VimwikiFormatter::default();
         item.attributes.todo_status =
             Some(ListItemTodoStatus::PartiallyComplete2);
         item.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "- [o] some list item\n");
+        assert_str_eq!(f.get_content(), "- [o] some list item\n");
 
         let mut f = VimwikiFormatter::default();
         item.attributes.todo_status =
             Some(ListItemTodoStatus::PartiallyComplete3);
         item.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "- [O] some list item\n");
+        assert_str_eq!(f.get_content(), "- [O] some list item\n");
 
         let mut f = VimwikiFormatter::default();
         item.attributes.todo_status = Some(ListItemTodoStatus::Complete);
         item.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "- [X] some list item\n");
+        assert_str_eq!(f.get_content(), "- [X] some list item\n");
 
         let mut f = VimwikiFormatter::default();
         item.attributes.todo_status = Some(ListItemTodoStatus::Rejected);
         item.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "- [-] some list item\n");
+        assert_str_eq!(f.get_content(), "- [-] some list item\n");
     }
 
     #[test]
@@ -1704,7 +1814,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         f.and_indent(|f| item.fmt(f)).unwrap();
 
-        assert_eq!(f.get_content(), "    - some list item\n");
+        assert_str_eq!(f.get_content(), "    - some list item\n");
     }
 
     #[test]
@@ -1713,7 +1823,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         math.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "{{$\nsome lines\nof math\n}}$\n");
+        assert_str_eq!(f.get_content(), "{{$\nsome lines\nof math\n}}$\n");
     }
 
     #[test]
@@ -1725,7 +1835,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         math.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             "{{$%test environment%\nsome lines\nof math\n}}$\n"
         );
@@ -1737,7 +1847,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         f.and_indent(|f| math.fmt(f)).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             "    {{$\n    some lines\n    of math\n    }}$\n",
         );
@@ -1748,7 +1858,7 @@ mod tests {
         let placeholder = Placeholder::title_from_str("test title");
         let mut f = VimwikiFormatter::default();
         placeholder.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "%title test title\n");
+        assert_str_eq!(f.get_content(), "%title test title\n");
     }
 
     #[test]
@@ -1756,7 +1866,7 @@ mod tests {
         let placeholder = Placeholder::Date(NaiveDate::from_ymd(2021, 6, 17));
         let mut f = VimwikiFormatter::default();
         placeholder.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "%date 2021-06-17\n");
+        assert_str_eq!(f.get_content(), "%date 2021-06-17\n");
     }
 
     #[test]
@@ -1764,7 +1874,7 @@ mod tests {
         let placeholder = Placeholder::template_from_str("test template");
         let mut f = VimwikiFormatter::default();
         placeholder.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "%template test template\n");
+        assert_str_eq!(f.get_content(), "%template test template\n");
     }
 
     #[test]
@@ -1772,7 +1882,7 @@ mod tests {
         let placeholder = Placeholder::NoHtml;
         let mut f = VimwikiFormatter::default();
         placeholder.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "%nohtml\n");
+        assert_str_eq!(f.get_content(), "%nohtml\n");
     }
 
     #[test]
@@ -1780,7 +1890,7 @@ mod tests {
         let placeholder = Placeholder::other_from_str("name", "value");
         let mut f = VimwikiFormatter::default();
         placeholder.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "%name value\n");
+        assert_str_eq!(f.get_content(), "%name value\n");
     }
 
     #[test]
@@ -1788,7 +1898,7 @@ mod tests {
         let placeholder = Placeholder::title_from_str("test title");
         let mut f = VimwikiFormatter::default();
         f.and_indent(|f| placeholder.fmt(f)).unwrap();
-        assert_eq!(f.get_content(), "%title test title\n");
+        assert_str_eq!(f.get_content(), "%title test title\n");
     }
 
     #[test]
@@ -1801,7 +1911,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         code.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "{{{\nsome lines\nof code\n}}}\n");
+        assert_str_eq!(f.get_content(), "{{{\nsome lines\nof code\n}}}\n");
     }
 
     #[test]
@@ -1814,7 +1924,10 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         code.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "{{{language\nsome lines\nof code\n}}}\n");
+        assert_str_eq!(
+            f.get_content(),
+            "{{{language\nsome lines\nof code\n}}}\n"
+        );
     }
 
     #[test]
@@ -1832,7 +1945,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         code.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             "{{{key1=\"value1\" key2=\"value2\"\nsome lines\nof code\n}}}\n"
         );
@@ -1853,7 +1966,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         code.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "{{{language key1=\"value1\" key2=\"value2\"\nsome lines\nof code\n}}}\n");
+        assert_str_eq!(f.get_content(), "{{{language key1=\"value1\" key2=\"value2\"\nsome lines\nof code\n}}}\n");
     }
 
     #[test]
@@ -1866,7 +1979,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         f.and_indent(|f| code.fmt(f)).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             "    {{{\n    some lines\n    of code\n    }}}\n",
         );
@@ -1883,7 +1996,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         paragraph.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "some text that is over 80 characters in length should wrap based on word\nboundaries with boundaries being on the next line\n");
+        assert_str_eq!(f.get_content(), "some text that is over 80 characters in length should wrap based on word\nboundaries with boundaries being on the next line\n");
     }
 
     #[test]
@@ -1904,7 +2017,7 @@ mod tests {
         });
         paragraph.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "some text that is over 80 characters in length should wrap based on word\nboundaries with boundaries being on the next line\n");
+        assert_str_eq!(f.get_content(), "some text that is over 80 characters in length should wrap based on word\nboundaries with boundaries being on the next line\n");
     }
 
     #[test]
@@ -1924,7 +2037,7 @@ mod tests {
         });
         paragraph.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "some text that is over 80 characters in length should wrap based on word boundaries\nwith boundaries being on the next line\n");
+        assert_str_eq!(f.get_content(), "some text that is over 80 characters in length should wrap based on word boundaries\nwith boundaries being on the next line\n");
     }
 
     #[test]
@@ -1936,7 +2049,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         paragraph.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "some text\nand more text\n");
+        assert_str_eq!(f.get_content(), "some text\nand more text\n");
     }
 
     #[test]
@@ -1954,7 +2067,7 @@ mod tests {
         });
         paragraph.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "some text\nand more text\n");
+        assert_str_eq!(f.get_content(), "some text\nand more text\n");
     }
 
     #[test]
@@ -1972,7 +2085,7 @@ mod tests {
         });
         paragraph.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             " \r\tsome text \r\t\n \r\tand more text \r\t\n",
         );
@@ -1987,7 +2100,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         f.and_indent(|f| paragraph.fmt(f)).unwrap();
 
-        assert_eq!(f.get_content(), "    some text\n    and more text\n");
+        assert_str_eq!(f.get_content(), "    some text\n    and more text\n");
     }
 
     #[inline]
@@ -2086,7 +2199,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         table.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             indoc! {"
                 | some header |
@@ -2105,7 +2218,7 @@ mod tests {
         });
         table.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             indoc! {"
                 | some header |
@@ -2124,7 +2237,7 @@ mod tests {
         });
         table.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             indoc! {"
                 |some header|
@@ -2144,7 +2257,7 @@ mod tests {
         });
         table.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             indoc! {r"
                 |some header 1|> |some header 2|>  |
@@ -2164,7 +2277,7 @@ mod tests {
         });
         table.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             indoc! {r"
                 | some header 1 | >  | some header 2 | > |
@@ -2218,7 +2331,7 @@ mod tests {
         });
         table.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             indoc! {r"
                 | |  |  |   |
@@ -2237,7 +2350,7 @@ mod tests {
         });
         table.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             "    |some header|\n    |-----------|\n    |some text  |\n",
         );
@@ -2252,7 +2365,7 @@ mod tests {
         });
         f.and_indent(|f| table.fmt(f)).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             "    |some header|\n    |-----------|\n    |some text  |\n",
         );
@@ -2279,7 +2392,7 @@ mod tests {
         });
         table.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             indoc! {"
                 | a | a | a | a |
@@ -2294,7 +2407,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         text.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "some text");
+        assert_str_eq!(f.get_content(), "some text");
     }
 
     #[test]
@@ -2305,7 +2418,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         decorated_text.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "*some text*");
+        assert_str_eq!(f.get_content(), "*some text*");
     }
 
     #[test]
@@ -2316,7 +2429,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         decorated_text.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "_some text_");
+        assert_str_eq!(f.get_content(), "_some text_");
     }
 
     #[test]
@@ -2327,7 +2440,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         decorated_text.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "~~some text~~");
+        assert_str_eq!(f.get_content(), "~~some text~~");
     }
 
     #[test]
@@ -2338,7 +2451,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         decorated_text.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "^some text^");
+        assert_str_eq!(f.get_content(), "^some text^");
     }
 
     #[test]
@@ -2349,7 +2462,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         decorated_text.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), ",,some text,,");
+        assert_str_eq!(f.get_content(), ",,some text,,");
     }
 
     #[test]
@@ -2366,7 +2479,7 @@ mod tests {
         for (keyword, output) in inputs_and_outputs.iter() {
             let mut f = VimwikiFormatter::default();
             keyword.fmt(&mut f).unwrap();
-            assert_eq!(f.get_content(), *output);
+            assert_str_eq!(f.get_content(), *output);
         }
     }
 
@@ -2379,7 +2492,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "[[some/page]]");
+        assert_str_eq!(f.get_content(), "[[some/page]]");
     }
 
     #[test]
@@ -2391,7 +2504,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "[[some/page with spaces]]");
+        assert_str_eq!(f.get_content(), "[[some/page with spaces]]");
     }
 
     #[test]
@@ -2403,7 +2516,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "[[some/page|text description]]");
+        assert_str_eq!(f.get_content(), "[[some/page|text description]]");
     }
 
     #[test]
@@ -2420,7 +2533,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             "[[some/page|{{https://example.com/img.png}}]]"
         );
@@ -2436,7 +2549,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "[[wiki123:some/page]]");
+        assert_str_eq!(f.get_content(), "[[wiki123:some/page]]");
     }
 
     #[test]
@@ -2449,7 +2562,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "[[wiki123:some/page with spaces]]");
+        assert_str_eq!(f.get_content(), "[[wiki123:some/page with spaces]]");
     }
 
     #[test]
@@ -2462,7 +2575,10 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "[[wiki123:some/page|text description]]");
+        assert_str_eq!(
+            f.get_content(),
+            "[[wiki123:some/page|text description]]"
+        );
     }
 
     #[test]
@@ -2480,7 +2596,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             "[[wiki123:some/page|{{https://example.com/img.png}}]]"
         );
@@ -2496,7 +2612,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "[[wn.my wiki:some/page]]");
+        assert_str_eq!(f.get_content(), "[[wn.my wiki:some/page]]");
     }
 
     #[test]
@@ -2509,7 +2625,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "[[wn.my wiki:some/page with spaces]]");
+        assert_str_eq!(f.get_content(), "[[wn.my wiki:some/page with spaces]]");
     }
 
     #[test]
@@ -2522,7 +2638,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             "[[wn.my wiki:some/page|text description]]"
         );
@@ -2543,7 +2659,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             "[[wn.my wiki:some/page|{{https://example.com/img.png}}]]"
         );
@@ -2556,7 +2672,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "[[diary:2021-06-17]]");
+        assert_str_eq!(f.get_content(), "[[diary:2021-06-17]]");
     }
 
     #[test]
@@ -2569,7 +2685,10 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "[[diary:2021-06-17|text description]]");
+        assert_str_eq!(
+            f.get_content(),
+            "[[diary:2021-06-17|text description]]"
+        );
     }
 
     #[test]
@@ -2583,7 +2702,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             "[[diary:2021-06-17|{{https://example.com/img.png}}]]"
         );
@@ -2599,7 +2718,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "[[diary:2021-06-17#one#two#three]]");
+        assert_str_eq!(f.get_content(), "[[diary:2021-06-17#one#two#three]]");
     }
 
     #[test]
@@ -2612,7 +2731,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             "[[diary:2021-06-17#one#two#three|text description]]"
         );
@@ -2624,7 +2743,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "https://example.com/");
+        assert_str_eq!(f.get_content(), "https://example.com/");
     }
 
     #[test]
@@ -2637,7 +2756,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "{{some/img.png}}");
+        assert_str_eq!(f.get_content(), "{{some/img.png}}");
     }
 
     #[test]
@@ -2650,7 +2769,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "{{some/img with spaces.png}}");
+        assert_str_eq!(f.get_content(), "{{some/img with spaces.png}}");
     }
 
     #[test]
@@ -2663,7 +2782,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "{{some/img.png|text description}}");
+        assert_str_eq!(f.get_content(), "{{some/img.png|text description}}");
     }
 
     #[test]
@@ -2681,7 +2800,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             "{{some/img.png|{{https://example.com/img.png}}}}"
         );
@@ -2699,7 +2818,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "{{some/img.png||key=\"value\"}}");
+        assert_str_eq!(f.get_content(), "{{some/img.png||key=\"value\"}}");
     }
 
     #[test]
@@ -2714,7 +2833,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             "{{some/img.png|text description|key=\"value\"}}"
         );
@@ -2726,7 +2845,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         tags.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), ":one:two:");
+        assert_str_eq!(f.get_content(), ":one:two:");
     }
 
     #[test]
@@ -2735,7 +2854,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         tags.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), ":one:");
+        assert_str_eq!(f.get_content(), ":one:");
     }
 
     #[test]
@@ -2744,7 +2863,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         code_inline.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "`some code`");
+        assert_str_eq!(f.get_content(), "`some code`");
     }
 
     #[test]
@@ -2753,7 +2872,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         math_inline.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "$some math$");
+        assert_str_eq!(f.get_content(), "$some math$");
     }
 
     #[test]
@@ -2762,7 +2881,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         comment.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "%% some comment");
+        assert_str_eq!(f.get_content(), "%% some comment");
     }
 
     #[test]
@@ -2777,7 +2896,7 @@ mod tests {
         });
         comment.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "%% some comment");
+        assert_str_eq!(f.get_content(), "%% some comment");
     }
 
     #[test]
@@ -2792,7 +2911,7 @@ mod tests {
         });
         comment.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "%%some comment");
+        assert_str_eq!(f.get_content(), "%%some comment");
     }
 
     #[test]
@@ -2801,7 +2920,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         comment.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "%% some comment");
+        assert_str_eq!(f.get_content(), "%% some comment");
     }
 
     #[test]
@@ -2816,7 +2935,7 @@ mod tests {
         });
         comment.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "%% some comment");
+        assert_str_eq!(f.get_content(), "%% some comment");
     }
 
     #[test]
@@ -2831,7 +2950,7 @@ mod tests {
         });
         comment.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "%%  \r\tsome comment \r\t");
+        assert_str_eq!(f.get_content(), "%%  \r\tsome comment \r\t");
     }
 
     #[test]
@@ -2841,7 +2960,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         comment.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "%%+ line one\nline two +%%");
+        assert_str_eq!(f.get_content(), "%%+ line one\nline two +%%");
     }
 
     #[test]
@@ -2850,7 +2969,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         comment.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "%%+ some single line comment +%%");
+        assert_str_eq!(f.get_content(), "%%+ some single line comment +%%");
     }
 
     #[test]
@@ -2865,7 +2984,7 @@ mod tests {
         });
         comment.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "%%+ some single line comment +%%");
+        assert_str_eq!(f.get_content(), "%%+ some single line comment +%%");
     }
 
     #[test]
@@ -2880,7 +2999,7 @@ mod tests {
         });
         comment.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "%%+some single line comment+%%");
+        assert_str_eq!(f.get_content(), "%%+some single line comment+%%");
     }
 
     #[test]
@@ -2892,7 +3011,7 @@ mod tests {
         let mut f = VimwikiFormatter::default();
         comment.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "%%+ line one\nline two +%%");
+        assert_str_eq!(f.get_content(), "%%+ line one\nline two +%%");
     }
 
     #[test]
@@ -2910,7 +3029,7 @@ mod tests {
         });
         comment.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "%%+ line one\nline two +%%");
+        assert_str_eq!(f.get_content(), "%%+ line one\nline two +%%");
     }
 
     #[test]
@@ -2928,7 +3047,7 @@ mod tests {
         });
         comment.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             "%%+  \r\tline one \r\t\n \r\tline two \r\t +%%"
         );

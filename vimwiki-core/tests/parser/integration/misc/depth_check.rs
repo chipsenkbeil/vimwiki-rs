@@ -162,7 +162,7 @@ fn test() {
                                         ),
                                     ]),
                                 ])),
-                                Region::new_at_depth(132, 13, 2),
+                                Region::new_at_depth(132, 14, 2),
                             ),
                             Located::new(
                                 BlockElement::List(List::new(vec![
@@ -183,7 +183,7 @@ fn test() {
                                                             ),
                                                         ])
                                                     ])),
-                                                    Region::new_at_depth(152, 20, 4),
+                                                    Region::new_at_depth(152, 21, 4),
                                                 ),
                                                 Located::new(
                                                     BlockElement::List(List::new(vec![
@@ -202,7 +202,7 @@ fn test() {
                                                                                 )
                                                                             ])
                                                                         ])),
-                                                                        Region::new_at_depth(183, 20, 6)
+                                                                        Region::new_at_depth(183, 21, 6)
                                                                     ),
                                                                     Located::new(
                                                                         BlockElement::List(List::new(vec![
@@ -221,7 +221,7 @@ fn test() {
                                                                                                     )
                                                                                                 ])
                                                                                             ])),
-                                                                                            Region::new_at_depth(218, 25, 8),
+                                                                                            Region::new_at_depth(218, 26, 8),
                                                                                             ),
                                                                                     ]),
                                                                                     ListItemAttributes::default(),
@@ -240,7 +240,7 @@ fn test() {
                                                                                 )
                                                                             ])
                                                                         ])),
-                                                                        Region::new_at_depth(254, 31, 6)
+                                                                        Region::new_at_depth(244, 42, 6)
                                                                     ),
                                                                 ]),
                                                                 ListItemAttributes::default(),
@@ -259,7 +259,7 @@ fn test() {
                                                             )
                                                         ])
                                                     ])),
-                                                    Region::new_at_depth(292, 30, 4),
+                                                    Region::new_at_depth(286, 37, 4),
                                                 ),
                                             ]),
                                             ListItemAttributes::default(),
@@ -291,7 +291,7 @@ fn test() {
                                         )
                                     ])
                                 ])),
-                                Region::new_at_depth(325, 37, 2),
+                                Region::new_at_depth(323, 40, 2),
                             ),
                         ]),
                         ListItemAttributes::default(),
@@ -314,7 +314,7 @@ fn test() {
                                     ),
                                 ]),
                             ])),
-                            Region::new_at_depth(365, 28, 2),
+                            Region::new_at_depth(365, 29, 2),
                         )]),
                         ListItemAttributes::default(),
                     ),

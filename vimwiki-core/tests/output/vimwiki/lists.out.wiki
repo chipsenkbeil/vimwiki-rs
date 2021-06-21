@@ -18,7 +18,7 @@
             second line of 1
         second line of bullet
     second line of hyphen
-* different list item
+- different list item
 
 - math
     {{$
