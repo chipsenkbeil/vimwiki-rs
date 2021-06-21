@@ -41,6 +41,8 @@
 - `vimwiki-server` now supports colored output of logging and defaults to
   info-level logging
 - Move `vimwiki-cli` logic into *lib.rs* that is imported within *main.rs*
+- Transclusion links now use spaces between properties instead of pipe
+  symbols (`{{img.png|desc|prop1="value" prop2="value"}}`)
 
 ### Fixed
 
