@@ -42,9 +42,9 @@ fn tokenize_block_element(
             let t = do_tokenize!(ctx, &x);
             quote! { #root::BlockElement::List(#t) }
         }
-        BlockElement::Math(x) => {
+        BlockElement::MathBlock(x) => {
             let t = do_tokenize!(ctx, &x);
-            quote! { #root::BlockElement::Math(#t) }
+            quote! { #root::BlockElement::MathBlock(#t) }
         }
         BlockElement::Paragraph(x) => {
             let t = do_tokenize!(ctx, &x);

@@ -8,7 +8,7 @@ use entity_async_graphql::*;
 use serde::{Deserialize, Serialize};
 use std::{cmp::Ordering, fmt};
 use strum::{Display, EnumString};
-use vimwiki::{self as v, Located};
+use vimwiki::{self as v, CellIter, Located};
 
 /// Represents a single document table
 #[gql_ent]
@@ -328,6 +328,9 @@ async_graphql::scalar!(CellPos);
 #[graphql(remote = "vimwiki::ColumnAlign")]
 #[strum(serialize_all = "snake_case")]
 pub enum ColumnAlign {
+    /// No alignment (defaults to left)
+    None,
+
     /// Align columns left
     Left,
 
@@ -431,7 +434,7 @@ mod tests {
                         assert_eq!(cell.to_string(), "value4")
                     }
                     (4, Cell::Align(cell)) => {
-                        assert_eq!(cell.alignment, ColumnAlign::Left);
+                        assert_eq!(cell.alignment, ColumnAlign::None);
                     }
                     (5, Cell::Align(cell)) => {
                         assert_eq!(cell.alignment, ColumnAlign::Left);
@@ -443,7 +446,7 @@ mod tests {
                         assert_eq!(cell.alignment, ColumnAlign::Center);
                     }
                     (8, Cell::Content(cell)) => {
-                        assert_eq!(cell.to_string(), "abc");
+                        assert_eq!(cell.to_string(), "abc   ");
                     }
                     (9, Cell::Span(cell)) => {
                         assert_eq!(cell.span, CellSpan::FromLeft);
@@ -452,7 +455,7 @@ mod tests {
                         assert_eq!(cell.span, CellSpan::FromAbove);
                     }
                     (11, Cell::Content(cell)) => {
-                        assert_eq!(cell.to_string(), "def");
+                        assert_eq!(cell.to_string(), "def   ");
                     }
                     (idx, cell) => {
                         panic!("Unexpected cell at {}: {:?}", idx, cell);

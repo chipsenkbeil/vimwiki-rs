@@ -42,7 +42,7 @@ mod tests {
     #[test]
     fn whole_word_should_succeed_if_nonwhitespace_starting_at_beginning_of_line(
     ) {
-        let input = Span::from("\nword").starting_at(1);
+        let input = Span::from("\nword").advance_start_by(1);
         let (_, word) = whole_word(input).unwrap();
         assert_eq!(word, "word");
     }
@@ -50,7 +50,7 @@ mod tests {
     #[test]
     fn whole_word_should_succeed_if_whitespace_preceeding_and_currently_nonwhitespace(
     ) {
-        let input = Span::from(" word").starting_at(1);
+        let input = Span::from(" word").advance_start_by(1);
         let (_, word) = whole_word(input).unwrap();
         assert_eq!(word, "word");
     }
@@ -76,7 +76,7 @@ mod tests {
 
     #[test]
     fn whole_word_should_fail_if_character_preceeding() {
-        let input = Span::from("aword").starting_at(1);
+        let input = Span::from("aword").advance_start_by(1);
         assert!(whole_word(input).is_err());
     }
 

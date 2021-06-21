@@ -1,0 +1,21 @@
+=header1=
+paragraph 1
+on multiple lines
+==header2==
+paragraph 2
+on multiple lines
+===header3===
+paragraph 3
+on multiple lines
+====header4====
+paragraph 4
+on multiple lines
+=====header5=====
+paragraph 5
+on multiple lines
+======header6======
+paragraph 5
+on multiple lines
+ =centered header=
+paragraph 6
+on multiple lines

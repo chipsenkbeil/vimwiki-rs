@@ -435,34 +435,6 @@ impl ObjQuery {
             .map_err(|x| async_graphql::Error::new(x.to_string()))
     }
 
-    /// Queries for instances of ListItemContent that matches the given filter, or
-    /// return all instances if no filter provided
-    async fn list_item_contents(
-        &self,
-        filter: Option<GqlEntFilter>,
-    ) -> async_graphql::Result<Vec<ListItemContent>> {
-        let query: entity::Query = match filter {
-            Some(x) => x.into(),
-            None => entity::Query::default().where_created(P::greater_than(0)),
-        };
-
-        ListItemContentQuery::from(query)
-            .execute()
-            .map_err(|x| async_graphql::Error::new(x.to_string()))
-    }
-
-    /// Queries for a single instance of ListItemContent by its id
-    async fn list_item_content(
-        &self,
-        id: Id,
-    ) -> async_graphql::Result<Option<ListItemContent>> {
-        ListItemContent::query()
-            .where_id(P::equals(id))
-            .execute()
-            .map(|x| x.into_iter().next())
-            .map_err(|x| async_graphql::Error::new(x.to_string()))
-    }
-
     /// Queries for instances of MathBlock that match the filter, or return all
     /// instances if no filter provided
     async fn math_blocks(

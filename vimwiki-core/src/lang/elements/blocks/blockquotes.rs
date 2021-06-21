@@ -1,13 +1,12 @@
 use crate::StrictEq;
-use derive_more::{Constructor, Display, Index, IndexMut, IntoIterator};
+use derive_more::{Constructor, Index, IndexMut, IntoIterator};
 use serde::{Deserialize, Serialize};
-use std::{borrow::Cow, iter::FromIterator};
+use std::{borrow::Cow, fmt, iter::FromIterator};
 
 #[derive(
     Constructor,
     Clone,
     Debug,
-    Display,
     Eq,
     PartialEq,
     Hash,
@@ -17,7 +16,6 @@ use std::{borrow::Cow, iter::FromIterator};
     Serialize,
     Deserialize,
 )]
-#[display(fmt = "{}", "lines.join(\"\n\")")]
 pub struct Blockquote<'a> {
     /// Represents the lines of text contained within the blockquote include
     /// potential blank lines
@@ -69,6 +67,17 @@ impl Blockquote<'_> {
         self.into_iter()
             .map(|x| Cow::from(x.into_owned()))
             .collect()
+    }
+}
+
+impl<'a> fmt::Display for Blockquote<'a> {
+    /// Writes out the blockquote by writing out each of its lines
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for line in self {
+            writeln!(f, "{}", line)?;
+        }
+
+        Ok(())
     }
 }
 

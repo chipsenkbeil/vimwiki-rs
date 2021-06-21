@@ -240,15 +240,13 @@ fn vimwiki_list() {
                 ListItemType::Unordered(UnorderedListItemType::Hyphen),
                 ListItemSuffix::None,
                 0,
-                ListItemContents::new(vec![Located::from(
-                    ListItemContent::InlineContent(
-                        InlineElementContainer::new(vec![Located::from(
-                            InlineElement::Text(Text::from(
-                                "some cool list item"
-                            ))
-                        )])
-                    )
-                )]),
+                ListItemContents::new(vec![Located::from(BlockElement::from(
+                    Paragraph::new(vec![InlineElementContainer::new(vec![
+                        Located::from(InlineElement::Text(Text::from(
+                            "some cool list item"
+                        )))
+                    ])])
+                ))]),
                 ListItemAttributes::default(),
             ),),
             Located::from(ListItem::new(
@@ -256,26 +254,26 @@ fn vimwiki_list() {
                 ListItemSuffix::None,
                 1,
                 ListItemContents::new(vec![
-                    Located::from(ListItemContent::InlineContent(
+                    Located::from(BlockElement::from(Paragraph::new(vec![
                         InlineElementContainer::new(vec![Located::from(
                             InlineElement::Text(Text::from(
                                 "some other list item"
                             ))
                         )])
-                    )),
-                    Located::from(ListItemContent::List(List::new(vec![
+                    ]))),
+                    Located::from(BlockElement::List(List::new(vec![
                         Located::from(ListItem::new(
                             ListItemType::Ordered(OrderedListItemType::Number),
                             ListItemSuffix::Period,
                             0,
                             ListItemContents::new(vec![Located::from(
-                                ListItemContent::InlineContent(
+                                BlockElement::from(Paragraph::new(vec![
                                     InlineElementContainer::new(vec![
                                         Located::from(InlineElement::Text(
                                             Text::from("sub ice list item")
                                         ))
                                     ])
-                                )
+                                ]))
                             )]),
                             ListItemAttributes::default(),
                         ))
@@ -296,13 +294,13 @@ fn vimwiki_list_item() {
             ListItemType::Unordered(UnorderedListItemType::Hyphen),
             ListItemSuffix::None,
             0,
-            ListItemContents::new(vec![Located::from(
-                ListItemContent::InlineContent(InlineElementContainer::new(
-                    vec![Located::from(InlineElement::Text(Text::from(
+            ListItemContents::new(vec![Located::from(BlockElement::from(
+                Paragraph::new(vec![InlineElementContainer::new(vec![
+                    Located::from(InlineElement::Text(Text::from(
                         "some cool list item"
-                    )))]
-                ))
-            )]),
+                    )))
+                ])])
+            ))]),
             ListItemAttributes { todo_status: None }
         )
     );

@@ -2,8 +2,7 @@ use crate::lang::{
     elements::{Blockquote, Located},
     parsers::{
         utils::{
-            beginning_of_line, blank_line, capture, context, cow_str,
-            end_of_line_or_input, locate,
+            blank_line, capture, context, cow_str, end_of_line_or_input, locate,
         },
         IResult, Span,
     },
@@ -19,43 +18,21 @@ use nom::{
 use std::borrow::Cow;
 
 pub fn blockquote(input: Span) -> IResult<Located<Blockquote>> {
+    context("Blockquote", alt((indented_blockquote, arrow_blockquote)))(input)
+}
+
+pub fn indented_blockquote(input: Span) -> IResult<Located<Blockquote>> {
     fn inner(input: Span) -> IResult<Blockquote> {
-        let (input, lines) = alt((
-            // NOTE: Indented blockquotes do not allow blank lines
-            many1(blockquote_line_1),
-            // NOTE: > blockquotes allow blank lines inbetween
-            map(
-                pair(
-                    many1(blockquote_line_2),
-                    map(
-                        many0(pair(
-                            many0(value(Cow::from(""), blank_line)),
-                            blockquote_line_2,
-                        )),
-                        |pairs| {
-                            pairs
-                                .into_iter()
-                                .flat_map(|(mut blanks, bq)| {
-                                    blanks.push(bq);
-                                    blanks
-                                })
-                                .collect()
-                        },
-                    ),
-                ),
-                |(head, rest)| vec![head, rest].concat(),
-            ),
-        ))(input)?;
+        let (input, lines) = many1(indented_blockquote_line)(input)?;
         Ok((input, Blockquote::new(lines)))
     }
 
-    context("Blockquote", locate(capture(inner)))(input)
+    context("Indented Blockquote", locate(capture(inner)))(input)
 }
 
 /// Parses a blockquote line that begins with four or more spaces
 #[inline]
-fn blockquote_line_1<'a>(input: Span<'a>) -> IResult<Cow<'a, str>> {
-    let (input, _) = beginning_of_line(input)?;
+fn indented_blockquote_line<'a>(input: Span<'a>) -> IResult<Cow<'a, str>> {
     let (input, _) = verify(space0, |s: &Span| s.remaining_len() >= 4)(input)?;
     let (input, text) = map_parser(
         verify(not_line_ending, |s: &Span<'a>| !s.is_only_whitespace()),
@@ -66,10 +43,40 @@ fn blockquote_line_1<'a>(input: Span<'a>) -> IResult<Cow<'a, str>> {
     Ok((input, text))
 }
 
+pub fn arrow_blockquote(input: Span) -> IResult<Located<Blockquote>> {
+    fn inner(input: Span) -> IResult<Blockquote> {
+        // NOTE: > blockquotes allow blank lines inbetween
+        let (input, lines) = map(
+            pair(
+                many1(arrow_blockquote_line),
+                map(
+                    many0(pair(
+                        many0(value(Cow::from(""), blank_line)),
+                        arrow_blockquote_line,
+                    )),
+                    |pairs| {
+                        pairs
+                            .into_iter()
+                            .flat_map(|(mut blanks, bq)| {
+                                blanks.push(bq);
+                                blanks
+                            })
+                            .collect()
+                    },
+                ),
+            ),
+            |(head, rest)| vec![head, rest].concat(),
+        )(input)?;
+        Ok((input, Blockquote::new(lines)))
+    }
+
+    context("Arrow Blockquote", locate(capture(inner)))(input)
+}
+
 /// Parses a blockquote line that begins with >
 #[inline]
-fn blockquote_line_2<'a>(input: Span<'a>) -> IResult<Cow<'a, str>> {
-    let (input, _) = beginning_of_line(input)?;
+fn arrow_blockquote_line<'a>(input: Span<'a>) -> IResult<Cow<'a, str>> {
+    let (input, _) = space0(input)?;
     let (input, _) = tag("> ")(input)?;
     let (input, text) = map_parser(not_line_ending, cow_str)(input)?;
     let (input, _) = end_of_line_or_input(input)?;

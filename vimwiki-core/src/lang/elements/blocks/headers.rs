@@ -6,6 +6,7 @@ use crate::{
 };
 use derive_more::{Constructor, Index, IndexMut, IntoIterator};
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 #[derive(
     Constructor,
@@ -57,6 +58,14 @@ impl Header<'_> {
             content: self.content.into_owned(),
             centered: self.centered,
         }
+    }
+}
+
+impl<'a> fmt::Display for Header<'a> {
+    /// Writes out the header by writing out its content using the underlying
+    /// display impl
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.content)
     }
 }
 

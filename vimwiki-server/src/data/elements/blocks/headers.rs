@@ -114,7 +114,7 @@ mod tests {
 
             assert_eq!(ent.region(), &region);
             assert_eq!(*ent.level(), 3);
-            assert_eq!(*ent.centered(), false);
+            assert!(!*ent.centered());
             assert_eq!(ent.to_string(), "some header of mine");
             assert_eq!(ent.page_id(), 999);
             assert_eq!(ent.parent_id(), Some(123));

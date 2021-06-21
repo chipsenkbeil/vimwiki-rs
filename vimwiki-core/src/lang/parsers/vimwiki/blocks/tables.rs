@@ -22,7 +22,6 @@ use nom::{
 };
 use std::collections::HashMap;
 
-#[inline]
 pub fn table(input: Span) -> IResult<Located<Table>> {
     fn inner(input: Span) -> IResult<Table> {
         // Assume a table is centered if the first row is indented
@@ -61,6 +60,18 @@ pub fn table(input: Span) -> IResult<Located<Table>> {
             !t.rows().all(|r| r.is_divider_row())
         }))),
     )(input)
+}
+
+/// Nested tables are just like top-level tables except that the centered
+/// flag is always false due to being indented as part of nesting
+///
+/// NOTE: This is temporary until there is a way to tell the table parser
+///       how far it is indented as part of nesting versus being centered
+pub fn nested_table(input: Span) -> IResult<Located<Table>> {
+    map(table, |mut table| {
+        table.centered = false;
+        table
+    })(input)
 }
 
 #[inline]
@@ -219,10 +230,10 @@ mod tests {
         check_cell_text_value(cell, " age");
 
         let cell = t.get_cell(1, 0).unwrap().as_inner();
-        assert_eq!(cell, &Cell::Align(ColumnAlign::Left));
+        assert_eq!(cell, &Cell::Align(ColumnAlign::None));
 
         let cell = t.get_cell(1, 1).unwrap().as_inner();
-        assert_eq!(cell, &Cell::Align(ColumnAlign::Left));
+        assert_eq!(cell, &Cell::Align(ColumnAlign::None));
 
         let cell = t.get_cell(2, 0).unwrap().as_inner();
         check_cell_text_value(cell, "abcd");
@@ -329,7 +340,7 @@ mod tests {
         check_cell_text_value(cell, "value1");
 
         let cell = t.get_cell(1, 0).unwrap().as_inner();
-        assert_eq!(cell, &Cell::Align(ColumnAlign::Left));
+        assert_eq!(cell, &Cell::Align(ColumnAlign::None));
     }
 
     #[test]
@@ -353,10 +364,10 @@ mod tests {
         check_cell_text_value(cell, "value2");
 
         let cell = t.get_cell(1, 0).unwrap().as_inner();
-        assert_eq!(cell, &Cell::Align(ColumnAlign::Left));
+        assert_eq!(cell, &Cell::Align(ColumnAlign::None));
 
         let cell = t.get_cell(1, 1).unwrap().as_inner();
-        assert_eq!(cell, &Cell::Align(ColumnAlign::Left));
+        assert_eq!(cell, &Cell::Align(ColumnAlign::None));
     }
 
     #[test]
@@ -377,7 +388,7 @@ mod tests {
         check_cell_text_value(cell, "value1");
 
         let cell = t.get_cell(1, 0).unwrap().as_inner();
-        assert_eq!(cell, &Cell::Align(ColumnAlign::Left));
+        assert_eq!(cell, &Cell::Align(ColumnAlign::None));
 
         let cell = t.get_cell(1, 1).unwrap().as_inner();
         assert_eq!(cell, &Cell::Align(ColumnAlign::Left));

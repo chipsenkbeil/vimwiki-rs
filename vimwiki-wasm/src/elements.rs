@@ -125,14 +125,14 @@ impl BlockElement {
 
     /// Returns true if element is math block
     pub fn is_math(&self) -> bool {
-        matches!(self.0.as_inner(), v::BlockElement::Math(_))
+        matches!(self.0.as_inner(), v::BlockElement::MathBlock(_))
     }
 
     /// Casts to math block if it is one
     pub fn into_math_block(self) -> Option<MathBlock> {
         let region = self.0.region();
         match self.0.into_inner() {
-            v::BlockElement::Math(x) => {
+            v::BlockElement::MathBlock(x) => {
                 Some(MathBlock(v::Located::new(x, region)))
             }
             _ => None,
@@ -663,9 +663,9 @@ pub struct ListItemContents(v::ListItemContents<'static>);
 #[wasm_bindgen]
 impl ListItemContents {
     /// Returns content at the given index if it exists
-    pub fn content_at(&self, idx: usize) -> Option<ListItemContent> {
+    pub fn content_at(&self, idx: usize) -> Option<BlockElement> {
         self.0.get(idx).map(|x| {
-            ListItemContent(v::Located::new(
+            BlockElement(v::Located::new(
                 x.to_borrowed().into_owned(),
                 x.region(),
             ))
@@ -676,44 +676,6 @@ impl ListItemContents {
     #[wasm_bindgen(getter)]
     pub fn content_cnt(&self) -> usize {
         self.0.len()
-    }
-}
-
-/// Represents a singular piece of list item content
-#[wasm_bindgen]
-pub struct ListItemContent(v::Located<v::ListItemContent<'static>>);
-
-#[wasm_bindgen]
-impl ListItemContent {
-    /// Casts to list if it is one
-    pub fn into_list(self) -> Option<List> {
-        let region = self.0.region();
-        match self.0.into_inner() {
-            v::ListItemContent::List(x) => {
-                Some(List(v::Located::new(x, region)))
-            }
-            _ => None,
-        }
-    }
-
-    /// Casts to inline element container if it is one
-    pub fn into_inline_container(self) -> Option<InlineElementContainer> {
-        match self.0.into_inner() {
-            v::ListItemContent::InlineContent(x) => {
-                Some(InlineElementContainer(x))
-            }
-            _ => None,
-        }
-    }
-
-    /// Returns true if content is a sublist
-    pub fn is_list(&self) -> bool {
-        matches!(self.0.as_inner(), v::ListItemContent::List(_))
-    }
-
-    /// Returns true if content is inline content
-    pub fn is_inline_container(&self) -> bool {
-        matches!(self.0.as_inner(), v::ListItemContent::InlineContent(_))
     }
 }
 
@@ -1760,7 +1722,7 @@ impl_from!(
     -Page Element BlockElement InlineBlockElement InlineElement Blockquote
     CodeBlock DefinitionList @Divider Header List MathBlock Paragraph Table
     DecoratedText Link Tags CodeInline MathInline Comment Text
-    -InlineElementContainer DecoratedTextContent ListItem ListItemContent
+    -InlineElementContainer DecoratedTextContent ListItem
     Placeholder -@Region
 );
 
@@ -1810,7 +1772,7 @@ impl_convert!(
     Page Element BlockElement InlineBlockElement InlineElement Blockquote
     CodeBlock DefinitionList Divider Header List MathBlock Paragraph Table
     DecoratedText Link Tags CodeInline MathInline Comment Text
-    InlineElementContainer DecoratedTextContent ListItem ListItemContent
+    InlineElementContainer DecoratedTextContent ListItem
     Placeholder @Region
 );
 
@@ -1911,5 +1873,5 @@ impl_region!(
     Paragraph Placeholder Table
 
     DecoratedText Link Tags CodeInline MathInline Comment Text
-    DecoratedTextContent ListItem ListItemContent
+    DecoratedTextContent ListItem
 );

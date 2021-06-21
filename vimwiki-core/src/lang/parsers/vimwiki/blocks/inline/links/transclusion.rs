@@ -149,4 +149,31 @@ mod tests {
             )
         );
     }
+
+    #[test]
+    fn transclusion_link_should_support_multiple_properties() {
+        // in HTML:
+        //
+        // <img src="http://vimwiki.googlecode.com/hg/images/vimwiki_logo.png"
+        // alt="" class="center flow blabla"/>
+        //
+        let input = Span::from(
+            "{{http://vimwiki.googlecode.com/vimwiki_logo.png||class=\"center flow blabla\" style=\"something\"}}",
+        );
+        let (input, link) = transclusion_link(input).unwrap();
+        assert!(input.is_empty(), "Did not consume link");
+        assert_eq!(link.scheme().unwrap(), "http");
+        assert_eq!(
+            link.data().uri_ref.host().unwrap().to_string(),
+            "vimwiki.googlecode.com"
+        );
+        assert_eq!(link.data().uri_ref.path(), "/vimwiki_logo.png");
+        assert_eq!(link.description(), Some(&Description::from("")));
+
+        assert_eq!(
+            link.data().get_property_str("class"),
+            Some("center flow blabla")
+        );
+        assert_eq!(link.data().get_property_str("style"), Some("something"));
+    }
 }

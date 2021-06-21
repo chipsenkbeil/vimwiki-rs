@@ -43,8 +43,8 @@ impl<'a> Span<'a> {
     /// its existing offset. If start exceeds end, then start will be set
     /// to end.
     ///
-    /// e.g. start = 2, end = 4, starting_at(1) yields start = 3
-    pub fn starting_at(&self, start: usize) -> Self {
+    /// e.g. start = 2, end = 4, advance_start_by(1) yields start = 3
+    pub fn advance_start_by(&self, start: usize) -> Self {
         let start = self.start + start;
         let end = self.end;
         Self::new(
@@ -58,8 +58,8 @@ impl<'a> Span<'a> {
     /// Creates a copy of the span ending at the new offset (exclusive)
     /// relative to its existing offset.
     ///
-    /// e.g. start = 2, end = 4, ending_at(1) yields end = 3
-    pub fn ending_at(&self, end: usize) -> Self {
+    /// e.g. start = 2, end = 4, advance_end_by(1) yields end = 3
+    pub fn advance_end_by(&self, end: usize) -> Self {
         Self::new(self.inner, self.start, self.start + end, self.depth)
     }
 
@@ -68,7 +68,7 @@ impl<'a> Span<'a> {
     ///
     /// e.g. start = 2, end = 4, at_end() yields start = 3
     pub fn at_end(&self) -> Self {
-        self.starting_at(if self.end > 0 { self.end - 1 } else { 0 })
+        self.advance_start_by(if self.end > 0 { self.end - 1 } else { 0 })
     }
 
     /// Creates a copy of the span whose ending offset is adjusted to fit
@@ -119,7 +119,7 @@ impl<'a> Span<'a> {
             start += 1;
         }
 
-        self.starting_at(start - self.start)
+        self.advance_start_by(start - self.start)
     }
 
     /// Represents the inner byte slice starting from the original span
@@ -579,7 +579,7 @@ impl<'a> InputIter for Span<'a> {
 
     #[inline]
     fn iter_elements(&self) -> Self::IterElem {
-        self.clone().into_iter().copied()
+        (*self).into_iter().copied()
     }
 
     #[inline]
@@ -705,19 +705,19 @@ impl<'a> Offset for Span<'a> {
 
 impl<'a> Slice<Range<usize>> for Span<'a> {
     fn slice(&self, range: Range<usize>) -> Self {
-        self.ending_at(range.end).starting_at(range.start)
+        self.advance_end_by(range.end).advance_start_by(range.start)
     }
 }
 
 impl<'a> Slice<RangeTo<usize>> for Span<'a> {
     fn slice(&self, range: RangeTo<usize>) -> Self {
-        self.ending_at(range.end)
+        self.advance_end_by(range.end)
     }
 }
 
 impl<'a> Slice<RangeFrom<usize>> for Span<'a> {
     fn slice(&self, range: RangeFrom<usize>) -> Self {
-        self.starting_at(range.start)
+        self.advance_start_by(range.start)
     }
 }
 
@@ -760,14 +760,14 @@ mod tests {
 
         #[test]
         fn as_bytes_should_return_remaining_bytes_as_slice() {
-            let span = Span::from(b"all bytes").starting_at(4);
+            let span = Span::from(b"all bytes").advance_start_by(4);
             assert_eq!(span.as_bytes(), b"bytes");
         }
 
         #[test]
         fn compare_should_yield_ok_if_remaining_bytes_are_equal() {
-            let span1 = Span::from(b"abcdef").starting_at(4);
-            let span2 = Span::from(b"abcdef").starting_at(4);
+            let span1 = Span::from(b"abcdef").advance_start_by(4);
+            let span2 = Span::from(b"abcdef").advance_start_by(4);
             assert_eq!(span1.compare(span2), CompareResult::Ok);
             assert_eq!(span1.compare("ef"), CompareResult::Ok);
             assert_eq!(span1.compare(&b"ef"[..]), CompareResult::Ok);
@@ -775,8 +775,8 @@ mod tests {
 
         #[test]
         fn compare_should_yield_error_if_remaining_bytes_are_not_equal() {
-            let span1 = Span::from(b"abcdef").starting_at(4);
-            let span2 = Span::from(b"defabc").starting_at(4);
+            let span1 = Span::from(b"abcdef").advance_start_by(4);
+            let span2 = Span::from(b"defabc").advance_start_by(4);
             assert_eq!(span1.compare(span2), CompareResult::Error);
             assert_eq!(span1.compare("defabc"), CompareResult::Error);
             assert_eq!(span1.compare(&b"defabc"[..]), CompareResult::Error);
@@ -797,8 +797,8 @@ mod tests {
 
         #[test]
         fn compare_no_case_should_yield_ok_if_remaining_bytes_are_equal() {
-            let span1 = Span::from("abcdef").starting_at(4);
-            let span2 = Span::from("AbCdEf").starting_at(4);
+            let span1 = Span::from("abcdef").advance_start_by(4);
+            let span2 = Span::from("AbCdEf").advance_start_by(4);
             assert_eq!(span1.compare_no_case(span2), CompareResult::Ok);
             assert_eq!(span1.compare_no_case("Ef"), CompareResult::Ok);
             assert_eq!(span1.compare_no_case(&b"Ef"[..]), CompareResult::Ok);
@@ -807,8 +807,8 @@ mod tests {
         #[test]
         fn compare_no_case_should_yield_error_if_remaining_bytes_are_not_equal()
         {
-            let span1 = Span::from("abcdef").starting_at(4);
-            let span2 = Span::from("DeFaBc").starting_at(4);
+            let span1 = Span::from("abcdef").advance_start_by(4);
+            let span2 = Span::from("DeFaBc").advance_start_by(4);
             assert_eq!(span1.compare_no_case(span2), CompareResult::Error);
             assert_eq!(span1.compare_no_case("Bc"), CompareResult::Error);
             assert_eq!(span1.compare_no_case(&b"Bc"[..]), CompareResult::Error);
@@ -839,7 +839,7 @@ mod tests {
         #[test]
         fn extend_into_should_copy_remaining_bytes_to_end_of_provided_byte_vec()
         {
-            let span = Span::from(b"abcdef").starting_at(3);
+            let span = Span::from(b"abcdef").advance_start_by(3);
             let mut acc = b"123".to_vec();
             span.extend_into(&mut acc);
             assert_eq!(acc, b"123def");
@@ -849,72 +849,72 @@ mod tests {
         #[test]
         fn find_substring_should_yield_none_if_unable_to_find_byte_string_in_remaining_bytes(
         ) {
-            let span = Span::from(b"abc123").starting_at(4);
+            let span = Span::from(b"abc123").advance_start_by(4);
             assert_eq!(span.find_substring(&b"c1"[..]), None);
         }
 
         #[test]
         fn find_substring_should_yield_position_of_first_byte_string_match_in_remaining_bytes(
         ) {
-            let span = Span::from(b"abc123").starting_at(2);
+            let span = Span::from(b"abc123").advance_start_by(2);
             assert_eq!(span.find_substring(&b"c1"[..]), Some(0));
         }
 
         #[test]
         fn find_substring_should_yield_none_if_unable_to_find_string_in_remaining_bytes(
         ) {
-            let span = Span::from(b"abc123").starting_at(4);
+            let span = Span::from(b"abc123").advance_start_by(4);
             assert_eq!(span.find_substring("c1"), None);
         }
 
         #[test]
         fn find_substring_should_yield_some_position_of_first_string_match() {
-            let span = Span::from(b"abc123").starting_at(2);
+            let span = Span::from(b"abc123").advance_start_by(2);
             assert_eq!(span.find_substring("c1"), Some(0));
         }
 
         #[test]
         fn find_token_should_yield_true_if_byte_exists_in_remaining_bytes() {
-            let span = Span::from(b"abc123").starting_at(2);
-            assert_eq!(span.find_token(b'c'), true);
+            let span = Span::from(b"abc123").advance_start_by(2);
+            assert!(span.find_token(b'c'));
         }
 
         #[test]
         fn find_token_should_yield_false_if_byte_missing_in_remaining_bytes() {
-            let span = Span::from(b"abc123").starting_at(4);
-            assert_eq!(span.find_token(b'c'), false);
+            let span = Span::from(b"abc123").advance_start_by(4);
+            assert!(!span.find_token(b'c'));
         }
 
         #[test]
         fn find_token_should_yield_true_if_byte_ref_exists_in_remaining_bytes()
         {
-            let span = Span::from(b"abc123").starting_at(2);
-            assert_eq!(span.find_token(&b'c'), true);
+            let span = Span::from(b"abc123").advance_start_by(2);
+            assert!(span.find_token(&b'c'));
         }
 
         #[test]
         fn find_token_should_yield_false_if_byte_ref_missing_in_remaining_bytes(
         ) {
-            let span = Span::from(b"abc123").starting_at(4);
-            assert_eq!(span.find_token(&b'c'), false);
+            let span = Span::from(b"abc123").advance_start_by(4);
+            assert!(!span.find_token(&b'c'));
         }
 
         #[test]
         fn find_token_should_yield_true_if_char_exists_in_remaining_bytes() {
-            let span = Span::from(b"abc123").starting_at(2);
-            assert_eq!(span.find_token('c'), true);
+            let span = Span::from(b"abc123").advance_start_by(2);
+            assert!(span.find_token('c'));
         }
 
         #[test]
         fn find_token_should_yield_false_if_char_missing_in_remaining_bytes() {
-            let span = Span::from(b"abc123").starting_at(4);
-            assert_eq!(span.find_token('c'), false);
+            let span = Span::from(b"abc123").advance_start_by(4);
+            assert!(!span.find_token('c'));
         }
 
         #[test]
         fn iter_indicies_should_yield_an_iterator_of_remaining_index_and_byte_tuples(
         ) {
-            let span = Span::from(b"abc123").starting_at(2);
+            let span = Span::from(b"abc123").advance_start_by(2);
             assert_eq!(
                 span.iter_indices().collect::<Vec<_>>(),
                 vec![(0, b'c'), (1, b'1'), (2, b'2'), (3, b'3')]
@@ -923,7 +923,7 @@ mod tests {
 
         #[test]
         fn iter_elements_should_yield_an_iterator_of_remaining_bytes() {
-            let span = Span::from(b"abc123").starting_at(2);
+            let span = Span::from(b"abc123").advance_start_by(2);
             assert_eq!(
                 span.iter_elements().collect::<Vec<_>>(),
                 vec![b'c', b'1', b'2', b'3']
@@ -933,39 +933,39 @@ mod tests {
         #[test]
         fn position_should_yield_an_none_if_the_predicate_does_not_match_a_remaining_byte(
         ) {
-            let span = Span::from(b"abc123").starting_at(2);
+            let span = Span::from(b"abc123").advance_start_by(2);
             assert_eq!(span.position(|_| false), None);
         }
 
         #[test]
         fn position_should_yield_an_index_if_the_predicate_matches_a_remaining_byte(
         ) {
-            let span = Span::from(b"abc123").starting_at(2);
+            let span = Span::from(b"abc123").advance_start_by(2);
             assert_eq!(span.position(|b| b == b'c'), Some(0));
         }
 
         #[test]
         fn slice_index_should_yield_the_index_if_available_in_remaining_bytes()
         {
-            let span = Span::from(b"abc123").starting_at(2);
+            let span = Span::from(b"abc123").advance_start_by(2);
             assert_eq!(span.slice_index(3), Ok(3));
         }
 
         #[test]
         fn slice_index_should_yield_none_if_unavailable_in_remaining_bytes() {
-            let span = Span::from(b"abc123").starting_at(3);
+            let span = Span::from(b"abc123").advance_start_by(3);
             assert_eq!(span.slice_index(4), Err(nom::Needed::new(1)));
         }
 
         #[test]
         fn input_len_should_yield_the_byte_length_of_remaining_bytes() {
-            let span = Span::from(b"abc123").starting_at(2);
+            let span = Span::from(b"abc123").advance_start_by(2);
             assert_eq!(span.input_len(), 4);
         }
 
         #[test]
         fn take_should_yield_a_span_that_has_the_first_n_remaining_bytes() {
-            let span = Span::from(b"abc123").starting_at(2);
+            let span = Span::from(b"abc123").advance_start_by(2);
             let span = span.take(3);
             assert_eq!(span.as_bytes(), b"c12");
         }
@@ -973,7 +973,7 @@ mod tests {
         #[test]
         fn take_split_should_yield_two_spans_the_first_is_remaining_bytes_after_n_and_second_is_remaining_bytes_up_to_n(
         ) {
-            let span = Span::from(b"abc123").starting_at(2);
+            let span = Span::from(b"abc123").advance_start_by(2);
             let (suffix, prefix) = span.take_split(2);
             assert_eq!(prefix.as_bytes(), b"c1");
             assert_eq!(suffix.as_bytes(), b"23");
@@ -981,7 +981,7 @@ mod tests {
 
         #[test]
         fn take_split_should_support_producing_an_empty_prefix_span() {
-            let span = Span::from(b"abc123").starting_at(2);
+            let span = Span::from(b"abc123").advance_start_by(2);
             let (suffix, prefix) = span.take_split(0);
             assert_eq!(prefix.as_bytes(), b"");
             assert_eq!(suffix.as_bytes(), b"c123");
@@ -989,7 +989,7 @@ mod tests {
 
         #[test]
         fn take_split_should_support_producing_an_empty_suffix_span() {
-            let span = Span::from(b"abc123").starting_at(2);
+            let span = Span::from(b"abc123").advance_start_by(2);
             let (suffix, prefix) = span.take_split(4);
             assert_eq!(prefix.as_bytes(), b"c123");
             assert_eq!(suffix.as_bytes(), b"");
@@ -998,7 +998,7 @@ mod tests {
         #[test]
         fn split_at_position_should_yield_incomplete_if_no_match_found_in_remaining_bytes(
         ) {
-            let span = Span::from(b"abc123").starting_at(2);
+            let span = Span::from(b"abc123").advance_start_by(2);
             assert_eq!(
                 span.split_at_position::<_, ()>(|_| false),
                 Err(nom::Err::Incomplete(nom::Needed::new(1)))
@@ -1008,7 +1008,7 @@ mod tests {
         #[test]
         fn split_at_position_should_yield_remaining_bytes_up_to_the_first_match_in_remaining_bytes(
         ) {
-            let span = Span::from(b"abc123").starting_at(2);
+            let span = Span::from(b"abc123").advance_start_by(2);
             let (suffix, prefix) =
                 span.split_at_position::<_, ()>(|b| b == b'2').unwrap();
             assert_eq!(prefix.as_bytes(), b"c1");
@@ -1018,7 +1018,7 @@ mod tests {
         #[test]
         fn split_at_position_should_support_an_empty_span_being_produced_from_remaining_bytes(
         ) {
-            let span = Span::from(b"abc123").starting_at(2);
+            let span = Span::from(b"abc123").advance_start_by(2);
             let (suffix, prefix) =
                 span.split_at_position::<_, ()>(|b| b == b'c').unwrap();
             assert_eq!(prefix.as_bytes(), b"");
@@ -1028,7 +1028,7 @@ mod tests {
         #[test]
         fn split_at_position1_should_yield_incomplete_if_no_match_found_in_remaining_bytes(
         ) {
-            let span = Span::from(b"abc123").starting_at(2);
+            let span = Span::from(b"abc123").advance_start_by(2);
             assert_eq!(
                 span.split_at_position1::<_, ()>(|_| false, ErrorKind::Alpha),
                 Err(nom::Err::Incomplete(nom::Needed::new(1)))
@@ -1038,7 +1038,7 @@ mod tests {
         #[test]
         fn split_at_position1_should_yield_remaining_bytes_up_to_the_first_match_in_remaining_bytes(
         ) {
-            let span = Span::from(b"abc123").starting_at(2);
+            let span = Span::from(b"abc123").advance_start_by(2);
             let (suffix, prefix) = span
                 .split_at_position1::<_, ()>(|b| b == b'2', ErrorKind::Alpha)
                 .unwrap();
@@ -1049,7 +1049,7 @@ mod tests {
         #[test]
         fn split_at_position1_fail_if_an_empty_span_would_be_produced_from_remaining_bytes(
         ) {
-            let span = Span::from(b"abc123").starting_at(2);
+            let span = Span::from(b"abc123").advance_start_by(2);
             assert_eq!(
                 span.split_at_position1::<_, (Span, ErrorKind)>(
                     |b| b == b'c',
@@ -1062,17 +1062,17 @@ mod tests {
         #[test]
         fn split_at_position_complete_should_yield_all_input_if_no_match_found_in_remaining_bytes(
         ) {
-            let span = Span::from(b"abc123").starting_at(2);
+            let span = Span::from(b"abc123").advance_start_by(2);
             assert_eq!(
                 span.split_at_position_complete::<_, ()>(|_| false),
-                Ok((Span::from(b"abc123").starting_at(6), span))
+                Ok((Span::from(b"abc123").advance_start_by(6), span))
             );
         }
 
         #[test]
         fn split_at_position_complete_should_yield_remaining_bytes_up_to_the_first_match_in_remaining_bytes(
         ) {
-            let span = Span::from(b"abc123").starting_at(2);
+            let span = Span::from(b"abc123").advance_start_by(2);
             let (suffix, prefix) = span
                 .split_at_position_complete::<_, ()>(|b| b == b'2')
                 .unwrap();
@@ -1083,7 +1083,7 @@ mod tests {
         #[test]
         fn split_at_position_complete_should_support_an_empty_span_being_produced_from_remaining_bytes(
         ) {
-            let span = Span::from(b"abc123").starting_at(2);
+            let span = Span::from(b"abc123").advance_start_by(2);
             let (suffix, prefix) = span
                 .split_at_position_complete::<_, ()>(|b| b == b'c')
                 .unwrap();
@@ -1094,20 +1094,20 @@ mod tests {
         #[test]
         fn split_at_position1_complete_should_yield_all_input_if_no_match_found_in_remaining_bytes(
         ) {
-            let span = Span::from(b"abc123").starting_at(2);
+            let span = Span::from(b"abc123").advance_start_by(2);
             assert_eq!(
                 span.split_at_position1_complete::<_, ()>(
                     |_| false,
                     ErrorKind::Alpha
                 ),
-                Ok((Span::from(b"abc123").starting_at(6), span))
+                Ok((Span::from(b"abc123").advance_start_by(6), span))
             );
         }
 
         #[test]
         fn split_at_position1_complete_should_yield_remaining_bytes_up_to_the_first_match_in_remaining_bytes(
         ) {
-            let span = Span::from(b"abc123").starting_at(2);
+            let span = Span::from(b"abc123").advance_start_by(2);
             let (suffix, prefix) = span
                 .split_at_position1_complete::<_, ()>(
                     |b| b == b'2',
@@ -1121,7 +1121,7 @@ mod tests {
         #[test]
         fn split_at_position1_complete_fail_if_an_empty_span_would_be_produced_from_remaining_bytes(
         ) {
-            let span = Span::from(b"abc123").starting_at(2);
+            let span = Span::from(b"abc123").advance_start_by(2);
             assert_eq!(
                 span.split_at_position1_complete::<_, (Span, ErrorKind)>(
                     |b| b == b'c',
@@ -1134,16 +1134,16 @@ mod tests {
         #[test]
         fn offset_should_yield_offset_between_first_remaining_byte_of_self_with_remaining_byte_of_other(
         ) {
-            let span1 = Span::from(b"abc123").starting_at(2);
-            let span2 = Span::from(b"abc123").starting_at(3);
+            let span1 = Span::from(b"abc123").advance_start_by(2);
+            let span2 = Span::from(b"abc123").advance_start_by(3);
 
             assert_eq!(span1.offset(&span2), 1);
         }
 
         #[test]
         fn offset_should_yield_zero_if_at_same_offset() {
-            let span1 = Span::from("abc123").starting_at(2);
-            let span2 = Span::from("abc123").starting_at(2);
+            let span1 = Span::from("abc123").advance_start_by(2);
+            let span2 = Span::from("abc123").advance_start_by(2);
 
             assert_eq!(span1.offset(&span2), 0);
         }
@@ -1151,8 +1151,8 @@ mod tests {
         #[test]
         #[should_panic]
         fn offset_should_panic_if_would_yield_negative_value() {
-            let span1 = Span::from("abc123").starting_at(2);
-            let span2 = Span::from(b"abc123").starting_at(3);
+            let span1 = Span::from("abc123").advance_start_by(2);
+            let span2 = Span::from(b"abc123").advance_start_by(3);
 
             span2.offset(&span1);
         }
@@ -1160,28 +1160,28 @@ mod tests {
         #[test]
         fn parse_to_should_convert_remaining_bytes_to_str_and_then_apply_parse()
         {
-            let span = Span::from(b"abc123").starting_at(3);
+            let span = Span::from(b"abc123").advance_start_by(3);
             let result: u32 = span.parse_to().unwrap();
             assert_eq!(result, 123);
         }
 
         #[test]
         fn parse_to_should_yield_none_if_failing_to_parse() {
-            let span = Span::from(b"abc123").starting_at(2);
+            let span = Span::from(b"abc123").advance_start_by(2);
             let result: Option<u32> = span.parse_to();
             assert_eq!(result, None);
         }
 
         #[test]
         fn slice_should_yield_a_clone_of_span_if_given_full_range() {
-            let span1 = Span::from(b"abc123").starting_at(2);
+            let span1 = Span::from(b"abc123").advance_start_by(2);
             let span2 = span1.slice(..);
             assert_eq!(span1, span2);
         }
 
         #[test]
         fn slice_should_support_yielding_an_empty_span() {
-            let span1 = Span::from(b"abc123").starting_at(2);
+            let span1 = Span::from(b"abc123").advance_start_by(2);
 
             let span2 = span1.slice(0..0);
             assert_eq!(span2.start_offset(), 2);

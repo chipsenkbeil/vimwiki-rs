@@ -1,6 +1,6 @@
 use crate::{
     lang::elements::{
-        Element, IntoChildren, ListItemContent, ListItemContents, Located,
+        BlockElement, Element, IntoChildren, ListItemContents, Located,
     },
     StrictEq,
 };
@@ -118,8 +118,7 @@ impl<'a> ListItem<'a> {
         self.contents
             .iter()
             .fold(None, |acc, c| match c.as_inner() {
-                ListItemContent::InlineContent(_) => acc,
-                ListItemContent::List(list) => {
+                BlockElement::List(list) => {
                     let (mut sum, mut count) =
                         list.iter().fold((0.0, 0), |acc, item| {
                             // NOTE: This is a recursive call that is NOT
@@ -149,6 +148,7 @@ impl<'a> ListItem<'a> {
                         None
                     }
                 }
+                _ => acc,
             })
             .map(|(sum, count)| sum / count as f32)
             .or_else(|| self.to_todo_progress())
@@ -415,7 +415,7 @@ pub enum OrderedListItemType {
 impl OrderedListItemType {
     /// Allocates a new string representing the full prefix of the list item
     /// such as 1. or iii)
-    pub fn to_prefix(&self, pos: usize, suffix: ListItemSuffix) -> String {
+    pub fn to_prefix(self, pos: usize, suffix: ListItemSuffix) -> String {
         let mut base = match self {
             // NOTE: Numbers start at 1, not 0, so use base 1
             Self::Number => (pos + 1).to_string(),
@@ -531,8 +531,7 @@ impl StrictEq for ListItemAttributes {
 mod tests {
     use super::*;
     use crate::{
-        InlineElement, InlineElementContainer, List, ListItemContent, Located,
-        Text,
+        InlineElement, InlineElementContainer, List, Located, Paragraph, Text,
     };
 
     macro_rules! unordered_item {
@@ -669,7 +668,7 @@ mod tests {
                 Default::default(),
                 Default::default(),
                 0,
-                ListItemContents::new(vec![Located::from(ListItemContent::List(
+                ListItemContents::new(vec![Located::from(BlockElement::List(
                     List::new(vec![$($child),+])
                 ))]),
                 ListItemAttributes {
@@ -680,11 +679,11 @@ mod tests {
     }
 
     fn make_content(s: &str) -> ListItemContents {
-        ListItemContents::new(vec![Located::from(
-            ListItemContent::InlineContent(InlineElementContainer::new(vec![
+        ListItemContents::new(vec![Located::from(BlockElement::from(
+            Paragraph::new(vec![InlineElementContainer::new(vec![
                 Located::from(InlineElement::Text(Text::from(s))),
-            ])),
-        )])
+            ])]),
+        ))])
     }
 
     #[test]

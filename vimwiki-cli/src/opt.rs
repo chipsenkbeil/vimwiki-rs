@@ -58,12 +58,12 @@ pub struct CommonOpt {
     ///
     /// If not specified, then vim/neovim wikis are only loaded if there
     /// is no config file or the config file has no wikis defined
-    #[structopt(short, long, global = true)]
+    #[structopt(long, global = true)]
     pub merge: bool,
 
     /// Specifies specific wikis to include by index or name; if none are
     /// provided, then all available wikis are converted
-    #[structopt(short, long, global = true)]
+    #[structopt(long, global = true)]
     pub include: Vec<IndexOrName>,
 }
 
@@ -83,6 +83,7 @@ impl CommonOpt {
 #[derive(Debug, StructOpt)]
 pub enum Subcommand {
     Convert(ConvertSubcommand),
+    Format(FormatSubcommand),
     Inspect(InspectSubcommand),
     Serve(ServeSubcommand),
 }
@@ -92,6 +93,7 @@ impl Subcommand {
     pub fn extra_paths(&self) -> &[PathBuf] {
         match self {
             Self::Convert(x) => &x.extra_paths,
+            Self::Format(x) => &x.paths,
             Self::Inspect(x) => &x.extra_paths,
             Self::Serve(x) => &x.extra_paths,
         }
@@ -113,6 +115,22 @@ pub struct ConvertSubcommand {
     /// Additional standalone files (or directories) to process
     #[structopt(name = "PATH", parse(from_os_str))]
     pub extra_paths: Vec<PathBuf>,
+}
+
+/// Format vimwiki files following a configuration
+#[derive(Debug, StructOpt)]
+pub struct FormatSubcommand {
+    /// Apply format inline, overwritting each file
+    #[structopt(short, long)]
+    pub inline: bool,
+
+    /// Extensions to use when searching through directories
+    #[structopt(long = "ext", default_value = "wiki")]
+    pub extensions: Vec<String>,
+
+    /// Files (or directories) to process
+    #[structopt(name = "PATH", parse(from_os_str))]
+    pub paths: Vec<PathBuf>,
 }
 
 /// Convert vimwiki into something else and serve it via http

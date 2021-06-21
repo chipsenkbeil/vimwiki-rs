@@ -1,15 +1,13 @@
 use super::{
-    blockquotes::blockquote, code::code_block, definitions::definition_list,
-    dividers::divider, headers::header, inline::inline_element_container,
-    lists::list, math::math_block, placeholders::placeholder, tables::table,
+    blockquotes::arrow_blockquote, code::code_block,
+    definitions::definition_list, dividers::divider, headers::header,
+    inline::inline_element_container, lists::list, math::math_block,
+    placeholders::placeholder, tables::table,
 };
 use crate::lang::{
     elements::{InlineElementContainer, Located, Paragraph},
     parsers::{
-        utils::{
-            beginning_of_line, blank_line, capture, context,
-            end_of_line_or_input, locate,
-        },
+        utils::{blank_line, capture, context, end_of_line_or_input, locate},
         IResult, Span,
     },
 };
@@ -24,9 +22,6 @@ use nom::{
 #[inline]
 pub fn paragraph(input: Span) -> IResult<Located<Paragraph>> {
     fn inner(input: Span) -> IResult<Paragraph> {
-        // Ensure that we are starting at the beginning of a line
-        let (input, _) = beginning_of_line(input)?;
-
         // Continuously take content until we encounter another type of
         // element
         let (input, lines) = context(
@@ -67,7 +62,7 @@ fn continue_paragraph(input: Span) -> IResult<()> {
     let (input, _) = not(code_block)(input)?;
     let (input, _) = not(math_block)(input)?;
     let (input, _) = not(blank_line)(input)?;
-    let (input, _) = not(blockquote)(input)?;
+    let (input, _) = not(arrow_blockquote)(input)?;
     let (input, _) = not(divider)(input)?;
     let (input, _) = not(placeholder)(input)?;
     Ok((input, ()))
@@ -246,5 +241,156 @@ mod tests {
                 InlineElement::Text(Text::from(", and more")),
             ],
         );
+    }
+
+    #[test]
+    fn paragraph_should_stop_after_encountering_a_list() {
+        let input = Span::from(indoc! {"
+            some paragraph
+            of text
+            - list item
+        "});
+        let (input, p) = paragraph(input).unwrap();
+        assert_eq!(input.as_unsafe_remaining_str(), "- list item\n");
+
+        assert_eq!(p.to_string(), "some paragraph\nof text");
+    }
+
+    #[test]
+    fn paragraph_should_stop_after_encountering_a_header() {
+        let input = Span::from(indoc! {"
+            some paragraph
+            of text
+            = header =
+        "});
+        let (input, p) = paragraph(input).unwrap();
+        assert_eq!(input.as_unsafe_remaining_str(), "= header =\n");
+
+        assert_eq!(p.to_string(), "some paragraph\nof text");
+    }
+
+    #[test]
+    fn paragraph_should_stop_after_encountering_a_definition_list() {
+        let input = Span::from(indoc! {"
+            some paragraph
+            of text
+            term:: def
+        "});
+        let (input, p) = paragraph(input).unwrap();
+        assert_eq!(input.as_unsafe_remaining_str(), "term:: def\n");
+
+        assert_eq!(p.to_string(), "some paragraph\nof text");
+    }
+
+    #[test]
+    fn paragraph_should_stop_after_encountering_a_table() {
+        let input = Span::from(indoc! {"
+            some paragraph
+            of text
+            |cell|
+        "});
+        let (input, p) = paragraph(input).unwrap();
+        assert_eq!(input.as_unsafe_remaining_str(), "|cell|\n");
+
+        assert_eq!(p.to_string(), "some paragraph\nof text");
+    }
+
+    #[test]
+    fn paragraph_should_stop_after_encountering_a_code_block() {
+        let input = Span::from(indoc! {"
+            some paragraph
+            of text
+            {{{
+            code block
+            }}}
+        "});
+        let (input, p) = paragraph(input).unwrap();
+        assert_eq!(input.as_unsafe_remaining_str(), "{{{\ncode block\n}}}\n");
+
+        assert_eq!(p.to_string(), "some paragraph\nof text");
+    }
+
+    #[test]
+    fn paragraph_should_stop_after_encountering_a_math_block() {
+        let input = Span::from(indoc! {"
+            some paragraph
+            of text
+            {{$
+            math block
+            }}$
+        "});
+        let (input, p) = paragraph(input).unwrap();
+        assert_eq!(input.as_unsafe_remaining_str(), "{{$\nmath block\n}}$\n");
+
+        assert_eq!(p.to_string(), "some paragraph\nof text");
+    }
+
+    #[test]
+    fn paragraph_should_stop_after_encountering_a_blank_line() {
+        let input = Span::from(indoc! {"
+            some paragraph
+            of text
+
+            more text
+        "});
+        let (input, p) = paragraph(input).unwrap();
+        assert_eq!(input.as_unsafe_remaining_str(), "\nmore text\n");
+
+        assert_eq!(p.to_string(), "some paragraph\nof text");
+    }
+
+    #[test]
+    fn paragraph_should_continue_consuming_when_encountering_an_indented_blockquote(
+    ) {
+        let input = Span::from(indoc! {"
+            some paragraph
+            of text
+                some blockquote
+        "});
+        let (input, p) = paragraph(input).unwrap();
+        assert!(input.is_empty(), "Unexpectedly failed to consume input");
+
+        // NOTE: Paragraph trims whitespace from beginning of lines, so
+        //       the indented blockquote becomes just another line
+        assert_eq!(p.to_string(), "some paragraph\nof text\nsome blockquote");
+    }
+
+    #[test]
+    fn paragraph_should_stop_after_encountering_an_arrow_blockquote() {
+        let input = Span::from(indoc! {"
+            some paragraph
+            of text
+            > some blockquote
+        "});
+        let (input, p) = paragraph(input).unwrap();
+        assert_eq!(input.as_unsafe_remaining_str(), "> some blockquote\n");
+
+        assert_eq!(p.to_string(), "some paragraph\nof text");
+    }
+
+    #[test]
+    fn paragraph_should_stop_after_encountering_a_divider() {
+        let input = Span::from(indoc! {"
+            some paragraph
+            of text
+            ----
+        "});
+        let (input, p) = paragraph(input).unwrap();
+        assert_eq!(input.as_unsafe_remaining_str(), "----\n");
+
+        assert_eq!(p.to_string(), "some paragraph\nof text");
+    }
+
+    #[test]
+    fn paragraph_should_stop_after_encountering_a_placeholder() {
+        let input = Span::from(indoc! {"
+            some paragraph
+            of text
+            %title some title
+        "});
+        let (input, p) = paragraph(input).unwrap();
+        assert_eq!(input.as_unsafe_remaining_str(), "%title some title\n");
+
+        assert_eq!(p.to_string(), "some paragraph\nof text");
     }
 }

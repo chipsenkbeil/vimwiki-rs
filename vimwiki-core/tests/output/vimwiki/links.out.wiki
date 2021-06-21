@@ -1,0 +1,57 @@
+== external links ==
+
+[[http://google.com/|_Google_ search engine]]
+
+http://pandoc.org/
+
+ftp://vim.org/
+
+[[http://google.com/]]
+
+[[mailto:info@example.org|email me]]
+
+mailto:hello@bye.com
+
+== internal links ==
+
+[[This is a link]]
+
+[[This is a link source|Description of the link]]
+
+[[projects/Important Project 1]]
+
+[[../index]]
+
+[[a subdirectory/|Other files]]
+
+[[#tag-one|try me to test tag anchors]]
+
+[[#block quotes|try me to test header anchors]]
+
+[[#strong|try me to test strong anchors]]
+
+[[Todo List#Tomorrow|Tasks for tomorrow]]
+
+[[diary:2017-05-01]]
+
+[[file:../assets/data.csv|Important Data]]
+
+=== links with thumbnails ===
+
+[[http://www.google.com/|{{./movie.jpg}}]]
+
+== images ==
+
+{{file:./lalune.jpg}}
+
+{{http://vimwiki.googlecode.com/hg/images/vimwiki_logo.png|Vimwiki}}
+
+{{local:./movie.jpg}}
+
+=== image with attributes ===
+
+{{lalune.jpg|_cool stuff_|style="width:150px;height:120px;"}}
+
+{{nonexist.jpg|*Non-existing* image|class="center flow blabla" style="font-color:red"}}
+
+{{lalune.jpg|_cool stuff_|style="width:150px;height:120px;"}}

@@ -4,8 +4,8 @@ use crate::lang::{
     },
     parsers::{
         utils::{
-            beginning_of_line, capture, context, deeper, end_of_line_or_input,
-            locate, take_line_until1, take_until_end_of_line_or_input,
+            capture, context, deeper, end_of_line_or_input, locate,
+            take_line_until1, take_until_end_of_line_or_input,
         },
         vimwiki::blocks::inline::inline_element_container,
         IResult, Span,
@@ -36,7 +36,6 @@ pub fn definition_list(input: Span) -> IResult<Located<DefinitionList>> {
 fn term_and_definitions<'a>(
     input: Span<'a>,
 ) -> IResult<(Located<Term<'a>>, Vec<Located<Definition<'a>>>)> {
-    let (input, _) = beginning_of_line(input)?;
     let (input, (term, maybe_def)) = term_line(input)?;
     let (input, mut defs) =
         verify(many0(definition_line), |defs: &Vec<Located<Definition>>| {
@@ -55,7 +54,8 @@ fn term_and_definitions<'a>(
 fn term_line(
     input: Span,
 ) -> IResult<(Located<Term>, Option<Located<Definition>>)> {
-    let (input, _) = beginning_of_line(input)?;
+    // Remove any leading whitespace
+    let (input, _) = space0(input)?;
 
     // Parse our term and provide location information for it
     let (input, term) = locate(capture(terminated(
@@ -95,7 +95,7 @@ fn term_line(
 #[inline]
 fn definition_line(input: Span) -> IResult<Located<Definition>> {
     fn inner(input: Span) -> IResult<Definition> {
-        let (input, _) = beginning_of_line(input)?;
+        let (input, _) = space0(input)?;
         let (input, _) = tag("::")(input)?;
         let (input, _) = space1(input)?;
         let (input, def) = map_parser(

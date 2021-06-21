@@ -4,8 +4,8 @@ use crate::tokens::{
 use proc_macro2::TokenStream;
 use quote::quote;
 use vimwiki_core::{
-    List, ListItem, ListItemAttributes, ListItemContent, ListItemContents,
-    ListItemSuffix, ListItemTodoStatus, ListItemType, OrderedListItemType,
+    List, ListItem, ListItemAttributes, ListItemContents, ListItemSuffix,
+    ListItemTodoStatus, ListItemType, OrderedListItemType,
     UnorderedListItemType,
 };
 
@@ -35,24 +35,6 @@ fn tokenize_list_item(ctx: &TokenizeContext, item: &ListItem) -> TokenStream {
             #contents_t,
             #attributes_t,
         )
-    }
-}
-
-impl_tokenize!(tokenize_list_item_content, ListItemContent<'a>, 'a);
-fn tokenize_list_item_content(
-    ctx: &TokenizeContext,
-    list_item_content: &ListItemContent,
-) -> TokenStream {
-    let root = root_crate();
-    match &list_item_content {
-        ListItemContent::InlineContent(x) => {
-            let t = do_tokenize!(ctx, &x);
-            quote! { #root::ListItemContent::InlineContent(#t) }
-        }
-        ListItemContent::List(x) => {
-            let t = do_tokenize!(ctx, &x);
-            quote! { #root::ListItemContent::List(#t) }
-        }
     }
 }
 

@@ -101,6 +101,13 @@ impl<'a> LinkData<'a> {
         percent_decode(uri.as_ref()).decode_utf8_lossy().to_string()
     }
 
+    /// Retrieves a property by name, returning it as a str slice
+    pub fn get_property_str(&'a self, name: &'a str) -> Option<&'a str> {
+        self.properties.as_ref().and_then(|properties| {
+            properties.get(&Cow::Borrowed(name)).map(AsRef::as_ref)
+        })
+    }
+
     /// Whether or not the link is representing an anchor to the current page
     pub fn is_local_anchor(&self) -> bool {
         self.uri_ref.scheme().is_none()
@@ -184,6 +191,11 @@ impl<'a> LinkData<'a> {
         //       for our anchor
         self.fragment_str()
             .map(|s| s.split("%23").collect::<Anchor>())
+    }
+
+    /// Produces a new string representing the uri ref percent decoded
+    pub fn to_decoded_uri_string(&self) -> String {
+        Self::decode_uri(self.uri_ref.to_string())
     }
 
     /// Returns reference to the scheme of the link's uri if it exists
@@ -347,27 +359,27 @@ mod tests {
     fn is_local_anchor_should_return_true_if_link_only_has_anchor() {
         let data = LinkData::try_from("#some-fragment")
             .expect("Failed to parse str as link data");
-        assert_eq!(data.is_local_anchor(), true);
+        assert!(data.is_local_anchor());
     }
 
     #[test]
     fn is_local_anchor_should_return_false_if_has_non_anchor_path() {
         let data = LinkData::try_from("path#some-fragment")
             .expect("Failed to parse str as link data");
-        assert_eq!(data.is_local_anchor(), false);
+        assert!(!data.is_local_anchor());
     }
 
     #[test]
     fn is_path_dir_should_return_true_if_link_is_to_directory() {
         let data = LinkData::try_from("some/directory/")
             .expect("Failed to parse str as link data");
-        assert_eq!(data.is_path_dir(), true);
+        assert!(data.is_path_dir());
     }
 
     #[test]
     fn is_path_dir_should_return_false_if_link_is_not_to_directory() {
         let data = LinkData::try_from("some/file")
             .expect("Failed to parse str as link data");
-        assert_eq!(data.is_path_dir(), false);
+        assert!(!data.is_path_dir());
     }
 }

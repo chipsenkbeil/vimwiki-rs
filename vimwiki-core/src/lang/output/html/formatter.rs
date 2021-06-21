@@ -1,4 +1,4 @@
-use super::HtmlConfig;
+use super::{HtmlConfig, HtmlOutputError, OutputFormatter};
 use chrono::NaiveDate;
 use std::{
     borrow::Cow,
@@ -31,6 +31,10 @@ pub struct HtmlFormatter {
 
     /// Contains the content to be injected into a template
     content: String,
+}
+
+impl OutputFormatter for HtmlFormatter {
+    type Error = HtmlOutputError;
 }
 
 impl Write for HtmlFormatter {

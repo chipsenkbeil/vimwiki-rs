@@ -1,0 +1,4 @@
+Some paragraph with *bold* text, _italic_ text, ~~strikethrough~~, `code`,
+$math$, [[links]], %%+inline
+comments+%%
+and %% line comments.

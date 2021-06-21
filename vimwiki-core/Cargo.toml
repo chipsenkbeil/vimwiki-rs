@@ -72,4 +72,6 @@ voca_rs = { version = "1.13.0", optional = true }
 [dev-dependencies]
 criterion = "0.3.3"
 indoc = "1.0.2"
+similar-asserts = "1.1.0"
 vimwiki = { version = "=0.1.1", path = "../vimwiki", features = ["macros"] }
+walkdir = "2.3.2"

@@ -1,5 +1,5 @@
 use crate::StrictEq;
-use derive_more::{Constructor, Deref, DerefMut, Display};
+use derive_more::{Constructor, Deref, DerefMut, Display, Index, IndexMut};
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 
@@ -46,6 +46,8 @@ pub trait IntoChildren {
     Display,
     Deref,
     DerefMut,
+    Index,
+    IndexMut,
     Eq,
     Serialize,
     Deserialize,
@@ -54,6 +56,8 @@ pub trait IntoChildren {
 pub struct Located<T> {
     #[deref]
     #[deref_mut]
+    #[index]
+    #[index_mut]
     inner: T,
     region: Region,
 }

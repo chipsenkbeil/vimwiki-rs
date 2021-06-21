@@ -125,7 +125,7 @@ impl<'a> FromVimwikiElement<'a> for BlockElement {
                     Located::new(x, region),
                 )?)
             }
-            v::BlockElement::Math(x) => {
+            v::BlockElement::MathBlock(x) => {
                 Self::from(MathBlock::from_vimwiki_element(
                     page_id,
                     parent_id,

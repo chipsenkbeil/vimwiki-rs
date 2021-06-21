@@ -1,15 +1,14 @@
 use crate::lang::{
     elements::{
-        InlineElementContainer, List, ListItem, ListItemAttributes,
-        ListItemContent, ListItemContents, ListItemSuffix, ListItemTodoStatus,
-        ListItemType, Located, OrderedListItemType, UnorderedListItemType,
+        BlockElement, List, ListItem, ListItemAttributes, ListItemContents,
+        ListItemSuffix, ListItemTodoStatus, ListItemType, Located,
+        OrderedListItemType, UnorderedListItemType,
     },
     parsers::{
         utils::{
-            beginning_of_line, capture, context, deeper, end_of_line_or_input,
-            locate,
+            beginning_of_line, capture, context, deeper, locate, rest_of_line,
         },
-        vimwiki::blocks::inline::inline_element_container,
+        vimwiki::blocks::nested_block_element,
         IResult, Span,
     },
 };
@@ -17,9 +16,9 @@ use nom::{
     branch::alt,
     bytes::complete::{tag, take_while1},
     character::complete::{digit1, one_of, space0},
-    combinator::{map, opt, peek, value, verify},
+    combinator::{map, opt, peek, recognize, value, verify},
     multi::{fold_many0, many0, many1},
-    sequence::{pair, preceded, terminated},
+    sequence::{pair, preceded},
 };
 
 #[inline]
@@ -29,7 +28,7 @@ pub fn list(input: Span) -> IResult<Located<List>> {
         // use to determine how far to go
         let (input, (indentation, item)) = deeper(list_item)(input)?;
 
-        // TODO: Keep track of indentation level for a list based on its first
+        // NOTE: Keep track of indentation level for a list based on its first
         //       item
         //
         //       1. Any item with a greater indentation level is a sublist
@@ -78,8 +77,18 @@ pub fn list_item(input: Span) -> IResult<(usize, Located<ListItem>)> {
         // 2. Determine the indentation level of this list item
         let (input, indentation) = indentation_level(true)(input)?;
 
-        // 3. Ensure that the item starts with a valid prefix
-        let (input, item) = locate(capture(map(
+        // 3. Grab input up to the next list item or other item based on the
+        //    indentation level
+        let (_, remaining) = recognize(pair(
+            rest_of_line,
+            many0(preceded(
+                verify(indentation_level(false), |level| *level > indentation),
+                rest_of_line,
+            )),
+        ))(input)?;
+
+        // 4. Ensure that the item starts with a valid prefix
+        let (remaining, item) = locate(capture(map(
             pair(list_item_prefix, list_item_tail(indentation)),
             |((item_type, item_suffix), (attrs, contents))| {
                 // NOTE: To make things easier, we aren't assigning the index
@@ -87,7 +96,15 @@ pub fn list_item(input: Span) -> IResult<(usize, Located<ListItem>)> {
                 //       will assign the actual index in the parent parser
                 ListItem::new(item_type, item_suffix, 0, contents, attrs)
             },
-        )))(input)?;
+        )))(remaining)?;
+
+        // 5. Add back in all remaining that was not consumed as it is not
+        //    part of the list item; this happens if a header is following
+        //    immediately as it is not part of a nested block element but
+        //    can still be successfully parsed because of its support of
+        //    0+ spaces as part of centering
+        let input = input
+            .advance_start_by(remaining.start_offset() - input.start_offset());
 
         Ok((input, (indentation, item)))
     }
@@ -104,9 +121,10 @@ fn list_item_tail(
         let (input, maybe_todo_status) = opt(todo_status)(input)?;
 
         // 5. Parse the rest of the current line
-        let (input, content) = map(deeper(list_item_line_content), |c| {
-            c.map(ListItemContent::from)
-        })(input)?;
+        let (input, content) =
+            map(deeper(nested_block_element), |c| c.map(BlockElement::from))(
+                input,
+            )?;
 
         // 6. Continue parsing additional lines as content for the
         //    current list item as long as the following are met:
@@ -120,12 +138,7 @@ fn list_item_tail(
         //    start of a sublist, so we need to check for each
         let (input, mut contents) = many0(preceded(
             verify(indentation_level(false), |level| *level > indentation),
-            alt((
-                map(deeper(list), |c| c.map(ListItemContent::from)),
-                map(preceded(space0, deeper(list_item_line_content)), |c| {
-                    c.map(ListItemContent::from)
-                }),
-            )),
+            map(deeper(nested_block_element), |c| c.map(BlockElement::from)),
         ))(input)?;
 
         contents.insert(0, content);
@@ -153,15 +166,6 @@ fn indentation_level(consume: bool) -> impl Fn(Span) -> IResult<usize> {
             map(peek(space0), |s: Span| s.remaining_len())(input)
         }
     }
-}
-
-/// Parses a line AFTER indentation has been parsed, treating the line as
-/// a series of content.
-#[inline]
-fn list_item_line_content(
-    input: Span,
-) -> IResult<Located<InlineElementContainer>> {
-    terminated(inline_element_container, end_of_line_or_input)(input)
 }
 
 #[inline]
@@ -218,10 +222,17 @@ fn unordered_list_item_prefix(
 ///
 /// 1. Some list item
 /// 1) Some other list item
+///
+/// aaa. Some other list item
+/// AAA. Some other list item
 /// aaa) Some other list item
 /// AAA) Some other list item
+///
+/// iii. Some other list item
+/// III. Some other list item
 /// iii) Some other list item
 /// III) Some other list item
+///
 /// # Some other list item
 ///
 #[inline]
@@ -231,17 +242,15 @@ fn ordered_list_item_prefix(
     // NOTE: Roman numeral check comes before alphabetic as alphabetic would
     //       also match roman numerals
     let (input, (item_type, item_suffix)) = alt((
-        pair(ordered_list_item_type_number, list_item_suffix_period),
-        pair(ordered_list_item_type_number, list_item_suffix_paren),
-        pair(ordered_list_item_type_lower_roman, list_item_suffix_paren),
-        pair(ordered_list_item_type_upper_roman, list_item_suffix_paren),
         pair(
-            ordered_list_item_type_lower_alphabet,
-            list_item_suffix_paren,
-        ),
-        pair(
-            ordered_list_item_type_upper_alphabet,
-            list_item_suffix_paren,
+            alt((
+                ordered_list_item_type_number,
+                ordered_list_item_type_lower_roman,
+                ordered_list_item_type_upper_roman,
+                ordered_list_item_type_lower_alphabet,
+                ordered_list_item_type_upper_alphabet,
+            )),
+            alt((list_item_suffix_period, list_item_suffix_paren)),
         ),
         pair(ordered_list_item_type_pound, list_item_suffix_none),
     ))(input)?;
@@ -337,10 +346,7 @@ fn list_item_suffix_none(input: Span) -> IResult<ListItemSuffix> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lang::elements::{
-        DecoratedText, DecoratedTextContent, InlineElement, Keyword, Link,
-        MathInline, Tags, Text,
-    };
+    use crate::lang::elements::*;
     use indoc::indoc;
     use std::convert::TryFrom;
     use uriparse::URIReference;
@@ -356,11 +362,11 @@ mod tests {
         assert_eq!(item.suffix, item_suffix);
         assert_eq!(item.pos, 0);
 
-        let element = match &item[0].as_inner() {
-            ListItemContent::InlineContent(c) => c[0].as_inner(),
-            x => panic!("Unexpected list item content: {:?}", x),
+        let actual = match &item[0].as_inner() {
+            BlockElement::Paragraph(x) => x[0].to_string(),
+            x => panic!("Unexpected item content: {:?}", x),
         };
-        assert_eq!(element, &InlineElement::Text(Text::from(text)));
+        assert_eq!(actual, text);
     }
 
     #[test]
@@ -544,7 +550,7 @@ mod tests {
     }
 
     #[test]
-    fn list_should_support_list_item_with_inline_content() {
+    fn list_should_support_list_item_with_paragraph_on_same_line() {
         let input = Span::from(indoc! {r#"
             - list *item 1* has a [[link]] with :tag: and $formula$ is DONE
         "#});
@@ -553,33 +559,31 @@ mod tests {
         assert_eq!(l.len(), 1, "Unexpected number of list items");
 
         assert_eq!(
-            l[0].contents
-                .inline_content_iter()
-                .collect::<Vec<&InlineElement>>(),
-            vec![
-                &InlineElement::Text(Text::from("list ")),
-                &InlineElement::DecoratedText(DecoratedText::Bold(vec![
-                    Located::from(DecoratedTextContent::from(Text::from(
-                        "item 1"
-                    )))
-                ])),
-                &InlineElement::Text(Text::from(" has a ")),
-                &InlineElement::Link(Link::new_wiki_link(
+            l[0][0].as_paragraph().unwrap(),
+            &Paragraph::new(vec![InlineElementContainer::new(vec![
+                Located::from(InlineElement::Text(Text::from("list "))),
+                Located::from(InlineElement::DecoratedText(
+                    DecoratedText::Bold(vec![Located::from(
+                        DecoratedTextContent::from(Text::from("item 1"))
+                    )])
+                )),
+                Located::from(InlineElement::Text(Text::from(" has a "))),
+                Located::from(InlineElement::Link(Link::new_wiki_link(
                     URIReference::try_from("link").unwrap(),
                     None
-                )),
-                &InlineElement::Text(Text::from(" with ")),
-                &InlineElement::Tags(Tags::from("tag")),
-                &InlineElement::Text(Text::from(" and ")),
-                &InlineElement::Math(MathInline::from("formula")),
-                &InlineElement::Text(Text::from(" is ")),
-                &InlineElement::Keyword(Keyword::Done),
-            ]
+                ))),
+                Located::from(InlineElement::Text(Text::from(" with "))),
+                Located::from(InlineElement::Tags(Tags::from("tag"))),
+                Located::from(InlineElement::Text(Text::from(" and "))),
+                Located::from(InlineElement::Math(MathInline::from("formula"))),
+                Located::from(InlineElement::Text(Text::from(" is "))),
+                Located::from(InlineElement::Keyword(Keyword::Done)),
+            ])]),
         );
     }
 
     #[test]
-    fn list_should_support_list_item_with_multiple_lines_of_content() {
+    fn list_should_support_list_item_with_paragraph_on_multiple_lines() {
         let input = Span::from(indoc! {"
             - list item 1
               has extra content
@@ -587,18 +591,217 @@ mod tests {
             not a list item
         "});
         let (input, l) = list(input).unwrap();
-        assert_eq!(input.as_unsafe_remaining_str(), "not a list item\n");
+        assert_eq!(
+            input.as_unsafe_remaining_str(),
+            "not a list item\n",
+            "Unexpectedly consumed another element"
+        );
         assert_eq!(l.len(), 1, "Unexpected number of list items");
 
         assert_eq!(
-            l[0].contents
-                .inline_content_iter()
-                .collect::<Vec<&InlineElement>>(),
-            vec![
-                &InlineElement::Text(Text::from("list item 1")),
-                &InlineElement::Text(Text::from("has extra content")),
-                &InlineElement::Text(Text::from("on multiple lines")),
-            ]
+            l[0][0].as_paragraph().unwrap(),
+            &Paragraph::new(vec![
+                InlineElementContainer::new(vec![Located::from(
+                    InlineElement::Text(Text::from("list item 1"))
+                ),]),
+                InlineElementContainer::new(vec![Located::from(
+                    InlineElement::Text(Text::from("has extra content"))
+                ),]),
+                InlineElementContainer::new(vec![Located::from(
+                    InlineElement::Text(Text::from("on multiple lines"))
+                ),])
+            ]),
+        );
+    }
+
+    #[test]
+    fn list_should_support_list_item_with_blockquote() {
+        let input = Span::from(indoc! {"
+            - list item
+              > some blockquote
+        "});
+        let (input, l) = list(input).unwrap();
+        assert!(input.is_empty(), "Unexpectedly did not consume input");
+        assert_eq!(l.len(), 1, "Unexpected number of list items");
+
+        assert_eq!(l[0][0].as_paragraph().unwrap().to_string(), "list item");
+        assert_eq!(
+            l[0][1].as_blockquote().unwrap(),
+            &vec!["some blockquote"].into_iter().collect::<Blockquote>(),
+        );
+    }
+
+    #[test]
+    fn list_should_support_list_item_with_code_block() {
+        let input = Span::from(indoc! {"
+            - list item
+              {{{
+              some code
+              }}}
+        "});
+        let (input, l) = list(input).unwrap();
+        assert!(input.is_empty(), "Unexpectedly did not consume input");
+        assert_eq!(l.len(), 1, "Unexpected number of list items");
+
+        assert_eq!(l[0][0].as_paragraph().unwrap().to_string(), "list item");
+        assert_eq!(
+            l[0][1].as_code_block().unwrap(),
+            &CodeBlock::from_lines(vec!["some code"]),
+        );
+    }
+
+    #[test]
+    fn list_should_support_list_item_with_definition_list() {
+        let input = Span::from(indoc! {"
+            - list item
+              term:: def
+        "});
+        let (input, l) = list(input).unwrap();
+        assert!(input.is_empty(), "Unexpectedly did not consume input");
+        assert_eq!(l.len(), 1, "Unexpected number of list items");
+
+        assert_eq!(l[0][0].as_paragraph().unwrap().to_string(), "list item");
+        assert_eq!(
+            l[0][1].as_definition_list().unwrap(),
+            &vec![(
+                Located::from(Term::from("term")),
+                vec![Located::from(Definition::from("def"))]
+            )]
+            .into_iter()
+            .collect::<DefinitionList>(),
+        );
+    }
+
+    #[test]
+    fn list_should_support_list_item_with_math_block() {
+        let input = Span::from(indoc! {"
+            - list item
+              {{$
+              some math
+              }}$
+        "});
+        let (input, l) = list(input).unwrap();
+        assert!(input.is_empty(), "Unexpectedly did not consume input");
+        assert_eq!(l.len(), 1, "Unexpected number of list items");
+
+        assert_eq!(l[0][0].as_paragraph().unwrap().to_string(), "list item");
+        assert_eq!(
+            l[0][1].as_math_block().unwrap(),
+            &MathBlock::from_lines(vec!["some math"]),
+        );
+    }
+
+    #[test]
+    fn list_should_support_list_item_with_table() {
+        let input = Span::from(indoc! {"
+            - list item
+              |cell|
+        "});
+        let (input, l) = list(input).unwrap();
+        assert!(input.is_empty(), "Unexpectedly did not consume input");
+        assert_eq!(l.len(), 1, "Unexpected number of list items");
+
+        assert_eq!(l[0][0].as_paragraph().unwrap().to_string(), "list item");
+        assert_eq!(
+            l[0][1].as_table().unwrap(),
+            &Table::new(
+                vec![(
+                    CellPos { row: 0, col: 0 },
+                    Located::from(Cell::Content(InlineElementContainer::new(
+                        vec![Located::from(InlineElement::Text(Text::from(
+                            "cell"
+                        )))]
+                    )))
+                )],
+                false
+            ),
+        );
+    }
+
+    #[test]
+    fn list_should_not_support_list_item_with_divider() {
+        let input = Span::from(indoc! {"
+            - list item
+              ----
+        "});
+        let (input, l) = list(input).unwrap();
+        assert!(
+            input.is_empty(),
+            "Did not consume divider as part of paragraph"
+        );
+        assert_eq!(l.len(), 1, "Unexpected number of list items");
+
+        assert_eq!(
+            l[0][0].as_paragraph().unwrap().to_string(),
+            "list item\n----"
+        );
+    }
+
+    #[test]
+    fn list_should_support_list_item_with_header() {
+        let input = Span::from(indoc! {"
+            - list item
+              =header=
+        "});
+        let (input, l) = list(input).unwrap();
+        assert_eq!(
+            input.as_unsafe_remaining_str(),
+            "  =header=\n",
+            "Unexpectedly consumed header"
+        );
+        assert_eq!(l.len(), 1, "Unexpected number of list items");
+
+        assert_eq!(l[0][0].as_paragraph().unwrap().to_string(), "list item");
+    }
+
+    #[test]
+    fn list_should_not_support_list_item_with_placeholder() {
+        let input = Span::from(indoc! {"
+            - list item
+              %title my title
+        "});
+        let (input, l) = list(input).unwrap();
+        assert!(
+            input.is_empty(),
+            "Did not consume placeholder as part of paragraph"
+        );
+        assert_eq!(l.len(), 1, "Unexpected number of list items");
+
+        assert_eq!(
+            l[0][0].as_paragraph().unwrap().to_string(),
+            "list item\n%title my title"
+        );
+    }
+
+    #[test]
+    fn list_should_support_list_item_with_sublists() {
+        let input = Span::from(indoc! {"
+            - list item 1
+              - sublist item 1
+              - sublist item 2
+            not a list item
+        "});
+        let (input, l) = list(input).unwrap();
+        assert_eq!(
+            input.as_unsafe_remaining_str(),
+            "not a list item\n",
+            "Unexpectedly consumed another element"
+        );
+        assert_eq!(l.len(), 1, "Unexpected number of list items");
+
+        // First, have a paragraph on the first line
+        assert_eq!(l[0][0].as_paragraph().unwrap().to_string(), "list item 1",);
+
+        // Second, have a sublist with two items
+        let sublist = l[0][1].as_list().unwrap();
+        assert_eq!(sublist.len(), 2, "Unexpected number of list items");
+        assert_eq!(
+            sublist[0][0].as_paragraph().unwrap().to_string(),
+            "sublist item 1",
+        );
+        assert_eq!(
+            sublist[1][0].as_paragraph().unwrap().to_string(),
+            "sublist item 2",
         );
     }
 
@@ -614,42 +817,141 @@ mod tests {
             not a list item
         "});
         let (input, l) = list(input).unwrap();
-        assert_eq!(input.as_unsafe_remaining_str(), "not a list item\n");
+        assert_eq!(
+            input.as_unsafe_remaining_str(),
+            "not a list item\n",
+            "Unexpectedly consumed another element"
+        );
         assert_eq!(l.len(), 1, "Unexpected number of list items");
 
-        // Should only have three lines of inline content
+        // First, have a paragraph on the first two lines
         assert_eq!(
-            l[0].contents
-                .inline_content_iter()
-                .collect::<Vec<&InlineElement>>(),
-            vec![
-                &InlineElement::Text(Text::from("list item 1")),
-                &InlineElement::Text(Text::from("has extra content")),
-                &InlineElement::Text(Text::from("on multiple lines")),
-            ]
+            l[0][0].as_paragraph().unwrap().to_string(),
+            "list item 1\nhas extra content",
         );
 
-        // Should have a single sublist with two items and content
-        let sublist = l[0].contents.sublist_iter().next().unwrap();
+        // Second, have a sublist
+        let sublist = l[0][1].as_list().unwrap();
         assert_eq!(sublist.len(), 2, "Unexpected number of list items");
 
         assert_eq!(
-            sublist[0]
-                .contents
-                .inline_content_iter()
-                .collect::<Vec<&InlineElement>>(),
-            vec![
-                &InlineElement::Text(Text::from("sublist item 1")),
-                &InlineElement::Text(Text::from("has content")),
-            ]
+            sublist[0][0].as_paragraph().unwrap().to_string(),
+            "sublist item 1\nhas content",
         );
 
         assert_eq!(
-            sublist[1]
-                .contents
-                .inline_content_iter()
-                .collect::<Vec<&InlineElement>>(),
-            vec![&InlineElement::Text(Text::from("sublist item 2")),]
+            sublist[1][0].as_paragraph().unwrap().to_string(),
+            "sublist item 2",
+        );
+
+        // Third, have another paragraph on last line
+        assert_eq!(
+            l[0][2].as_paragraph().unwrap().to_string(),
+            "on multiple lines",
+        );
+    }
+
+    #[test]
+    fn list_should_supported_deeply_nested_sublists_with_paragraphs_over_blockquotes(
+    ) {
+        // NOTE: This comes from a specific case I encountered where deeply
+        //       nesting list item content with paragraphs is still getting
+        //       parsed as blockquotes such as "and content after that sublist"
+        //       because it is not already part of a paragraph
+        let input = Span::from(indoc! {"
+            - List of items
+                - Containing a sublist
+                    - With another sublist
+                        - And an additional sublist
+                      with content from the a sublist
+                  and content after that sublist as paragraph within list item
+        "});
+        let (input, l) = list(input).unwrap();
+        assert!(input.is_empty(), "Did not consume list");
+        assert_eq!(l.len(), 1, "Unexpected number of list items");
+
+        assert_eq!(
+            l[0][0].as_paragraph().unwrap().to_string(),
+            "List of items"
+        );
+
+        let sublist = l[0][1].as_list().unwrap();
+        assert_eq!(
+            sublist[0][0].as_paragraph().unwrap().to_string(),
+            "Containing a sublist"
+        );
+
+        let subsublist = sublist[0][1].as_list().unwrap();
+        assert_eq!(
+            subsublist[0][0].as_paragraph().unwrap().to_string(),
+            "With another sublist"
+        );
+
+        let subsubsublist = subsublist[0][1].as_list().unwrap();
+        assert_eq!(
+            subsubsublist[0][0].as_paragraph().unwrap().to_string(),
+            "And an additional sublist"
+        );
+
+        assert_eq!(
+            subsublist[0][2].as_paragraph().unwrap().to_string(),
+            "with content from the a sublist"
+        );
+        assert_eq!(
+            sublist[0][2].as_paragraph().unwrap().to_string(),
+            "and content after that sublist as paragraph within list item"
+        );
+    }
+
+    #[test]
+    fn list_should_properly_read_through_different_types_that_are_nested() {
+        let input = Span::from(indoc! {"
+            - nested
+             * list
+              1. of
+               a) content
+                second line of a
+               second line of 1
+              second line of bullet
+             second line of hyphen
+            * different list item
+        "});
+        let (input, l) = list(input).unwrap();
+        assert!(input.is_empty(), "Did not consume list");
+        assert_eq!(l.len(), 2, "Unexpected number of list items");
+
+        assert_eq!(l[0][0].as_paragraph().unwrap().to_string(), "nested");
+
+        let sublist = l[0][1].as_list().unwrap();
+        assert_eq!(sublist[0][0].as_paragraph().unwrap().to_string(), "list");
+
+        let subsublist = sublist[0][1].as_list().unwrap();
+        assert_eq!(subsublist[0][0].as_paragraph().unwrap().to_string(), "of");
+
+        let subsubsublist = subsublist[0][1].as_list().unwrap();
+        assert_eq!(
+            subsubsublist[0][0].as_paragraph().unwrap().to_string(),
+            "content\nsecond line of a"
+        );
+
+        assert_eq!(
+            subsublist[0][2].as_paragraph().unwrap().to_string(),
+            "second line of 1"
+        );
+
+        assert_eq!(
+            sublist[0][2].as_paragraph().unwrap().to_string(),
+            "second line of bullet"
+        );
+
+        assert_eq!(
+            l[0][2].as_paragraph().unwrap().to_string(),
+            "second line of hyphen"
+        );
+
+        assert_eq!(
+            l[1][0].as_paragraph().unwrap().to_string(),
+            "different list item"
         );
     }
 
@@ -668,39 +970,21 @@ mod tests {
         assert_eq!(l.len(), 6, "Unexpected number of list items");
 
         assert!(l[0].is_todo_incomplete());
-        assert_eq!(
-            l[0].contents.inline_content_iter().next(),
-            Some(&InlineElement::Text(Text::from("list item 1"))),
-        );
+        assert_eq!(l[0][0].as_paragraph().unwrap().to_string(), "list item 1");
 
         assert!(l[1].is_todo_partially_complete_1());
-        assert_eq!(
-            l[1].contents.inline_content_iter().next(),
-            Some(&InlineElement::Text(Text::from("list item 2"))),
-        );
+        assert_eq!(l[1][0].as_paragraph().unwrap().to_string(), "list item 2");
 
         assert!(l[2].is_todo_partially_complete_2());
-        assert_eq!(
-            l[2].contents.inline_content_iter().next(),
-            Some(&InlineElement::Text(Text::from("list item 3"))),
-        );
+        assert_eq!(l[2][0].as_paragraph().unwrap().to_string(), "list item 3");
 
         assert!(l[3].is_todo_partially_complete_3());
-        assert_eq!(
-            l[3].contents.inline_content_iter().next(),
-            Some(&InlineElement::Text(Text::from("list item 4"))),
-        );
+        assert_eq!(l[3][0].as_paragraph().unwrap().to_string(), "list item 4");
 
         assert!(l[4].is_todo_complete());
-        assert_eq!(
-            l[4].contents.inline_content_iter().next(),
-            Some(&InlineElement::Text(Text::from("list item 5"))),
-        );
+        assert_eq!(l[4][0].as_paragraph().unwrap().to_string(), "list item 5");
 
         assert!(l[5].is_todo_rejected());
-        assert_eq!(
-            l[5].contents.inline_content_iter().next(),
-            Some(&InlineElement::Text(Text::from("list item 6"))),
-        );
+        assert_eq!(l[5][0].as_paragraph().unwrap().to_string(), "list item 6");
     }
 }

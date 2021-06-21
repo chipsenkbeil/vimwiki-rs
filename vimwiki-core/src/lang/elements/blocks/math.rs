@@ -1,7 +1,7 @@
 use crate::StrictEq;
 use derive_more::{Constructor, Index, IndexMut, IntoIterator};
 use serde::{Deserialize, Serialize};
-use std::{borrow::Cow, iter::FromIterator};
+use std::{borrow::Cow, fmt, iter::FromIterator};
 
 #[derive(
     Constructor,
@@ -72,6 +72,14 @@ impl MathBlock<'_> {
                 .collect(),
             environment: self.environment.map(|x| Cow::from(x.into_owned())),
         }
+    }
+}
+
+impl<'a> fmt::Display for MathBlock<'a> {
+    /// Writes out the math block by writing out each of its lines, separated
+    /// by line feed
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.lines.join("\n"))
     }
 }
 

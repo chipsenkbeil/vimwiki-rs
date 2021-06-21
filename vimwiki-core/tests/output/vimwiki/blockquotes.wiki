@@ -1,0 +1,6 @@
+    this is a blockquote
+    that will get translated
+    to have > by default
+
+> this is another blockquote
+> using arrows

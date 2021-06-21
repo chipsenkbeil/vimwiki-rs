@@ -20,9 +20,10 @@ pub fn page<'a>(input: Span<'a>) -> IResult<Page<'a>> {
         fn maybe_block_element(
             input: Span,
         ) -> IResult<Option<Located<BlockElement>>> {
-            alt((value(None, blank_line), map(blocks::block_element, Some)))(
-                input,
-            )
+            alt((
+                value(None, blank_line),
+                map(blocks::top_level_block_element, Some),
+            ))(input)
         }
 
         map(all_consuming(many0(maybe_block_element)), |mut elements| {

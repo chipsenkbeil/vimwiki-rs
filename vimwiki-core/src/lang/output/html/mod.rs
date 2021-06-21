@@ -13,7 +13,10 @@ pub use error::{HtmlOutputError, HtmlOutputResult};
 mod utils;
 pub use utils::LinkResolutionError;
 
-use crate::lang::{elements::*, output::Output};
+use crate::lang::{
+    elements::*,
+    output::{Output, OutputFormatter},
+};
 use lazy_static::lazy_static;
 use std::{borrow::Cow, collections::HashMap, fmt::Write};
 use syntect::{
@@ -34,24 +37,19 @@ lazy_static! {
     static ref DEFAULT_THEME_SET: ThemeSet = ThemeSet::load_defaults();
 }
 
-impl<'a> Output for Page<'a> {
-    type Formatter = HtmlFormatter;
-    type Error = HtmlOutputError;
-
-    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
+impl<'a> Output<HtmlFormatter> for Page<'a> {
+    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
         for element in self.elements.iter() {
             element.fmt(f)?;
+            writeln!(f)?;
         }
 
         Ok(())
     }
 }
 
-impl<'a> Output for Element<'a> {
-    type Formatter = HtmlFormatter;
-    type Error = HtmlOutputError;
-
-    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
+impl<'a> Output<HtmlFormatter> for Element<'a> {
+    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
         match self {
             Self::Block(x) => x.fmt(f),
             Self::Inline(x) => x.fmt(f),
@@ -60,11 +58,8 @@ impl<'a> Output for Element<'a> {
     }
 }
 
-impl<'a> Output for InlineBlockElement<'a> {
-    type Formatter = HtmlFormatter;
-    type Error = HtmlOutputError;
-
-    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
+impl<'a> Output<HtmlFormatter> for InlineBlockElement<'a> {
+    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
         match self {
             Self::ListItem(x) => x.fmt(f),
             Self::Term(x) => x.fmt(f),
@@ -73,18 +68,15 @@ impl<'a> Output for InlineBlockElement<'a> {
     }
 }
 
-impl<'a> Output for BlockElement<'a> {
-    type Formatter = HtmlFormatter;
-    type Error = HtmlOutputError;
-
-    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
+impl<'a> Output<HtmlFormatter> for BlockElement<'a> {
+    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
         match self {
             Self::Blockquote(x) => x.fmt(f),
             Self::DefinitionList(x) => x.fmt(f),
             Self::Divider(x) => x.fmt(f),
             Self::Header(x) => x.fmt(f),
             Self::List(x) => x.fmt(f),
-            Self::Math(x) => x.fmt(f),
+            Self::MathBlock(x) => x.fmt(f),
             Self::Paragraph(x) => x.fmt(f),
             Self::Placeholder(x) => x.fmt(f),
             Self::CodeBlock(x) => x.fmt(f),
@@ -93,10 +85,7 @@ impl<'a> Output for BlockElement<'a> {
     }
 }
 
-impl<'a> Output for Blockquote<'a> {
-    type Formatter = HtmlFormatter;
-    type Error = HtmlOutputError;
-
+impl<'a> Output<HtmlFormatter> for Blockquote<'a> {
     /// Writes a blockquote in HTML
     ///
     /// ### Example
@@ -107,7 +96,7 @@ impl<'a> Output for Blockquote<'a> {
     ///     <p>Second line in blockquote</p>
     /// </blockquote>
     /// ```
-    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
+    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
         writeln!(f, "<blockquote>")?;
 
         // If we have more than one group of lines, then we want a paragraph
@@ -135,15 +124,12 @@ impl<'a> Output for Blockquote<'a> {
             }
         }
 
-        writeln!(f, "</blockquote>")?;
+        write!(f, "</blockquote>")?;
         Ok(())
     }
 }
 
-impl<'a> Output for DefinitionList<'a> {
-    type Formatter = HtmlFormatter;
-    type Error = HtmlOutputError;
-
+impl<'a> Output<HtmlFormatter> for DefinitionList<'a> {
     /// Writes a definition list in HTML
     ///
     /// ### Example
@@ -158,7 +144,7 @@ impl<'a> Output for DefinitionList<'a> {
     ///     <dd>Another definition</dd>
     /// </dl>
     /// ```
-    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
+    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
         writeln!(f, "<dl>")?;
         for (term, defs) in self {
             // Write our term in the form <dt>{term}</dt>
@@ -173,40 +159,31 @@ impl<'a> Output for DefinitionList<'a> {
                 writeln!(f, "</dd>")?;
             }
         }
-        writeln!(f, "</dl>")?;
+        write!(f, "</dl>")?;
         Ok(())
     }
 }
 
-impl<'a> Output for DefinitionListValue<'a> {
-    type Formatter = HtmlFormatter;
-    type Error = HtmlOutputError;
-
+impl<'a> Output<HtmlFormatter> for DefinitionListValue<'a> {
     /// Writes a definition list value in HTML
-    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
+    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
         self.as_inner().fmt(f)
     }
 }
 
-impl Output for Divider {
-    type Formatter = HtmlFormatter;
-    type Error = HtmlOutputError;
-
+impl Output<HtmlFormatter> for Divider {
     /// Writes a divider in HTML
     ///
     /// ```html
     /// <hr />
     /// ```
-    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
-        writeln!(f, "<hr />")?;
+    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
+        write!(f, "<hr />")?;
         Ok(())
     }
 }
 
-impl<'a> Output for Header<'a> {
-    type Formatter = HtmlFormatter;
-    type Error = HtmlOutputError;
-
+impl<'a> Output<HtmlFormatter> for Header<'a> {
     /// Writes a header in HTML
     ///
     /// ### Standard header
@@ -230,7 +207,7 @@ impl<'a> Output for Header<'a> {
     ///     </h3>
     /// </div>
     /// ```
-    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
+    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
         let raw_content = self.content.to_string();
         let header_id = utils::normalize_id(&raw_content);
         let unique_header_id = f.ensure_unique_id(&header_id);
@@ -243,7 +220,7 @@ impl<'a> Output for Header<'a> {
             write!(f, r#"<div class="toc">"#)?;
             write!(f, r#"<h{} id="{}">"#, self.level, unique_header_id)?;
             self.content.fmt(f)?;
-            writeln!(f, "</h{}></div>", self.level)?;
+            write!(f, "</h{}></div>", self.level)?;
         } else {
             // Build our full id using each of the most recent header's
             // contents (earlier levels) up to and including the current header
@@ -280,9 +257,7 @@ impl<'a> Output for Header<'a> {
             // If we have a nested header, then we produced a div with a
             // complete id and we need to close it
             if has_different_complete_id {
-                writeln!(f, "</div>")?;
-            } else {
-                writeln!(f)?;
+                write!(f, "</div>")?;
             }
         }
 
@@ -290,10 +265,7 @@ impl<'a> Output for Header<'a> {
     }
 }
 
-impl<'a> Output for List<'a> {
-    type Formatter = HtmlFormatter;
-    type Error = HtmlOutputError;
-
+impl<'a> Output<HtmlFormatter> for List<'a> {
     /// Writes a list in HTML
     ///
     /// ### Unordered list
@@ -313,7 +285,7 @@ impl<'a> Output for List<'a> {
     ///     <li>...</li>
     /// </ol>
     /// ```
-    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
+    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
         // TODO: This should be used for list items... how?
         let _ignore_newlines = f.config().list.ignore_newline;
 
@@ -329,22 +301,20 @@ impl<'a> Output for List<'a> {
 
         for item in self {
             item.fmt(f)?;
+            writeln!(f)?;
         }
 
         if self.is_ordered() {
-            writeln!(f, "</ol>")?;
+            write!(f, "</ol>")?;
         } else {
-            writeln!(f, "</ul>")?;
+            write!(f, "</ul>")?;
         }
 
         Ok(())
     }
 }
 
-impl<'a> Output for ListItem<'a> {
-    type Formatter = HtmlFormatter;
-    type Error = HtmlOutputError;
-
+impl<'a> Output<HtmlFormatter> for ListItem<'a> {
     /// Writes a list item in HTML
     ///
     /// ### Plain item
@@ -378,7 +348,7 @@ impl<'a> Output for ListItem<'a> {
     /// ```html
     /// <li class="rejected">...</li>
     /// ```
-    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
+    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
         // TODO: This should be used for list items... how?
         let _ignore_newlines = f.config().list.ignore_newline;
 
@@ -408,18 +378,15 @@ impl<'a> Output for ListItem<'a> {
 
         self.contents.fmt(f)?;
 
-        writeln!(f, "</li>")?;
+        write!(f, "</li>")?;
 
         Ok(())
     }
 }
 
-impl<'a> Output for ListItemContents<'a> {
-    type Formatter = HtmlFormatter;
-    type Error = HtmlOutputError;
-
+impl<'a> Output<HtmlFormatter> for ListItemContents<'a> {
     /// Writes a list item's contents in HTML
-    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
+    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
         for content in self {
             content.fmt(f)?;
         }
@@ -428,25 +395,7 @@ impl<'a> Output for ListItemContents<'a> {
     }
 }
 
-impl<'a> Output for ListItemContent<'a> {
-    type Formatter = HtmlFormatter;
-    type Error = HtmlOutputError;
-
-    /// Writes one piece of content within a list item in HTML
-    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
-        match self {
-            Self::List(x) => x.fmt(f)?,
-            Self::InlineContent(x) => x.fmt(f)?,
-        }
-
-        Ok(())
-    }
-}
-
-impl<'a> Output for MathBlock<'a> {
-    type Formatter = HtmlFormatter;
-    type Error = HtmlOutputError;
-
+impl<'a> Output<HtmlFormatter> for MathBlock<'a> {
     /// Writes a math block in HTML
     ///
     /// This leverages MathJAX to transform the dom, and MathJAX expects
@@ -463,13 +412,13 @@ impl<'a> Output for MathBlock<'a> {
     /// some math enclosed in block notation
     /// \end{environment}
     /// ```
-    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
+    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
         if let Some(env) = self.environment.as_deref() {
             writeln!(f, r"\begin{{{}}}", env)?;
             for line in self {
                 writeln!(f, "{}", escape::escape_html(line))?;
             }
-            writeln!(f, r"\end{{{}}}", env)?;
+            write!(f, r"\end{{{}}}", env)?;
         } else {
             // TODO: vimwiki appears to support a class if it is on the same
             //       line as the start of the math block, which we currently
@@ -479,24 +428,21 @@ impl<'a> Output for MathBlock<'a> {
             for line in self {
                 writeln!(f, "{}", escape::escape_html(line))?;
             }
-            writeln!(f, r"\]")?;
+            write!(f, r"\]")?;
         }
 
         Ok(())
     }
 }
 
-impl<'a> Output for Placeholder<'a> {
-    type Formatter = HtmlFormatter;
-    type Error = HtmlOutputError;
-
+impl<'a> Output<HtmlFormatter> for Placeholder<'a> {
     /// Writes placeholders in HTML
     ///
     /// Note that this doesn't actually do any writing, but instead updates
     /// settings in the formatter with specific details such as a title, date,
     /// or alternative template to use
     /// ```
-    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
+    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
         match self {
             Self::Title(x) => f.set_title(x),
             Self::Date(x) => f.set_date(x),
@@ -508,10 +454,7 @@ impl<'a> Output for Placeholder<'a> {
     }
 }
 
-impl<'a> Output for CodeBlock<'a> {
-    type Formatter = HtmlFormatter;
-    type Error = HtmlOutputError;
-
+impl<'a> Output<HtmlFormatter> for CodeBlock<'a> {
     /// Writes a code block block in HTML
     ///
     /// ### Client-side
@@ -551,7 +494,7 @@ impl<'a> Output for CodeBlock<'a> {
     ///     ...
     /// </pre>
     /// ```
-    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
+    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
         // If we are told to perform a server-side render of styles, we
         // build out the <pre> tag and then inject a variety of <span> wrapping
         // individual text elements with associated stylings
@@ -619,7 +562,7 @@ impl<'a> Output for CodeBlock<'a> {
                 )?;
             }
 
-            writeln!(f, "</pre>")?;
+            write!(f, "</pre>")?;
 
         // Otherwise, we produce <pre> and <code class="{lang}"> for use with
         // frontend highlighters like highlight.js
@@ -657,18 +600,14 @@ impl<'a> Output for CodeBlock<'a> {
                 }
             }
 
-            write!(f, "</code>")?;
-            writeln!(f, "</pre>")?;
+            write!(f, "</code></pre>")?;
         }
 
         Ok(())
     }
 }
 
-impl<'a> Output for Paragraph<'a> {
-    type Formatter = HtmlFormatter;
-    type Error = HtmlOutputError;
-
+impl<'a> Output<HtmlFormatter> for Paragraph<'a> {
     /// Writes a paragraph in HTML
     ///
     /// ### Ignoring newlines
@@ -687,7 +626,7 @@ impl<'a> Output for Paragraph<'a> {
     /// ```html
     /// <p>Some paragraph text<br />on multiple lines</p>
     /// ```
-    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
+    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
         let ignore_newlines = f.config().paragraph.ignore_newline;
         let is_blank = self.is_blank();
 
@@ -731,17 +670,14 @@ impl<'a> Output for Paragraph<'a> {
         // Only render closing tag if not blank (meaning comprised of more
         // than just comments)
         if !is_blank {
-            writeln!(f, "</p>")?;
+            write!(f, "</p>")?;
         }
 
         Ok(())
     }
 }
 
-impl<'a> Output for Table<'a> {
-    type Formatter = HtmlFormatter;
-    type Error = HtmlOutputError;
-
+impl<'a> Output<HtmlFormatter> for Table<'a> {
     /// Writes a table in HTML
     ///
     /// ### Normal
@@ -811,7 +747,7 @@ impl<'a> Output for Table<'a> {
     /// </table>
     /// ```
     ///
-    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
+    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
         if self.centered {
             writeln!(f, "<table class=\"center\">")?;
         } else {
@@ -884,18 +820,15 @@ impl<'a> Output for Table<'a> {
             writeln!(f, "</tbody>")?;
         }
 
-        writeln!(f, "</table>")?;
+        write!(f, "</table>")?;
 
         Ok(())
     }
 }
 
-impl<'a> Output for InlineElementContainer<'a> {
-    type Formatter = HtmlFormatter;
-    type Error = HtmlOutputError;
-
+impl<'a> Output<HtmlFormatter> for InlineElementContainer<'a> {
     /// Writes a collection of inline elements in HTML
-    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
+    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
         for element in self {
             element.fmt(f)?;
         }
@@ -904,12 +837,9 @@ impl<'a> Output for InlineElementContainer<'a> {
     }
 }
 
-impl<'a> Output for InlineElement<'a> {
-    type Formatter = HtmlFormatter;
-    type Error = HtmlOutputError;
-
+impl<'a> Output<HtmlFormatter> for InlineElement<'a> {
     /// Writes an inline element in HTML
-    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
+    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
         match self {
             Self::Text(x) => x.fmt(f),
             Self::DecoratedText(x) => x.fmt(f),
@@ -923,23 +853,17 @@ impl<'a> Output for InlineElement<'a> {
     }
 }
 
-impl<'a> Output for Text<'a> {
-    type Formatter = HtmlFormatter;
-    type Error = HtmlOutputError;
-
+impl<'a> Output<HtmlFormatter> for Text<'a> {
     /// Writes text in HTML, escaping any HTML-specific characters
-    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
+    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
         write!(f, "{}", escape::escape_html(self.as_str()))?;
         Ok(())
     }
 }
 
-impl<'a> Output for DecoratedText<'a> {
-    type Formatter = HtmlFormatter;
-    type Error = HtmlOutputError;
-
+impl<'a> Output<HtmlFormatter> for DecoratedText<'a> {
     /// Writes decorated text in HTML
-    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
+    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
         // First, we figure out the type of decoration to apply with bold
         // having the most unique situation as it can also act as an anchor
         match self {
@@ -1006,12 +930,9 @@ impl<'a> Output for DecoratedText<'a> {
     }
 }
 
-impl<'a> Output for DecoratedTextContent<'a> {
-    type Formatter = HtmlFormatter;
-    type Error = HtmlOutputError;
-
+impl<'a> Output<HtmlFormatter> for DecoratedTextContent<'a> {
     /// Writes decorated text content in HTML
-    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
+    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
         match self {
             Self::Text(x) => x.fmt(f),
             Self::DecoratedText(x) => x.fmt(f),
@@ -1021,15 +942,12 @@ impl<'a> Output for DecoratedTextContent<'a> {
     }
 }
 
-impl Output for Keyword {
-    type Formatter = HtmlFormatter;
-    type Error = HtmlOutputError;
-
+impl Output<HtmlFormatter> for Keyword {
     /// Writes keyword in HTML
     ///
-    /// Unable to be implemented via Output trait as generic associated types
+    /// Unable to be implemented via Output<HtmlFormatter> trait as generic associated types
     /// would be required.
-    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
+    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
         // For all keywords other than todo, they are treated as plain output
         // for HTML. For todo, it is wrapped in a span with a todo class
         match self {
@@ -1045,10 +963,7 @@ impl Output for Keyword {
     }
 }
 
-impl<'a> Output for Link<'a> {
-    type Formatter = HtmlFormatter;
-    type Error = HtmlOutputError;
-
+impl<'a> Output<HtmlFormatter> for Link<'a> {
     /// Writes a link in HTML
     ///
     /// ### Wiki/Interwiki Link
@@ -1136,7 +1051,7 @@ impl<'a> Output for Link<'a> {
     /// <img src="path/to/img.png" alt="descr" />
     /// <img src="path/to/img.png" alt="descr" style="A" />
     /// ```
-    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
+    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
         // Produces a link tag of <a href=".." ...>link/description</a>
         // based on the link data and a given base url representing the root
         // of the wiki if needed
@@ -1217,10 +1132,7 @@ impl<'a> Output for Link<'a> {
     }
 }
 
-impl<'a> Output for Tags<'a> {
-    type Formatter = HtmlFormatter;
-    type Error = HtmlOutputError;
-
+impl<'a> Output<HtmlFormatter> for Tags<'a> {
     /// Writes tags in HTML
     ///
     /// ### Example
@@ -1231,7 +1143,7 @@ impl<'a> Output for Tags<'a> {
     /// ```html
     /// <span id="Header 1-tag1"></span><span class="tag" id="tag1">tag1</span>
     /// ```
-    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
+    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
         for tag in self {
             let id = utils::normalize_id(tag.as_str());
             let unique_id = f.ensure_unique_id(&id);
@@ -1259,10 +1171,7 @@ impl<'a> Output for Tags<'a> {
     }
 }
 
-impl<'a> Output for CodeInline<'a> {
-    type Formatter = HtmlFormatter;
-    type Error = HtmlOutputError;
-
+impl<'a> Output<HtmlFormatter> for CodeInline<'a> {
     /// Writes inline code in HTML
     ///
     /// ### Example
@@ -1270,16 +1179,13 @@ impl<'a> Output for CodeInline<'a> {
     /// ```html
     /// <code>some code</code>
     /// ```
-    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
+    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
         write!(f, "<code>{}</code>", escape::escape_html(self.as_str()))?;
         Ok(())
     }
 }
 
-impl<'a> Output for MathInline<'a> {
-    type Formatter = HtmlFormatter;
-    type Error = HtmlOutputError;
-
+impl<'a> Output<HtmlFormatter> for MathInline<'a> {
     /// Writes inline math in HTML
     ///
     /// ### Example
@@ -1287,18 +1193,15 @@ impl<'a> Output for MathInline<'a> {
     /// ```html
     /// \(some math\)
     /// ```
-    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
+    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
         write!(f, r"\({}\)", escape::escape_html(self.as_str()))?;
         Ok(())
     }
 }
 
-impl<'a> Output for Comment<'a> {
-    type Formatter = HtmlFormatter;
-    type Error = HtmlOutputError;
-
+impl<'a> Output<HtmlFormatter> for Comment<'a> {
     /// Writes a comment in HTML
-    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
+    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
         match self {
             Self::Line(x) => x.fmt(f),
             Self::MultiLine(x) => x.fmt(f),
@@ -1306,10 +1209,7 @@ impl<'a> Output for Comment<'a> {
     }
 }
 
-impl<'a> Output for LineComment<'a> {
-    type Formatter = HtmlFormatter;
-    type Error = HtmlOutputError;
-
+impl<'a> Output<HtmlFormatter> for LineComment<'a> {
     /// Writes a line comment in HTML
     ///
     /// ### Example
@@ -1319,7 +1219,7 @@ impl<'a> Output for LineComment<'a> {
     /// ```html
     /// <!-- {line} -->
     /// ```
-    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
+    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
         if f.config().comment.include {
             write!(f, "<!-- {} -->", self.as_str())?;
         }
@@ -1327,10 +1227,7 @@ impl<'a> Output for LineComment<'a> {
     }
 }
 
-impl<'a> Output for MultiLineComment<'a> {
-    type Formatter = HtmlFormatter;
-    type Error = HtmlOutputError;
-
+impl<'a> Output<HtmlFormatter> for MultiLineComment<'a> {
     /// Writes a multiline comment in HTML
     ///
     /// ### Example
@@ -1345,7 +1242,7 @@ impl<'a> Output for MultiLineComment<'a> {
     /// {lineN}
     /// -->
     /// ```
-    fn fmt(&self, f: &mut Self::Formatter) -> HtmlOutputResult {
+    fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
         if f.config().comment.include {
             writeln!(f, "<!--")?;
             for line in self {
@@ -1381,6 +1278,7 @@ mod tests {
     use super::*;
     use chrono::NaiveDate;
     use indoc::indoc;
+    use similar_asserts::{assert_eq, assert_str_eq};
     use std::{
         borrow::Cow,
         collections::HashMap,
@@ -1455,6 +1353,26 @@ mod tests {
     }
 
     #[test]
+    fn page_should_add_a_newline_after_each_block_element_rendered() {
+        let page = Page::new(vec![
+            Located::from(BlockElement::from(Paragraph::new(vec![
+                text_to_inline_element_container("paragraph 1"),
+            ]))),
+            Located::from(BlockElement::from(Paragraph::new(vec![
+                text_to_inline_element_container("paragraph 2"),
+            ]))),
+        ]);
+
+        let mut f = HtmlFormatter::default();
+        page.fmt(&mut f).unwrap();
+
+        assert_str_eq!(
+            f.get_content(),
+            "<p>paragraph 1</p>\n<p>paragraph 2</p>\n"
+        );
+    }
+
+    #[test]
     fn blockquote_with_multiple_line_groups_should_output_blockquote_tag_with_paragraph_for_each_group_of_lines(
     ) {
         let blockquote = Blockquote::new(vec![
@@ -1466,7 +1384,7 @@ mod tests {
         let mut f = HtmlFormatter::default();
         blockquote.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             indoc! {"
                 <blockquote>
@@ -1474,6 +1392,7 @@ mod tests {
                 <p>line3</p>
                 </blockquote>
             "}
+            .trim(),
         );
     }
 
@@ -1488,7 +1407,7 @@ mod tests {
         let mut f = HtmlFormatter::default();
         blockquote.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             indoc! {"
                 <blockquote>
@@ -1497,6 +1416,7 @@ mod tests {
                 line3
                 </blockquote>
             "}
+            .trim(),
         );
     }
 
@@ -1510,7 +1430,7 @@ mod tests {
         let mut f = HtmlFormatter::default();
         blockquote.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             indoc! {"
                 <blockquote>
@@ -1519,6 +1439,7 @@ mod tests {
                 &lt;test3&gt;
                 </blockquote>
             "}
+            .trim(),
         );
     }
 
@@ -1533,7 +1454,7 @@ mod tests {
         let mut f = HtmlFormatter::default();
         blockquote.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             indoc! {"
                 <blockquote>
@@ -1541,6 +1462,7 @@ mod tests {
                 <p>&lt;test3&gt;</p>
                 </blockquote>
             "}
+            .trim(),
         );
     }
 
@@ -1558,13 +1480,14 @@ mod tests {
         let mut f = HtmlFormatter::default();
         list.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             indoc! {"
                 <dl>
                 <dt>term1</dt>
                 </dl>
             "}
+            .trim(),
         );
 
         // Test single definition
@@ -1578,7 +1501,7 @@ mod tests {
         let mut f = HtmlFormatter::default();
         list.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             indoc! {"
                 <dl>
@@ -1586,6 +1509,7 @@ mod tests {
                 <dd>def1</dd>
                 </dl>
             "}
+            .trim(),
         );
 
         // Test multiple definitions
@@ -1602,7 +1526,7 @@ mod tests {
         let mut f = HtmlFormatter::default();
         list.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             indoc! {"
                 <dl>
@@ -1611,6 +1535,7 @@ mod tests {
                 <dd>def2</dd>
                 </dl>
             "}
+            .trim(),
         );
     }
 
@@ -1621,7 +1546,7 @@ mod tests {
         let mut f = HtmlFormatter::default();
         divider.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "<hr />\n");
+        assert_str_eq!(f.get_content(), "<hr />");
     }
 
     #[test]
@@ -1635,7 +1560,7 @@ mod tests {
         let mut f = HtmlFormatter::default();
         header.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             [
                 "<h3 id=\"some-header\" class=\"header\">",
@@ -1643,7 +1568,6 @@ mod tests {
                 "some header",
                 "</a>",
                 "</h3>",
-                "\n",
             ]
             .join(""),
         );
@@ -1658,7 +1582,7 @@ mod tests {
         let mut f = HtmlFormatter::default();
         header.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             [
                 "<div class=\"toc\">",
@@ -1666,7 +1590,6 @@ mod tests {
                 "Contents",
                 "</h1>",
                 "</div>",
-                "\n",
             ]
             .join(""),
         );
@@ -1687,7 +1610,7 @@ mod tests {
 
         header.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             [
                 "<div id=\"h1-h2-&lt;test&gt;\">",
@@ -1697,7 +1620,6 @@ mod tests {
                 "</a>",
                 "</h3>",
                 "</div>",
-                "\n",
             ]
             .join(""),
         );
@@ -1719,9 +1641,9 @@ mod tests {
 
         header.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
-            "<div class=\"toc\"><h1 id=\"&lt;test&gt;\">&lt;test&gt;</h1></div>\n",
+            "<div class=\"toc\"><h1 id=\"&lt;test&gt;\">&lt;test&gt;</h1></div>",
         );
     }
 
@@ -1748,7 +1670,7 @@ mod tests {
         header2.fmt(&mut f).unwrap();
         header3.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             [
                 // First header
@@ -1757,21 +1679,18 @@ mod tests {
                 "some header",
                 "</a>",
                 "</h3>",
-                "\n",
                 // Second header
                 "<h3 id=\"some-header-1\" class=\"header\">",
                 "<a href=\"#some-header-1\">",
                 "some header",
                 "</a>",
                 "</h3>",
-                "\n",
                 // Third header
                 "<h3 id=\"some-header-2\" class=\"header\">",
                 "<a href=\"#some-header-2\">",
                 "some header",
                 "</a>",
                 "</h3>",
-                "\n",
             ]
             .join(""),
         );
@@ -1805,7 +1724,7 @@ mod tests {
         f.insert_header_text(2, "c");
         header3.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             [
                 // First header
@@ -1816,7 +1735,6 @@ mod tests {
                 "</a>",
                 "</h3>",
                 "</div>",
-                "\n",
                 // Second header
                 "<div id=\"a-b-some-header-1\">",
                 "<h3 id=\"some-header-1\" class=\"header\">",
@@ -1825,7 +1743,6 @@ mod tests {
                 "</a>",
                 "</h3>",
                 "</div>",
-                "\n",
                 // Third header
                 "<div id=\"a-c-some-header\">",
                 "<h3 id=\"some-header-2\" class=\"header\">",
@@ -1834,7 +1751,6 @@ mod tests {
                 "</a>",
                 "</h3>",
                 "</div>",
-                "\n",
             ]
             .join(""),
         );
@@ -1846,23 +1762,24 @@ mod tests {
             ListItemType::Ordered(OrderedListItemType::Number),
             ListItemSuffix::None,
             0,
-            ListItemContents::new(vec![Located::from(
-                ListItemContent::InlineContent(
-                    text_to_inline_element_container("some list item"),
-                ),
-            )]),
+            ListItemContents::new(vec![Located::from(BlockElement::from(
+                Paragraph::new(vec![text_to_inline_element_container(
+                    "some list item",
+                )]),
+            ))]),
             ListItemAttributes::default(),
         ))]);
         let mut f = HtmlFormatter::default();
         list.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             indoc! {"
                 <ol>
-                <li>some list item</li>
+                <li><p>some list item</p></li>
                 </ol>
             "}
+            .trim(),
         );
     }
 
@@ -1872,23 +1789,24 @@ mod tests {
             ListItemType::Unordered(UnorderedListItemType::Hyphen),
             ListItemSuffix::None,
             0,
-            ListItemContents::new(vec![Located::from(
-                ListItemContent::InlineContent(
-                    text_to_inline_element_container("some list item"),
-                ),
-            )]),
+            ListItemContents::new(vec![Located::from(BlockElement::from(
+                Paragraph::new(vec![text_to_inline_element_container(
+                    "some list item",
+                )]),
+            ))]),
             ListItemAttributes::default(),
         ))]);
         let mut f = HtmlFormatter::default();
         list.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             indoc! {"
                 <ul>
-                <li>some list item</li>
+                <li><p>some list item</p></li>
                 </ul>
             "}
+            .trim(),
         );
     }
 
@@ -1898,17 +1816,17 @@ mod tests {
             ListItemType::Unordered(UnorderedListItemType::Hyphen),
             ListItemSuffix::None,
             0,
-            ListItemContents::new(vec![Located::from(
-                ListItemContent::InlineContent(
-                    text_to_inline_element_container("some list item"),
-                ),
-            )]),
+            ListItemContents::new(vec![Located::from(BlockElement::from(
+                Paragraph::new(vec![text_to_inline_element_container(
+                    "some list item",
+                )]),
+            ))]),
             ListItemAttributes::default(),
         );
         let mut f = HtmlFormatter::default();
         item.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "<li>some list item</li>\n");
+        assert_str_eq!(f.get_content(), "<li><p>some list item</p></li>");
     }
 
     #[test]
@@ -1917,63 +1835,63 @@ mod tests {
             ListItemType::Unordered(UnorderedListItemType::Hyphen),
             ListItemSuffix::None,
             0,
-            ListItemContents::new(vec![Located::from(
-                ListItemContent::InlineContent(
-                    text_to_inline_element_container("some list item"),
-                ),
-            )]),
+            ListItemContents::new(vec![Located::from(BlockElement::from(
+                Paragraph::new(vec![text_to_inline_element_container(
+                    "some list item",
+                )]),
+            ))]),
             ListItemAttributes::default(),
         );
 
         let mut f = HtmlFormatter::default();
         item.attributes.todo_status = Some(ListItemTodoStatus::Incomplete);
         item.fmt(&mut f).unwrap();
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
-            "<li class=\"done0\">some list item</li>\n"
+            "<li class=\"done0\"><p>some list item</p></li>"
         );
 
         let mut f = HtmlFormatter::default();
         item.attributes.todo_status =
             Some(ListItemTodoStatus::PartiallyComplete1);
         item.fmt(&mut f).unwrap();
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
-            "<li class=\"done1\">some list item</li>\n"
+            "<li class=\"done1\"><p>some list item</p></li>"
         );
 
         let mut f = HtmlFormatter::default();
         item.attributes.todo_status =
             Some(ListItemTodoStatus::PartiallyComplete2);
         item.fmt(&mut f).unwrap();
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
-            "<li class=\"done2\">some list item</li>\n"
+            "<li class=\"done2\"><p>some list item</p></li>"
         );
 
         let mut f = HtmlFormatter::default();
         item.attributes.todo_status =
             Some(ListItemTodoStatus::PartiallyComplete3);
         item.fmt(&mut f).unwrap();
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
-            "<li class=\"done3\">some list item</li>\n"
+            "<li class=\"done3\"><p>some list item</p></li>"
         );
 
         let mut f = HtmlFormatter::default();
         item.attributes.todo_status = Some(ListItemTodoStatus::Complete);
         item.fmt(&mut f).unwrap();
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
-            "<li class=\"done4\">some list item</li>\n"
+            "<li class=\"done4\"><p>some list item</p></li>"
         );
 
         let mut f = HtmlFormatter::default();
         item.attributes.todo_status = Some(ListItemTodoStatus::Rejected);
         item.fmt(&mut f).unwrap();
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
-            "<li class=\"rejected\">some list item</li>\n"
+            "<li class=\"rejected\"><p>some list item</p></li>"
         );
     }
 
@@ -1983,7 +1901,7 @@ mod tests {
         let mut f = HtmlFormatter::default();
         math.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             indoc! {r"
                 \[
@@ -1991,6 +1909,7 @@ mod tests {
                 of math
                 \]
             "}
+            .trim(),
         );
     }
 
@@ -2003,7 +1922,7 @@ mod tests {
         let mut f = HtmlFormatter::default();
         math.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             indoc! {r"
                 \begin{test environment}
@@ -2011,6 +1930,7 @@ mod tests {
                 of math
                 \end{test environment}
             "}
+            .trim(),
         );
     }
 
@@ -2047,12 +1967,13 @@ mod tests {
         let mut f = HtmlFormatter::default();
         code.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             indoc! {"
                 <pre><code>some lines
                 of code</code></pre>
             "}
+            .trim(),
         );
     }
 
@@ -2062,11 +1983,9 @@ mod tests {
         let mut f = HtmlFormatter::default();
         code.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
-            indoc! {"
-                <pre><code>&lt;test&gt;</code></pre>
-            "}
+            r"<pre><code>&lt;test&gt;</code></pre>",
         );
     }
 
@@ -2095,11 +2014,11 @@ mod tests {
             r#"<span style="color:#0086b3;">String</span>"#,
             r#"<span style="color:#323232;">::new() }</span>"#,
             "\n",
-            "</pre>\n",
+            "</pre>",
         ]
         .join("");
 
-        assert_eq!(f.get_content(), expected);
+        assert_str_eq!(f.get_content(), expected);
     }
 
     #[test]
@@ -2114,7 +2033,7 @@ mod tests {
         });
         code.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             indoc! {r#"
                 <pre style="background-color:#ffffff;">
@@ -2122,6 +2041,7 @@ mod tests {
                 <span style="color:#323232;">of code</span>
                 </pre>
             "#}
+            .trim()
         );
     }
 
@@ -2146,7 +2066,7 @@ mod tests {
         let mut f = HtmlFormatter::default();
         paragraph.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "<p>some text and more text</p>\n");
+        assert_str_eq!(f.get_content(), "<p>some text and more text</p>");
     }
 
     #[test]
@@ -2163,7 +2083,7 @@ mod tests {
         });
         paragraph.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "<p>some text<br />and more text</p>\n");
+        assert_str_eq!(f.get_content(), "<p>some text<br />and more text</p>");
     }
 
     #[test]
@@ -2192,7 +2112,7 @@ mod tests {
         let mut f = HtmlFormatter::default();
         table.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             indoc! {"
                 <table>
@@ -2207,7 +2127,8 @@ mod tests {
                 </tr>
                 </tbody>
                 </table>
-            "},
+            "}
+            .trim(),
         );
     }
 
@@ -2235,7 +2156,7 @@ mod tests {
         let mut f = HtmlFormatter::default();
         table.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             indoc! {r#"
                 <table>
@@ -2245,7 +2166,8 @@ mod tests {
                 </tr>
                 </thead>
                 </table>
-            "#},
+            "#}
+            .trim(),
         );
     }
 
@@ -2277,7 +2199,7 @@ mod tests {
         let mut f = HtmlFormatter::default();
         table.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             indoc! {r#"
                 <table>
@@ -2287,7 +2209,8 @@ mod tests {
                 </tr>
                 </thead>
                 </table>
-            "#},
+            "#}
+            .trim(),
         );
     }
 
@@ -2311,7 +2234,7 @@ mod tests {
         let mut f = HtmlFormatter::default();
         table.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             indoc! {r#"
                 <table>
@@ -2321,7 +2244,8 @@ mod tests {
                 </tr>
                 </tbody>
                 </table>
-            "#},
+            "#}
+            .trim(),
         );
     }
 
@@ -2345,7 +2269,7 @@ mod tests {
         let mut f = HtmlFormatter::default();
         table.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             indoc! {r#"
                 <table>
@@ -2355,7 +2279,8 @@ mod tests {
                 </tr>
                 </tbody>
                 </table>
-            "#},
+            "#}
+            .trim(),
         );
     }
 
@@ -2365,7 +2290,7 @@ mod tests {
         let mut f = HtmlFormatter::default();
         table.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "<table class=\"center\">\n</table>\n");
+        assert_str_eq!(f.get_content(), "<table class=\"center\">\n</table>");
     }
 
     #[test]
@@ -2374,7 +2299,7 @@ mod tests {
         let mut f = HtmlFormatter::default();
         text.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "some text");
+        assert_str_eq!(f.get_content(), "some text");
     }
 
     #[test]
@@ -2383,7 +2308,7 @@ mod tests {
         let mut f = HtmlFormatter::default();
         text.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), r"&lt;some&gt;html&lt;/some&gt;");
+        assert_str_eq!(f.get_content(), r"&lt;some&gt;html&lt;/some&gt;");
     }
 
     #[test]
@@ -2394,7 +2319,7 @@ mod tests {
         let mut f = HtmlFormatter::default();
         decorated_text.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             r#"<strong id="some-text">some text</strong>"#,
         );
@@ -2412,7 +2337,7 @@ mod tests {
         f.insert_header_text(3, "three");
         decorated_text.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             [
                 r#"<span id="one-two-three-some-text"></span>"#,
@@ -2430,7 +2355,7 @@ mod tests {
         let mut f = HtmlFormatter::default();
         decorated_text.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             r#"<strong id="some-&lt;test&gt;-text">some &lt;test&gt; text</strong>"#,
         );
@@ -2449,7 +2374,7 @@ mod tests {
         bold1.fmt(&mut f).unwrap();
         bold2.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             [
                 r#"<strong id="bold">bold</strong>"#,
@@ -2481,7 +2406,7 @@ mod tests {
         f.insert_header_text(2, "c");
         bold3.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             [
                 r#"<span id="a-b-bold"></span><strong id="bold">bold</strong>"#,
@@ -2500,7 +2425,7 @@ mod tests {
         let mut f = HtmlFormatter::default();
         decorated_text.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), r#"<em>some text</em>"#);
+        assert_str_eq!(f.get_content(), r#"<em>some text</em>"#);
     }
 
     #[test]
@@ -2511,7 +2436,7 @@ mod tests {
         let mut f = HtmlFormatter::default();
         decorated_text.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), r#"<del>some text</del>"#);
+        assert_str_eq!(f.get_content(), r#"<del>some text</del>"#);
     }
 
     #[test]
@@ -2522,7 +2447,10 @@ mod tests {
         let mut f = HtmlFormatter::default();
         decorated_text.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), r#"<sup><small>some text</small></sup>"#);
+        assert_str_eq!(
+            f.get_content(),
+            r#"<sup><small>some text</small></sup>"#
+        );
     }
 
     #[test]
@@ -2533,7 +2461,10 @@ mod tests {
         let mut f = HtmlFormatter::default();
         decorated_text.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), r#"<sub><small>some text</small></sub>"#);
+        assert_str_eq!(
+            f.get_content(),
+            r#"<sub><small>some text</small></sub>"#
+        );
     }
 
     #[test]
@@ -2543,7 +2474,7 @@ mod tests {
         let mut f = HtmlFormatter::default();
         keyword.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), r#"<span class="todo">TODO</span>"#);
+        assert_str_eq!(f.get_content(), r#"<span class="todo">TODO</span>"#);
     }
 
     #[test]
@@ -2553,7 +2484,7 @@ mod tests {
         let mut f = HtmlFormatter::default();
         keyword.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "DONE");
+        assert_str_eq!(f.get_content(), "DONE");
     }
 
     #[test]
@@ -2565,7 +2496,7 @@ mod tests {
         let mut f = HtmlFormatter::new(test_html_config("wiki", "test.wiki"));
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             r#"<a href="some/page.html">some/page</a>"#
         );
@@ -2580,7 +2511,7 @@ mod tests {
         let mut f = HtmlFormatter::new(test_html_config("wiki", "test.wiki"));
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             r#"<a href="some/page.html#some-anchor">some/page#some-anchor</a>"#
         );
@@ -2595,7 +2526,7 @@ mod tests {
         let mut f = HtmlFormatter::new(test_html_config("wiki", "test.wiki"));
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             r#"<a href="some/page.html">some description</a>"#
         );
@@ -2610,7 +2541,7 @@ mod tests {
         let mut f = HtmlFormatter::new(test_html_config("wiki", "test.wiki"));
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             r#"<a href="some/page.html"><img src="some/img.png" /></a>"#
         );
@@ -2631,7 +2562,7 @@ mod tests {
         let mut f = HtmlFormatter::new(c);
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             r#"<a href="../wiki2/some/page.html">some/page</a>"#
         );
@@ -2652,7 +2583,7 @@ mod tests {
         let mut f = HtmlFormatter::new(c);
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             r#"<a href="../wiki2/some/page.html#some-anchor">some/page#some-anchor</a>"#
         );
@@ -2673,7 +2604,7 @@ mod tests {
         let mut f = HtmlFormatter::new(c);
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             r#"<a href="../wiki2/some/page.html">some description</a>"#
         );
@@ -2694,7 +2625,7 @@ mod tests {
         let mut f = HtmlFormatter::new(c);
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             r#"<a href="../wiki2/some/page.html"><img src="some/img.png" /></a>"#
         );
@@ -2715,7 +2646,7 @@ mod tests {
         let mut f = HtmlFormatter::new(c);
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             r#"<a href="../wiki2/some/page.html">some/page</a>"#
         );
@@ -2736,7 +2667,7 @@ mod tests {
         let mut f = HtmlFormatter::new(c);
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             r#"<a href="../wiki2/some/page.html#some-anchor">some/page#some-anchor</a>"#
         );
@@ -2757,7 +2688,7 @@ mod tests {
         let mut f = HtmlFormatter::new(c);
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             r#"<a href="../wiki2/some/page.html">some description</a>"#
         );
@@ -2778,7 +2709,7 @@ mod tests {
         let mut f = HtmlFormatter::new(c);
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             r#"<a href="../wiki2/some/page.html"><img src="some/img.png" /></a>"#
         );
@@ -2791,7 +2722,7 @@ mod tests {
         let mut f = HtmlFormatter::new(test_html_config("wiki", "test.wiki"));
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             r#"<a href="diary/2021-05-27.html">diary:2021-05-27</a>"#
         );
@@ -2807,7 +2738,7 @@ mod tests {
         let mut f = HtmlFormatter::new(test_html_config("wiki", "test.wiki"));
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             r#"<a href="diary/2021-05-27.html">some description</a>"#
         );
@@ -2823,7 +2754,7 @@ mod tests {
         let mut f = HtmlFormatter::new(test_html_config("wiki", "test.wiki"));
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             r#"<a href="diary/2021-05-27.html"><img src="some/img.png" /></a>"#
         );
@@ -2838,7 +2769,7 @@ mod tests {
         let mut f = HtmlFormatter::default();
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             r#"<a href="https://example.com/">https://example.com/</a>"#
         );
@@ -2855,7 +2786,7 @@ mod tests {
         let mut f = HtmlFormatter::default();
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             r#"<img src="https://example.com/img.jpg" />"#
         );
@@ -2872,7 +2803,7 @@ mod tests {
         let mut f = HtmlFormatter::new(test_html_config("wiki", "test.wiki"));
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), r#"<img src="img/pic.png" />"#);
+        assert_str_eq!(f.get_content(), r#"<img src="img/pic.png" />"#);
     }
 
     #[test]
@@ -2886,7 +2817,7 @@ mod tests {
         let mut f = HtmlFormatter::default();
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             r#"<img src="https://example.com/img.jpg" alt="some description" />"#
         );
@@ -2931,7 +2862,7 @@ mod tests {
         let mut f = HtmlFormatter::default();
         link.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             r#"<img src="https://example.com/img.jpg?a=b&c=d" alt="&lt;test&gt;some description&lt;/test&gt;" key1="&lt;test&gt;value1&lt;/test&gt;" />"#
         );
@@ -2943,7 +2874,7 @@ mod tests {
         let mut f = HtmlFormatter::default();
         tags.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             [
                 r#"<span class="tag" id="one">one</span>"#,
@@ -2962,7 +2893,7 @@ mod tests {
 
         tags.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), [
+        assert_str_eq!(f.get_content(), [
             r#"<span id="first-id-third-id-one"></span><span class="tag" id="one">one</span>"#,
             r#"<span id="first-id-third-id-two"></span><span class="tag" id="two">two</span>"#,
         ].join(""));
@@ -2974,7 +2905,7 @@ mod tests {
         let mut f = HtmlFormatter::default();
         tags.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             [
                 r#"<span class="tag" id="one&amp;">one&amp;</span>"#,
@@ -2993,7 +2924,7 @@ mod tests {
         tags1.fmt(&mut f).unwrap();
         tags2.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             [
                 r#"<span class="tag" id="one">one</span>"#,
@@ -3021,7 +2952,7 @@ mod tests {
         f.insert_header_text(2, "c");
         tags3.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             [
                 r#"<span id="a-b-one"></span><span class="tag" id="one">one</span>"#,
@@ -3041,7 +2972,7 @@ mod tests {
         let mut f = HtmlFormatter::default();
         code_inline.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), "<code>some code</code>");
+        assert_str_eq!(f.get_content(), "<code>some code</code>");
     }
 
     #[test]
@@ -3050,7 +2981,7 @@ mod tests {
         let mut f = HtmlFormatter::default();
         code_inline.fmt(&mut f).unwrap();
 
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             "<code>&lt;test&gt;some code&lt;/test&gt;</code>"
         );
@@ -3062,7 +2993,7 @@ mod tests {
         let mut f = HtmlFormatter::default();
         math_inline.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), r"\(some math\)");
+        assert_str_eq!(f.get_content(), r"\(some math\)");
     }
 
     #[test]
@@ -3071,7 +3002,10 @@ mod tests {
         let mut f = HtmlFormatter::default();
         math_inline.fmt(&mut f).unwrap();
 
-        assert_eq!(f.get_content(), r"\(&lt;test&gt;some math&lt;/test&gt;\)");
+        assert_str_eq!(
+            f.get_content(),
+            r"\(&lt;test&gt;some math&lt;/test&gt;\)"
+        );
     }
 
     #[test]
@@ -3082,7 +3016,7 @@ mod tests {
             ..Default::default()
         });
         comment.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "<!-- some comment -->");
+        assert_str_eq!(f.get_content(), "<!-- some comment -->");
 
         let comment = Comment::from(MultiLineComment::new(vec![
             Cow::Borrowed("some comment"),
@@ -3093,7 +3027,7 @@ mod tests {
             ..Default::default()
         });
         comment.fmt(&mut f).unwrap();
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             "<!--\nsome comment\non multiple lines\n-->"
         );
@@ -3106,7 +3040,7 @@ mod tests {
         // By default, no comment will be output
         let mut f = HtmlFormatter::default();
         comment.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "");
+        assert_str_eq!(f.get_content(), "");
 
         // If configured to output comments, should use HTML syntax
         let mut f = HtmlFormatter::new(HtmlConfig {
@@ -3114,7 +3048,7 @@ mod tests {
             ..Default::default()
         });
         comment.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "<!-- some comment -->");
+        assert_str_eq!(f.get_content(), "<!-- some comment -->");
     }
 
     #[test]
@@ -3127,7 +3061,7 @@ mod tests {
         // By default, no comment will be output
         let mut f = HtmlFormatter::default();
         comment.fmt(&mut f).unwrap();
-        assert_eq!(f.get_content(), "");
+        assert_str_eq!(f.get_content(), "");
 
         // If configured to output comments, should use HTML syntax
         let mut f = HtmlFormatter::new(HtmlConfig {
@@ -3135,7 +3069,7 @@ mod tests {
             ..Default::default()
         });
         comment.fmt(&mut f).unwrap();
-        assert_eq!(
+        assert_str_eq!(
             f.get_content(),
             "<!--\nsome comment\non multiple lines\n-->"
         );
