@@ -13,7 +13,7 @@ pub struct VimwikiFormatter {
 
     /// Current level of indentation to use when writing vimwiki elements that
     /// care about indentation
-    indent_level: usize,
+    pub indent_level: usize,
 
     /// If true, will skip writing whitespace until the first non-whitespace
     /// character is provided, in which case this is reset to false

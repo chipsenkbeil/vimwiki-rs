@@ -22,7 +22,6 @@ use nom::{
 };
 use std::collections::HashMap;
 
-#[inline]
 pub fn table(input: Span) -> IResult<Located<Table>> {
     fn inner(input: Span) -> IResult<Table> {
         // Assume a table is centered if the first row is indented
@@ -61,6 +60,18 @@ pub fn table(input: Span) -> IResult<Located<Table>> {
             !t.rows().all(|r| r.is_divider_row())
         }))),
     )(input)
+}
+
+/// Nested tables are just like top-level tables except that the centered
+/// flag is always false due to being indented as part of nesting
+///
+/// NOTE: This is temporary until there is a way to tell the table parser
+///       how far it is indented as part of nesting versus being centered
+pub fn nested_table(input: Span) -> IResult<Located<Table>> {
+    map(table, |mut table| {
+        table.centered = false;
+        table
+    })(input)
 }
 
 #[inline]

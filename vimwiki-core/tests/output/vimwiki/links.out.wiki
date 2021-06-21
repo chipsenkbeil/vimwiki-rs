@@ -1,4 +1,4 @@
-== raw links ==
+== external links ==
 
 [[http://google.com/|_Google_ search engine]]
 

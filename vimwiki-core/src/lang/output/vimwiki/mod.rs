@@ -221,6 +221,35 @@ impl<'a> Output<VimwikiFormatter> for List<'a> {
 
 impl<'a> Output<VimwikiFormatter> for ListItem<'a> {
     fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
+        for (idx, content) in self.contents.iter().enumerate() {
+            // If first line of content, write the prefix such as 1. or -
+            // as well as the todo status
+            if idx == 0 {
+                // Apply indentation to place list item at right
+                // starting location
+                f.write_indent()?;
+
+                write!(f, "{} ", self.to_prefix())?;
+
+                if let Some(todo_status) =
+                    self.attributes.todo_status.as_ref().copied()
+                {
+                    write!(f, "[")?;
+                    todo_status.fmt(f)?;
+                    write!(f, "] ")?;
+                }
+            }
+
+            // Write content at next indentation level
+            f.and_indent(|f| content.fmt(f))?;
+        }
+
+        Ok(())
+    }
+}
+
+impl Output<VimwikiFormatter> for ListItemTodoStatus {
+    fn fmt(&self, f: &mut VimwikiFormatter) -> VimwikiOutputResult {
         let VimwikiListConfig { todo } = f.config().list;
         let VimwikiTodoListItemConfig {
             incomplete_char,
@@ -231,43 +260,19 @@ impl<'a> Output<VimwikiFormatter> for ListItem<'a> {
             rejected_char,
         } = todo;
 
-        for (idx, content) in self.contents.iter().enumerate() {
-            // Apply indentation to place list item at right starting location
-            f.write_indent()?;
-
-            // If first line of content, write the prefix such as 1. or -
-            // as well as the todo status
-            if idx == 0 {
-                write!(f, "{} ", self.to_prefix())?;
-
-                if let Some(todo_status) =
-                    self.attributes.todo_status.as_ref().copied()
-                {
-                    match todo_status {
-                        ListItemTodoStatus::Incomplete => {
-                            write!(f, "[{}] ", incomplete_char)?
-                        }
-                        ListItemTodoStatus::PartiallyComplete1 => {
-                            write!(f, "[{}] ", partially_complete_1_char)?
-                        }
-                        ListItemTodoStatus::PartiallyComplete2 => {
-                            write!(f, "[{}] ", partially_complete_2_char)?
-                        }
-                        ListItemTodoStatus::PartiallyComplete3 => {
-                            write!(f, "[{}] ", partially_complete_3_char)?
-                        }
-                        ListItemTodoStatus::Complete => {
-                            write!(f, "[{}] ", complete_char)?
-                        }
-                        ListItemTodoStatus::Rejected => {
-                            write!(f, "[{}] ", rejected_char)?
-                        }
-                    }
-                }
+        match self {
+            Self::Incomplete => write!(f, "{}", incomplete_char)?,
+            Self::PartiallyComplete1 => {
+                write!(f, "{}", partially_complete_1_char)?
             }
-
-            // Write content at next indentation level
-            f.and_indent(|f| content.fmt(f))?;
+            Self::PartiallyComplete2 => {
+                write!(f, "{}", partially_complete_2_char)?
+            }
+            Self::PartiallyComplete3 => {
+                write!(f, "{}", partially_complete_3_char)?
+            }
+            Self::Complete => write!(f, "{}", complete_char)?,
+            Self::Rejected => write!(f, "{}", rejected_char)?,
         }
 
         Ok(())
@@ -1620,7 +1625,7 @@ mod tests {
                             second line of 1
                         second line of bullet
                     second line of hyphen
-                - different list item
+                * different list item
             "},
         );
     }

@@ -52,7 +52,7 @@ pub fn nested_block_element(input: Span) -> IResult<Located<BlockElement>> {
         alt((
             map(definitions::definition_list, |c| c.map(BlockElement::from)),
             map(lists::list, |c| c.map(BlockElement::from)),
-            map(tables::table, |c| c.map(BlockElement::from)),
+            map(tables::nested_table, |c| c.map(BlockElement::from)),
             map(code::code_block, |c| c.map(BlockElement::from)),
             map(math::math_block, |c| c.map(BlockElement::from)),
             map(blockquotes::arrow_blockquote, |c| c.map(BlockElement::from)),

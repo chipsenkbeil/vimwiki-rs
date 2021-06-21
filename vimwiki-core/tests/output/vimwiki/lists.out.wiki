@@ -32,8 +32,7 @@
     | table    | containing |
     | multiple | cells      |
 - definition list
-    term::
-    :: def
+    term:: def
 - blockquote
     > some blockquote
 
