@@ -415,7 +415,7 @@ pub enum OrderedListItemType {
 impl OrderedListItemType {
     /// Allocates a new string representing the full prefix of the list item
     /// such as 1. or iii)
-    pub fn to_prefix(&self, pos: usize, suffix: ListItemSuffix) -> String {
+    pub fn to_prefix(self, pos: usize, suffix: ListItemSuffix) -> String {
         let mut base = match self {
             // NOTE: Numbers start at 1, not 0, so use base 1
             Self::Number => (pos + 1).to_string(),

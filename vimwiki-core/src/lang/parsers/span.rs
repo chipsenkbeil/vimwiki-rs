@@ -579,7 +579,7 @@ impl<'a> InputIter for Span<'a> {
 
     #[inline]
     fn iter_elements(&self) -> Self::IterElem {
-        self.clone().into_iter().copied()
+        (*self).into_iter().copied()
     }
 
     #[inline]
