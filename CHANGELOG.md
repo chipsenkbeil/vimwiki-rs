@@ -4,9 +4,21 @@
 
 ## [Unreleased] - ReleaseDate
 
+### Added
+
+- `vimwiki-cli` now includes a **format** subcommand to format vimwiki text
+- `vimwiki-core` now supports converting an ast into vimwiki text
+
 ### Changed
 
 - Moved `iter::*` to root level of `vimwiki-core` crate
+- `ListItemContents` now contains a `Vec<BlockElement>` and the associated
+  parser now supports other types such as `CodeBlock`, `MathBlock`,
+  `Blockquote`, and `Table` as options for being included
+- List items no longer keep raw text, but instead paragraphs of text as one
+  of the potential elements
+- HTML output of list items with text now yields `<li><p>...</p></li>` instead
+  of the previous `<li>...</li>`
 
 ## [0.1.0] - 2021-06-06
 
