@@ -10,6 +10,10 @@ repository = "https://github.com/chipsenkbeil/vimwiki-rs"
 readme = "README.md"
 license = "MIT OR Apache-2.0"
 
+[features]
+default = []
+timekeeper = ["vimwiki/timekeeper"]
+
 [[bin]]
 name = "vimwiki"
 path = "src/main.rs"

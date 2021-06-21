@@ -39,14 +39,14 @@ pub fn format(
                     if extensions.contains(ext) {
                         process_file(config.clone(), entry.path(), cmd.inline)?;
                     } else {
-                        debug!(
+                        warn!(
                             "{:?} :: skipped due to unrecognized extension ({})!",
                             entry.path(),
                             ext
                         );
                     }
                 } else {
-                    debug!(
+                    warn!(
                         "{:?} :: skipped due to lack of extension!",
                         entry.path(),
                     );

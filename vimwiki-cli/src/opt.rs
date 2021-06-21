@@ -65,6 +65,12 @@ pub struct CommonOpt {
     /// provided, then all available wikis are converted
     #[structopt(long, global = true)]
     pub include: Vec<IndexOrName>,
+
+    /// If specified, will collect time spent parsing vimwiki documents and
+    /// print out information about parsing breakdown
+    #[cfg(feature = "timekeeper")]
+    #[structopt(long, global = true)]
+    pub timekeeper: bool,
 }
 
 impl CommonOpt {

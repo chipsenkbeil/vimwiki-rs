@@ -10,7 +10,7 @@ fn main() {
 
 fn init_logging(opt: &cli::CommonOpt) {
     stderrlog::new()
-        .module(module_path!())
+        .module("vimwiki_cli")
         .quiet(opt.quiet)
         .verbosity(opt.verbose)
         .timestamp(opt.timestamp.unwrap_or(stderrlog::Timestamp::Off))

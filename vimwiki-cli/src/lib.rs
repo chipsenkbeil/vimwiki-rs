@@ -32,6 +32,14 @@ pub fn load_opt_from_args() -> Opt {
 /// Runs the CLI using the provided options, returning success if completed
 /// or an error containing the appropriate exit code to return via [`Exitcodes::exit`]
 pub fn run(opt: Opt) -> Result<(), ExitCodes> {
+    #[cfg(feature = "timekeeper")]
+    let timekeeper = opt.common.timekeeper;
+
+    #[cfg(feature = "timekeeper")]
+    if timekeeper {
+        vimwiki::timekeeper::enable();
+    }
+
     let res = match opt.subcommand {
         Subcommand::Convert(cmd) => {
             let (config, ast) =
@@ -53,6 +61,12 @@ pub fn run(opt: Opt) -> Result<(), ExitCodes> {
             subcommand::inspect(cmd, opt.common, config, ast)
         }
     };
+
+    #[cfg(feature = "timekeeper")]
+    if timekeeper {
+        vimwiki::timekeeper::disable();
+        vimwiki::timekeeper::print_report(true);
+    }
 
     if let Err(x) = res {
         error!("Subcommand failed: {}", x);
