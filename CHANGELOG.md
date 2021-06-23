@@ -20,6 +20,16 @@
 - HTML output of list items with text now yields `<li><p>...</p></li>` instead
   of the previous `<li>...</li>`
 
+### Fixed
+
+- Local anchor links were adding `index.html` in front of the anchor
+  regardless of the page's name
+
+### Performance
+
+- Refactored text parser to yield a 5x speedup on local testing of wikis that
+  previously took ~30s now finishing in ~6s for parsing and output
+
 ## [0.1.0] - 2021-06-06
 
 ### Added

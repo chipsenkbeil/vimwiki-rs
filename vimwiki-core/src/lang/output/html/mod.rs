@@ -2518,6 +2518,21 @@ mod tests {
     }
 
     #[test]
+    fn wiki_link_should_support_standalone_anchors() {
+        let link = Link::new_wiki_link(
+            URIReference::try_from("#some-anchor").unwrap(),
+            None,
+        );
+        let mut f = HtmlFormatter::new(test_html_config("wiki", "test.wiki"));
+        link.fmt(&mut f).unwrap();
+
+        assert_str_eq!(
+            f.get_content(),
+            r##"<a href="#some-anchor">#some-anchor</a>"##
+        );
+    }
+
+    #[test]
     fn wiki_link_should_support_text_description() {
         let link = Link::new_wiki_link(
             URIReference::try_from("some/page").unwrap(),

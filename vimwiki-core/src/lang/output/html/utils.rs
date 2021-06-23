@@ -170,7 +170,7 @@ pub fn resolve_link(
     // First, build our raw uri WITHOUT anchors
     let uri_ref = match target {
         Link::Wiki { data } => {
-            if data.is_local() {
+            if data.is_local() && !data.is_local_anchor() {
                 // TODO: Support alternative directory file name
                 // NOTE: Don't need to provide extension as will be replaced in
                 //       the absolute output path anyway
