@@ -1,58 +1,130 @@
 use super::{
-    code::code_inline, comments::comment, links::link, math::math_inline,
+    code::code_inline,
+    comments::comment,
+    links::{link, raw_link},
+    math::math_inline,
     tags::tags,
 };
 use crate::lang::{
     elements::{
-        DecoratedText, DecoratedTextContent, Keyword, Link, Located, Text,
+        DecoratedText, DecoratedTextContent, InlineElement, Keyword, Link,
+        Located, Text,
     },
     parsers::{
         utils::{
             capture, context, cow_str, deeper, locate, not_contains,
             surround_in_line1,
         },
-        IResult, Span,
+        Error, IResult, Span,
     },
 };
 
 use nom::{
     branch::alt,
-    bytes::complete::{tag, take},
-    character::complete::{crlf, newline},
-    combinator::{map, map_parser, not, recognize},
+    bytes::complete::tag,
+    character::complete::char,
+    combinator::{map, map_parser, peek},
     multi::many1,
     sequence::preceded,
 };
 
 #[inline]
 pub fn text(input: Span) -> IResult<Located<Text>> {
-    // Uses combination of short-circuiting and full checks to ensure we
-    // can continue consuming text
-    fn is_text(input: Span) -> IResult<()> {
-        // Check for \n and \r\n
-        let (input, _) = not(newline)(input)?;
-        let (input, _) = not(crlf)(input)?;
-
+    fn non_text<'a>(input: Span<'a>) -> IResult<Located<InlineElement>> {
         // Check for all other inline element types
-        let (input, _) = not(comment)(input)?;
-        let (input, _) = not(code_inline)(input)?;
-        let (input, _) = not(math_inline)(input)?;
-        let (input, _) = not(tags)(input)?;
-        let (input, _) = not(link)(input)?;
-        let (input, _) = not(decorated_text)(input)?;
-        let (input, _) = not(keyword)(input)?;
+        alt((
+            map(preceded(peek(char('%')), comment), |x| {
+                x.map(InlineElement::from)
+            }),
+            map(preceded(peek(char('`')), code_inline), |x| {
+                x.map(InlineElement::from)
+            }),
+            map(preceded(peek(char('$')), math_inline), |x| {
+                x.map(InlineElement::from)
+            }),
+            map(preceded(peek(char(':')), tags), |x| {
+                x.map(InlineElement::from)
+            }),
+            map(preceded(peek(alt((char('['), char('{')))), link), |x| {
+                x.map(InlineElement::from)
+            }),
+            map(
+                preceded(
+                    peek(alt((
+                        char('*'),
+                        char('_'),
+                        char('~'),
+                        char('^'),
+                        char(','),
+                    ))),
+                    decorated_text,
+                ),
+                |x| x.map(InlineElement::from),
+            ),
+            map(keyword, |x| x.map(InlineElement::from)),
+            // Special case for raw links as : signfies a possibility of a schema
+            // where we need to backtrack to the last non-whitespace character to
+            // use as the span
+            map(
+                preceded(peek(char(':')), |input: Span<'a>| {
+                    let consumed_len = input.consumed_len();
+                    let consumed = input.as_consumed();
 
-        Ok((input, ()))
+                    // Keep checking back until we find whitespace or have
+                    // run all the way back from our input
+                    let mut neg_offset = 0;
+                    while consumed_len > neg_offset
+                        && !consumed[consumed_len - neg_offset - 1]
+                            .is_ascii_whitespace()
+                    {
+                        neg_offset += 1;
+                    }
+
+                    let input = input.backtrack_start_by(neg_offset);
+                    raw_link(input)
+                }),
+                |x| x.map(InlineElement::from),
+            ),
+        ))(input)
     }
 
-    fn text_line(input: Span) -> IResult<Span> {
-        recognize(many1(preceded(is_text, take(1usize))))(input)
+    fn inner(input: Span) -> IResult<Text> {
+        let mut text_input = input;
+        let mut len = 0;
+
+        while text_input.remaining_len() > 0 {
+            // Reached a line ending (\n or \r\n), so we're done
+            if text_input.as_remaining()[0] == b'\n'
+                || (text_input.remaining_len() >= 2
+                    && text_input.as_remaining()[0] == b'\r'
+                    && text_input.as_remaining()[1] == b'\n')
+            {
+                break;
+            }
+
+            // Check if we have a non-text element; if we do, we need to make
+            // sure that we backtrack our length and then we're done
+            if let Ok((_, x)) = non_text(text_input) {
+                let non_text_start = x.region().offset();
+                if non_text_start < text_input.start_offset() {
+                    len -= text_input.start_offset() - non_text_start;
+                }
+                break;
+            }
+
+            text_input = text_input.advance_start_by(1);
+            len += 1;
+        }
+
+        if len > 0 {
+            let (_, text) = map(cow_str, Text::new)(input.with_length(len))?;
+            Ok((input.advance_start_by(len), text))
+        } else {
+            Err(nom::Err::Error(Error::from_ctx(&input, "Empty text")))
+        }
     }
 
-    context(
-        "Text",
-        locate(capture(map(map_parser(text_line, cow_str), Text::new))),
-    )(input)
+    context("Text", locate(capture(inner)))(input)
 }
 
 #[inline]
@@ -183,6 +255,12 @@ mod tests {
     #[test]
     fn text_should_fail_if_input_empty() {
         let input = Span::from("");
+        assert!(text(input).is_err());
+    }
+
+    #[test]
+    fn text_should_fail_if_given_a_raw_link_immediately() {
+        let input = Span::from("https://example.com/");
         assert!(text(input).is_err());
     }
 

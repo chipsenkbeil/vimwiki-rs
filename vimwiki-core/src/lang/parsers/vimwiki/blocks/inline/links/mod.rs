@@ -25,6 +25,9 @@ mod raw;
 mod transclusion;
 mod wiki;
 
+// Exporting for optimization in text(...)
+pub(crate) use raw::raw_link;
+
 /// Inspecting vimwiki source code, there are a couple of link utils
 ///
 /// 1. s:is_web_link = https | http | www | ftp | file | mailto

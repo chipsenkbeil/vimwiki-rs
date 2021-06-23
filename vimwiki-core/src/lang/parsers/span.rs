@@ -40,6 +40,21 @@ impl<'a> Span<'a> {
     }
 
     /// Creates a copy of the span starting at the new offset relative to
+    /// its existing offset. If start would move backwards passed 0, then start
+    /// will be set to 0.
+    ///
+    /// e.g. start = 2, end = 4, backtrack_start_by(1) yields start = 1
+    pub fn backtrack_start_by(&self, offset: usize) -> Self {
+        let start = if offset > self.start {
+            0
+        } else {
+            self.start - offset
+        };
+        let end = self.end;
+        Self::new(self.inner, start, end, self.depth)
+    }
+
+    /// Creates a copy of the span starting at the new offset relative to
     /// its existing offset. If start exceeds end, then start will be set
     /// to end.
     ///
