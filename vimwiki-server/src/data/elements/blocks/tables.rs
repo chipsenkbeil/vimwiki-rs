@@ -31,6 +31,14 @@ pub struct Table {
     /// Parent element to this table
     #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
+
+    /// Previous sibling element to this element
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
+    prev_sibling: Option<Element>,
+
+    /// Next sibling element to this element
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
+    next_sibling: Option<Element>,
 }
 
 impl<'a> FromVimwikiElement<'a> for Table {
@@ -203,6 +211,14 @@ pub struct ContentCell {
     /// Parent element to this cell
     #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
+
+    /// Previous sibling element to this element
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
+    prev_sibling: Option<Element>,
+
+    /// Next sibling element to this element
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
+    next_sibling: Option<Element>,
 }
 
 impl fmt::Display for ContentCell {
@@ -244,6 +260,14 @@ pub struct SpanCell {
     /// Parent element to this cell
     #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
+
+    /// Previous sibling element to this element
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
+    prev_sibling: Option<Element>,
+
+    /// Next sibling element to this element
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
+    next_sibling: Option<Element>,
 }
 
 /// Represents a cell with no content that describes future column alignment
@@ -268,6 +292,14 @@ pub struct AlignCell {
     /// Parent element to this cell
     #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
+
+    /// Previous sibling element to this element
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
+    prev_sibling: Option<Element>,
+
+    /// Next sibling element to this element
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
+    next_sibling: Option<Element>,
 }
 
 #[derive(

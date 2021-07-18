@@ -1,6 +1,7 @@
 use crate::data::{
-    Element, ElementQuery, FromVimwikiElement, GqlPageFilter,
-    GraphqlDatabaseError, Page, PageQuery, Region,
+    elements::build_gql_element, Element, ElementQuery, FromVimwikiElement,
+    FromVimwikiElementArgs, GqlPageFilter, GraphqlDatabaseError, Page,
+    PageQuery, Region,
 };
 use entity::*;
 use entity_async_graphql::*;
@@ -25,9 +26,21 @@ pub struct CodeBlock {
     #[ent(edge)]
     page: Page,
 
+    /// Root element to this element
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
+    root: Element,
+
     /// Parent element to this code block
     #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
+
+    /// Previous sibling element to this element
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
+    prev_sibling: Option<Element>,
+
+    /// Next sibling element to this element
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
+    next_sibling: Option<Element>,
 }
 
 /// Represents a single document block of code block (aka code block)
@@ -95,38 +108,36 @@ impl<'a> FromVimwikiElement<'a> for CodeBlock {
     type Element = Located<v::CodeBlock<'a>>;
 
     fn from_vimwiki_element(
-        page_id: Id,
-        parent_id: Option<Id>,
-        element: Self::Element,
+        args: FromVimwikiElementArgs<Self::Element>,
     ) -> Result<Self, GraphqlDatabaseError> {
-        let region = Region::from(element.region());
-        let language = element
-            .as_inner()
-            .language
-            .as_ref()
-            .map(ToString::to_string);
-        let lines = element
-            .as_inner()
-            .lines
-            .iter()
-            .map(ToString::to_string)
-            .collect();
-        let metadata = element
-            .into_inner()
-            .metadata
-            .into_iter()
-            .map(|(k, v)| (k.to_string(), v.to_string()))
-            .collect();
+        build_gql_element!(
+            args,
+            |builder: CodeBlockBuilder, element: Self::Element| {
+                let region = Region::from(element.region());
+                let language = element
+                    .as_inner()
+                    .language
+                    .as_ref()
+                    .map(ToString::to_string);
+                let lines = element
+                    .as_inner()
+                    .lines
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect();
+                let metadata = element
+                    .into_inner()
+                    .metadata
+                    .into_iter()
+                    .map(|(k, v)| (k.to_string(), v.to_string()))
+                    .collect();
 
-        GraphqlDatabaseError::wrap(
-            Self::build()
-                .region(region)
-                .language(language)
-                .lines(lines)
-                .metadata(metadata)
-                .page(page_id)
-                .parent(parent_id)
-                .finish_and_commit(),
+                builder
+                    .region(region)
+                    .language(language)
+                    .lines(lines)
+                    .metadata(metadata)
+            }
         )
     }
 }
@@ -147,7 +158,16 @@ mod tests {
                 }}}
             "#};
             let region = Region::from(element.region());
-            let ent = CodeBlock::from_vimwiki_element(999, Some(123), element)
+            let args = FromVimwikiElementArgs {
+                page_id: 999,
+                root_id: 1,
+                parent_id: Some(2),
+                prev_sibling_id: Some(3),
+                next_sibling_id: Some(4),
+                element_id: 5,
+                element,
+            };
+            let ent = CodeBlock::from_vimwiki_element(args)
                 .expect("Failed to convert from element");
 
             assert_eq!(
@@ -165,7 +185,11 @@ mod tests {
 
             assert_eq!(ent.region(), &region);
             assert_eq!(ent.page_id(), 999);
-            assert_eq!(ent.parent_id(), Some(123));
+            assert_eq!(ent.root_id(), 1);
+            assert_eq!(ent.parent_id(), Some(2));
+            assert_eq!(ent.prev_sibling_id(), Some(3));
+            assert_eq!(ent.next_sibling_id(), Some(4));
+            assert_eq!(ent.id(), 5);
         });
     }
 }

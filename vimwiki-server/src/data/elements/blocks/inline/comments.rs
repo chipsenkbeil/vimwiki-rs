@@ -84,6 +84,14 @@ pub struct LineComment {
     /// Parent element to this element
     #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
+
+    /// Previous sibling element to this element
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
+    prev_sibling: Option<Element>,
+
+    /// Next sibling element to this element
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
+    next_sibling: Option<Element>,
 }
 
 impl fmt::Display for LineComment {
@@ -128,6 +136,14 @@ pub struct MultiLineComment {
     /// Parent element to this element
     #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
+
+    /// Previous sibling element to this element
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
+    prev_sibling: Option<Element>,
+
+    /// Next sibling element to this element
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
+    next_sibling: Option<Element>,
 }
 
 impl fmt::Display for MultiLineComment {

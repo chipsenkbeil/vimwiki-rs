@@ -1,14 +1,62 @@
+/// Builds a graphql element by consuming `FromVimwikiElementArgs` and a
+/// function that takes the the gql builder, the vimwiki element, and a function
+/// that can be called to produce new arguments for children (takes an element),
+/// returning the updated builder
+macro_rules! build_gql_element {
+    ($args:ident, $f:expr) => {{
+        let crate::data::FromVimwikiElementArgs {
+            page_id,
+            root_id,
+            parent_id,
+            prev_sibling_id,
+            next_sibling_id,
+            element_id,
+            element,
+        } = $args;
+
+        let builder = Self::build()
+            .page(page_id)
+            .root(root_id)
+            .parent(parent_id)
+            .prev_sibling(prev_sibling_id)
+            .next_sibling(next_sibling_id)
+            .id(element_id);
+
+        #[inline]
+        fn make_args<T>(element: T) -> crate::data::FromVimwikiElementArgs<T> {
+            crate::data::FromVimwikiElementArgs {
+                page_id,
+                root_id,
+                parent_id: element_id,
+                prev_sibling_id,
+                next_sibling_id,
+                element_id,
+                element,
+            }
+        }
+
+        crate::data::GraphqlDatabaseError::wrap(
+            $f(builder, element, make_args).finish_and_commit(),
+        )
+    }};
+}
+pub(crate) use build_gql_element;
+
 mod blocks;
 pub use blocks::*;
 
 mod utils;
 pub use utils::*;
 
-use crate::data::{
-    GqlParsedFileFilter, GraphqlDatabaseError, ParsedFile, ParsedFileQuery,
+use crate::{
+    data::{
+        GqlParsedFileFilter, GraphqlDatabaseError, ParsedFile, ParsedFileQuery,
+    },
+    database,
 };
 use entity::*;
 use entity_async_graphql::*;
+use std::iter;
 use vimwiki::{self as v, Located};
 
 #[gql_ent]
@@ -25,36 +73,65 @@ impl Page {
         file_id: Id,
         page: v::Page<'_>,
     ) -> Result<Self, GraphqlDatabaseError> {
-        let mut ent = GraphqlDatabaseError::wrap(
-            Self::build()
-                .file(file_id)
-                .contents(Vec::new())
-                .finish_and_commit(),
-        )?;
+        // First, create the page and element ids
+        let page_id = database::next_id();
 
-        let mut contents = Vec::new();
-        for content in page.into_elements() {
-            contents.push(
-                BlockElement::from_vimwiki_element(ent.id(), None, content)?
-                    .id(),
-            );
+        // Second, pre-allocate the children ids
+        let children_ids = iter::repeat_with(|| database::next_id())
+            .take(page.elements.len())
+            .collect::<Vec<Id>>();
+
+        // Third, build the actual children
+        for (idx, element) in page.into_elements().into_iter().enumerate() {
+            let element_id = children_ids[idx];
+            let args = FromVimwikiElementArgs {
+                page_id,
+                root_id: element_id,
+                parent_id: None,
+                prev_sibling_id: if idx > 0 {
+                    Some(children_ids[idx])
+                } else {
+                    None
+                },
+                next_sibling_id: children_ids.get(idx + 1).copied(),
+                element_id,
+                element,
+            };
+
+            children_ids.push(BlockElement::from_vimwiki_element(args)?.id());
         }
 
-        ent.set_contents_ids(contents);
-        ent.commit().map_err(GraphqlDatabaseError::Database)?;
+        // Fourth, build the page
+        let mut ent = GraphqlDatabaseError::wrap(
+            Self::build()
+                .id(page_id)
+                .file(file_id)
+                .contents(children_ids)
+                .finish_and_commit(),
+        )?;
 
         Ok(ent)
     }
 }
 
+/// Arguments to provide when building a new element entity
+#[derive(Clone, Debug)]
+pub(crate) struct FromVimwikiElementArgs<T> {
+    pub page_id: Id,
+    pub root_id: Id,
+    pub parent_id: Option<Id>,
+    pub prev_sibling_id: Option<Id>,
+    pub next_sibling_id: Option<Id>,
+    pub element_id: Id,
+    pub element: T,
+}
+
 /// Interface to build entity from a vimwiki element
-pub trait FromVimwikiElement<'a>: Sized {
+pub(crate) trait FromVimwikiElement<'a>: Sized {
     type Element;
 
     fn from_vimwiki_element(
-        page_id: Id,
-        parent_id: Option<Id>,
-        element: Self::Element,
+        args: FromVimwikiElementArgs<Self::Element>,
     ) -> Result<Self, GraphqlDatabaseError>;
 }
 
@@ -95,31 +172,53 @@ impl<'a> FromVimwikiElement<'a> for Element {
     type Element = Located<v::Element<'a>>;
 
     fn from_vimwiki_element(
-        page_id: Id,
-        parent_id: Option<Id>,
-        element: Self::Element,
+        args: FromVimwikiElementArgs<Self::Element>,
     ) -> Result<Self, GraphqlDatabaseError> {
+        let FromVimwikiElementArgs {
+            page_id,
+            root_id,
+            parent_id,
+            prev_sibling_id,
+            next_sibling_id,
+            element_id,
+            element,
+        } = args;
+
         let region = element.region();
         Ok(match element.into_inner() {
-            v::Element::Block(x) => {
-                Self::from(BlockElement::from_vimwiki_element(
+            v::Element::Block(x) => Self::from(
+                BlockElement::from_vimwiki_element(FromVimwikiElementArgs {
                     page_id,
+                    root_id,
                     parent_id,
-                    Located::new(x, region),
-                )?)
-            }
-            v::Element::Inline(x) => {
-                Self::from(InlineElement::from_vimwiki_element(
+                    prev_sibling_id,
+                    next_sibling_id,
+                    element_id,
+                    element: Located::new(x, region),
+                })?,
+            ),
+            v::Element::Inline(x) => Self::from(
+                InlineElement::from_vimwiki_element(FromVimwikiElementArgs {
                     page_id,
+                    root_id,
                     parent_id,
-                    Located::new(x, region),
-                )?)
-            }
+                    prev_sibling_id,
+                    next_sibling_id,
+                    element_id,
+                    element: Located::new(x, region),
+                })?,
+            ),
             v::Element::InlineBlock(x) => {
                 Self::from(InlineBlockElement::from_vimwiki_element(
-                    page_id,
-                    parent_id,
-                    Located::new(x, region),
+                    FromVimwikiElementArgs {
+                        page_id,
+                        root_id,
+                        parent_id,
+                        prev_sibling_id,
+                        next_sibling_id,
+                        element_id,
+                        element: Located::new(x, region),
+                    },
                 )?)
             }
         })
@@ -155,33 +254,53 @@ impl<'a> FromVimwikiElement<'a> for InlineBlockElement {
     type Element = Located<v::InlineBlockElement<'a>>;
 
     fn from_vimwiki_element(
-        page_id: Id,
-        parent_id: Option<Id>,
-        element: Self::Element,
+        args: FromVimwikiElementArgs<Self::Element>,
     ) -> Result<Self, GraphqlDatabaseError> {
+        let FromVimwikiElementArgs {
+            page_id,
+            root_id,
+            parent_id,
+            prev_sibling_id,
+            next_sibling_id,
+            element_id,
+            element,
+        } = args;
+
         let region = element.region();
         Ok(match element.into_inner() {
-            v::InlineBlockElement::ListItem(x) => {
-                InlineBlockElement::from(ListItem::from_vimwiki_element(
+            v::InlineBlockElement::ListItem(x) => InlineBlockElement::from(
+                ListItem::from_vimwiki_element(FromVimwikiElementArgs {
                     page_id,
+                    root_id,
                     parent_id,
-                    Located::new(x, region),
-                )?)
-            }
-            v::InlineBlockElement::Term(x) => {
-                InlineBlockElement::from(Term::from_vimwiki_element(
+                    prev_sibling_id,
+                    next_sibling_id,
+                    element_id,
+                    element: Located::new(x, region),
+                })?,
+            ),
+            v::InlineBlockElement::Term(x) => InlineBlockElement::from(
+                Term::from_vimwiki_element(FromVimwikiElementArgs {
                     page_id,
+                    root_id,
                     parent_id,
-                    Located::new(x, region),
-                )?)
-            }
-            v::InlineBlockElement::Definition(x) => {
-                InlineBlockElement::from(Definition::from_vimwiki_element(
+                    prev_sibling_id,
+                    next_sibling_id,
+                    element_id,
+                    element: Located::new(x, region),
+                })?,
+            ),
+            v::InlineBlockElement::Definition(x) => InlineBlockElement::from(
+                Definition::from_vimwiki_element(FromVimwikiElementArgs {
                     page_id,
+                    root_id,
                     parent_id,
-                    Located::new(x, region),
-                )?)
-            }
+                    prev_sibling_id,
+                    next_sibling_id,
+                    element_id,
+                    element: Located::new(x, region),
+                })?,
+            ),
         })
     }
 }

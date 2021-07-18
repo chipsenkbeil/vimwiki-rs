@@ -1,7 +1,7 @@
 use crate::data::{
-    Element, ElementQuery, FromVimwikiElement, GqlPageFilter,
-    GraphqlDatabaseError, InlineElement, InlineElementQuery, Page, PageQuery,
-    Region,
+    elements::build_gql_element, Element, ElementQuery, FromVimwikiElement,
+    FromVimwikiElementArgs, GqlPageFilter, GraphqlDatabaseError, InlineElement,
+    InlineElementQuery, Page, PageQuery, Region,
 };
 use entity::*;
 use entity_async_graphql::*;
@@ -24,9 +24,21 @@ pub struct DefinitionList {
     #[ent(edge)]
     page: Page,
 
+    /// Root element to this element
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
+    root: Element,
+
     /// Parent element to this element
     #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
+
+    /// Previous sibling element to this element
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
+    prev_sibling: Option<Element>,
+
+    /// Next sibling element to this element
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
+    next_sibling: Option<Element>,
 }
 
 /// Represents a single list of terms & definitions in a document
@@ -84,9 +96,7 @@ impl<'a> FromVimwikiElement<'a> for DefinitionList {
     type Element = Located<v::DefinitionList<'a>>;
 
     fn from_vimwiki_element(
-        page_id: Id,
-        parent_id: Option<Id>,
-        element: Self::Element,
+        args: FromVimwikiElementArgs,
     ) -> Result<Self, GraphqlDatabaseError> {
         let region = Region::from(element.region());
 
@@ -167,9 +177,21 @@ pub struct Term {
     #[ent(edge)]
     page: Page,
 
+    /// Root element to this element
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
+    root: Element,
+
     /// The parent element containing this term
     #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
+
+    /// Previous sibling element to this element
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
+    prev_sibling: Option<Element>,
+
+    /// Next sibling element to this element
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
+    next_sibling: Option<Element>,
 }
 
 impl fmt::Display for Term {
@@ -193,9 +215,7 @@ impl<'a> FromVimwikiElement<'a> for Term {
     type Element = Located<v::Term<'a>>;
 
     fn from_vimwiki_element(
-        page_id: Id,
-        parent_id: Option<Id>,
-        element: Self::Element,
+        args: FromVimwikiElementArgs,
     ) -> Result<Self, GraphqlDatabaseError> {
         let region = Region::from(element.region());
 
@@ -249,9 +269,21 @@ pub struct Definition {
     #[ent(edge)]
     page: Page,
 
+    /// Root element to this element
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
+    root: Element,
+
     /// The parent element containing this definition
     #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
+
+    /// Previous sibling element to this element
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
+    prev_sibling: Option<Element>,
+
+    /// Next sibling element to this element
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
+    next_sibling: Option<Element>,
 }
 
 impl fmt::Display for Definition {
@@ -275,9 +307,7 @@ impl<'a> FromVimwikiElement<'a> for Definition {
     type Element = Located<v::Definition<'a>>;
 
     fn from_vimwiki_element(
-        page_id: Id,
-        parent_id: Option<Id>,
-        element: Self::Element,
+        args: FromVimwikiElementArgs,
     ) -> Result<Self, GraphqlDatabaseError> {
         let region = Region::from(element.region());
 

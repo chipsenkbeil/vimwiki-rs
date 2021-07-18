@@ -126,6 +126,14 @@ pub struct PlaceholderTitle {
     /// Parent element to this placeholder
     #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
+
+    /// Previous sibling element to this element
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
+    prev_sibling: Option<Element>,
+
+    /// Next sibling element to this element
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
+    next_sibling: Option<Element>,
 }
 
 /// Represents a single document nohtml placeholder
@@ -142,6 +150,14 @@ pub struct PlaceholderNoHtml {
     /// Parent element to this placeholder
     #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
+
+    /// Previous sibling element to this element
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
+    prev_sibling: Option<Element>,
+
+    /// Next sibling element to this element
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
+    next_sibling: Option<Element>,
 }
 
 /// Represents a single document template placeholder
@@ -161,6 +177,14 @@ pub struct PlaceholderTemplate {
     /// Parent element to this placeholder
     #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
+
+    /// Previous sibling element to this element
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
+    prev_sibling: Option<Element>,
+
+    /// Next sibling element to this element
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
+    next_sibling: Option<Element>,
 }
 
 /// Represents a single document date placeholder
@@ -181,6 +205,14 @@ pub struct PlaceholderDate {
     /// Parent element to this placeholder
     #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
+
+    /// Previous sibling element to this element
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
+    prev_sibling: Option<Element>,
+
+    /// Next sibling element to this element
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
+    next_sibling: Option<Element>,
 }
 
 /// Represents a single document other placeholder
@@ -203,6 +235,14 @@ pub struct PlaceholderOther {
     /// Parent element to this placeholder
     #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
     parent: Option<Element>,
+
+    /// Previous sibling element to this element
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
+    prev_sibling: Option<Element>,
+
+    /// Next sibling element to this element
+    #[ent(edge(policy = "shallow", wrap, graphql(filter_untyped)))]
+    next_sibling: Option<Element>,
 }
 
 #[cfg(test)]

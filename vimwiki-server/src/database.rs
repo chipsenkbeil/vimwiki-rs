@@ -2,8 +2,13 @@ use crate::{data::Wiki, utils, Config, Opt};
 use async_graphql::ErrorExtensions;
 use entity::*;
 use entity_inmemory::InmemoryDatabase;
+use lazy_static::lazy_static;
 use snafu::{ResultExt, Snafu};
-use std::path::PathBuf;
+use std::{iter, path::PathBuf, sync::Mutex};
+
+lazy_static! {
+    static ref ID_ALLOCATOR: Mutex<Option<IdAllocator>> = Mutex::new(None);
+}
 
 #[derive(Debug, Snafu)]
 pub enum VimwikiDatabaseError {
@@ -46,6 +51,29 @@ pub fn gql_db() -> async_graphql::Result<DatabaseRc> {
         .ok_or_else(|| VimwikiDatabaseError::DatabaseUnavailable.extend())
 }
 
+/// Returns the next id available in the global allocator
+pub fn next_id() -> Id {
+    ID_ALLOCATOR
+        .lock()
+        .unwrap()
+        .and_then(|x| x.next())
+        .expect("Ran out of ids!")
+}
+
+/// Frees the given id, making it available to be reused by the allocator
+pub fn free_id(id: usize) {
+    if let Some(allocator) = ID_ALLOCATOR.lock().unwrap().as_mut() {
+        allocator.extend(iter::once(id));
+    }
+}
+
+/// Sets the next id that the global allocator will provide
+pub fn set_next_id(id: usize) {
+    if let Some(allocator) = ID_ALLOCATOR.lock().unwrap().as_mut() {
+        allocator.set_next_id(id);
+    }
+}
+
 /// Load database state using given opt
 pub async fn load(
     opt: &Opt,
@@ -78,6 +106,25 @@ pub async fn load(
 
     // Set database to be globally available
     global::set_db(database);
+
+    // Load our id allocator from disk or create a new one
+    let allocator = {
+        let path = id_file(opt);
+        if path.exists() {
+            let contents = tokio::fs::read_to_string(&path)
+                .await
+                .context(LoadDatabase { path })?;
+
+            let allocator: IdAllocator =
+                serde_json::from_str(&contents).context(JsonToDatabase {})?;
+
+            allocator
+        } else {
+            IdAllocator::default()
+        }
+    };
+
+    ID_ALLOCATOR.lock().unwrap().replace(allocator);
 
     // Determine the paths of the pre-known wikis we will be parsing and indexing
     let _ = Wiki::load_all_from_config(
@@ -120,6 +167,18 @@ pub async fn store(opt: &Opt) -> async_graphql::Result<()> {
         .context(StoreDatabase { path })
         .map_err(|x| x.extend())?;
 
+    // Write our allocator to disk
+    if let Some(allocator) = ID_ALLOCATOR.lock().unwrap().as_ref() {
+        let path = id_file(opt);
+        let json = serde_json::to_string_pretty(allocator)
+            .context(DatabaseToJson {})
+            .map_err(|x| x.extend())?;
+        tokio::fs::write(&path, json)
+            .await
+            .context(StoreDatabase { path })
+            .map_err(|x| x.extend())?;
+    }
+
     Ok(())
 }
 
@@ -127,4 +186,10 @@ pub async fn store(opt: &Opt) -> async_graphql::Result<()> {
 #[inline]
 fn cache_file(opt: &Opt) -> PathBuf {
     opt.cache.join("vimwiki.database")
+}
+
+/// Represents the path to the id file for the database
+#[inline]
+fn id_file(opt: &Opt) -> PathBuf {
+    opt.cache.join("vimwiki.id")
 }
