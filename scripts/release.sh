@@ -8,7 +8,6 @@ CRATES=(
   vimwiki_macros
   vimwiki
   vimwiki-cli
-  vimwiki-server
   vimwiki-wasm
 )
 

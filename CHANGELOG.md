@@ -24,6 +24,15 @@
 
 - Local anchor links were adding `index.html` in front of the anchor
   regardless of the page's name
+- Bump to `0.3.0` of `vimvar` dependency to support `init.lua` when searching
+  for wiki paths
+
+### Removed
+
+- Deleted `vimwiki-server` as no longer going to support a GraphQL server of
+  documents since `AsyncGraphql` dependency keeps breaking. Instead, will
+  focus on expanding the `vimwiki-cli` offering to provide features to
+  query wiki documents
 
 ### Performance
 
