@@ -9,11 +9,11 @@ fn tokenize_comment(ctx: &TokenizeContext, comment: &Comment) -> TokenStream {
     let root = root_crate();
     match comment {
         Comment::Line(x) => {
-            let t = do_tokenize!(ctx, &x);
+            let t = do_tokenize!(ctx, x);
             quote! { #root::Comment::Line(#t) }
         }
         Comment::MultiLine(x) => {
-            let t = do_tokenize!(ctx, &x);
+            let t = do_tokenize!(ctx, x);
             quote! { #root::Comment::MultiLine(#t) }
         }
     }

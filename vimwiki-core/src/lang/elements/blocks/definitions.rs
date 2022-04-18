@@ -3,15 +3,16 @@ use crate::{
         InlineBlockElement, InlineElement, InlineElementContainer,
         IntoChildren, Located, Text,
     },
-    StrictEq,
+    ElementLike, StrictEq,
 };
 use derive_more::{
-    AsRef, Constructor, Deref, DerefMut, Display, Index, IndexMut, Into,
+    AsMut, AsRef, Constructor, Deref, DerefMut, Display, Index, IndexMut, Into,
     IntoIterator,
 };
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
+    fmt,
     hash::{Hash, Hasher},
     iter::FromIterator,
 };
@@ -40,6 +41,8 @@ pub struct DefinitionListValue<'a>(
     /// Represents the inner type that the definition list value wraps
     InlineElementContainer<'a>,
 );
+
+impl ElementLike for DefinitionListValue<'_> {}
 
 impl<'a> DefinitionListValue<'a> {
     /// Returns reference to underlying container
@@ -131,6 +134,112 @@ pub type Term<'a> = DefinitionListValue<'a>;
 /// Represents the type alias used for a single definition
 pub type Definition<'a> = DefinitionListValue<'a>;
 
+/// Represents a bundle of definitions tied to a singular term
+#[derive(
+    AsMut,
+    AsRef,
+    Constructor,
+    Clone,
+    Debug,
+    Index,
+    IndexMut,
+    Into,
+    IntoIterator,
+    Eq,
+    PartialEq,
+    Hash,
+    Serialize,
+    Deserialize,
+)]
+#[into_iterator(owned, ref, ref_mut)]
+pub struct DefinitionBundle<'a>(Vec<Located<Definition<'a>>>);
+
+impl ElementLike for DefinitionBundle<'_> {}
+
+impl<'a> DefinitionBundle<'a> {
+    /// Creates a new, empty bundle
+    pub fn empty() -> Self {
+        Self::new(Vec::new())
+    }
+
+    /// Returns iterator over references to elements
+    pub fn iter(&self) -> impl Iterator<Item = &Located<Definition<'a>>> {
+        self.into_iter()
+    }
+
+    /// Returns iterator over mutable references to elements
+    pub fn iter_mut(
+        &mut self,
+    ) -> impl Iterator<Item = &mut Located<Definition<'a>>> {
+        self.into_iter()
+    }
+
+    /// Returns total elements contained within container
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Returns true if container has no elements
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    /// Returns reference to element at specified index, if it exists
+    pub fn get(&self, idx: usize) -> Option<&Located<Definition<'a>>> {
+        self.0.get(idx)
+    }
+
+    /// Returns the definitions contained within the bundle
+    pub fn into_definitions(self) -> Vec<Located<Definition<'a>>> {
+        self.0
+    }
+}
+
+impl DefinitionBundle<'_> {
+    pub fn to_borrowed(&self) -> DefinitionBundle {
+        let elements = self
+            .iter()
+            .map(|x| x.as_ref().map(Definition::to_borrowed))
+            .collect();
+
+        DefinitionBundle::new(elements)
+    }
+
+    pub fn into_owned(self) -> DefinitionBundle<'static> {
+        let elements = self
+            .into_iter()
+            .map(|x| x.map(Definition::into_owned))
+            .collect();
+
+        DefinitionBundle::new(elements)
+    }
+}
+
+impl<'a> IntoChildren for DefinitionBundle<'a> {
+    type Child = Located<Definition<'a>>;
+
+    fn into_children(self) -> Vec<Self::Child> {
+        self.0
+    }
+}
+
+impl<'a> StrictEq for DefinitionBundle<'a> {
+    /// Performs strict_eq on all definitions
+    #[inline]
+    fn strict_eq(&self, other: &Self) -> bool {
+        self.0.strict_eq(&other.0)
+    }
+}
+
+impl<'a> fmt::Display for DefinitionBundle<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for le in self.iter() {
+            write!(f, "{}", le.as_inner())?;
+        }
+        Ok(())
+    }
+}
+
 /// Represents a list of terms and definitions, where a term can have multiple
 /// definitions associated with it
 #[derive(
@@ -148,8 +257,10 @@ pub struct DefinitionList<'a> {
     /// Represents the inner mapping of terms to definitions
     #[into_iterator(owned, ref, ref_mut)]
     #[serde(with = "serde_with::rust::map_as_tuple_list")]
-    pub mapping: HashMap<Located<Term<'a>>, Vec<Located<Definition<'a>>>>,
+    pub mapping: HashMap<Located<Term<'a>>, Located<DefinitionBundle<'a>>>,
 }
+
+impl ElementLike for DefinitionList<'_> {}
 
 impl DefinitionList<'_> {
     pub fn to_borrowed(&self) -> DefinitionList {
@@ -158,12 +269,7 @@ impl DefinitionList<'_> {
             .map(|(key, value)| {
                 (
                     key.as_ref().map(DefinitionListValue::to_borrowed),
-                    value
-                        .iter()
-                        .map(|x| {
-                            x.as_ref().map(DefinitionListValue::to_borrowed)
-                        })
-                        .collect(),
+                    value.as_ref().map(DefinitionBundle::to_borrowed),
                 )
             })
             .collect();
@@ -177,10 +283,7 @@ impl DefinitionList<'_> {
             .map(|(key, value)| {
                 (
                     key.map(DefinitionListValue::into_owned),
-                    value
-                        .into_iter()
-                        .map(|x| x.map(DefinitionListValue::into_owned))
-                        .collect(),
+                    value.map(DefinitionBundle::into_owned),
                 )
             })
             .collect();
@@ -194,18 +297,16 @@ impl<'a> DefinitionList<'a> {
     pub fn get(
         &'a self,
         term: impl Into<Term<'a>>,
-    ) -> Option<&[Located<Definition<'a>>]> {
-        self.mapping
-            .get(&Located::from(term.into()))
-            .map(AsRef::as_ref)
+    ) -> Option<&Located<DefinitionBundle<'a>>> {
+        self.mapping.get(&Located::from(term.into()))
     }
 
     /// Iterates through all terms and their associated definitions in the list
     pub fn iter(
         &self,
-    ) -> impl Iterator<Item = (&Located<Term<'a>>, &[Located<Definition<'a>>])>
+    ) -> impl Iterator<Item = (&Located<Term<'a>>, &Located<DefinitionBundle<'a>>)>
     {
-        self.mapping.iter().map(|(k, v)| (k, v.as_slice()))
+        self.mapping.iter()
     }
 
     /// Iterates through all terms in the list
@@ -217,7 +318,7 @@ impl<'a> DefinitionList<'a> {
     pub fn definitions(
         &self,
     ) -> impl Iterator<Item = &Located<Definition<'a>>> {
-        self.mapping.values().flatten()
+        self.mapping.values().flat_map(|x| x.iter())
     }
 }
 
@@ -227,9 +328,11 @@ impl<'a> IntoChildren for DefinitionList<'a> {
     fn into_children(self) -> Vec<Self::Child> {
         self.mapping
             .into_iter()
-            .flat_map(|(term, defs)| {
+            .flat_map(|(term, bundle)| {
                 std::iter::once(term.map(InlineBlockElement::Term)).chain(
-                    defs.into_iter()
+                    bundle
+                        .into_inner()
+                        .into_iter()
                         .map(|x| x.map(InlineBlockElement::Definition)),
                 )
             })
@@ -237,16 +340,18 @@ impl<'a> IntoChildren for DefinitionList<'a> {
     }
 }
 
-impl<'a, T: IntoIterator<Item = Located<Definition<'a>>>>
-    FromIterator<(Located<Term<'a>>, T)> for DefinitionList<'a>
+impl<'a> FromIterator<(Located<Term<'a>>, Located<DefinitionBundle<'a>>)>
+    for DefinitionList<'a>
 {
-    fn from_iter<I: IntoIterator<Item = (Located<Term<'a>>, T)>>(
+    fn from_iter<
+        I: IntoIterator<Item = (Located<Term<'a>>, Located<DefinitionBundle<'a>>)>,
+    >(
         iter: I,
     ) -> Self {
         let mut dl = Self::default();
 
-        for (term, definitions) in iter.into_iter() {
-            dl.mapping.insert(term, definitions.into_iter().collect());
+        for (term, def_bundle) in iter.into_iter() {
+            dl.mapping.insert(term, def_bundle);
         }
 
         dl
@@ -325,8 +430,14 @@ mod tests {
     #[test]
     fn definition_list_should_be_able_to_iterate_through_terms() {
         let dl: DefinitionList = vec![
-            (Located::from(Term::from("term1")), vec![]),
-            (Located::from(Term::from("term2")), vec![]),
+            (
+                Located::from(Term::from("term1")),
+                Located::from(DefinitionBundle::empty()),
+            ),
+            (
+                Located::from(Term::from("term2")),
+                Located::from(DefinitionBundle::empty()),
+            ),
         ]
         .into_iter()
         .collect();
@@ -344,9 +455,14 @@ mod tests {
         let dl: DefinitionList = vec![
             (
                 Located::from(Term::from("term1")),
-                vec![Located::from(Definition::from("definition"))],
+                Located::from(DefinitionBundle::new(vec![Located::from(
+                    Definition::from("definition"),
+                )])),
             ),
-            (Located::from(Term::from("term2")), vec![]),
+            (
+                Located::from(Term::from("term2")),
+                Located::from(DefinitionBundle::empty()),
+            ),
         ]
         .into_iter()
         .collect();
@@ -360,13 +476,8 @@ mod tests {
         assert_eq!(defs.len(), 1);
         assert!(defs.contains(&"definition".to_string()));
 
-        let defs = dl
-            .get("term2")
-            .expect("Failed to find term")
-            .iter()
-            .map(|d| d.to_string())
-            .collect::<Vec<String>>();
-        assert!(defs.is_empty());
+        let mut defs = dl.get("term2").expect("Failed to find term").iter();
+        assert!(defs.next().is_none(), "Definitions is not empty");
 
         assert!(dl.get("term-unknown").is_none());
     }
@@ -377,12 +488,15 @@ mod tests {
         let dl: DefinitionList = vec![
             (
                 Located::from(Term::from("term1")),
-                vec![
+                Located::from(DefinitionBundle::new(vec![
                     Located::from(Definition::from("def1")),
                     Located::from(Definition::from("def2")),
-                ],
+                ])),
             ),
-            (Located::from(Term::from("term2")), vec![]),
+            (
+                Located::from(Term::from("term2")),
+                Located::from(DefinitionBundle::empty()),
+            ),
         ]
         .into_iter()
         .collect();

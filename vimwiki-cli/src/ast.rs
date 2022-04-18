@@ -237,6 +237,7 @@ fn load_wiki_file(
         // If a checksum file exists for the current checksum, then we can
         // just load that as it should match what we want
         if cached_page_path.exists() {
+            debug!("{:?} :: loading cache from {:?}", path, cached_page_path);
             let cached_page: io::Result<Page> =
                 fs::File::open(cached_page_path.as_path())
                     .map(io::BufReader::new)
@@ -319,4 +320,202 @@ fn load_wiki_file(
         checksum,
         data: page,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod wiki_file {
+        use super::*;
+        use indoc::indoc;
+
+        fn make_file(text: &str) -> tempfile::NamedTempFile {
+            let mut f = tempfile::NamedTempFile::new()
+                .expect("Failed to create temporary file");
+
+            write!(&mut f, "{}", text)
+                .expect("Failed to write to temporary file");
+
+            f
+        }
+
+        fn make_cache_dir() -> tempfile::TempDir {
+            tempfile::tempdir().expect("Failed to create temporary cache dir")
+        }
+
+        #[test]
+        fn load_wiki_file_should_support_blockquotes() {
+            let file = make_file(indoc! {"
+                > this is
+                > a blockquote
+            "});
+            let cache = make_cache_dir();
+            WikiFile::load(
+                file.as_ref(),
+                cache.as_ref(),
+                /* no_cache */ true,
+            )
+            .expect("Failed to load file");
+        }
+
+        #[test]
+        fn load_wiki_file_should_support_code_blocks() {
+            let file = make_file(indoc! {"
+                {{{
+                this is a code block
+                }}}
+            "});
+            let cache = make_cache_dir();
+            WikiFile::load(
+                file.as_ref(),
+                cache.as_ref(),
+                /* no_cache */ true,
+            )
+            .expect("Failed to load file");
+        }
+
+        #[test]
+        fn load_wiki_file_should_support_comments() {
+            let file = make_file(indoc! {"
+                %% line based comment
+                %%+ multi line comment on single line +%%
+                %%+ multi line comment 
+                on multiple line +%%
+            "});
+            let cache = make_cache_dir();
+            WikiFile::load(
+                file.as_ref(),
+                cache.as_ref(),
+                /* no_cache */ true,
+            )
+            .expect("Failed to load file");
+        }
+
+        #[test]
+        fn load_wiki_file_should_support_definition_lists() {
+            let file = make_file(indoc! {"
+                term1:: definition 1
+                :: definition 2
+            "});
+            let cache = make_cache_dir();
+            WikiFile::load(
+                file.as_ref(),
+                cache.as_ref(),
+                /* no_cache */ true,
+            )
+            .expect("Failed to load file");
+        }
+
+        #[test]
+        fn load_wiki_file_should_support_dividers() {
+            let file = make_file(indoc! {"
+                ----
+            "});
+            let cache = make_cache_dir();
+            WikiFile::load(
+                file.as_ref(),
+                cache.as_ref(),
+                /* no_cache */ true,
+            )
+            .expect("Failed to load file");
+        }
+
+        #[test]
+        fn load_wiki_file_should_support_headers() {
+            let file = make_file(indoc! {"
+                = this is a header =
+            "});
+            let cache = make_cache_dir();
+            WikiFile::load(
+                file.as_ref(),
+                cache.as_ref(),
+                /* no_cache */ true,
+            )
+            .expect("Failed to load file");
+        }
+
+        #[test]
+        fn load_wiki_file_should_support_lists() {
+            let file = make_file(indoc! {"
+                - one
+                - two
+                - three
+            "});
+            let cache = make_cache_dir();
+            WikiFile::load(
+                file.as_ref(),
+                cache.as_ref(),
+                /* no_cache */ true,
+            )
+            .expect("Failed to load file");
+        }
+
+        #[test]
+        fn load_wiki_file_should_support_math_blocks() {
+            let file = make_file(indoc! {"
+                {{$
+                this is
+                a math block
+                }}$
+            "});
+            let cache = make_cache_dir();
+            WikiFile::load(
+                file.as_ref(),
+                cache.as_ref(),
+                /* no_cache */ true,
+            )
+            .expect("Failed to load file");
+        }
+
+        #[test]
+        fn load_wiki_file_should_support_paragraphs() {
+            let file = make_file(indoc! {"
+                this is a paragraph with *bold*, _italic_, _*bold italic*_,
+                ~~strikeout~~, `code`, super^script^, sub,,script,, text
+            "});
+            let cache = make_cache_dir();
+            WikiFile::load(
+                file.as_ref(),
+                cache.as_ref(),
+                /* no_cache */ true,
+            )
+            .expect("Failed to load file");
+        }
+
+        #[test]
+        fn load_wiki_file_should_support_placeholders() {
+            let file = make_file(indoc! {"
+                %title some title
+                %nohtml
+                %template some/template.txt
+                %date 2022-04-17
+                %custom placeholder
+            "});
+            let cache = make_cache_dir();
+            WikiFile::load(
+                file.as_ref(),
+                cache.as_ref(),
+                /* no_cache */ true,
+            )
+            .expect("Failed to load file");
+        }
+
+        #[test]
+        fn load_wiki_file_should_support_tables() {
+            let file = make_file(indoc! {r#"
+                | a  | b  | c | d |
+                | \/ | e  | > | f |
+                | \/ | \/ | > | g |
+                | h  | >  | > | > |
+            "#});
+            let cache = make_cache_dir();
+            WikiFile::load(
+                file.as_ref(),
+                cache.as_ref(),
+                /* no_cache */ true,
+            )
+            .expect("Failed to load file");
+        }
+    }
 }

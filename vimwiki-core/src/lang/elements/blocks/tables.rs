@@ -2,7 +2,7 @@ use crate::{
     lang::elements::{
         InlineElement, InlineElementContainer, IntoChildren, Located,
     },
-    StrictEq,
+    ElementLike, StrictEq,
 };
 use derive_more::{Constructor, Display, Error, From, IntoIterator, IsVariant};
 use serde::{Deserialize, Serialize};
@@ -86,6 +86,8 @@ pub struct Table<'a> {
     /// Represents whether or not the table is centered
     pub centered: bool,
 }
+
+impl ElementLike for Table<'_> {}
 
 impl Table<'_> {
     pub fn to_borrowed(&self) -> Table {
@@ -356,11 +358,14 @@ impl<'a> StrictEq for Table<'a> {
 #[derive(
     Clone, Debug, From, Eq, PartialEq, Hash, Serialize, Deserialize, IsVariant,
 )]
+#[serde(rename_all = "snake_case", tag = "type", content = "data")]
 pub enum Cell<'a> {
     Content(InlineElementContainer<'a>),
     Span(CellSpan),
     Align(ColumnAlign),
 }
+
+impl ElementLike for Cell<'_> {}
 
 impl Cell<'_> {
     pub fn to_borrowed(&self) -> Cell {
@@ -434,6 +439,7 @@ impl<'a> StrictEq for Cell<'a> {
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", tag = "type", content = "data")]
 pub enum CellSpan {
     FromLeft,
     FromAbove,
@@ -447,6 +453,7 @@ impl StrictEq for CellSpan {
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", tag = "type", content = "data")]
 pub enum ColumnAlign {
     None,
     Left,

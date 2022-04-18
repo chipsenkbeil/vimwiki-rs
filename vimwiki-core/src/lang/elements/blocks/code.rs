@@ -1,4 +1,4 @@
-use crate::StrictEq;
+use crate::{ElementLike, StrictEq};
 use derive_more::{Constructor, Index, IndexMut, IntoIterator};
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, collections::HashMap, fmt, iter::FromIterator};
@@ -29,6 +29,8 @@ pub struct CodeBlock<'a> {
     #[into_iterator(owned, ref, ref_mut)]
     pub lines: Vec<Cow<'a, str>>,
 }
+
+impl ElementLike for CodeBlock<'_> {}
 
 impl<'a> CodeBlock<'a> {
     /// Constructs a code block with the provided lines using no language or metadata

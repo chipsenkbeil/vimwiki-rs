@@ -19,6 +19,7 @@ use uriparse::{URIReference, URIReferenceError};
     Serialize,
     Deserialize,
 )]
+#[serde(rename_all = "snake_case", tag = "type", content = "data")]
 pub enum Description<'a> {
     Text(Cow<'a, str>),
     TransclusionLink(Box<LinkData<'a>>),

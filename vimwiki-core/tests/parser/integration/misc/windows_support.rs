@@ -112,19 +112,19 @@ fn test() {
             vec![
                 (
                     Located::from(Term::from("term1")),
-                    vec![Located::from(Definition::from(
-                        "with carriage returns"
-                    ))]
+                    Located::from(DefinitionBundle::new(vec![Located::from(
+                        Definition::from("with carriage returns")
+                    )]))
                 ),
                 (
                     Located::from(Term::from("term2")),
-                    vec![Located::from(Definition::from(
-                        "with carriage returns"
-                    ))]
+                    Located::from(DefinitionBundle::new(vec![Located::from(
+                        Definition::from("with carriage returns")
+                    )]))
                 )
             ]
             .into_iter()
-            .collect::<HashMap<Located<Term>, Vec<Located<Definition>>>>()
+            .collect::<HashMap<Located<Term>, Located<DefinitionBundle>>>()
         ))),
     );
 

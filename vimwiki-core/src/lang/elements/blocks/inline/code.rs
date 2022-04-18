@@ -1,4 +1,4 @@
-use crate::StrictEq;
+use crate::{ElementLike, StrictEq};
 use derive_more::{AsRef, Constructor, Display, Into};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
@@ -21,6 +21,8 @@ pub struct CodeInline<'a>(
     /// Represents the text contained within the inline code snippet
     Cow<'a, str>,
 );
+
+impl ElementLike for CodeInline<'_> {}
 
 impl<'a> CodeInline<'a> {
     /// Extracts a string slice containing the entire code snippet

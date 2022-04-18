@@ -2,7 +2,7 @@ use crate::{
     lang::elements::{
         InlineElement, InlineElementContainer, IntoChildren, Located,
     },
-    StrictEq,
+    ElementLike, StrictEq,
 };
 use derive_more::{Constructor, Index, IndexMut, IntoIterator};
 use serde::{Deserialize, Serialize};
@@ -27,6 +27,8 @@ pub struct Paragraph<'a> {
     #[into_iterator(owned, ref, ref_mut)]
     pub lines: Vec<InlineElementContainer<'a>>,
 }
+
+impl ElementLike for Paragraph<'_> {}
 
 impl<'a> Paragraph<'a> {
     /// Returns true if the paragraph only contains blank lines (or has no

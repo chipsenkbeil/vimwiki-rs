@@ -697,7 +697,7 @@ impl<'a> Output<VimwikiFormatter> for Link<'a> {
                 write!(f, "]]")?;
             }
             Self::Raw { data } => {
-                write!(f, "{}", data.uri_ref.to_string())?;
+                write!(f, "{}", data.uri_ref)?;
             }
             Self::Transclusion { data } => {
                 write!(f, "{{{{")?;
@@ -997,10 +997,12 @@ mod tests {
     ) -> DefinitionList {
         vec![(
             Located::from(DefinitionListValue::from(term)),
-            defs.into_iter()
-                .map(Into::into)
-                .map(Located::from)
-                .collect::<Vec<Located<DefinitionListValue>>>(),
+            Located::from(DefinitionBundle::new(
+                defs.into_iter()
+                    .map(Into::into)
+                    .map(Located::from)
+                    .collect::<Vec<Located<DefinitionListValue>>>(),
+            )),
         )]
         .into_iter()
         .collect()

@@ -1,4 +1,4 @@
-use crate::StrictEq;
+use crate::{ElementLike, StrictEq};
 use derive_more::{
     AsRef, Constructor, Deref, DerefMut, Display, From, Index, IndexMut,
     IntoIterator, IsVariant,
@@ -18,10 +18,13 @@ use std::{borrow::Cow, iter::FromIterator};
     Serialize,
     Deserialize,
 )]
+#[serde(rename_all = "snake_case", tag = "type", content = "data")]
 pub enum Comment<'a> {
     Line(LineComment<'a>),
     MultiLine(MultiLineComment<'a>),
 }
+
+impl ElementLike for Comment<'_> {}
 
 impl Comment<'_> {
     pub fn to_borrowed(&self) -> Comment {
@@ -66,6 +69,8 @@ pub struct LineComment<'a>(
     /// Represents the text represented as a comment
     Cow<'a, str>,
 );
+
+impl ElementLike for LineComment<'_> {}
 
 impl<'a> LineComment<'a> {
     /// Returns comment's text as a [`str`]
@@ -135,6 +140,8 @@ pub struct MultiLineComment<'a>(
     /// Represents the lines of text represented as a comment
     Vec<Cow<'a, str>>,
 );
+
+impl ElementLike for MultiLineComment<'_> {}
 
 impl MultiLineComment<'_> {
     pub fn to_borrowed(&self) -> MultiLineComment {

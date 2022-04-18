@@ -1,6 +1,6 @@
 use crate::{
     lang::elements::{IntoChildren, Located},
-    StrictEq,
+    ElementLike, StrictEq,
 };
 use derive_more::{
     Constructor, Display, From, Index, IndexMut, Into, IntoIterator,
@@ -25,6 +25,7 @@ pub use typefaces::*;
 #[derive(
     Clone, Debug, Display, From, Eq, PartialEq, Hash, Serialize, Deserialize,
 )]
+#[serde(rename_all = "snake_case", tag = "type", content = "data")]
 pub enum InlineElement<'a> {
     Text(Text<'a>),
     DecoratedText(DecoratedText<'a>),
@@ -39,6 +40,8 @@ pub enum InlineElement<'a> {
     #[display(fmt = "")]
     Comment(Comment<'a>),
 }
+
+impl ElementLike for InlineElement<'_> {}
 
 impl InlineElement<'_> {
     pub fn to_borrowed(&self) -> InlineElement {
@@ -114,6 +117,8 @@ impl<'a> StrictEq for InlineElement<'a> {
 #[into_iterator(owned, ref, ref_mut)]
 pub struct InlineElementContainer<'a>(Vec<Located<InlineElement<'a>>>);
 
+impl ElementLike for InlineElementContainer<'_> {}
+
 impl<'a> InlineElementContainer<'a> {
     /// Returns iterator over references to elements
     pub fn iter(&self) -> impl Iterator<Item = &Located<InlineElement<'a>>> {
@@ -174,7 +179,7 @@ impl<'a> IntoChildren for InlineElementContainer<'a> {
 impl<'a> fmt::Display for InlineElementContainer<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for le in self.iter() {
-            write!(f, "{}", le.as_inner().to_string())?;
+            write!(f, "{}", le.as_inner())?;
         }
         Ok(())
     }

@@ -1,6 +1,7 @@
 use crate::lang::{
     elements::{
-        Definition, DefinitionList, InlineElementContainer, Located, Term,
+        Definition, DefinitionBundle, DefinitionList, InlineElementContainer,
+        Located, Term,
     },
     parsers::{
         utils::{
@@ -35,18 +36,20 @@ pub fn definition_list(input: Span) -> IResult<Located<DefinitionList>> {
 #[inline]
 fn term_and_definitions<'a>(
     input: Span<'a>,
-) -> IResult<(Located<Term<'a>>, Vec<Located<Definition<'a>>>)> {
+) -> IResult<(Located<Term<'a>>, Located<DefinitionBundle<'a>>)> {
     let (input, (term, maybe_def)) = term_line(input)?;
-    let (input, mut defs) =
+    let (input, mut bundle) = locate(capture(map(
         verify(many0(definition_line), |defs: &Vec<Located<Definition>>| {
             maybe_def.is_some() || !defs.is_empty()
-        })(input)?;
+        }),
+        DefinitionBundle::new,
+    )))(input)?;
 
     if let Some(def) = maybe_def {
-        defs.insert(0, def);
+        bundle.as_mut_inner().as_mut().insert(0, def);
     }
 
-    Ok((input, (term, defs)))
+    Ok((input, (term, bundle)))
 }
 
 /// Parsers a line as a term (with optional definition)

@@ -665,7 +665,9 @@ mod tests {
             l[0][1].as_definition_list().unwrap(),
             &vec![(
                 Located::from(Term::from("term")),
-                vec![Located::from(Definition::from("def"))]
+                Located::from(DefinitionBundle::new(vec![Located::from(
+                    Definition::from("def")
+                )]))
             )]
             .into_iter()
             .collect::<DefinitionList>(),

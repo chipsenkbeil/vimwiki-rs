@@ -20,19 +20,19 @@ fn tokenize_decorated_text_content(
     let root = root_crate();
     match &decorated_text_content {
         DecoratedTextContent::Keyword(x) => {
-            let t = do_tokenize!(ctx, &x);
+            let t = do_tokenize!(ctx, x);
             quote! { #root::DecoratedTextContent::Keyword(#t) }
         }
         DecoratedTextContent::Link(x) => {
-            let t = do_tokenize!(ctx, &x);
+            let t = do_tokenize!(ctx, x);
             quote! { #root::DecoratedTextContent::Link(#t) }
         }
         DecoratedTextContent::DecoratedText(x) => {
-            let t = do_tokenize!(ctx, &x);
+            let t = do_tokenize!(ctx, x);
             quote! { #root::DecoratedTextContent::DecoratedText(#t) }
         }
         DecoratedTextContent::Text(x) => {
-            let t = do_tokenize!(ctx, &x);
+            let t = do_tokenize!(ctx, x);
             quote! { #root::DecoratedTextContent::Text(#t) }
         }
     }

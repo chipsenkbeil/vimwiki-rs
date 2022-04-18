@@ -1,4 +1,4 @@
-use crate::StrictEq;
+use crate::{ElementLike, StrictEq};
 use derive_more::Constructor;
 use serde::{Deserialize, Serialize};
 
@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
     Constructor, Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize,
 )]
 pub struct Divider;
+
+impl ElementLike for Divider {}
 
 impl StrictEq for Divider {
     /// Same as PartialEq

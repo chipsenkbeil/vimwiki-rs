@@ -19,6 +19,7 @@
   of the potential elements
 - HTML output of list items with text now yields `<li><p>...</p></li>` instead
   of the previous `<li>...</li>`
+- Refactor `DefinitionList` to use new `DefinitionBundle` type for definitions
 
 ### Fixed
 

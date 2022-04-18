@@ -1,6 +1,6 @@
 use super::{context, single_multispace};
 use crate::lang::{
-    elements::{Located, Region},
+    elements::{ElementLike, Located, Region},
     parsers::{Captured, IResult, Span},
 };
 use nom::{
@@ -28,7 +28,10 @@ pub fn deeper<'a, T>(
 /// and column information for the captured input.
 pub fn locate<'a, T>(
     mut parser: impl FnMut(Span<'a>) -> IResult<Captured<T>>,
-) -> impl FnMut(Span<'a>) -> IResult<Located<T>> {
+) -> impl FnMut(Span<'a>) -> IResult<Located<T>>
+where
+    T: ElementLike,
+{
     context("Locate", move |input: Span<'a>| {
         let (input, c) = parser(input)?;
         let region = Region::from(c.input());
@@ -89,30 +92,34 @@ mod tests {
     use super::*;
     use nom::bytes::complete::tag;
 
+    #[derive(Debug, PartialEq, Eq)]
+    struct FakeElement(u32);
+    impl ElementLike for FakeElement {}
+
     #[test]
     fn locate_should_return_parser_result_with_consumed_input_location() {
         let input = Span::from("123abc");
         let (input, located) =
             locate(capture(map_res(tag("123"), |s: Span| {
-                s.as_unsafe_remaining_str().parse::<u32>()
+                s.as_unsafe_remaining_str().parse::<u32>().map(FakeElement)
             })))(input)
             .unwrap();
         assert_eq!(input, "abc");
         assert_eq!(located.region().offset(), 0);
         assert_eq!(located.region().len(), 3);
-        assert_eq!(located.into_inner(), 123);
+        assert_eq!(located.into_inner(), FakeElement(123));
     }
 
     #[test]
     fn capture_should_return_parser_result_with_consumed_input() {
         let input = Span::from("123abc");
         let (input, captured) = capture(map_res(tag("123"), |s: Span| {
-            s.as_unsafe_remaining_str().parse::<u32>()
+            s.as_unsafe_remaining_str().parse::<u32>().map(FakeElement)
         }))(input)
         .unwrap();
         assert_eq!(input, "abc");
         assert_eq!(captured.input(), "123");
-        assert_eq!(captured.into_inner(), 123);
+        assert_eq!(captured.into_inner(), FakeElement(123));
     }
 
     #[test]

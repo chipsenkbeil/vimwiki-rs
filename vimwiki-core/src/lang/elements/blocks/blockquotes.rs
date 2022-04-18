@@ -1,4 +1,4 @@
-use crate::StrictEq;
+use crate::{ElementLike, StrictEq};
 use derive_more::{Constructor, Index, IndexMut, IntoIterator};
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, fmt, iter::FromIterator};
@@ -24,6 +24,8 @@ pub struct Blockquote<'a> {
     #[into_iterator(owned, ref, ref_mut)]
     pub lines: Vec<Cow<'a, str>>,
 }
+
+impl ElementLike for Blockquote<'_> {}
 
 impl<'a> Blockquote<'a> {
     /// Returns total line groups available

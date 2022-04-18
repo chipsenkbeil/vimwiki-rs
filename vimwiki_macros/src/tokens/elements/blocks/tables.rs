@@ -31,15 +31,15 @@ fn tokenize_cell(ctx: &TokenizeContext, cell: &Cell) -> TokenStream {
     let root = root_crate();
     match &cell {
         Cell::Content(x) => {
-            let t = do_tokenize!(ctx, &x);
+            let t = do_tokenize!(ctx, x);
             quote! { #root::Cell::Content(#t) }
         }
         Cell::Span(x) => {
-            let t = do_tokenize!(ctx, &x);
+            let t = do_tokenize!(ctx, x);
             quote! { #root::Cell::Span(#t) }
         }
         Cell::Align(x) => {
-            let t = do_tokenize!(ctx, &x);
+            let t = do_tokenize!(ctx, x);
             quote! { #root::Cell::Align(#t) }
         }
     }

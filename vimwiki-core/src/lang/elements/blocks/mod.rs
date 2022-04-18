@@ -1,6 +1,6 @@
 use crate::{
     lang::elements::{Element, IntoChildren, Located},
-    StrictEq,
+    ElementLike, StrictEq,
 };
 use derive_more::{From, IsVariant};
 use serde::{Deserialize, Serialize};
@@ -32,6 +32,7 @@ pub use tables::*;
 #[derive(
     Clone, Debug, From, Eq, PartialEq, Serialize, Deserialize, IsVariant,
 )]
+#[serde(rename_all = "snake_case", tag = "type", content = "data")]
 pub enum BlockElement<'a> {
     Blockquote(Blockquote<'a>),
     CodeBlock(CodeBlock<'a>),
@@ -44,6 +45,8 @@ pub enum BlockElement<'a> {
     Placeholder(Placeholder<'a>),
     Table(Table<'a>),
 }
+
+impl ElementLike for BlockElement<'_> {}
 
 impl BlockElement<'_> {
     pub fn to_borrowed(&self) -> BlockElement {

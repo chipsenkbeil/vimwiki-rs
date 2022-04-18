@@ -2,7 +2,7 @@ use crate::tokens::{utils::root_crate, Tokenize, TokenizeContext};
 use proc_macro2::TokenStream;
 use quote::quote;
 use vimwiki_core::{
-    Definition, DefinitionList, DefinitionListValue, Located, Term,
+    DefinitionBundle, DefinitionList, DefinitionListValue, Located, Term,
 };
 
 impl_tokenize!(tokenize_definition_list, DefinitionList<'a>, 'a);
@@ -13,25 +13,35 @@ fn tokenize_definition_list(
     let root = root_crate();
     let td = definition_list
         .iter()
-        .map(|x| tokenize_term_and_definitions(ctx, x));
+        .map(|x| tokenize_term_and_definition_bundle(ctx, x));
     quote! {
         <#root::DefinitionList as ::std::iter::FromIterator<
             (
                 #root::Located<#root::Term>,
-                ::std::vec::Vec<#root::Located<#root::Definition>>,
+                #root::Located<#root::DefinitionBundle>,
             )
         >>::from_iter(::std::vec![#(#td),*])
     }
 }
 
-fn tokenize_term_and_definitions(
+fn tokenize_term_and_definition_bundle(
     ctx: &TokenizeContext,
-    (term, definitions): (&Located<Term>, &[Located<Definition>]),
+    (term, bundle): (&Located<Term>, &Located<DefinitionBundle>),
 ) -> TokenStream {
     let term = do_tokenize!(ctx, term);
-    let definitions = definitions.iter().map(|x| do_tokenize!(ctx, x));
+    let bundle = do_tokenize!(ctx, bundle);
+    quote! { (#term, #bundle) }
+}
+
+impl_tokenize!(tokenize_definition_bundle, DefinitionBundle<'a>, 'a);
+fn tokenize_definition_bundle(
+    ctx: &TokenizeContext,
+    definition_bundle: &DefinitionBundle,
+) -> TokenStream {
+    let root = root_crate();
+    let definitions = definition_bundle.iter().map(|x| do_tokenize!(ctx, x));
     quote! {
-        (#term, ::std::vec![#(#definitions),*])
+        #root::DefinitionBundle::new(::std::vec![#(#definitions),*])
     }
 }
 

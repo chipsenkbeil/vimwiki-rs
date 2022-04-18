@@ -73,11 +73,11 @@ fn tokenize_description(
     let root = root_crate();
     match &description {
         Description::Text(x) => {
-            let t = do_tokenize!(ctx, &x);
+            let t = do_tokenize!(ctx, x);
             quote! { #root::Description::Text(#t) }
         }
         Description::TransclusionLink(x) => {
-            let t = tokenize_link_data(ctx, &x);
+            let t = tokenize_link_data(ctx, x);
             quote! {
                 #root::Description::TransclusionLink(::std::boxed::Box::new(#t))
             }

@@ -2,7 +2,7 @@ use crate::{
     lang::elements::{
         BlockElement, Element, IntoChildren, ListItemContents, Located,
     },
-    StrictEq,
+    ElementLike, StrictEq,
 };
 use derive_more::{Constructor, From, Index, IndexMut, IntoIterator};
 use numerals::roman::Roman;
@@ -42,6 +42,8 @@ pub struct ListItem<'a> {
     /// Represents attributes associated with the list item
     pub attributes: ListItemAttributes,
 }
+
+impl ElementLike for ListItem<'_> {}
 
 impl ListItem<'_> {
     pub fn to_borrowed(&self) -> ListItem {
@@ -239,6 +241,7 @@ impl<'a> ListItem<'a> {
 
 /// Represents a suffix such as . or ) used after beginning of list item
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", tag = "type", content = "data")]
 pub enum ListItemSuffix {
     None,
     Period,
@@ -269,6 +272,7 @@ impl StrictEq for ListItemSuffix {
 }
 
 #[derive(Clone, Debug, From, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", tag = "type", content = "data")]
 pub enum ListItemType<'a> {
     Ordered(OrderedListItemType),
     Unordered(UnorderedListItemType<'a>),
@@ -326,6 +330,7 @@ impl<'a> StrictEq for ListItemType<'a> {
 
 /// Represents the type associated with an unordered item
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", tag = "type", content = "data")]
 pub enum UnorderedListItemType<'a> {
     /// -
     Hyphen,
@@ -397,6 +402,7 @@ impl<'a> Default for UnorderedListItemType<'a> {
 
 /// Represents the type associated with an ordered item
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", tag = "type", content = "data")]
 pub enum OrderedListItemType {
     /// 1
     Number,
@@ -484,6 +490,7 @@ impl StrictEq for OrderedListItemType {
 
 /// Represents the todo status for a list item
 #[derive(Copy, Clone, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", tag = "type", content = "data")]
 pub enum ListItemTodoStatus {
     /// Flags list item as a TODO item that has not been completed
     Incomplete,

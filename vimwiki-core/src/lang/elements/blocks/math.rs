@@ -1,4 +1,4 @@
-use crate::StrictEq;
+use crate::{ElementLike, StrictEq};
 use derive_more::{Constructor, Index, IndexMut, IntoIterator};
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, fmt, iter::FromIterator};
@@ -26,6 +26,8 @@ pub struct MathBlock<'a> {
     /// Represents the environment associated with the math block if it has one
     pub environment: Option<Cow<'a, str>>,
 }
+
+impl ElementLike for MathBlock<'_> {}
 
 impl<'a> MathBlock<'a> {
     /// Constructs a math block with the provided lines using no environment

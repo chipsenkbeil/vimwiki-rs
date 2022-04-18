@@ -34,3 +34,7 @@ toml = "0.5.8"
 walkdir = "2.3.2"
 vimvar = "0.3"
 vimwiki = { version = "=0.1.1", path = "../vimwiki", features = ["html"] }
+
+[dev-dependencies]
+indoc = "1.0.4"
+tempfile = "3.3.0"

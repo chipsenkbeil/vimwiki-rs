@@ -116,11 +116,13 @@ fn vimwiki_definition_list() {
                         InlineElement::from(Text::from("term"))
                     )])
                 )),
-                vec![Located::from(DefinitionListValue::new(
-                    InlineElementContainer::new(vec![Located::from(
-                        InlineElement::from(Text::from("first definition"))
-                    )])
-                ))],
+                Located::from(DefinitionBundle::new(vec![Located::from(
+                    DefinitionListValue::new(InlineElementContainer::new(
+                        vec![Located::from(InlineElement::from(Text::from(
+                            "first definition"
+                        )))]
+                    ))
+                )])),
             ),
             (
                 Located::from(DefinitionListValue::new(
@@ -128,7 +130,7 @@ fn vimwiki_definition_list() {
                         InlineElement::from(Text::from("term2 second"))
                     )])
                 )),
-                vec![
+                Located::from(DefinitionBundle::new(vec![
                     Located::from(DefinitionListValue::new(
                         InlineElementContainer::new(vec![Located::from(
                             InlineElement::from(Text::from("def 2"))
@@ -139,7 +141,7 @@ fn vimwiki_definition_list() {
                             InlineElement::from(Text::from("def third 3"))
                         )])
                     ))
-                ],
+                ])),
             )
         ])
     );

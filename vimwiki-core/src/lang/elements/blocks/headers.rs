@@ -2,7 +2,7 @@ use crate::{
     lang::elements::{
         InlineElement, InlineElementContainer, IntoChildren, Located,
     },
-    StrictEq,
+    ElementLike, StrictEq,
 };
 use derive_more::{Constructor, Index, IndexMut, IntoIterator};
 use serde::{Deserialize, Serialize};
@@ -34,6 +34,8 @@ pub struct Header<'a> {
     /// Represents whether or not the header is centered
     pub centered: bool,
 }
+
+impl ElementLike for Header<'_> {}
 
 impl<'a> Header<'a> {
     /// Represents the smallest a header's level can be

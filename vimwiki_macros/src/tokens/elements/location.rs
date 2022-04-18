@@ -1,9 +1,12 @@
 use crate::tokens::{utils::root_crate, Tokenize, TokenizeContext};
 use proc_macro2::TokenStream;
 use quote::quote;
-use vimwiki_core::{Located, Region};
+use vimwiki_core::{ElementLike, Located, Region};
 
-impl<T: Tokenize> Tokenize for Located<T> {
+impl<T: Tokenize> Tokenize for Located<T>
+where
+    T: ElementLike,
+{
     fn tokenize(&self, ctx: &TokenizeContext, stream: &mut TokenStream) {
         let root = root_crate();
         let mut element = TokenStream::new();

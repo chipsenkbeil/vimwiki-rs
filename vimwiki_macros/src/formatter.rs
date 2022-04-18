@@ -210,8 +210,8 @@ mod tests {
             stream.to_string() == expected_1.to_string()
                 || stream.to_string() == expected_2.to_string(),
             "{} did not match either variant of {}",
-            stream.to_string(),
-            expected_1.to_string(),
+            stream,
+            expected_1,
         );
     }
 
@@ -263,8 +263,8 @@ mod tests {
             stream.to_string() == expected_1.to_string()
                 || stream.to_string() == expected_2.to_string(),
             "{} did not match either variant of {}",
-            stream.to_string(),
-            expected_1.to_string(),
+            stream,
+            expected_1,
         );
     }
 }

@@ -3,7 +3,7 @@ use crate::{
         AsChildrenMutSlice, AsChildrenSlice, BlockElement, Element,
         InlineBlockElement, IntoChildren, Located,
     },
-    StrictEq,
+    ElementLike, StrictEq,
 };
 use derive_more::{
     AsRef, Constructor, Deref, DerefMut, From, Index, IndexMut, Into,
@@ -36,6 +36,8 @@ pub struct List<'a> {
     #[into_iterator(owned, ref, ref_mut)]
     pub items: Vec<Located<ListItem<'a>>>,
 }
+
+impl ElementLike for List<'_> {}
 
 impl List<'_> {
     pub fn to_borrowed(&self) -> List {
@@ -185,6 +187,8 @@ impl<'a> StrictEq for List<'a> {
 #[as_ref(forward)]
 #[into_iterator(owned, ref, ref_mut)]
 pub struct ListItemContents<'a>(Vec<Located<BlockElement<'a>>>);
+
+impl ElementLike for ListItemContents<'_> {}
 
 impl ListItemContents<'_> {
     pub fn to_borrowed(&self) -> ListItemContents {

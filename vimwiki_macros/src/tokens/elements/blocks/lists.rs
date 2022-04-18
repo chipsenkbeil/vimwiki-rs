@@ -77,11 +77,11 @@ fn tokenize_list_item_type(
     let root = root_crate();
     match &list_item_type {
         ListItemType::Ordered(x) => {
-            let t = tokenize_ordered_list_item_type(ctx, &x);
+            let t = tokenize_ordered_list_item_type(ctx, x);
             quote! { #root::ListItemType::Ordered(#t) }
         }
         ListItemType::Unordered(x) => {
-            let t = tokenize_unordered_list_item_type(ctx, &x);
+            let t = tokenize_unordered_list_item_type(ctx, x);
             quote! { #root::ListItemType::Unordered(#t) }
         }
     }
@@ -129,7 +129,7 @@ fn tokenize_unordered_list_item_type(
             quote! { #root::UnorderedListItemType::Asterisk }
         }
         UnorderedListItemType::Other(x) => {
-            let t = do_tokenize!(ctx, &x);
+            let t = do_tokenize!(ctx, x);
             quote! { #root::UnorderedListItemType::Other(#t) }
         }
     }

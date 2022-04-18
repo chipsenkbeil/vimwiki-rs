@@ -3,7 +3,7 @@ use crate::{
         AsChildrenMutSlice, AsChildrenSlice, InlineElement, IntoChildren, Link,
         Located,
     },
-    StrictEq,
+    ElementLike, StrictEq,
 };
 use derive_more::{AsRef, Constructor, Display, From, Into, IsVariant};
 use serde::{Deserialize, Serialize};
@@ -24,6 +24,8 @@ use std::{borrow::Cow, fmt};
     Deserialize,
 )]
 pub struct Text<'a>(Cow<'a, str>);
+
+impl ElementLike for Text<'_> {}
 
 impl<'a> Text<'a> {
     /// Extracts a string slice containing the entire text snippet
@@ -95,12 +97,15 @@ impl<'a> StrictEq for Text<'a> {
     Serialize,
     Deserialize,
 )]
+#[serde(rename_all = "snake_case", tag = "type", content = "data")]
 pub enum DecoratedTextContent<'a> {
     Text(Text<'a>),
     DecoratedText(DecoratedText<'a>),
     Keyword(Keyword),
     Link(Link<'a>),
 }
+
+impl ElementLike for DecoratedTextContent<'_> {}
 
 impl DecoratedTextContent<'_> {
     pub fn to_borrowed(&self) -> DecoratedTextContent {
@@ -198,6 +203,7 @@ impl<'a> StrictEq for DecoratedTextContent<'a> {
 #[derive(
     Clone, Debug, Eq, PartialEq, Hash, IsVariant, Serialize, Deserialize,
 )]
+#[serde(rename_all = "snake_case", tag = "type", content = "data")]
 pub enum DecoratedText<'a> {
     Bold(Vec<Located<DecoratedTextContent<'a>>>),
     Italic(Vec<Located<DecoratedTextContent<'a>>>),
@@ -205,6 +211,8 @@ pub enum DecoratedText<'a> {
     Superscript(Vec<Located<DecoratedTextContent<'a>>>),
     Subscript(Vec<Located<DecoratedTextContent<'a>>>),
 }
+
+impl ElementLike for DecoratedText<'_> {}
 
 impl DecoratedText<'_> {
     pub fn to_borrowed(&self) -> DecoratedText {
@@ -386,7 +394,7 @@ impl<'a> IntoChildren for DecoratedText<'a> {
 impl<'a> fmt::Display for DecoratedText<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for content in self {
-            write!(f, "{}", content.to_string())?;
+            write!(f, "{}", content)?;
         }
         Ok(())
     }
@@ -410,6 +418,7 @@ impl<'a> StrictEq for DecoratedText<'a> {
 #[derive(
     Copy, Clone, Debug, Display, Eq, PartialEq, Hash, Serialize, Deserialize,
 )]
+#[serde(rename_all = "snake_case", tag = "type", content = "data")]
 pub enum Keyword {
     #[display(fmt = "TODO")]
     Todo,
@@ -424,6 +433,8 @@ pub enum Keyword {
     #[display(fmt = "XXX")]
     Xxx,
 }
+
+impl ElementLike for Keyword {}
 
 impl StrictEq for Keyword {
     /// Same as PartialEq

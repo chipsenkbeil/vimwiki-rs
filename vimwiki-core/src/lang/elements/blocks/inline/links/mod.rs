@@ -1,4 +1,4 @@
-use crate::StrictEq;
+use crate::{ElementLike, StrictEq};
 use chrono::NaiveDate;
 use derive_more::{Display, IsVariant};
 use percent_encoding::percent_decode;
@@ -31,6 +31,7 @@ pub use data::LinkData;
     Serialize,
     Deserialize,
 )]
+#[serde(rename_all = "snake_case", tag = "type", content = "data")]
 pub enum Link<'a> {
     /// Represents a traditional link within a wiki
     #[display(fmt = "{}", data)]
@@ -60,6 +61,8 @@ pub enum Link<'a> {
     #[display(fmt = "{}", data)]
     Transclusion { data: LinkData<'a> },
 }
+
+impl ElementLike for Link<'_> {}
 
 impl<'a> Link<'a> {
     /// Creates a new wiki link

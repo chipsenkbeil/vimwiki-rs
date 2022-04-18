@@ -1,4 +1,4 @@
-use crate::StrictEq;
+use crate::{ElementLike, StrictEq};
 use derive_more::{
     AsRef, Constructor, Deref, DerefMut, Display, From, Index, IndexMut, Into,
     IntoIterator,
@@ -40,6 +40,8 @@ pub struct Tags<'a>(
     /// Represents the tags contained within the tag set
     Vec<Tag<'a>>,
 );
+
+impl ElementLike for Tags<'_> {}
 
 impl Tags<'_> {
     pub fn to_borrowed(&self) -> Tags {
@@ -144,6 +146,8 @@ impl<'a> StrictEq for Tags<'a> {
 )]
 #[as_ref(forward)]
 pub struct Tag<'a>(Cow<'a, str>);
+
+impl ElementLike for Tag<'_> {}
 
 impl<'a> Tag<'a> {
     /// Extracts a string slice containing the entire tag

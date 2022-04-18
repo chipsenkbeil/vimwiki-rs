@@ -12,6 +12,13 @@ pub use utils::{
     AsChildrenMutSlice, AsChildrenSlice, IntoChildren, Located, Region,
 };
 
+/// Blanket marker for elements
+pub trait ElementLike {}
+
+impl<'a, T> ElementLike for &'a T where T: ElementLike {}
+impl<'a, T> ElementLike for &'a mut T where T: ElementLike {}
+impl<T> ElementLike for Option<T> where T: ElementLike {}
+
 /// Represents a full page containing different elements
 #[derive(
     Constructor,
@@ -101,11 +108,14 @@ impl<'a> StrictEq for Page<'a> {
 /// Represents a `BlockElement`, an `InlineElement`, or one of a handful of
 /// special inbetween types like `ListItem`
 #[derive(Clone, Debug, From, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", tag = "type", content = "data")]
 pub enum Element<'a> {
     Block(BlockElement<'a>),
     Inline(InlineElement<'a>),
     InlineBlock(InlineBlockElement<'a>),
 }
+
+impl ElementLike for Element<'_> {}
 
 impl Element<'_> {
     pub fn to_borrowed(&self) -> Element {
@@ -199,11 +209,14 @@ impl<'a> Element<'a> {
 /// Represents a some element that is a descendant of a `BlockElement`, but
 /// is not an `InlineElement` such as `ListItem`
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", tag = "type", content = "data")]
 pub enum InlineBlockElement<'a> {
     ListItem(ListItem<'a>),
     Term(Term<'a>),
     Definition(Definition<'a>),
 }
+
+impl ElementLike for InlineBlockElement<'_> {}
 
 impl<'a> From<ListItem<'a>> for InlineBlockElement<'a> {
     fn from(list_item: ListItem<'a>) -> Self {

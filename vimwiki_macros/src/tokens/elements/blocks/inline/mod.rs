@@ -32,35 +32,35 @@ fn tokenize_inline_element(
     let root = root_crate();
     match inline_element {
         InlineElement::Text(x) => {
-            let t = do_tokenize!(ctx, &x);
+            let t = do_tokenize!(ctx, x);
             quote! { #root::InlineElement::Text(#t) }
         }
         InlineElement::DecoratedText(x) => {
-            let t = do_tokenize!(ctx, &x);
+            let t = do_tokenize!(ctx, x);
             quote! { #root::InlineElement::DecoratedText(#t) }
         }
         InlineElement::Keyword(x) => {
-            let t = do_tokenize!(ctx, &x);
+            let t = do_tokenize!(ctx, x);
             quote! { #root::InlineElement::Keyword(#t) }
         }
         InlineElement::Link(x) => {
-            let t = do_tokenize!(ctx, &x);
+            let t = do_tokenize!(ctx, x);
             quote! { #root::InlineElement::Link(#t) }
         }
         InlineElement::Tags(x) => {
-            let t = do_tokenize!(ctx, &x);
+            let t = do_tokenize!(ctx, x);
             quote! { #root::InlineElement::Tags(#t) }
         }
         InlineElement::Code(x) => {
-            let t = do_tokenize!(ctx, &x);
+            let t = do_tokenize!(ctx, x);
             quote! { #root::InlineElement::Code(#t) }
         }
         InlineElement::Math(x) => {
-            let t = do_tokenize!(ctx, &x);
+            let t = do_tokenize!(ctx, x);
             quote! { #root::InlineElement::Math(#t) }
         }
         InlineElement::Comment(x) => {
-            let t = do_tokenize!(ctx, &x);
+            let t = do_tokenize!(ctx, x);
             quote! { #root::InlineElement::Comment(#t) }
         }
     }

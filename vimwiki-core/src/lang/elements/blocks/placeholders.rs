@@ -1,9 +1,10 @@
-use crate::StrictEq;
+use crate::{ElementLike, StrictEq};
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", tag = "type", content = "data")]
 pub enum Placeholder<'a> {
     Title(Cow<'a, str>),
     NoHtml,
@@ -14,6 +15,8 @@ pub enum Placeholder<'a> {
         value: Cow<'a, str>,
     },
 }
+
+impl ElementLike for Placeholder<'_> {}
 
 impl Placeholder<'_> {
     pub fn to_borrowed(&self) -> Placeholder {

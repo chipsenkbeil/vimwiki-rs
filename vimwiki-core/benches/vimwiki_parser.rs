@@ -14,7 +14,7 @@ fn parse_page_benchmark(c: &mut Criterion) {
         BenchmarkId::new("parse page", "specification.wiki"),
         &file_contents,
         |b, s| {
-            let language = Language::from_vimwiki_str(&s);
+            let language = Language::from_vimwiki_str(s);
             b.iter(|| language.parse::<Page>().expect("Failed to parse"))
         },
     );

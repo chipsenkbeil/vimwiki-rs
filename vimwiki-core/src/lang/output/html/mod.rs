@@ -120,7 +120,7 @@ impl<'a> Output<HtmlFormatter> for Blockquote<'a> {
         // Otherwise, we want to just drop in the lines verbatim
         } else {
             for line in self {
-                writeln!(f, "{}", escape::escape_html(&line))?;
+                writeln!(f, "{}", escape::escape_html(line))?;
             }
         }
 
@@ -591,7 +591,7 @@ impl<'a> Output<HtmlFormatter> for CodeBlock<'a> {
 
             for (idx, line) in self.lines.iter().enumerate() {
                 let is_last_line = idx == self.lines.len() - 1;
-                let line = escape::escape_html(&line);
+                let line = escape::escape_html(line);
 
                 if is_last_line {
                     write!(f, "{}", line)?;
@@ -871,7 +871,7 @@ impl<'a> Output<HtmlFormatter> for DecoratedText<'a> {
                 // First, build up the isolated id using contents
                 let mut id = String::new();
                 for content in contents {
-                    write!(&mut id, "{}", content.to_string())?;
+                    write!(&mut id, "{}", content)?;
                 }
                 id = utils::normalize_id(&id);
                 let unique_id = f.ensure_unique_id(&id);
@@ -1118,7 +1118,7 @@ impl<'a> Output<HtmlFormatter> for Link<'a> {
             f.config(),
             &f.config().to_current_wiki(),
             f.config().as_active_page_path_within_wiki(),
-            &self,
+            self,
         )
         .map_err(HtmlOutputError::from)?;
 
@@ -1472,7 +1472,7 @@ mod tests {
         // Test no definitions
         let list: DefinitionList = vec![(
             Located::from(DefinitionListValue::from("term1")),
-            Vec::new(),
+            Located::from(DefinitionBundle::empty()),
         )]
         .into_iter()
         .collect();
@@ -1493,7 +1493,9 @@ mod tests {
         // Test single definition
         let list: DefinitionList = vec![(
             Located::from(DefinitionListValue::from("term1")),
-            vec![Located::from(DefinitionListValue::from("def1"))],
+            Located::from(DefinitionBundle::new(vec![Located::from(
+                DefinitionListValue::from("def1"),
+            )])),
         )]
         .into_iter()
         .collect();
@@ -1515,10 +1517,10 @@ mod tests {
         // Test multiple definitions
         let list: DefinitionList = vec![(
             Located::from(DefinitionListValue::from("term1")),
-            vec![
+            Located::from(DefinitionBundle::new(vec![
                 Located::from(DefinitionListValue::from("def1")),
                 Located::from(DefinitionListValue::from("def2")),
-            ],
+            ])),
         )]
         .into_iter()
         .collect();

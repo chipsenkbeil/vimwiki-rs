@@ -1,4 +1,4 @@
-use crate::StrictEq;
+use crate::{ElementLike, StrictEq};
 use derive_more::{AsRef, Constructor, Display};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
@@ -20,6 +20,8 @@ pub struct MathInline<'a>(
     /// Represents the text contained within the inline math snippet
     Cow<'a, str>,
 );
+
+impl ElementLike for MathInline<'_> {}
 
 impl<'a> MathInline<'a> {
     /// Extracts a string slice containing the entire math snippet

@@ -17,11 +17,10 @@ pub struct FormatArgs {
 
 impl Parse for FormatArgs {
     fn parse(input: ParseStream) -> Result<Self> {
-        let format_string: Expr;
         let mut positional_args = Vec::new();
         let mut named_args = Vec::new();
 
-        format_string = input.parse()?;
+        let format_string: Expr = input.parse()?;
         while !input.is_empty() {
             input.parse::<Token![,]>()?;
             if input.is_empty() {
