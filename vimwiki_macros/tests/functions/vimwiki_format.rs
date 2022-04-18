@@ -1,4 +1,4 @@
-use std::{borrow::Cow, convert::TryFrom, iter::FromIterator};
+use std::{borrow::Cow, convert::TryFrom};
 use vimwiki::{
     vendor::{chrono::NaiveDate, uriparse::URIReference},
     *,
@@ -109,8 +109,8 @@ fn vimwiki_definition_list() {
     );
     assert_eq!(
         x.into_inner(),
-        DefinitionList::from_iter(vec![
-            (
+        DefinitionList::new(vec![
+            Located::from(TermAndDefinitions::new(
                 Located::from(DefinitionListValue::new(
                     InlineElementContainer::new(vec![Located::from(
                         InlineElement::from(Text::from("term"))
@@ -123,8 +123,8 @@ fn vimwiki_definition_list() {
                         )))]
                     ))
                 )])),
-            ),
-            (
+            )),
+            Located::from(TermAndDefinitions::new(
                 Located::from(DefinitionListValue::new(
                     InlineElementContainer::new(vec![Located::from(
                         InlineElement::from(Text::from("term2 second"))
@@ -142,7 +142,7 @@ fn vimwiki_definition_list() {
                         )])
                     ))
                 ])),
-            )
+            ))
         ])
     );
 }

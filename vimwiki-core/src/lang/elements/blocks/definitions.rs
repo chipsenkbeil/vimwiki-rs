@@ -1,7 +1,7 @@
 use crate::{
     lang::elements::{
         InlineBlockElement, InlineElement, InlineElementContainer,
-        IntoChildren, Located, Text,
+        IntoChildren, Located, Region, Text,
     },
     ElementLike, StrictEq,
 };
@@ -11,7 +11,6 @@ use derive_more::{
 };
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::HashMap,
     fmt,
     hash::{Hash, Hasher},
     iter::FromIterator,
@@ -240,6 +239,55 @@ impl<'a> fmt::Display for DefinitionBundle<'a> {
     }
 }
 
+/// Represents a term and its associated definitions
+#[derive(Constructor, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct TermAndDefinitions<'a> {
+    pub term: Located<Term<'a>>,
+    pub definitions: Located<DefinitionBundle<'a>>,
+}
+
+impl ElementLike for TermAndDefinitions<'_> {}
+
+impl TermAndDefinitions<'_> {
+    pub fn to_borrowed(&self) -> TermAndDefinitions {
+        let term = self.term.as_ref().map(DefinitionListValue::to_borrowed);
+        let definitions =
+            self.definitions.as_ref().map(DefinitionBundle::to_borrowed);
+
+        TermAndDefinitions { term, definitions }
+    }
+
+    pub fn into_owned(self) -> TermAndDefinitions<'static> {
+        let term = self.term.map(DefinitionListValue::into_owned);
+        let definitions = self.definitions.map(DefinitionBundle::into_owned);
+
+        TermAndDefinitions { term, definitions }
+    }
+}
+
+impl<'a> StrictEq for TermAndDefinitions<'a> {
+    #[inline]
+    fn strict_eq(&self, other: &Self) -> bool {
+        self.term.strict_eq(&other.term)
+            && self.definitions.strict_eq(&other.definitions)
+    }
+}
+
+impl<'a> IntoChildren for TermAndDefinitions<'a> {
+    type Child = Located<InlineBlockElement<'a>>;
+
+    fn into_children(self) -> Vec<Self::Child> {
+        std::iter::once(self.term.map(InlineBlockElement::Term))
+            .chain(
+                self.definitions
+                    .into_inner()
+                    .into_iter()
+                    .map(|x| x.map(InlineBlockElement::Definition)),
+            )
+            .collect()
+    }
+}
+
 /// Represents a list of terms and definitions, where a term can have multiple
 /// definitions associated with it
 #[derive(
@@ -254,71 +302,56 @@ impl<'a> fmt::Display for DefinitionBundle<'a> {
     IntoIterator,
 )]
 pub struct DefinitionList<'a> {
-    /// Represents the inner mapping of terms to definitions
     #[into_iterator(owned, ref, ref_mut)]
-    #[serde(with = "serde_with::rust::map_as_tuple_list")]
-    pub mapping: HashMap<Located<Term<'a>>, Located<DefinitionBundle<'a>>>,
+    pub items: Vec<Located<TermAndDefinitions<'a>>>,
 }
 
 impl ElementLike for DefinitionList<'_> {}
 
 impl DefinitionList<'_> {
     pub fn to_borrowed(&self) -> DefinitionList {
-        let mapping = self
-            .iter()
-            .map(|(key, value)| {
-                (
-                    key.as_ref().map(DefinitionListValue::to_borrowed),
-                    value.as_ref().map(DefinitionBundle::to_borrowed),
-                )
-            })
-            .collect();
-
-        DefinitionList { mapping }
+        DefinitionList::new(
+            self.iter()
+                .map(|x| x.as_ref().map(TermAndDefinitions::to_borrowed))
+                .collect(),
+        )
     }
 
     pub fn into_owned(self) -> DefinitionList<'static> {
-        let mapping = self
-            .into_iter()
-            .map(|(key, value)| {
-                (
-                    key.map(DefinitionListValue::into_owned),
-                    value.map(DefinitionBundle::into_owned),
-                )
-            })
-            .collect();
-
-        DefinitionList { mapping }
+        DefinitionList::new(
+            self.into_iter()
+                .map(|x| x.map(TermAndDefinitions::into_owned))
+                .collect(),
+        )
     }
 }
 
 impl<'a> DefinitionList<'a> {
-    /// Retrieves definitions for an specific term
-    pub fn get(
-        &'a self,
-        term: impl Into<Term<'a>>,
-    ) -> Option<&Located<DefinitionBundle<'a>>> {
-        self.mapping.get(&Located::from(term.into()))
+    /// Retrieves definitions for an specific term by name
+    pub fn get(&'a self, term: &str) -> Option<&Located<DefinitionBundle<'a>>> {
+        self.items
+            .iter()
+            .find(|x| x.term.as_inner() == &term)
+            .map(|x| &x.definitions)
     }
 
     /// Iterates through all terms and their associated definitions in the list
     pub fn iter(
         &self,
-    ) -> impl Iterator<Item = (&Located<Term<'a>>, &Located<DefinitionBundle<'a>>)>
-    {
-        self.mapping.iter()
+    ) -> impl Iterator<Item = &Located<TermAndDefinitions<'a>>> {
+        self.items.iter()
     }
 
     /// Iterates through all terms in the list
     pub fn terms(&self) -> impl Iterator<Item = &Located<Term<'a>>> {
-        self.mapping.keys()
+        self.iter().map(|x| &x.term)
     }
 
     /// Iterates through all definitions in the list
     pub fn definitions(
         &self,
     ) -> impl Iterator<Item = &Located<Definition<'a>>> {
-        self.mapping.values().flat_map(|x| x.iter())
+        self.iter().flat_map(|x| x.definitions.iter())
     }
 }
 
@@ -326,16 +359,9 @@ impl<'a> IntoChildren for DefinitionList<'a> {
     type Child = Located<InlineBlockElement<'a>>;
 
     fn into_children(self) -> Vec<Self::Child> {
-        self.mapping
+        self.items
             .into_iter()
-            .flat_map(|(term, bundle)| {
-                std::iter::once(term.map(InlineBlockElement::Term)).chain(
-                    bundle
-                        .into_inner()
-                        .into_iter()
-                        .map(|x| x.map(InlineBlockElement::Definition)),
-                )
-            })
+            .flat_map(|x| x.into_inner().into_children())
             .collect()
     }
 }
@@ -351,7 +377,17 @@ impl<'a> FromIterator<(Located<Term<'a>>, Located<DefinitionBundle<'a>>)>
         let mut dl = Self::default();
 
         for (term, def_bundle) in iter.into_iter() {
-            dl.mapping.insert(term, def_bundle);
+            // TODO: Should we perform more checks? Right now, we assume that these
+            //       two follow immediately together to calculate the region
+            let region = Region::new(
+                term.region().offset(),
+                term.region().len() + def_bundle.region().len(),
+            );
+
+            dl.items.push(Located::new(
+                TermAndDefinitions::new(term, def_bundle),
+                region,
+            ));
         }
 
         dl
@@ -361,12 +397,8 @@ impl<'a> FromIterator<(Located<Term<'a>>, Located<DefinitionBundle<'a>>)>
 impl<'a> StrictEq for DefinitionList<'a> {
     /// Performs strict_eq on inner mapping
     fn strict_eq(&self, other: &Self) -> bool {
-        self.mapping.len() == other.mapping.len()
-            && self.mapping.iter().all(|(key, value)| {
-                other.mapping.get_key_value(key).map_or(false, |(k, v)| {
-                    key.strict_eq(k) && value.strict_eq(v)
-                })
-            })
+        self.items.len() == other.items.len()
+            && self.iter().zip(other.iter()).all(|(a, b)| a.strict_eq(b))
     }
 }
 
@@ -421,7 +453,7 @@ mod tests {
             Located::from(InlineElement::Text("m".into())),
         ]));
 
-        let mut hs = HashMap::new();
+        let mut hs = std::collections::HashMap::new();
         hs.insert(t1, vec![Definition::from("definition")]);
         assert_eq!(hs.len(), 1);
         assert!(hs.get(&t2).is_some());

@@ -1,5 +1,5 @@
 use crate::parser::fixtures::VimwikiFile;
-use std::{borrow::Cow, collections::HashMap};
+use std::borrow::Cow;
 use vimwiki_core::*;
 
 #[test]
@@ -108,24 +108,20 @@ fn test() {
 
     assert_eq!(
         page[5],
-        Located::from(BlockElement::from(DefinitionList::new(
-            vec![
-                (
-                    Located::from(Term::from("term1")),
-                    Located::from(DefinitionBundle::new(vec![Located::from(
-                        Definition::from("with carriage returns")
-                    )]))
-                ),
-                (
-                    Located::from(Term::from("term2")),
-                    Located::from(DefinitionBundle::new(vec![Located::from(
-                        Definition::from("with carriage returns")
-                    )]))
-                )
-            ]
-            .into_iter()
-            .collect::<HashMap<Located<Term>, Located<DefinitionBundle>>>()
-        ))),
+        Located::from(BlockElement::from(DefinitionList::new(vec![
+            Located::from(TermAndDefinitions::new(
+                Located::from(Term::from("term1")),
+                Located::from(DefinitionBundle::new(vec![Located::from(
+                    Definition::from("with carriage returns")
+                )]))
+            )),
+            Located::from(TermAndDefinitions::new(
+                Located::from(Term::from("term2")),
+                Located::from(DefinitionBundle::new(vec![Located::from(
+                    Definition::from("with carriage returns")
+                )]))
+            ))
+        ]))),
     );
 
     assert_eq!(

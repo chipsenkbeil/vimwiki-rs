@@ -116,20 +116,20 @@ impl<'a> Output<VimwikiFormatter> for DefinitionList<'a> {
             trim_definitions,
         } = f.config().definition_list;
 
-        for (term, defs) in self {
+        for bundle in self {
             f.write_indent()?;
             if trim_terms {
-                f.and_trim(|f| term.fmt(f))?;
+                f.and_trim(|f| bundle.term.fmt(f))?;
             } else {
-                term.fmt(f)?;
+                bundle.term.fmt(f)?;
             }
             write!(f, "::")?;
 
-            if term_on_line_by_itself || defs.is_empty() {
+            if term_on_line_by_itself || bundle.definitions.is_empty() {
                 writeln!(f)?;
             }
 
-            for (idx, def) in defs.iter().enumerate() {
+            for (idx, def) in bundle.definitions.iter().enumerate() {
                 if idx == 0 && !term_on_line_by_itself {
                     write!(f, " ")?;
                 } else {

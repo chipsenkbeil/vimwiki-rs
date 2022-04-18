@@ -114,8 +114,10 @@ impl<'a> StrictEq for InlineElement<'a> {
     Serialize,
     Deserialize,
 )]
-#[into_iterator(owned, ref, ref_mut)]
-pub struct InlineElementContainer<'a>(Vec<Located<InlineElement<'a>>>);
+pub struct InlineElementContainer<'a> {
+    #[into_iterator(owned, ref, ref_mut)]
+    elements: Vec<Located<InlineElement<'a>>>,
+}
 
 impl ElementLike for InlineElementContainer<'_> {}
 
@@ -134,17 +136,17 @@ impl<'a> InlineElementContainer<'a> {
 
     /// Returns total elements contained within container
     pub fn len(&self) -> usize {
-        self.0.len()
+        self.elements.len()
     }
 
     /// Returns true if container has no elements
     pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        self.elements.is_empty()
     }
 
     /// Returns reference to element at specified index, if it exists
     pub fn get(&self, idx: usize) -> Option<&Located<InlineElement<'a>>> {
-        self.0.get(idx)
+        self.elements.get(idx)
     }
 }
 
@@ -172,7 +174,7 @@ impl<'a> IntoChildren for InlineElementContainer<'a> {
     type Child = Located<InlineElement<'a>>;
 
     fn into_children(self) -> Vec<Self::Child> {
-        self.0
+        self.elements
     }
 }
 
@@ -201,13 +203,13 @@ impl<'a> FromIterator<InlineElementContainer<'a>>
     fn from_iter<I: IntoIterator<Item = InlineElementContainer<'a>>>(
         iter: I,
     ) -> Self {
-        Self::new(iter.into_iter().flat_map(|c| c.0).collect())
+        Self::new(iter.into_iter().flat_map(|c| c.elements).collect())
     }
 }
 
 impl<'a> StrictEq for InlineElementContainer<'a> {
     /// Performs strict_eq check on inner elements
     fn strict_eq(&self, other: &Self) -> bool {
-        self.0.strict_eq(&other.0)
+        self.elements.strict_eq(&other.elements)
     }
 }

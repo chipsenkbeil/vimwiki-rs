@@ -146,14 +146,14 @@ impl<'a> Output<HtmlFormatter> for DefinitionList<'a> {
     /// ```
     fn fmt(&self, f: &mut HtmlFormatter) -> HtmlOutputResult {
         writeln!(f, "<dl>")?;
-        for (term, defs) in self {
+        for bundle in self {
             // Write our term in the form <dt>{term}</dt>
             write!(f, "<dt>")?;
-            term.fmt(f)?;
+            bundle.term.fmt(f)?;
             writeln!(f, "</dt>")?;
 
             // Write our defs in the form <dd>{def}</dd>
-            for def in defs.iter() {
+            for def in bundle.definitions.iter() {
                 write!(f, "<dd>")?;
                 def.fmt(f)?;
                 writeln!(f, "</dd>")?;
