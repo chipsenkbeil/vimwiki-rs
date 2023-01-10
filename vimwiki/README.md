@@ -4,8 +4,6 @@ This crate represents the language definition and parsing support for
 the vimwiki language. This has been broken out to be a shareable crate for
 others to build on top of the vimwiki language and write their own tooling.
 
-Does not support Windows as of yet! See issue [#89](https://github.com/chipsenkbeil/vimwiki-rs/issues/89).
-
 ## Usage
 
 Add this to your `Cargo.toml`:
